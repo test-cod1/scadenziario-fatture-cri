@@ -18,6 +18,7 @@ export const CONFIG = {
   // dei campi dalle fatture PDF: la chiave Gemini resta lato server.
   api: {
     estraiFattura: '/api/estrai-fattura',
+    creaUtente: '/api/crea-utente',
   },
 
   // Soglie (giorni) per gli alert di scadenza in dashboard

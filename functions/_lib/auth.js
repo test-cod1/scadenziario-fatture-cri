@@ -15,8 +15,27 @@
 //  variabili d'ambiente SUPABASE_URL / SUPABASE_ANON_KEY nel progetto Pages.
 // ============================================================
 
-const SUPABASE_URL = 'https://xmfqozojjplccnnttwxu.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_Cm8yAHlD3TZSjW0fW53_fw_OmfeWJT3';
+export const SUPABASE_URL = 'https://xmfqozojjplccnnttwxu.supabase.co';
+export const SUPABASE_ANON_KEY = 'sb_publishable_Cm8yAHlD3TZSjW0fW53_fw_OmfeWJT3';
+
+// Ruolo dell'utente autenticato, letto rispettando le RLS (usa il suo stesso
+// token, non la service key): serve per verificare lato server che chi chiama
+// un endpoint sensibile (es. creazione utenti) sia davvero un admin, senza
+// fidarsi di un flag mandato dal client.
+export async function ruoloUtente(request, env, userId) {
+  const url = (env && env.SUPABASE_URL) || SUPABASE_URL;
+  const anonKey = (env && env.SUPABASE_ANON_KEY) || SUPABASE_ANON_KEY;
+  try {
+    const res = await fetch(`${url}/rest/v1/profili?id=eq.${userId}&select=ruolo`, {
+      headers: { apikey: anonKey, Authorization: request.headers.get('Authorization') || '' },
+    });
+    if (!res.ok) return null;
+    const data = await res.json();
+    return data?.[0]?.ruolo || null;
+  } catch {
+    return null;
+  }
+}
 
 // Ritorna l'utente Supabase se il token nell'header Authorization è valido,
 // altrimenti null.

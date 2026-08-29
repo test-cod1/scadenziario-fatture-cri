@@ -10,20 +10,28 @@ async function sbProfile(sb, userId) {
 // ---------------------------------------------------------------
 //  AUTH
 // ---------------------------------------------------------------
+function utenteDaProfilo(authUser, prof) {
+  return {
+    id: authUser.id, email: authUser.email,
+    nome: prof?.nome || authUser.email, ruolo: prof?.ruolo || 'in_attesa',
+    deveCambiarePassword: !!prof?.deve_cambiare_password,
+  };
+}
+
 export const auth = {
   async current() {
     const sb = await sbClient();
     const { data } = await sb.auth.getUser();
     if (!data.user) return null;
     const prof = await sbProfile(sb, data.user.id);
-    return { id: data.user.id, email: data.user.email, nome: prof?.nome || data.user.email, ruolo: prof?.ruolo || 'in_attesa' };
+    return utenteDaProfilo(data.user, prof);
   },
   async signIn(email, password) {
     const sb = await sbClient();
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const prof = await sbProfile(sb, data.user.id);
-    return { id: data.user.id, email: data.user.email, nome: prof?.nome || data.user.email, ruolo: prof?.ruolo || 'in_attesa' };
+    return utenteDaProfilo(data.user, prof);
   },
   async signOut() {
     const sb = await sbClient(); await sb.auth.signOut();
@@ -37,6 +45,35 @@ export const auth = {
     const sb = await sbClient();
     const { error } = await sb.auth.updateUser({ password: nuovaPassword });
     if (error) throw error;
+  },
+  // Azzera il flag "password provvisoria" sul proprio profilo: la policy
+  // prof_update_self lo consente perché non tocca il ruolo.
+  async confermaPasswordImpostata() {
+    const sb = await sbClient();
+    const { data: u } = await sb.auth.getUser();
+    if (!u?.user) return;
+    const { error } = await sb.from('profili').update({ deve_cambiare_password: false }).eq('id', u.user.id);
+    if (error) throw error;
+  },
+};
+
+// ---------------------------------------------------------------
+//  AMMINISTRAZIONE (solo admin): creazione utenti con password provvisoria
+// ---------------------------------------------------------------
+export const amministrazione = {
+  async creaUtente({ email, nome, ruolo }) {
+    const { getAccessToken } = await import('../lib/supabase.js');
+    const { CONFIG } = await import('../config.js');
+    const token = await getAccessToken();
+    if (!token) throw new Error('Sessione non valida: ricarica la pagina e riaccedi.');
+    const res = await fetch(CONFIG.api.creaUtente, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ email, nome, ruolo }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok && !data.passwordProvvisoria) throw new Error(data.error || `Creazione utente non riuscita (${res.status}).`);
+    return data; // { email, passwordProvvisoria, error? } — error solo se il profilo non è stato completato
   },
 };
 

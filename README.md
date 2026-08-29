@@ -7,16 +7,15 @@ Gestionale online per lo scadenziario delle fatture fornitori: inserimento manua
 1. Vai su [supabase.com](https://supabase.com) → New project (regione **EU**, es. Frankfurt).
 2. Apri **SQL Editor** → New query → copia tutto il contenuto di [`supabase/schema.sql`](supabase/schema.sql) → Run.
 3. Vai su **Authentication → Sign In / Providers** e imposta **"Allow new users to sign up" = OFF**: senza questa modifica chiunque conosca l'indirizzo del sito può crearsi un account.
-4. Vai su **Authentication → Users** → Add user, per creare il tuo account e quello dei colleghi che useranno il gestionale.
-5. Assegna i ruoli, in SQL Editor:
+4. Crea il tuo account: **Authentication → Users → Add user**. I colleghi successivi puoi crearli direttamente dall'app (vedi sotto "Aggiungere utenti dall'app"), oppure allo stesso modo da qui.
+5. Promuoviti ad admin, in SQL Editor:
    ```sql
-   update public.profili set ruolo='admin'     where email='tua@email.it';
-   update public.profili set ruolo='operatore' where email='collega@cri.it';
+   update public.profili set ruolo='admin' where email='tua@email.it';
    ```
-   Ogni profilo nasce con ruolo `in_attesa`, che **non vede alcun dato**, finché un admin non lo abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Gli `operatore` possono inserire/modificare/eliminare fatture ma non vedono il registro modifiche; gli `admin` vedono tutto.
-6. Vai su **Project Settings → API**: copia **Project URL** e **anon public key**.
+   Ogni profilo nasce con ruolo `in_attesa`, che **non vede alcun dato**, finché un admin non lo abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Gli `operatore` possono inserire/modificare/eliminare fatture ma non vedono il registro modifiche né le Impostazioni; gli `admin` vedono tutto.
+6. Vai su **Project Settings → API**: copia **Project URL**, **anon public key** e **service_role key** (quest'ultima serve solo per la creazione utenti dall'app, punto 3 sotto — è una chiave molto potente, mai da esporre lato client).
 
-> Se il database è stato creato prima del 29/08/2026, esegui anche [`supabase/patch-2026-08-29.sql`](supabase/patch-2026-08-29.sql) e poi [`supabase/patch-2026-08-29-rimozione-storage.sql`](supabase/patch-2026-08-29-rimozione-storage.sql) nell'SQL Editor: contengono le correzioni allo schema e la rimozione del bucket storage per i file allegati (l'app non li conserva più). Su un database nuovo non serve: `schema.sql` le include già.
+> Se il database è stato creato prima del 30/08/2026, esegui anche i patch in `supabase/patch-*.sql` nell'ordine della data nel nome del file. Su un database nuovo non serve: `schema.sql` li include già tutti.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -26,7 +25,8 @@ Gestionale online per lo scadenziario delle fatture fornitori: inserimento manua
 ## 3. Configura il progetto
 
 - In [`js/config.js`](js/config.js): sostituisci `url` e `anonKey` con quelli del tuo progetto Supabase (punto 1.6).
-- In [`functions/_lib/auth.js`](functions/_lib/auth.js): sostituisci `SUPABASE_URL` e `SUPABASE_ANON_KEY` con gli stessi valori (servono lato server per verificare che chi chiama l'AI sia loggato).
+- In [`functions/_lib/auth.js`](functions/_lib/auth.js): sostituisci `SUPABASE_URL` e `SUPABASE_ANON_KEY` con gli stessi valori (servono lato server per verificare che chi chiama l'AI/la creazione utenti sia loggato).
+- La **service_role key** (punto 1.6) non va scritta nel codice: si configura solo come secret su Cloudflare (punto 5) e, per uso locale, in `.dev.vars`. Serve all'endpoint `/api/crea-utente` per creare account con l'Admin API di Supabase.
 
 ## 4. Prova in locale
 
@@ -34,30 +34,33 @@ Gestionale online per lo scadenziario delle fatture fornitori: inserimento manua
 npm run dev
 ```
 
-Apri `http://localhost:4323`. Per testare anche la lettura AI dei PDF in locale, prima di lanciare il comando imposta la chiave Gemini:
+Apri `http://localhost:4323`. Per testare anche la lettura AI dei PDF e la creazione utenti in locale, crea un file `.dev.vars` (non versionato) con:
 
-```bash
-# Windows PowerShell
-$env:GEMINI_API_KEY="la-tua-chiave"; npm run dev
-# macOS/Linux
-GEMINI_API_KEY=la-tua-chiave npm run dev
+```
+GEMINI_API_KEY=la-tua-chiave
+SUPABASE_SERVICE_ROLE_KEY=la-tua-service-role-key
 ```
 
-(oppure crea un file `.dev.vars` con dentro `GEMINI_API_KEY=la-tua-chiave`, non versionato).
+Senza queste chiavi l'app funziona lo stesso per il resto (inserimento manuale, lettura XML): mancano solo lettura AI e creazione utenti.
 
 ## 5. Deploy su Cloudflare (Workers con Git integration)
 
 Il progetto Cloudflare collegato a questo repo è di tipo **Worker** (il nuovo flusso unificato "Workers & Pages": build command `npx wrangler deploy`), non la vecchia Pages classica. Per questo motivo il repo contiene già:
 - [`wrangler.jsonc`](wrangler.jsonc): configurazione del deploy (nome, asset statici, entry point)
-- [`worker.js`](worker.js): instrada `/api/estrai-fattura` alla function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
+- [`worker.js`](worker.js): instrada `/api/estrai-fattura` e `/api/crea-utente` alle function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
 - [`.assetsignore`](.assetsignore): esclude dagli asset statici i file che non fanno parte del sito (node_modules, supabase/, ecc. — senza questo file il deploy falliva per un asset da 146MB)
 
 Passaggi:
 1. Push su GitHub (già fatto): `git push`.
-2. Nel progetto Cloudflare (Workers & Pages) → **Settings → Variables and Secrets**, aggiungi:
-   - `GEMINI_API_KEY` = la tua chiave Gemini (come **Secret**, non testo in chiaro)
+2. Nel progetto Cloudflare (Workers & Pages) → **Settings → Variables and Secrets**, aggiungi come **Secret** (non testo in chiaro):
+   - `GEMINI_API_KEY` = la tua chiave Gemini
+   - `SUPABASE_SERVICE_ROLE_KEY` = la service_role key di Supabase (punto 1.6) — senza, la creazione utenti dall'app risponde con un errore chiaro invece di funzionare a metà
    - (opzionale, se preferisci non hardcodarle nel codice) `SUPABASE_URL` e `SUPABASE_ANON_KEY`
 3. Da qui in avanti, **ogni `git push` sul branch collegato aggiorna automaticamente il sito** — nessun altro passaggio richiesto.
+
+## Aggiungere utenti dall'app
+
+Un admin può creare nuovi utenti da **Impostazioni → Aggiungi un utente** (email, nome opzionale, ruolo): l'app genera una password provvisoria mostrata una sola volta, da comunicare tu stesso al collega (telefono, di persona — non viene inviata via email). Al primo accesso l'app lo obbliga a impostarne una propria prima di poter usare il gestionale.
 
 ## Struttura del progetto
 
@@ -69,8 +72,8 @@ js/config.js              configurazione (URL/chiavi Supabase)
 js/data/store.js          layer dati: auth, fatture, pagamenti, log
 js/lib/                   helper: UI, client Supabase, parser XML, export
 js/views/                 dashboard, editor fattura, registro modifiche
-functions/api/            logica dell'endpoint: proxy verso Gemini
-functions/_lib/auth.js     verifica sessione Supabase lato server
+functions/api/            endpoint: proxy verso Gemini, creazione utenti
+functions/_lib/auth.js     verifica sessione/ruolo Supabase lato server
 supabase/schema.sql       schema database + RLS + trigger di audit log
 supabase/patch-...sql     correzioni da applicare a un database già esistente
 worker.js                 entry point del Worker: instrada /api/* e serve gli asset statici

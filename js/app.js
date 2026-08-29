@@ -47,6 +47,12 @@ function renderNonAbilitato() {
 
 let _routerBound = false;
 async function startApp() {
+  // Utenti creati da un admin con password provvisoria (vedi Impostazioni →
+  // Utenti): prima di mostrare qualunque pagina devono impostarne una propria.
+  if (currentUser.deveCambiarePassword) {
+    renderResetPassword(app, async () => { currentUser = await auth.current(); await startApp(); }, { obbligatorio: true });
+    return;
+  }
   if (!RUOLI_ABILITATI.includes(currentUser.ruolo)) return renderNonAbilitato();
   renderShell();
   if (!_routerBound) { window.addEventListener('hashchange', route); _routerBound = true; }

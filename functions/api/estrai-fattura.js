@@ -72,8 +72,11 @@ export async function onRequestPost(context) {
     return json({ error: 'Gemini non raggiungibile.' }, 502);
   }
   if (!res.ok) {
+    // Per la quota esaurita si preferisce sempre il messaggio in italiano,
+    // comprensibile: il testo grezzo di Gemini (in inglese, con link e dettagli
+    // tecnici sul rate limit) non deve sovrascriverlo.
+    if (res.status === 429) return json({ error: 'Quota gratuita giornaliera di Gemini esaurita: riprova più tardi.' }, 429);
     let msg = `Estrazione non riuscita (${res.status}).`;
-    if (res.status === 429) msg = 'Quota gratuita Gemini esaurita per oggi: riprova più tardi o inserisci la fattura a mano.';
     try { const e = await res.json(); msg = e?.error?.message || msg; } catch {}
     return json({ error: msg }, res.status);
   }

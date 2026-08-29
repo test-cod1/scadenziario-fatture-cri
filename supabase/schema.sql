@@ -13,6 +13,10 @@ create table if not exists public.profili (
   -- non legge e non scrive nulla finche' un admin non lo abilita. Serve a evitare
   -- che un'eventuale registrazione pubblica su Supabase dia accesso ai dati.
   ruolo text not null default 'in_attesa' check (ruolo in ('admin','operatore','in_attesa')),
+  -- true per gli utenti creati da un admin con password provvisoria: l'app li
+  -- costringe a impostarne una propria al primo accesso, prima di mostrare
+  -- qualunque altra pagina.
+  deve_cambiare_password boolean not null default false,
   created_at timestamptz default now()
 );
 

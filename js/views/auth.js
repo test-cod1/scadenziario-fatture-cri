@@ -61,18 +61,20 @@ function renderRichiestaReset(app, onDone, emailPrecompilata = '') {
   wrap.querySelector('#email').addEventListener('keydown', e => { if (e.key === 'Enter') wrap.querySelector('#send').click(); });
 }
 
-export function renderResetPassword(app, onDone, { invite = false } = {}) {
+export function renderResetPassword(app, onDone, { invite = false, obbligatorio = false } = {}) {
   clear(app);
-  const title = invite ? 'Benvenuto! Imposta la tua password' : 'Imposta una nuova password';
-  const sub = invite
-    ? 'Il tuo account è stato creato: scegli una password per accedere da qui in avanti.'
+  const title = invite ? 'Benvenuto! Imposta la tua password'
+    : obbligatorio ? 'Imposta la tua password personale'
+    : 'Imposta una nuova password';
+  const sub = invite ? 'Il tuo account è stato creato: scegli una password per accedere da qui in avanti.'
+    : obbligatorio ? 'Un amministratore ha creato il tuo account con una password provvisoria: scegline una tua per continuare.'
     : 'Scegli la nuova password per il tuo account.';
   const wrap = el(`<div class="login-wrap"><div class="login">
     ${BRAND}
     <div class="banner ok" style="margin-bottom:18px"><div class="bi">🔒</div><div><b>${esc(title)}</b><div class="small">${esc(sub)}</div></div></div>
     <div class="field"><label>Nuova password</label><input type="password" id="pw1" placeholder="almeno 6 caratteri" autocomplete="new-password"></div>
     <div class="field"><label>Conferma password</label><input type="password" id="pw2" placeholder="ripeti la password" autocomplete="new-password"></div>
-    <button class="btn primary" id="save" style="width:100%;justify-content:center;margin-top:6px">${invite ? 'Crea password e accedi' : 'Salva nuova password'}</button>
+    <button class="btn primary" id="save" style="width:100%;justify-content:center;margin-top:6px">${invite || obbligatorio ? 'Crea password e accedi' : 'Salva nuova password'}</button>
     <div id="err" style="color:var(--danger);font-size:13px;margin-top:12px;text-align:center"></div>
   </div></div>`);
   app.appendChild(wrap);
@@ -88,8 +90,9 @@ export function renderResetPassword(app, onDone, { invite = false } = {}) {
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
     try {
       await auth.updatePassword(pw1);
+      if (obbligatorio) await auth.confermaPasswordImpostata();
       history.replaceState(null, '', location.pathname + '#/fatture');
-      toast(invite ? 'Password creata' : 'Password aggiornata', 'ok');
+      toast(invite || obbligatorio ? 'Password creata' : 'Password aggiornata', 'ok');
       onDone();
     } catch (e) {
       err.textContent = traduci(e.message) || 'Aggiornamento non riuscito. Il link potrebbe essere scaduto: richiedine uno nuovo.';
