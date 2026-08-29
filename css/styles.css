@@ -150,17 +150,18 @@ tr.scaduta:hover td{background:#fbdcdd}
 .upload-item{border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column;gap:8px}
 .upload-item .u-head{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:14px;font-weight:600}
 .upload-item .u-status{font-size:12.5px;color:var(--ink-soft);font-weight:400}
-.upload-item .u-fields{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:10px}
+.upload-item .u-fields{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .upload-item .u-fields .field{margin-bottom:0}
 
 /* ---------- Anteprima file (solo client, per confrontare col letto dall'AI) ---------- */
 /* La colonna dei campi non ha bisogno di essere larga quanto quella
    dell'anteprima: qui è il documento a dover restare leggibile senza dover
-   continuamente zoomare, quindi le si dà più spazio e più altezza. */
+   continuamente zoomare, ma deve restare abbastanza larga da non spezzare
+   le griglie a più colonne dei campi (form-row.three, u-fields). */
 .editor-2col{display:flex;gap:20px;align-items:flex-start}
 .editor-2col>.col{flex:1;min-width:0}
-.editor-2col>.col:first-child{flex:1;max-width:360px}
-.editor-2col>#preview-col{flex:2;min-width:480px}
+.editor-2col>.col:first-child{flex:1;max-width:460px}
+.editor-2col>#preview-col{flex:2;min-width:460px}
 .file-preview{border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);overflow:hidden;height:88vh;display:flex}
 .file-preview .fp-frame,.file-preview .fp-img{width:100%;height:100%;border:0;object-fit:contain;background:#fff}
 .file-preview .fp-empty{margin:auto;color:var(--ink-soft);font-size:13px;text-align:center;padding:20px}
