@@ -110,7 +110,7 @@ export async function apriEditor(id, ctx, onSaved) {
     title: id ? 'Modifica fattura' : 'Nuova fattura', body, footer, wide: true,
     onClose: () => { if (previewUrl) URL.revokeObjectURL(previewUrl); if (datiModificati) onSaved(); },
   });
-  modal.style.maxWidth = '1180px'; // più largo del default: c'è spazio anche per l'anteprima del file
+  modal.style.maxWidth = '1400px'; // largo abbastanza da rendere l'anteprima del documento leggibile
 
   footer.querySelector('#cancel').addEventListener('click', close);
   if (id) footer.querySelector('#del').addEventListener('click', async () => {
@@ -221,7 +221,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
     title: 'Carica fatture (PDF / XML)', body, footer, wide: true,
     onClose: () => { previewUrls.forEach(u => URL.revokeObjectURL(u)); if (salvateAlmenoUna) onSaved(); },
   });
-  modal.style.maxWidth = '1180px'; // più largo del default: c'è spazio anche per l'anteprima del file
+  modal.style.maxWidth = '1280px'; // largo abbastanza da rendere l'anteprima del documento leggibile
   footer.querySelector('#chiudi').addEventListener('click', () => close());
 
   const dz = body.querySelector('#dz');
