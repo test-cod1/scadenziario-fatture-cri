@@ -41,8 +41,29 @@ export async function renderDashboard(view, ctx) {
     </div>
     <div class="muted" id="nota-filtri" style="font-size:13px;margin:-8px 0 10px"></div>
     <div class="card"><div class="card-b tbl-wrap" id="tbl-zone"></div></div>
+    <div class="drop-page-overlay" id="drop-overlay"><div class="box">📎 Rilascia qui i file per caricare le fatture</div></div>
   </div>`);
   view.appendChild(wrap);
+
+  // Drag&drop di file PDF/immagini/XML ovunque sulla pagina, non solo dal
+  // pulsante "Carica PDF/XML": conta gli enter/leave perché dragleave scatta
+  // anche passando sopra un elemento figlio, non solo uscendo dalla pagina.
+  const overlay = wrap.querySelector('#drop-overlay');
+  let dragDepth = 0;
+  wrap.addEventListener('dragenter', e => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    dragDepth++;
+    overlay.classList.add('show');
+  });
+  wrap.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); });
+  wrap.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) overlay.classList.remove('show'); });
+  wrap.addEventListener('drop', e => {
+    if (!e.dataTransfer.types.includes('Files')) return;
+    e.preventDefault();
+    dragDepth = 0; overlay.classList.remove('show');
+    if (e.dataTransfer.files.length) apriUpload(ctx, ricarica, e.dataTransfer.files);
+  });
 
   renderStats(wrap.querySelector('#stats'), tutte);
   renderAlert(wrap.querySelector('#alert-zone'), tutte);

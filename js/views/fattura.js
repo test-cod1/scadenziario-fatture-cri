@@ -175,9 +175,10 @@ function renderPagamenti(node, rec, ctx, onChange) {
 }
 
 // ============================================================
-//  Caricamento multiplo (dashboard → "Carica PDF/XML")
+//  Caricamento multiplo (dashboard → "Carica PDF/XML", o drag&drop sulla
+//  dashboard: in quel caso i file arrivano già in `fileIniziali`).
 // ============================================================
-export function apriUpload(ctx, onSaved) {
+export function apriUpload(ctx, onSaved, fileIniziali) {
   const body = el(`<div>
     <div class="dropzone" id="dz">
       <div class="big">📎</div>
@@ -204,6 +205,8 @@ export function apriUpload(ctx, onSaved) {
   dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
   input.addEventListener('change', () => handleFiles(input.files));
+
+  if (fileIniziali && fileIniziali.length) handleFiles(fileIniziali);
 
   function handleFiles(fileList) {
     for (const file of fileList) addUploadItem(file);
