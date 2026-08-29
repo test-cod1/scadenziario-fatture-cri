@@ -153,6 +153,17 @@ tr.scaduta:hover td{background:#fbdcdd}
 .upload-item .u-fields{display:grid;grid-template-columns:1.4fr 1fr 1fr 1fr;gap:8px}
 .upload-item .u-fields .field{margin-bottom:0}
 .upload-item .u-fields label{font-size:11px}
+.upload-item-body{display:flex;gap:16px;align-items:flex-start}
+.upload-item-body .fields-zone{flex:1;min-width:0}
+
+/* ---------- Anteprima file (solo client, per confrontare col letto dall'AI) ---------- */
+.editor-2col{display:flex;gap:20px;align-items:flex-start}
+.editor-2col>.col{flex:1;min-width:0}
+.file-preview{border:1px solid var(--line);border-radius:var(--radius);background:var(--bg);overflow:hidden;height:560px;display:flex}
+.file-preview-sm{height:220px;flex:none;width:260px}
+.file-preview .fp-frame,.file-preview .fp-img{width:100%;height:100%;border:0;object-fit:contain;background:#fff}
+.file-preview .fp-empty{margin:auto;color:var(--ink-soft);font-size:13px;text-align:center;padding:20px}
+@media (max-width:900px){.editor-2col{flex-direction:column}.file-preview{height:360px;width:100%}}
 
 /* ---------- Pagamenti / rate ---------- */
 .pag-list{display:flex;flex-direction:column;gap:8px;margin:10px 0}

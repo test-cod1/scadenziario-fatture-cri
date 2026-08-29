@@ -27,6 +27,7 @@ export async function apriEditor(id, ctx, onSaved) {
   // segnassimo la cosa, chiudendo con Annulla/✕ la dashboard resterebbe ferma
   // a stato e residuo precedenti.
   let datiModificati = false;
+  let previewUrl = null; // anteprima del file appena scelto: solo in memoria, mai caricata da nessuna parte
 
   const body = el(`<div>
     <div id="upload-row" ${id ? 'style="display:none"' : ''}>
@@ -36,21 +37,28 @@ export async function apriEditor(id, ctx, onSaved) {
         <div class="hint" id="upload-hint">PDF/immagine → letti con AI (Gemini). XML di fattura elettronica, anche firmato (.p7m) → letto direttamente, gratis e senza AI.</div>
       </div>
     </div>
-    <div class="form-row">
-      <div class="field"><label>Fornitore *</label><input type="text" id="f-fornitore" value="${esc(rec.fornitore)}"></div>
-      <div class="field"><label>Numero fattura</label><input type="text" id="f-numero" value="${esc(rec.numero_fattura || '')}"></div>
+    <div class="editor-2col">
+      <div class="col">
+        <div class="form-row">
+          <div class="field"><label>Fornitore *</label><input type="text" id="f-fornitore" value="${esc(rec.fornitore)}"></div>
+          <div class="field"><label>Numero fattura</label><input type="text" id="f-numero" value="${esc(rec.numero_fattura || '')}"></div>
+        </div>
+        <div class="form-row three">
+          <div class="field"><label>Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
+          <div class="field"><label>Importo (€) *</label><input type="number" step="0.01" id="f-importo" value="${esc(rec.importo ?? '')}"></div>
+          <div class="field"><label>Scadenza</label><input type="date" id="f-scadenza" value="${esc(rec.scadenza || '')}"></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label>Metodo di pagamento</label><select id="f-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
+        </div>
+        <div class="field"><label>Note</label><textarea id="f-note" rows="2">${esc(rec.note || '')}</textarea></div>
+        <div id="pag-zone"></div>
+        <div id="err" style="color:var(--danger);font-size:13px"></div>
+      </div>
+      <div class="col" id="preview-col" style="display:none">
+        <div class="file-preview" id="file-preview"></div>
+      </div>
     </div>
-    <div class="form-row three">
-      <div class="field"><label>Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
-      <div class="field"><label>Importo (€) *</label><input type="number" step="0.01" id="f-importo" value="${esc(rec.importo ?? '')}"></div>
-      <div class="field"><label>Scadenza</label><input type="date" id="f-scadenza" value="${esc(rec.scadenza || '')}"></div>
-    </div>
-    <div class="form-row">
-      <div class="field"><label>Metodo di pagamento</label><select id="f-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
-    </div>
-    <div class="field"><label>Note</label><textarea id="f-note" rows="2">${esc(rec.note || '')}</textarea></div>
-    <div id="pag-zone"></div>
-    <div id="err" style="color:var(--danger);font-size:13px"></div>
   </div>`);
 
   if (id) renderPagamenti(body.querySelector('#pag-zone'), rec, ctx, (r) => { rec = r; datiModificati = true; });
@@ -58,6 +66,7 @@ export async function apriEditor(id, ctx, onSaved) {
   body.querySelector('#file-in').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    mostraAnteprima(file);
     const hint = body.querySelector('#upload-hint');
     hint.textContent = 'Lettura in corso…';
     try {
@@ -70,11 +79,25 @@ export async function apriEditor(id, ctx, onSaved) {
       if (estratti.metodo_pagamento) body.querySelector('#f-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) body.querySelector('#f-note').value = estratti.note;
       viaAI = !!estratti._viaAI;
-      hint.textContent = '✅ Campi compilati automaticamente — controlla e correggi se necessario prima di salvare.';
+      hint.textContent = '✅ Campi compilati automaticamente — confronta con l\'anteprima qui a fianco e correggi se necessario prima di salvare.';
     } catch (err) {
-      hint.textContent = '⚠️ ' + err.message + ' Compila i campi a mano.';
+      hint.textContent = '⚠️ ' + err.message + ' Compila i campi a mano, confrontando con l\'anteprima qui a fianco.';
     }
   });
+
+  // L'anteprima resta solo lato client (URL.createObjectURL): il file non
+  // viene mai inviato altrove né conservato, serve solo per il confronto
+  // visivo con i campi letti prima di salvare.
+  function mostraAnteprima(file) {
+    const col = body.querySelector('#preview-col');
+    const box = body.querySelector('#file-preview');
+    clear(box);
+    if (previewUrl) { URL.revokeObjectURL(previewUrl); previewUrl = null; }
+    const { node, url } = renderAnteprimaFile(file);
+    previewUrl = url;
+    box.appendChild(node);
+    col.style.display = '';
+  }
 
   const footer = el(`<div style="display:flex;gap:10px;width:100%">
     ${id ? '<button class="btn danger" id="del">Elimina</button>' : ''}
@@ -83,10 +106,11 @@ export async function apriEditor(id, ctx, onSaved) {
     <button class="btn primary" id="save">Salva</button>
   </div>`);
 
-  const { close } = openModal({
+  const { close, modal } = openModal({
     title: id ? 'Modifica fattura' : 'Nuova fattura', body, footer, wide: true,
-    onClose: () => { if (datiModificati) onSaved(); },
+    onClose: () => { if (previewUrl) URL.revokeObjectURL(previewUrl); if (datiModificati) onSaved(); },
   });
+  modal.style.maxWidth = '1180px'; // più largo del default: c'è spazio anche per l'anteprima del file
 
   footer.querySelector('#cancel').addEventListener('click', close);
   if (id) footer.querySelector('#del').addEventListener('click', async () => {
@@ -192,10 +216,12 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
   // Le fatture qui si salvano una alla volta: la dashboard va ricaricata a
   // prescindere da come si chiude la finestra (pulsante Chiudi, ✕, Esc, sfondo).
   let salvateAlmenoUna = false;
-  const { close } = openModal({
+  const previewUrls = []; // anteprime create per i file di questa sessione: revocate tutte alla chiusura
+  const { close, modal } = openModal({
     title: 'Carica fatture (PDF / XML)', body, footer, wide: true,
-    onClose: () => { if (salvateAlmenoUna) onSaved(); },
+    onClose: () => { previewUrls.forEach(u => URL.revokeObjectURL(u)); if (salvateAlmenoUna) onSaved(); },
   });
+  modal.style.maxWidth = '1180px'; // più largo del default: c'è spazio anche per l'anteprima del file
   footer.querySelector('#chiudi').addEventListener('click', () => close());
 
   const dz = body.querySelector('#dz');
@@ -216,10 +242,17 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
     const list = body.querySelector('#up-list');
     const item = el(`<div class="upload-item">
       <div class="u-head"><span>📄 ${esc(file.name)}</span><span class="u-status">Lettura in corso…</span></div>
-      <div class="fields-zone"></div>
+      <div class="upload-item-body">
+        <div class="fields-zone"></div>
+        <div class="file-preview file-preview-sm"></div>
+      </div>
     </div>`);
     list.appendChild(item);
     const status = item.querySelector('.u-status');
+
+    const { node, url } = renderAnteprimaFile(file);
+    if (url) previewUrls.push(url);
+    item.querySelector('.file-preview').appendChild(node);
 
     estraiCampiDaFile(file).then(estratti => {
       status.textContent = estratti._viaAI ? 'Letto con AI — verifica prima di salvare' : 'Letto da XML — verifica prima di salvare';
@@ -369,4 +402,27 @@ function fileToBase64(file) {
     reader.onerror = reject;
     reader.readAsDataURL(file);
   });
+}
+
+// ============================================================
+//  Anteprima del file caricato — solo lato client (URL.createObjectURL):
+//  il file non viene mai inviato altrove né conservato, serve solo per
+//  confrontare a colpo d'occhio il documento originale con i campi letti.
+//  Il chiamante è responsabile di revocare l'url (URL.revokeObjectURL)
+//  quando l'anteprima non serve più, per non trattenere il file in memoria.
+// ============================================================
+function renderAnteprimaFile(file) {
+  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
+  const isImg = /^image\//.test(file.type);
+  if (isPdf || isImg) {
+    const url = URL.createObjectURL(file);
+    const node = isPdf
+      ? el(`<iframe class="fp-frame" src="${esc(url)}" title="Anteprima ${esc(file.name)}"></iframe>`)
+      : el(`<img class="fp-img" src="${esc(url)}" alt="Anteprima ${esc(file.name)}">`);
+    return { node, url };
+  }
+  return {
+    node: el(`<div class="fp-empty">📄 ${esc(file.name)}<br>Anteprima non disponibile per questo formato: verifica i campi qui a fianco.</div>`),
+    url: null,
+  };
 }
