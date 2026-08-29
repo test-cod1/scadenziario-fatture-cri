@@ -1,4 +1,4 @@
-import { fatture, pagamenti } from '../data/store.js';
+import { fatture, pagamenti, impostazioni } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml } from '../lib/xmlFattura.js';
 
@@ -302,11 +302,26 @@ async function confermaSeDuplicato(payload, escludiId) {
 // ------------------------------------------------------------
 //  Il file caricato serve solo per estrarre i campi (AI o parsing XML): non
 //  viene conservato da nessuna parte, quindi qui si salva solo il record.
+//  Se manca la scadenza (fattura senza data indicata, letta o inserita a
+//  mano) si applica lo scadenzario di default configurato in Impostazioni.
 // ============================================================
 async function salvaFattura(payload, viaAI) {
+  if (!payload.scadenza) payload.scadenza = await scadenzaDefault(payload.data_fattura);
   if (payload.id) return fatture.save(payload);
   const id = nuovoIdFattura();
   return fatture.save({ ...payload, id, estratta_da_ai: !!viaAI }, { nuovo: true });
+}
+
+async function scadenzaDefault(dataFattura) {
+  if (!dataFattura) return null;   // niente da cui calcolare un'offset
+  let giorni = 60;
+  try {
+    const s = await impostazioni.get();
+    if (Number.isFinite(s?.giorni_scadenza_default)) giorni = s.giorni_scadenza_default;
+  } catch { /* un intoppo nella lettura non deve impedire il salvataggio: si usa il default */ }
+  const d = new Date(dataFattura + 'T00:00:00');
+  d.setDate(d.getDate() + giorni);
+  return d.toISOString().slice(0, 10);
 }
 
 function nuovoIdFattura() {

@@ -165,6 +165,19 @@ create trigger on_fatture_updated_at
   before update on public.fatture
   for each row execute procedure public.trg_fatture_updated_at();
 
+-- ---------- IMPOSTAZIONI (riga singola, configurazione globale) ----------
+create table if not exists public.impostazioni (
+  id smallint primary key default 1 check (id = 1),   -- vincolo a una sola riga: è configurazione globale, non un elenco
+  giorni_scadenza_default integer not null default 60 check (giorni_scadenza_default >= 0),
+  updated_at timestamptz default now()
+);
+insert into public.impostazioni (id) values (1) on conflict (id) do nothing;
+
+drop trigger if exists on_impostazioni_updated_at on public.impostazioni;
+create trigger on_impostazioni_updated_at
+  before update on public.impostazioni
+  for each row execute procedure public.trg_fatture_updated_at();
+
 -- ---------- LOG MODIFICHE (audit trail, sola lettura per admin) ----------
 create table if not exists public.log_modifiche (
   id uuid primary key default gen_random_uuid(),
@@ -238,6 +251,7 @@ alter table public.profili       enable row level security;
 alter table public.fatture       enable row level security;
 alter table public.pagamenti     enable row level security;
 alter table public.log_modifiche enable row level security;
+alter table public.impostazioni  enable row level security;
 
 drop policy if exists prof_self on public.profili;
 create policy prof_self on public.profili for select using (id = auth.uid());
@@ -265,6 +279,16 @@ create policy pagamenti_write on public.pagamenti for all
 -- definer) possono scriverci, mai un client anche in caso di bug lato app.
 drop policy if exists log_admin_read on public.log_modifiche;
 create policy log_admin_read on public.log_modifiche for select using (public.e_admin());
+
+-- Le impostazioni le leggono tutti gli abilitati (servono per calcolare la
+-- scadenza di default), ma solo gli admin possono modificarle. Niente insert/
+-- delete: la riga è seminata dallo schema stesso e resta unica per il vincolo
+-- id=1.
+drop policy if exists impostazioni_read on public.impostazioni;
+create policy impostazioni_read on public.impostazioni for select using (public.puo_leggere());
+drop policy if exists impostazioni_write on public.impostazioni;
+create policy impostazioni_write on public.impostazioni for update
+  using (public.e_admin()) with check (public.e_admin());
 
 -- ============================================================
 --  NOTA: dopo aver eseguito lo schema, promuovi il tuo utente ad admin:

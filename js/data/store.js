@@ -137,6 +137,24 @@ export const pagamenti = {
 };
 
 // ---------------------------------------------------------------
+//  IMPOSTAZIONI (riga singola, configurazione globale)
+// ---------------------------------------------------------------
+export const impostazioni = {
+  async get() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('impostazioni').select('*').eq('id', 1).single();
+    if (error) throw error;
+    return data;
+  },
+  async save(rec) {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('impostazioni').update(rec).eq('id', 1).select().single();
+    if (error) throw error;
+    return data;
+  },
+};
+
+// ---------------------------------------------------------------
 //  LOG MODIFICHE (solo admin)
 // ---------------------------------------------------------------
 export const logModifiche = {

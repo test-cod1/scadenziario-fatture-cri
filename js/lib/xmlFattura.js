@@ -76,7 +76,9 @@ export function parseFatturaXml(xmlText) {
 
   const importo = calcolaImporto(body, datiGen, rate);
 
-  const scadenza = rate[0]?.scadenza || data_fattura || '';
+  // Se l'XML non riporta rate di pagamento con scadenza, si lascia vuoto:
+  // l'app applica poi lo scadenzario di default configurato in Impostazioni.
+  const scadenza = rate[0]?.scadenza || '';
   const modPagTag = allTags(body, 'ModalitaPagamento')[0];
   const metodo_pagamento = modPagTag ? traduciModalita(modPagTag.textContent.trim()) : '';
 
