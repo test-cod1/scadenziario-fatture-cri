@@ -16,14 +16,14 @@ export const auth = {
     const { data } = await sb.auth.getUser();
     if (!data.user) return null;
     const prof = await sbProfile(sb, data.user.id);
-    return { id: data.user.id, email: data.user.email, nome: prof?.nome || data.user.email, ruolo: prof?.ruolo || 'operatore' };
+    return { id: data.user.id, email: data.user.email, nome: prof?.nome || data.user.email, ruolo: prof?.ruolo || 'in_attesa' };
   },
   async signIn(email, password) {
     const sb = await sbClient();
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
     const prof = await sbProfile(sb, data.user.id);
-    return { id: data.user.id, email: data.user.email, nome: prof?.nome || data.user.email, ruolo: prof?.ruolo || 'operatore' };
+    return { id: data.user.id, email: data.user.email, nome: prof?.nome || data.user.email, ruolo: prof?.ruolo || 'in_attesa' };
   },
   async signOut() {
     const sb = await sbClient(); await sb.auth.signOut();
@@ -44,11 +44,26 @@ export const auth = {
 //  FATTURE
 // ---------------------------------------------------------------
 export const fatture = {
+  // PostgREST limita ogni risposta a 1000 righe: senza paginazione, superata
+  // quella soglia la dashboard avrebbe mostrato in silenzio solo le prime 1000
+  // e tutti i totali (dovuto, scaduto, pagato nel mese) sarebbero stati
+  // sbagliati senza alcun errore visibile. Qui si scorre a blocchi finché il
+  // database non restituisce meno righe di quante richieste.
   async list() {
     const sb = await sbClient();
-    const { data, error } = await sb.from('fatture').select('*, pagamenti(*)').order('scadenza', { ascending: true, nullsFirst: false });
-    if (error) throw error;
-    return data.map(withResiduo);
+    const BLOCCO = 1000;
+    const tutte = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from("fatture")
+        .select("*, pagamenti(*)")
+        .order("scadenza", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutte.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutte.map(withResiduo);
   },
   async get(id) {
     const sb = await sbClient();
@@ -56,32 +71,81 @@ export const fatture = {
     if (error) throw error;
     return withResiduo(data);
   },
-  async save(rec) {
-    const isNew = !rec.id;
+  // `nuovo: true` forza l'INSERT anche se rec.id è valorizzato: serve per
+  // creare la fattura con un id generato lato client, così l'eventuale
+  // allegato può essere caricato PRIMA dell'insert e la creazione risulta
+  // una sola operazione (una sola riga nel registro modifiche).
+  async save(rec, { nuovo = false } = {}) {
+    const isNew = nuovo || !rec.id;
     const sb = await sbClient();
     const payload = { ...rec };
-    delete payload.pagamenti; delete payload._residuo;
+    delete payload.pagamenti; delete payload._residuo; delete payload._pagato;
     if (isNew) {
       const { data: u } = await sb.auth.getUser();
       if (u?.user) payload.created_by = u.user.id;
-      delete payload.id;
+      if (!payload.id) delete payload.id;
       const { data, error } = await sb.from('fatture').insert(payload).select().single();
       if (error) throw error; return data;
     }
     const { data, error } = await sb.from('fatture').update(payload).eq('id', payload.id).select().single();
     if (error) throw error; return data;
   },
+  // Cerca una fattura già registrata con lo stesso numero e lo stesso fornitore.
+  // Il confronto sul fornitore avviene qui in JavaScript (normalizzando spazi e
+  // maiuscole) invece che con ilike, per non trattare come jolly gli eventuali
+  // caratteri % o _ presenti nella ragione sociale.
+  async trovaDuplicato({ fornitore, numero_fattura }, escludiId) {
+    if (!numero_fattura || !fornitore) return null;   // senza numero non si può parlare di duplicato
+    const sb = await sbClient();
+    const { data, error } = await sb.from("fatture")
+      .select("id, fornitore, numero_fattura, data_fattura, importo")
+      .eq("numero_fattura", numero_fattura)
+      .limit(20);
+    if (error) throw error;
+    const norm = (v) => String(v || "").toLowerCase().split(" ").filter(Boolean).join(" ");
+    const cercato = norm(fornitore);
+    return (data || []).find(f => f.id !== escludiId && norm(f.fornitore) === cercato) || null;
+  },
   async remove(id) {
     const sb = await sbClient();
-    const { error } = await sb.from('fatture').delete().eq('id', id);
+    // Il percorso dell'allegato va letto PRIMA della cancellazione: dopo, la
+    // riga non esiste più e il file resterebbe nel bucket senza che nulla lo
+    // referenzi, occupando spazio e restando leggibile agli utenti abilitati.
+    let pdfPath = null;
+    try {
+      const { data } = await sb.from("fatture").select("pdf_path").eq("id", id).single();
+      pdfPath = (data && data.pdf_path) || null;
+    } catch { /* se non riusciamo a leggerlo, si prosegue comunque con la cancellazione */ }
+
+    const { error } = await sb.from("fatture").delete().eq("id", id);
     if (error) throw error;
+
+    // Solo a cancellazione avvenuta: se la delete fallisse (permessi), il file
+    // deve restare al suo posto. Un errore qui non annulla la cancellazione.
+    if (pdfPath) { try { await fatture.rimuoviPdf(pdfPath); } catch { /* allegato non rimosso */ } }
   },
   async caricaPdf(file, fatturaId) {
     const sb = await sbClient();
-    const path = `${fatturaId}/${Date.now()}-${file.name}`;
+    // Il nome originale finisce nella chiave dello storage: caratteri come
+    // #, ? o gli accenti possono renderla problematica, quindi si ripulisce
+    // tenendo solo caratteri sicuri (il nome resta comunque riconoscibile).
+    const nome = String(file.name || "documento")
+      .normalize("NFKD")
+      .replace(/[^A-Za-z0-9._-]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(-80) || "documento";
+    const path = fatturaId + "/" + Date.now() + "-" + nome;
     const { error } = await sb.storage.from('fatture-pdf').upload(path, file, { contentType: file.type || 'application/pdf' });
     if (error) throw error;
     return path;
+  },
+  // Rimuove un file dallo storage (usata sia dopo un insert fallito, sia
+  // quando si elimina una fattura, per non lasciare allegati orfani).
+  async rimuoviPdf(path) {
+    if (!path) return;
+    const sb = await sbClient();
+    const { error } = await sb.storage.from('fatture-pdf').remove([path]);
+    if (error) throw error;
   },
   async urlPdf(path) {
     const sb = await sbClient();

@@ -39,6 +39,7 @@ export async function renderDashboard(view, ctx) {
       <input type="number" id="f-max" placeholder="Importo max €" style="width:120px">
       <button class="btn ghost sm" id="f-reset">Azzera filtri</button>
     </div>
+    <div class="muted" id="nota-filtri" style="font-size:13px;margin:-8px 0 10px"></div>
     <div class="card"><div class="card-b tbl-wrap" id="tbl-zone"></div></div>
   </div>`);
   view.appendChild(wrap);
@@ -61,7 +62,19 @@ export async function renderDashboard(view, ctx) {
   }
 
   function refreshTable() {
-    renderTable(wrap.querySelector('#tbl-zone'), applyFilters(), ctx, ricarica);
+    renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica);
+    mostraNotaSenzaScadenza();
+  }
+
+  // Un filtro per data esclude necessariamente le fatture prive di scadenza:
+  // senza avvisare, sembravano sparite. Qui lo si dice esplicitamente.
+  function mostraNotaSenzaScadenza() {
+    const zona = wrap.querySelector("#nota-filtri");
+    const filtroData = !!(state.da || state.aData);
+    const escluse = filtroData ? tutte.filter(f => !f.scadenza).length : 0;
+    zona.textContent = escluse
+      ? escluse + (escluse === 1 ? " fattura senza data di scadenza non rientra" : " fatture senza data di scadenza non rientrano") + " nel filtro per data."
+      : "";
   }
 
   async function ricarica() {

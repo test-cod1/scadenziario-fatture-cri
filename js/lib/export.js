@@ -73,9 +73,12 @@ export function exportPDF(righe, titolo = 'Scadenziario fatture') {
     <tbody>${rowsHtml}</tbody>
     <tfoot><tr><td colspan="3">Totale (${righe.length} fatture)</td><td class="num">${fmtEuro(totale)}</td><td colspan="2"></td><td class="num">${fmtEuro(residuo)}</td></tr></tfoot>
   </table>
-  <script>window.onload = () => setTimeout(() => window.print(), 200);</script>
   </body></html>`);
   w.document.close();
+  // La stampa viene lanciata da qui e non da uno <script> dentro la pagina
+  // generata: uno script inline sarebbe bloccato dalla Content-Security-Policy
+  // servita dal Worker (la finestra about:blank eredita quella di chi la apre).
+  setTimeout(() => { try { w.focus(); w.print(); } catch { /* finestra chiusa dall'utente */ } }, 300);
 }
 
 function esc(s) {

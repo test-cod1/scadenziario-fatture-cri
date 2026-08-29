@@ -7,13 +7,17 @@ Gestionale online per lo scadenziario delle fatture fornitori: inserimento manua
 1. Vai su [supabase.com](https://supabase.com) → New project (regione **EU**, es. Frankfurt).
 2. Apri **SQL Editor** → New query → copia tutto il contenuto di [`supabase/schema.sql`](supabase/schema.sql) → Run.
 3. Vai su **Storage**: verifica che sia stato creato il bucket privato `fatture-pdf` (creato dallo script).
-4. Vai su **Authentication → Users** → Add user, per creare il tuo account e quello dei colleghi che useranno il gestionale.
-5. Promuovi il tuo utente ad amministratore, in SQL Editor:
+4. Vai su **Authentication → Sign In / Providers** e imposta **"Allow new users to sign up" = OFF**: senza questa modifica chiunque conosca l'indirizzo del sito può crearsi un account.
+5. Vai su **Authentication → Users** → Add user, per creare il tuo account e quello dei colleghi che useranno il gestionale.
+6. Assegna i ruoli, in SQL Editor:
    ```sql
-   update public.profili set ruolo='admin' where email='tua@email.it';
+   update public.profili set ruolo='admin'     where email='tua@email.it';
+   update public.profili set ruolo='operatore' where email='collega@cri.it';
    ```
-   Gli altri utenti restano `operatore` di default (possono inserire/modificare/eliminare fatture, ma non vedono il registro modifiche).
-6. Vai su **Project Settings → API**: copia **Project URL** e **anon public key**.
+   Ogni profilo nasce con ruolo `in_attesa`, che **non vede alcun dato**, finché un admin non lo abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Gli `operatore` possono inserire/modificare/eliminare fatture ma non vedono il registro modifiche; gli `admin` vedono tutto.
+7. Vai su **Project Settings → API**: copia **Project URL** e **anon public key**.
+
+> Se il database è stato creato prima del 29/08/2026, esegui anche [`supabase/patch-2026-08-29.sql`](supabase/patch-2026-08-29.sql) nell'SQL Editor: contiene le correzioni allo schema (ricalcolo dello stato al cambio importo, registro modifiche senza righe doppie, ruoli e policy di lettura, `updated_at`). Su un database nuovo non serve: `schema.sql` le include già.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -69,6 +73,7 @@ js/views/                 dashboard, editor fattura, registro modifiche
 functions/api/            logica dell'endpoint: proxy verso Gemini
 functions/_lib/auth.js     verifica sessione Supabase lato server
 supabase/schema.sql       schema database + RLS + trigger di audit log
+supabase/patch-...sql     correzioni da applicare a un database già esistente
 worker.js                 entry point del Worker: instrada /api/* e serve gli asset statici
 wrangler.jsonc            configurazione del deploy Cloudflare
 .assetsignore             file esclusi dagli asset statici (node_modules, ecc.)
@@ -76,7 +81,8 @@ wrangler.jsonc            configurazione del deploy Cloudflare
 
 ## Note sul funzionamento
 
-- **Lettura automatica**: XML di fattura elettronica → letto localmente nel browser, gratuito e sempre accurato sui campi presenti nel tracciato. PDF/immagini → inviati a Gemini (AI) tramite la function serverless, che tiene la chiave al sicuro lato server.
+- **Lettura automatica**: XML di fattura elettronica → letto localmente nel browser, gratuito e sempre accurato sui campi presenti nel tracciato. Sono accettati anche i file firmati `.xml.p7m` scaricati dal cassetto fiscale: l'XML viene estratto dalla busta di firma direttamente nel browser (la firma non viene verificata — il documento probante resta quello conservato a norma). PDF/immagini → inviati a Gemini (AI) tramite la function serverless, che tiene la chiave al sicuro lato server.
+- **Duplicati**: al salvataggio l'app avvisa se esiste già una fattura con lo stesso numero dello stesso fornitore, e chiede conferma. Non è un blocco: reinserire volutamente un documento resta possibile.
 - **Pagamenti/acconti**: ogni fattura può avere più pagamenti parziali; lo stato (da pagare / pagata parzialmente / pagata) si aggiorna automaticamente in base al totale pagato.
 - **Registro modifiche**: ogni creazione, modifica, cancellazione di una fattura (e ogni pagamento aggiunto/rimosso) viene registrata automaticamente da un trigger del database — non è disattivabile dall'app, visibile in sola lettura solo agli admin.
 - **Niente collegamento diretto al cassetto fiscale**: richiederebbe login SPID/CIE (non automatizzabile) o un accreditamento come intermediario SdI presso l'Agenzia delle Entrate (procedura complessa, sproporzionata per questo progetto). Il flusso previsto è: scarichi tu il PDF o l'XML dal cassetto fiscale, poi lo carichi qui.

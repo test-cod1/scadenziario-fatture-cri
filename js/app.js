@@ -23,8 +23,30 @@ async function boot() {
   await startApp();
 }
 
+const RUOLI_ABILITATI = ['admin', 'operatore'];
+
+// Un account che esiste su Supabase ma non è stato abilitato da un admin non
+// vede alcun dato (le policy RLS lo escludono): senza questo controllo si
+// troverebbe davanti a una dashboard vuota, indistinguibile da un errore.
+function renderNonAbilitato() {
+  clear(app);
+  app.appendChild(el(`<div class="login-wrap"><div class="login">
+    <div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>Croce Rossa Italiana</span></div></div>
+    <div class="banner warn" style="margin:18px 0"><div class="bi">⏳</div><div>
+      <b>Account non ancora abilitato</b>
+      <div class="small">L'accesso è riuscito, ma un amministratore deve autorizzare il tuo utente
+      (${esc(currentUser.email)}) prima che tu possa consultare le fatture.</div>
+    </div></div>
+    <button class="btn" id="esci" style="width:100%;justify-content:center">Esci</button>
+  </div></div>`));
+  app.querySelector('#esci').addEventListener('click', async () => {
+    await auth.signOut(); location.hash = ''; location.reload();
+  });
+}
+
 let _routerBound = false;
 async function startApp() {
+  if (!RUOLI_ABILITATI.includes(currentUser.ruolo)) return renderNonAbilitato();
   renderShell();
   if (!_routerBound) { window.addEventListener('hashchange', route); _routerBound = true; }
   if (!location.hash) location.hash = '#/fatture';

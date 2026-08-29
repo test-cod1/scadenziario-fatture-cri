@@ -9,7 +9,10 @@ create table if not exists public.profili (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
   nome text,
-  ruolo text not null default 'operatore' check (ruolo in ('admin','operatore')),
+  -- 'in_attesa' e' il ruolo di partenza di ogni profilo creato automaticamente:
+  -- non legge e non scrive nulla finche' un admin non lo abilita. Serve a evitare
+  -- che un'eventuale registrazione pubblica su Supabase dia accesso ai dati.
+  ruolo text not null default 'in_attesa' check (ruolo in ('admin','operatore','in_attesa')),
   created_at timestamptz default now()
 );
 
@@ -34,6 +37,15 @@ returns boolean language sql stable security definer set search_path = public as
     where id = auth.uid() and ruolo in ('admin','operatore')
   );
 $$;
+
+-- Chi puo' LEGGERE i dati: solo utenti con un profilo e un ruolo abilitato.
+create or replace function public.puo_leggere()
+returns boolean language sql stable security definer set search_path = public as $
+  select exists (
+    select 1 from public.profili
+    where id = auth.uid() and ruolo in ('admin','operatore')
+  );
+$;
 
 create or replace function public.e_admin()
 returns boolean language sql stable security definer set search_path = public as $$
@@ -75,21 +87,28 @@ create table if not exists public.pagamenti (
 create index if not exists idx_pagamenti_fattura on public.pagamenti(fattura_id);
 
 -- Ricalcola automaticamente lo stato della fattura in base ai pagamenti registrati.
+-- L'UPDATE viene eseguito SOLO se lo stato cambia davvero: altrimenti farebbe
+-- scattare il trigger di audit generando una riga 'modifica' fittizia accanto
+-- a ogni 'pagamento_aggiunto'/'pagamento_rimosso'.
 create or replace function public.ricalcola_stato_fattura(p_fattura_id uuid)
 returns void language plpgsql security definer set search_path = public as $$
 declare
   v_importo numeric(12,2);
-  v_pagato numeric(12,2);
+  v_pagato  numeric(12,2);
+  v_stato   text;
 begin
   select importo into v_importo from public.fatture where id = p_fattura_id;
   if v_importo is null then return; end if;
   select coalesce(sum(importo),0) into v_pagato from public.pagamenti where fattura_id = p_fattura_id;
-  update public.fatture set stato = case
-    when v_pagato <= 0 then 'da_pagare'
-    when v_pagato >= v_importo then 'pagata'
-    else 'pagata_parziale'
-  end, updated_at = now()
-  where id = p_fattura_id;
+  v_stato := case
+    when v_pagato <= 0          then 'da_pagare'
+    when v_pagato >= v_importo  then 'pagata'
+    else                             'pagata_parziale'
+  end;
+  update public.fatture
+     set stato = v_stato, updated_at = now()
+   where id = p_fattura_id
+     and stato is distinct from v_stato;
 end; $$;
 
 create or replace function public.trg_pagamenti_ricalcola()
@@ -107,6 +126,45 @@ drop trigger if exists on_pagamento_change on public.pagamenti;
 create trigger on_pagamento_change
   after insert or update or delete on public.pagamenti
   for each row execute procedure public.trg_pagamenti_ricalcola();
+
+-- Se cambia l'importo della fattura, lo stato va ricalcolato confrontandolo
+-- con i pagamenti già registrati: senza questo trigger, correggendo l'importo
+-- di una fattura già saldata lo stato sarebbe rimasto 'pagata' e la fattura
+-- sarebbe sparita da "Da pagare", dagli alert e dai totali pur avendo residuo.
+create or replace function public.trg_fatture_stato()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_pagato numeric(12,2);
+begin
+  if new.importo is distinct from old.importo then
+    select coalesce(sum(importo),0) into v_pagato
+      from public.pagamenti where fattura_id = new.id;
+    new.stato := case
+      when v_pagato <= 0            then 'da_pagare'
+      when v_pagato >= new.importo  then 'pagata'
+      else                               'pagata_parziale'
+    end;
+  end if;
+  return new;
+end; $$;
+
+drop trigger if exists on_fattura_importo_change on public.fatture;
+create trigger on_fattura_importo_change
+  before update on public.fatture
+  for each row execute procedure public.trg_fatture_stato();
+
+-- updated_at va aggiornata a ogni modifica: il solo default now() la lasciava
+-- ferma alla creazione, rendendola inutilizzabile.
+create or replace function public.trg_fatture_updated_at()
+returns trigger language plpgsql as $
+begin
+  new.updated_at := now();
+  return new;
+end; $;
+
+drop trigger if exists on_fatture_updated_at on public.fatture;
+create trigger on_fatture_updated_at
+  before update on public.fatture
+  for each row execute procedure public.trg_fatture_updated_at();
 
 -- ---------- LOG MODIFICHE (audit trail, sola lettura per admin) ----------
 create table if not exists public.log_modifiche (
@@ -192,13 +250,13 @@ create policy prof_update_self on public.profili for update
   with check (id = auth.uid() and ruolo = (select p.ruolo from public.profili p where p.id = auth.uid()));
 
 drop policy if exists fatture_read on public.fatture;
-create policy fatture_read on public.fatture for select using (auth.role() = 'authenticated');
+create policy fatture_read on public.fatture for select using (public.puo_leggere());
 drop policy if exists fatture_write on public.fatture;
 create policy fatture_write on public.fatture for all
   using (public.puo_scrivere()) with check (public.puo_scrivere());
 
 drop policy if exists pagamenti_read on public.pagamenti;
-create policy pagamenti_read on public.pagamenti for select using (auth.role() = 'authenticated');
+create policy pagamenti_read on public.pagamenti for select using (public.puo_leggere());
 drop policy if exists pagamenti_write on public.pagamenti;
 create policy pagamenti_write on public.pagamenti for all
   using (public.puo_scrivere()) with check (public.puo_scrivere());
@@ -218,7 +276,7 @@ on conflict (id) do nothing;
 
 drop policy if exists fatture_pdf_read on storage.objects;
 create policy fatture_pdf_read on storage.objects for select
-  using (bucket_id = 'fatture-pdf' and auth.role() = 'authenticated');
+  using (bucket_id = 'fatture-pdf' and public.puo_leggere());
 drop policy if exists fatture_pdf_write on storage.objects;
 create policy fatture_pdf_write on storage.objects for insert
   with check (bucket_id = 'fatture-pdf' and public.puo_scrivere());
@@ -229,4 +287,9 @@ create policy fatture_pdf_delete on storage.objects for delete
 -- ============================================================
 --  NOTA: dopo aver eseguito lo schema, promuovi il tuo utente ad admin:
 --    update public.profili set ruolo='admin' where email='tua@email';
+--  e abilita ogni collega (che nasce 'in_attesa') con:
+--    update public.profili set ruolo='operatore' where email='collega@cri.it';
+--
+--  Ricorda inoltre di disattivare le iscrizioni pubbliche:
+--    Authentication > Sign In / Providers > Allow new users to sign up = OFF
 -- ============================================================
