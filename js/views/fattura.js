@@ -201,19 +201,26 @@ function renderPagamenti(node, rec, ctx, onChange) {
 // ============================================================
 //  Caricamento multiplo (dashboard → "Carica PDF/XML", o drag&drop sulla
 //  dashboard: in quel caso i file arrivano già in `fileIniziali`).
+// ------------------------------------------------------------
+//  Le fatture si elaborano una alla volta, a grandezza piena (stessa
+//  anteprima dell'editor singolo): con più file mostrati assieme
+//  l'anteprima di ciascuno era troppo piccola per essere leggibile. Salvando
+//  o scartando la fattura corrente si passa automaticamente alla successiva
+//  in coda; si possono comunque trascinare altri file mentre si lavora.
 // ============================================================
 export function apriUpload(ctx, onSaved, fileIniziali) {
   const body = el(`<div>
     <div class="dropzone" id="dz">
       <div class="big">📎</div>
       <div><b>Trascina qui i file</b> oppure clicca per selezionarli</div>
-      <div class="hint">PDF/immagini (letti con AI Gemini) o XML di fattura elettronica, anche firmati .p7m (letti gratis, senza AI). Puoi selezionarne più di uno.</div>
+      <div class="hint">PDF/immagini (letti con AI Gemini) o XML di fattura elettronica, anche firmati .p7m (letti gratis, senza AI). Si elaborano una alla volta.</div>
       <input type="file" id="dz-input" multiple accept=".pdf,.xml,.p7m,image/*" style="display:none">
     </div>
-    <div class="upload-list" id="up-list"></div>
+    <div class="upload-progress" id="up-progress" style="display:none"></div>
+    <div id="up-corrente"></div>
   </div>`);
   const footer = el(`<div style="display:flex;justify-content:flex-end;width:100%"><button class="btn" id="chiudi">Chiudi</button></div>`);
-  // Le fatture qui si salvano una alla volta: la dashboard va ricaricata a
+  // Le fatture si salvano una alla volta: la dashboard va ricaricata a
   // prescindere da come si chiude la finestra (pulsante Chiudi, ✕, Esc, sfondo).
   let salvateAlmenoUna = false;
   const previewUrls = []; // anteprime create per i file di questa sessione: revocate tutte alla chiusura
@@ -221,7 +228,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
     title: 'Carica fatture (PDF / XML)', body, footer, wide: true,
     onClose: () => { previewUrls.forEach(u => URL.revokeObjectURL(u)); if (salvateAlmenoUna) onSaved(); },
   });
-  modal.style.maxWidth = '1280px'; // largo abbastanza da rendere l'anteprima del documento leggibile
+  modal.style.maxWidth = '1500px'; // largo abbastanza da rendere l'anteprima del documento leggibile
   footer.querySelector('#chiudi').addEventListener('click', () => close());
 
   const dz = body.querySelector('#dz');
@@ -232,80 +239,116 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
   input.addEventListener('change', () => handleFiles(input.files));
 
+  const coda = [];
+  let totale = 0;       // file arrivati in totale in questa sessione
+  let completate = 0;   // salvate o scartate
+  let corrente = null;  // file mostrato adesso, o null se la coda è libera
+
   if (fileIniziali && fileIniziali.length) handleFiles(fileIniziali);
 
   function handleFiles(fileList) {
-    for (const file of fileList) addUploadItem(file);
+    for (const file of fileList) { coda.push(file); totale++; }
+    aggiornaProgresso();
+    avanza();
   }
 
-  function addUploadItem(file) {
-    const list = body.querySelector('#up-list');
-    const item = el(`<div class="upload-item">
+  function aggiornaProgresso() {
+    const prog = body.querySelector('#up-progress');
+    if (!totale) { prog.style.display = 'none'; return; }
+    prog.style.display = '';
+    prog.textContent = `Fattura ${Math.min(completate + 1, totale)} di ${totale}`;
+  }
+
+  function avanza() {
+    if (corrente) return; // una fattura è già in visualizzazione: si aspetta salva/scarta
+    const zona = body.querySelector('#up-corrente');
+    if (!coda.length) {
+      clear(zona);
+      if (totale) zona.appendChild(el(`<div class="empty-state"><div class="big">✅</div><p>Tutti i file caricati sono stati elaborati.</p></div>`));
+      return;
+    }
+    corrente = coda.shift();
+    aggiornaProgresso();
+    mostraCorrente(corrente);
+  }
+
+  function completaCorrente() {
+    corrente = null;
+    completate++;
+    avanza();
+  }
+
+  function mostraCorrente(file) {
+    const zona = body.querySelector('#up-corrente');
+    clear(zona);
+    const box = el(`<div class="upload-item">
       <div class="u-head"><span>📄 ${esc(file.name)}</span><span class="u-status">Lettura in corso…</span></div>
-      <div class="upload-item-body">
-        <div class="fields-zone"></div>
-        <div class="file-preview file-preview-sm"></div>
+      <div class="editor-2col">
+        <div class="col">
+          <div class="u-fields">
+            <div class="field"><label>Fornitore</label><input type="text" class="i-fornitore"></div>
+            <div class="field"><label>N. fattura</label><input type="text" class="i-numero"></div>
+            <div class="field"><label>Data</label><input type="date" class="i-data"></div>
+            <div class="field"><label>Importo €</label><input type="number" step="0.01" class="i-importo"></div>
+          </div>
+          <div class="u-fields" style="margin-top:8px">
+            <div class="field"><label>Scadenza</label><input type="date" class="i-scadenza"></div>
+            <div class="field"><label>Metodo</label><select class="i-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
+            <div class="field" style="grid-column:span 2"><label>Note</label><input type="text" class="i-note"></div>
+          </div>
+          <div style="display:flex;gap:8px;margin-top:12px">
+            <button class="btn primary i-save">💾 Salva fattura</button>
+            <button class="btn ghost i-skip">Scarta</button>
+          </div>
+          <div class="i-err" style="color:var(--danger);font-size:13px;margin-top:8px"></div>
+        </div>
+        <div class="col" id="preview-col"><div class="file-preview" id="file-preview"></div></div>
       </div>
     </div>`);
-    list.appendChild(item);
-    const status = item.querySelector('.u-status');
+    zona.appendChild(box);
 
     const { node, url } = renderAnteprimaFile(file);
     if (url) previewUrls.push(url);
-    item.querySelector('.file-preview').appendChild(node);
+    box.querySelector('#file-preview').appendChild(node);
 
+    const status = box.querySelector('.u-status');
+    let estrattiCorrenti = {};
     estraiCampiDaFile(file).then(estratti => {
+      estrattiCorrenti = estratti;
       status.textContent = estratti._viaAI ? 'Letto con AI — verifica prima di salvare' : 'Letto da XML — verifica prima di salvare';
-      renderCampiModificabili(item, file, estratti);
+      if (estratti.fornitore) box.querySelector('.i-fornitore').value = estratti.fornitore;
+      if (estratti.numero_fattura) box.querySelector('.i-numero').value = estratti.numero_fattura;
+      if (estratti.data_fattura) box.querySelector('.i-data').value = estratti.data_fattura;
+      if (estratti.importo !== null && estratti.importo !== undefined) box.querySelector('.i-importo').value = estratti.importo;
+      if (estratti.scadenza) box.querySelector('.i-scadenza').value = estratti.scadenza;
+      if (estratti.metodo_pagamento) box.querySelector('.i-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
+      if (estratti.note) box.querySelector('.i-note').value = estratti.note;
     }).catch(err => {
-      status.textContent = '⚠️ ' + err.message;
-      renderCampiModificabili(item, file, {});
+      status.textContent = '⚠️ ' + err.message + ' Compila i campi a mano, confrontando con l\'anteprima.';
     });
-  }
 
-  function renderCampiModificabili(item, file, estratti) {
-    const zone = item.querySelector('.fields-zone');
-    clear(zone);
-    const f = el(`<div>
-      <div class="u-fields">
-        <div class="field"><label>Fornitore</label><input type="text" class="i-fornitore" value="${esc(estratti.fornitore || '')}"></div>
-        <div class="field"><label>N. fattura</label><input type="text" class="i-numero" value="${esc(estratti.numero_fattura || '')}"></div>
-        <div class="field"><label>Data</label><input type="date" class="i-data" value="${esc(estratti.data_fattura || '')}"></div>
-        <div class="field"><label>Importo €</label><input type="number" step="0.01" class="i-importo" value="${esc(estratti.importo ?? '')}"></div>
-      </div>
-      <div class="u-fields" style="margin-top:8px">
-        <div class="field"><label>Scadenza</label><input type="date" class="i-scadenza" value="${esc(estratti.scadenza || '')}"></div>
-        <div class="field"><label>Metodo</label><select class="i-metodo">${METODI.map(m => `<option value="${esc(m)}" ${metodoAmmesso(estratti.metodo_pagamento) === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
-        <div class="field" style="grid-column:span 2"><label>Note</label><input type="text" class="i-note" value="${esc(estratti.note || '')}"></div>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:8px">
-        <button class="btn primary sm i-save">💾 Salva fattura</button>
-        <button class="btn ghost sm i-skip">Scarta</button>
-      </div>
-    </div>`);
-    zone.appendChild(f);
-    f.querySelector('.i-skip').addEventListener('click', () => item.remove());
-    f.querySelector('.i-save').addEventListener('click', async () => {
+    box.querySelector('.i-skip').addEventListener('click', () => completaCorrente());
+    box.querySelector('.i-save').addEventListener('click', async () => {
       const payload = {
-        fornitore: f.querySelector('.i-fornitore').value.trim(),
-        numero_fattura: f.querySelector('.i-numero').value.trim() || null,
-        data_fattura: f.querySelector('.i-data').value || null,
-        importo: parseEuro(f.querySelector('.i-importo').value),
-        scadenza: f.querySelector('.i-scadenza').value || null,
-        metodo_pagamento: f.querySelector('.i-metodo').value || null,
-        note: f.querySelector('.i-note').value.trim() || null,
+        fornitore: box.querySelector('.i-fornitore').value.trim(),
+        numero_fattura: box.querySelector('.i-numero').value.trim() || null,
+        data_fattura: box.querySelector('.i-data').value || null,
+        importo: parseEuro(box.querySelector('.i-importo').value),
+        scadenza: box.querySelector('.i-scadenza').value || null,
+        metodo_pagamento: box.querySelector('.i-metodo').value || null,
+        note: box.querySelector('.i-note').value.trim() || null,
       };
-      if (!payload.fornitore || !payload.importo || payload.importo <= 0) { toast('Compila almeno fornitore e importo', 'err'); return; }
+      const err = box.querySelector('.i-err'); err.textContent = '';
+      if (!payload.fornitore || !payload.importo || payload.importo <= 0) { err.textContent = 'Compila almeno fornitore e importo.'; return; }
       if (!await confermaSeDuplicato(payload, null)) return;
-      const btn = f.querySelector('.i-save'); btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
+      const btn = box.querySelector('.i-save'); btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
       try {
-        await salvaFattura(payload, estratti._viaAI);
+        await salvaFattura(payload, estrattiCorrenti._viaAI);
         salvateAlmenoUna = true;
-        item.querySelector('.u-status').textContent = '✅ Salvata';
-        clear(zone);
         toast('Fattura salvata', 'ok');
+        completaCorrente();
       } catch (e) {
-        toast('Errore: ' + e.message, 'err');
+        err.textContent = 'Errore: ' + e.message;
         btn.disabled = false; btn.innerHTML = '💾 Salva fattura';
       }
     });
