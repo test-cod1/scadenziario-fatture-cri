@@ -6,18 +6,17 @@ Gestionale online per lo scadenziario delle fatture fornitori: inserimento manua
 
 1. Vai su [supabase.com](https://supabase.com) → New project (regione **EU**, es. Frankfurt).
 2. Apri **SQL Editor** → New query → copia tutto il contenuto di [`supabase/schema.sql`](supabase/schema.sql) → Run.
-3. Vai su **Storage**: verifica che sia stato creato il bucket privato `fatture-pdf` (creato dallo script).
-4. Vai su **Authentication → Sign In / Providers** e imposta **"Allow new users to sign up" = OFF**: senza questa modifica chiunque conosca l'indirizzo del sito può crearsi un account.
-5. Vai su **Authentication → Users** → Add user, per creare il tuo account e quello dei colleghi che useranno il gestionale.
-6. Assegna i ruoli, in SQL Editor:
+3. Vai su **Authentication → Sign In / Providers** e imposta **"Allow new users to sign up" = OFF**: senza questa modifica chiunque conosca l'indirizzo del sito può crearsi un account.
+4. Vai su **Authentication → Users** → Add user, per creare il tuo account e quello dei colleghi che useranno il gestionale.
+5. Assegna i ruoli, in SQL Editor:
    ```sql
    update public.profili set ruolo='admin'     where email='tua@email.it';
    update public.profili set ruolo='operatore' where email='collega@cri.it';
    ```
    Ogni profilo nasce con ruolo `in_attesa`, che **non vede alcun dato**, finché un admin non lo abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Gli `operatore` possono inserire/modificare/eliminare fatture ma non vedono il registro modifiche; gli `admin` vedono tutto.
-7. Vai su **Project Settings → API**: copia **Project URL** e **anon public key**.
+6. Vai su **Project Settings → API**: copia **Project URL** e **anon public key**.
 
-> Se il database è stato creato prima del 29/08/2026, esegui anche [`supabase/patch-2026-08-29.sql`](supabase/patch-2026-08-29.sql) nell'SQL Editor: contiene le correzioni allo schema (ricalcolo dello stato al cambio importo, registro modifiche senza righe doppie, ruoli e policy di lettura, `updated_at`). Su un database nuovo non serve: `schema.sql` le include già.
+> Se il database è stato creato prima del 29/08/2026, esegui anche [`supabase/patch-2026-08-29.sql`](supabase/patch-2026-08-29.sql) e poi [`supabase/patch-2026-08-29-rimozione-storage.sql`](supabase/patch-2026-08-29-rimozione-storage.sql) nell'SQL Editor: contengono le correzioni allo schema e la rimozione del bucket storage per i file allegati (l'app non li conserva più). Su un database nuovo non serve: `schema.sql` le include già.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 

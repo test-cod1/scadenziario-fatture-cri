@@ -20,9 +20,9 @@ function metodoAmmesso(v) {
 export async function apriEditor(id, ctx, onSaved) {
   let rec = id ? await fatture.get(id) : {
     fornitore: '', numero_fattura: '', data_fattura: todayISO(), importo: '', scadenza: '',
-    stato: 'da_pagare', metodo_pagamento: '', note: '', pdf_path: null, estratta_da_ai: false,
+    stato: 'da_pagare', metodo_pagamento: '', note: '', estratta_da_ai: false,
   };
-  let pendingFile = null; // file scelto ma non ancora caricato su storage (si carica al salvataggio)
+  let viaAI = false; // il file non viene conservato: serve solo a sapere se i campi vengono dall'AI
   // I pagamenti vengono scritti sul database subito, non al "Salva": se non
   // segnassimo la cosa, chiudendo con Annulla/✕ la dashboard resterebbe ferma
   // a stato e residuo precedenti.
@@ -47,19 +47,11 @@ export async function apriEditor(id, ctx, onSaved) {
     </div>
     <div class="form-row">
       <div class="field"><label>Metodo di pagamento</label><select id="f-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
-      <div class="field"><label>File originale</label><div id="pdf-link" class="hint">${rec.pdf_path ? '' : 'nessuno'}</div></div>
     </div>
     <div class="field"><label>Note</label><textarea id="f-note" rows="2">${esc(rec.note || '')}</textarea></div>
     <div id="pag-zone"></div>
     <div id="err" style="color:var(--danger);font-size:13px"></div>
   </div>`);
-
-  if (rec.pdf_path) {
-    fatture.urlPdf(rec.pdf_path).then(url => {
-      const a = el(`<a href="${esc(url)}" target="_blank" rel="noopener">📎 Apri file originale</a>`);
-      clear(body.querySelector('#pdf-link')); body.querySelector('#pdf-link').appendChild(a);
-    }).catch(() => {});
-  }
 
   if (id) renderPagamenti(body.querySelector('#pag-zone'), rec, ctx, (r) => { rec = r; datiModificati = true; });
 
@@ -77,7 +69,7 @@ export async function apriEditor(id, ctx, onSaved) {
       if (estratti.scadenza) body.querySelector('#f-scadenza').value = estratti.scadenza;
       if (estratti.metodo_pagamento) body.querySelector('#f-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) body.querySelector('#f-note').value = estratti.note;
-      pendingFile = { file, viaAI: estratti._viaAI };
+      viaAI = !!estratti._viaAI;
       hint.textContent = '✅ Campi compilati automaticamente — controlla e correggi se necessario prima di salvare.';
     } catch (err) {
       hint.textContent = '⚠️ ' + err.message + ' Compila i campi a mano.';
@@ -120,8 +112,7 @@ export async function apriEditor(id, ctx, onSaved) {
     const btn = footer.querySelector('#save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
     try {
-      const { erroreAllegato } = await salvaFattura(payload, pendingFile);
-      if (erroreAllegato) toast('Fattura salvata, ma il caricamento del file allegato è fallito: ' + erroreAllegato, 'err');
+      await salvaFattura(payload, viaAI);
       toast(id ? 'Fattura aggiornata' : 'Fattura creata', 'ok');
       datiModificati = true;
       close();
@@ -272,8 +263,7 @@ export function apriUpload(ctx, onSaved) {
       if (!await confermaSeDuplicato(payload, null)) return;
       const btn = f.querySelector('.i-save'); btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
       try {
-        const { erroreAllegato } = await salvaFattura(payload, { file, viaAI: estratti._viaAI });
-        if (erroreAllegato) toast('Fattura salvata, ma il file allegato non è stato caricato: ' + erroreAllegato, 'err');
+        await salvaFattura(payload, estratti._viaAI);
         salvateAlmenoUna = true;
         item.querySelector('.u-status').textContent = '✅ Salvata';
         clear(zone);
@@ -308,36 +298,15 @@ async function confermaSeDuplicato(payload, escludiId) {
 }
 
 // ============================================================
-//  Salvataggio di una fattura (con eventuale allegato)
+//  Salvataggio di una fattura
 // ------------------------------------------------------------
-//  Per una fattura NUOVA l'id viene generato qui e l'allegato viene caricato
-//  PRIMA dell'insert: così la creazione è una singola operazione sul database.
-//  Il flusso precedente (insert, poi update per scrivere pdf_path) produceva
-//  due righe nel registro modifiche per ogni fattura caricata da file:
-//  'creazione' seguita da una 'modifica' che di fatto non era una modifica.
+//  Il file caricato serve solo per estrarre i campi (AI o parsing XML): non
+//  viene conservato da nessuna parte, quindi qui si salva solo il record.
 // ============================================================
-async function salvaFattura(payload, allegato) {
-  if (payload.id) return { saved: await fatture.save(payload), erroreAllegato: null };
-
+async function salvaFattura(payload, viaAI) {
+  if (payload.id) return fatture.save(payload);
   const id = nuovoIdFattura();
-  let erroreAllegato = null;
-  let pathCaricato = null;
-  if (allegato && allegato.file) {
-    try {
-      pathCaricato = await fatture.caricaPdf(allegato.file, id);
-      payload.pdf_path = pathCaricato;
-      payload.estratta_da_ai = !!allegato.viaAI;
-    } catch (e) { erroreAllegato = e.message; }
-  }
-  try {
-    const saved = await fatture.save({ ...payload, id }, { nuovo: true });
-    return { saved, erroreAllegato };
-  } catch (e) {
-    // Insert fallito dopo un upload riuscito: rimuovo il file, altrimenti
-    // resterebbe nello storage senza nessuna fattura che lo referenzia.
-    if (pathCaricato) await fatture.rimuoviPdf(pathCaricato).catch(() => {});
-    throw e;
-  }
+  return fatture.save({ ...payload, id, estratta_da_ai: !!viaAI }, { nuovo: true });
 }
 
 function nuovoIdFattura() {

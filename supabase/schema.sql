@@ -63,7 +63,6 @@ create table if not exists public.fatture (
   stato text not null default 'da_pagare' check (stato in ('da_pagare','pagata_parziale','pagata')),
   metodo_pagamento text,          -- bonifico / riba / rid / contanti / altro
   note text,
-  pdf_path text,                  -- percorso nello storage bucket 'fatture-pdf'
   estratta_da_ai boolean default false,
   created_by uuid references auth.users(id),
   created_at timestamptz default now(),
@@ -266,23 +265,6 @@ create policy pagamenti_write on public.pagamenti for all
 -- definer) possono scriverci, mai un client anche in caso di bug lato app.
 drop policy if exists log_admin_read on public.log_modifiche;
 create policy log_admin_read on public.log_modifiche for select using (public.e_admin());
-
--- ============================================================
---  STORAGE — bucket privato per i PDF delle fatture caricate
--- ============================================================
-insert into storage.buckets (id, name, public)
-values ('fatture-pdf', 'fatture-pdf', false)
-on conflict (id) do nothing;
-
-drop policy if exists fatture_pdf_read on storage.objects;
-create policy fatture_pdf_read on storage.objects for select
-  using (bucket_id = 'fatture-pdf' and public.puo_leggere());
-drop policy if exists fatture_pdf_write on storage.objects;
-create policy fatture_pdf_write on storage.objects for insert
-  with check (bucket_id = 'fatture-pdf' and public.puo_scrivere());
-drop policy if exists fatture_pdf_delete on storage.objects;
-create policy fatture_pdf_delete on storage.objects for delete
-  using (bucket_id = 'fatture-pdf' and public.puo_scrivere());
 
 -- ============================================================
 --  NOTA: dopo aver eseguito lo schema, promuovi il tuo utente ad admin:

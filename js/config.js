@@ -2,7 +2,7 @@
 //  CONFIGURAZIONE — Scadenziario Fatture CRI Genova
 // ============================================================
 // Progetto Supabase dedicato (regione UE). Tabelle: profili, fatture,
-// pagamenti, log_modifiche. Bucket storage: fatture-pdf.
+// pagamenti, log_modifiche.
 //
 // IMPORTANTE: dopo aver creato il progetto Supabase (vedi README.md),
 // sostituisci url/anonKey qui sotto con quelli del tuo progetto.

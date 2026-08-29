@@ -108,50 +108,8 @@ export const fatture = {
   },
   async remove(id) {
     const sb = await sbClient();
-    // Il percorso dell'allegato va letto PRIMA della cancellazione: dopo, la
-    // riga non esiste più e il file resterebbe nel bucket senza che nulla lo
-    // referenzi, occupando spazio e restando leggibile agli utenti abilitati.
-    let pdfPath = null;
-    try {
-      const { data } = await sb.from("fatture").select("pdf_path").eq("id", id).single();
-      pdfPath = (data && data.pdf_path) || null;
-    } catch { /* se non riusciamo a leggerlo, si prosegue comunque con la cancellazione */ }
-
     const { error } = await sb.from("fatture").delete().eq("id", id);
     if (error) throw error;
-
-    // Solo a cancellazione avvenuta: se la delete fallisse (permessi), il file
-    // deve restare al suo posto. Un errore qui non annulla la cancellazione.
-    if (pdfPath) { try { await fatture.rimuoviPdf(pdfPath); } catch { /* allegato non rimosso */ } }
-  },
-  async caricaPdf(file, fatturaId) {
-    const sb = await sbClient();
-    // Il nome originale finisce nella chiave dello storage: caratteri come
-    // #, ? o gli accenti possono renderla problematica, quindi si ripulisce
-    // tenendo solo caratteri sicuri (il nome resta comunque riconoscibile).
-    const nome = String(file.name || "documento")
-      .normalize("NFKD")
-      .replace(/[^A-Za-z0-9._-]+/g, "-")
-      .replace(/^-+|-+$/g, "")
-      .slice(-80) || "documento";
-    const path = fatturaId + "/" + Date.now() + "-" + nome;
-    const { error } = await sb.storage.from('fatture-pdf').upload(path, file, { contentType: file.type || 'application/pdf' });
-    if (error) throw error;
-    return path;
-  },
-  // Rimuove un file dallo storage (usata sia dopo un insert fallito, sia
-  // quando si elimina una fattura, per non lasciare allegati orfani).
-  async rimuoviPdf(path) {
-    if (!path) return;
-    const sb = await sbClient();
-    const { error } = await sb.storage.from('fatture-pdf').remove([path]);
-    if (error) throw error;
-  },
-  async urlPdf(path) {
-    const sb = await sbClient();
-    const { data, error } = await sb.storage.from('fatture-pdf').createSignedUrl(path, 300);
-    if (error) throw error;
-    return data.signedUrl;
   },
 };
 
