@@ -1,0 +1,8 @@
+{
+  "name": "scadenziario-fatture-cri",
+  "version": "1.0.0",
+  "description": "Scadenziario fatture fornitori — Croce Rossa Italiana Genova",
+  "scripts": {
+    "dev": "node server.js"
+  }
+}
