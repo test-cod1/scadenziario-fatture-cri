@@ -10,8 +10,8 @@
 
 export const CONFIG = {
   supabase: {
-    url: 'https://TUO-PROGETTO.supabase.co',
-    anonKey: 'TUA-ANON-KEY',
+    url: 'https://xmfqozojjplccnnttwxu.supabase.co',
+    anonKey: 'sb_publishable_Cm8yAHlD3TZSjW0fW53_fw_OmfeWJT3',
   },
 
   // Endpoint serverless (Cloudflare Pages Functions) per l'estrazione AI

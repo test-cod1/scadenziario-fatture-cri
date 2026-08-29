@@ -42,14 +42,19 @@ GEMINI_API_KEY=la-tua-chiave npm run dev
 
 (oppure crea un file `.dev.vars` con dentro `GEMINI_API_KEY=la-tua-chiave`, non versionato).
 
-## 5. Deploy su Cloudflare Pages
+## 5. Deploy su Cloudflare (Workers con Git integration)
 
-1. Crea un repository git per questa cartella e fai push su GitHub.
-2. Su [Cloudflare Pages](https://pages.cloudflare.com): collega il repository. Build command: vuoto. Output directory: `/` (root).
-3. In **Settings → Environment variables** del progetto Pages, aggiungi:
-   - `GEMINI_API_KEY` = la tua chiave Gemini
+Il progetto Cloudflare collegato a questo repo è di tipo **Worker** (il nuovo flusso unificato "Workers & Pages": build command `npx wrangler deploy`), non la vecchia Pages classica. Per questo motivo il repo contiene già:
+- [`wrangler.jsonc`](wrangler.jsonc): configurazione del deploy (nome, asset statici, entry point)
+- [`worker.js`](worker.js): instrada `/api/estrai-fattura` alla function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
+- [`.assetsignore`](.assetsignore): esclude dagli asset statici i file che non fanno parte del sito (node_modules, supabase/, ecc. — senza questo file il deploy falliva per un asset da 146MB)
+
+Passaggi:
+1. Push su GitHub (già fatto): `git push`.
+2. Nel progetto Cloudflare (Workers & Pages) → **Settings → Variables and Secrets**, aggiungi:
+   - `GEMINI_API_KEY` = la tua chiave Gemini (come **Secret**, non testo in chiaro)
    - (opzionale, se preferisci non hardcodarle nel codice) `SUPABASE_URL` e `SUPABASE_ANON_KEY`
-4. Da qui in avanti, **ogni `git push` sul branch collegato aggiorna automaticamente il sito** — nessun altro passaggio richiesto.
+3. Da qui in avanti, **ogni `git push` sul branch collegato aggiorna automaticamente il sito** — nessun altro passaggio richiesto.
 
 ## Struttura del progetto
 
@@ -61,9 +66,12 @@ js/config.js              configurazione (URL/chiavi Supabase)
 js/data/store.js          layer dati: auth, fatture, pagamenti, log
 js/lib/                   helper: UI, client Supabase, parser XML, export
 js/views/                 dashboard, editor fattura, registro modifiche
-functions/api/            Cloudflare Pages Function: proxy verso Gemini
+functions/api/            logica dell'endpoint: proxy verso Gemini
 functions/_lib/auth.js     verifica sessione Supabase lato server
 supabase/schema.sql       schema database + RLS + trigger di audit log
+worker.js                 entry point del Worker: instrada /api/* e serve gli asset statici
+wrangler.jsonc            configurazione del deploy Cloudflare
+.assetsignore             file esclusi dagli asset statici (node_modules, ecc.)
 ```
 
 ## Note sul funzionamento

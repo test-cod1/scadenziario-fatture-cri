@@ -15,8 +15,8 @@
 //  variabili d'ambiente SUPABASE_URL / SUPABASE_ANON_KEY nel progetto Pages.
 // ============================================================
 
-const SUPABASE_URL = 'https://TUO-PROGETTO.supabase.co';
-const SUPABASE_ANON_KEY = 'TUA-ANON-KEY';
+const SUPABASE_URL = 'https://xmfqozojjplccnnttwxu.supabase.co';
+const SUPABASE_ANON_KEY = 'sb_publishable_Cm8yAHlD3TZSjW0fW53_fw_OmfeWJT3';
 
 // Ritorna l'utente Supabase se il token nell'header Authorization è valido,
 // altrimenti null.

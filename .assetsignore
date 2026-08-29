@@ -1,0 +1,18 @@
+# File esclusi dal binding ASSETS (non sono pagine/risorse del sito).
+# Senza questo file, wrangler tenta di servire come "asset statico" anche
+# node_modules creato durante il build (incluso il binario workerd, ~150MB,
+# oltre il limite di 25MB per singolo asset di Cloudflare Workers).
+node_modules/
+.git/
+.wrangler/
+.dev.vars
+wrangler.jsonc
+worker.js
+functions/
+supabase/
+server.js
+package.json
+package-lock.json
+README.md
+.gitignore
+.assetsignore
