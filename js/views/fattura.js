@@ -35,6 +35,7 @@ export async function apriEditor(id, ctx, onSaved) {
         <label>Compila automaticamente da file (opzionale)</label>
         <input type="file" id="file-in" accept=".pdf,.xml,.p7m,image/*">
         <div class="hint" id="upload-hint">PDF/immagine → letti con AI (Gemini). XML di fattura elettronica, anche firmato (.p7m) → letto direttamente, gratis e senza AI.</div>
+        <div id="upload-status"></div>
       </div>
     </div>
     <div class="editor-2col">
@@ -68,6 +69,8 @@ export async function apriEditor(id, ctx, onSaved) {
     if (!file) return;
     mostraAnteprima(file);
     const hint = body.querySelector('#upload-hint');
+    const status = body.querySelector('#upload-status');
+    clear(status);
     hint.textContent = 'Lettura in corso…';
     try {
       const estratti = await estraiCampiDaFile(file);
@@ -81,7 +84,8 @@ export async function apriEditor(id, ctx, onSaved) {
       viaAI = !!estratti._viaAI;
       hint.textContent = '✅ Campi compilati automaticamente — confronta con l\'anteprima qui a fianco e correggi se necessario prima di salvare.';
     } catch (err) {
-      hint.textContent = '⚠️ ' + err.message + ' Compila i campi a mano, confrontando con l\'anteprima qui a fianco.';
+      hint.textContent = '';
+      status.appendChild(bannerErroreLettura(err.message));
     }
   });
 
@@ -283,6 +287,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
     clear(zona);
     const box = el(`<div class="upload-item">
       <div class="u-head"><span>📄 ${esc(file.name)}</span><span class="u-status">Lettura in corso…</span></div>
+      <div class="u-errore-zona"></div>
       <div class="editor-2col">
         <div class="col">
           <div class="u-fields">
@@ -324,7 +329,8 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
       if (estratti.metodo_pagamento) box.querySelector('.i-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) box.querySelector('.i-note').value = estratti.note;
     }).catch(err => {
-      status.textContent = '⚠️ ' + err.message + ' Compila i campi a mano, confrontando con l\'anteprima.';
+      status.textContent = '⚠️ errore di lettura';
+      box.querySelector('.u-errore-zona').appendChild(bannerErroreLettura(err.message));
     });
 
     box.querySelector('.i-skip').addEventListener('click', () => completaCorrente());
@@ -468,4 +474,14 @@ function renderAnteprimaFile(file) {
     node: el(`<div class="fp-empty">📄 ${esc(file.name)}<br>Anteprima non disponibile per questo formato: verifica i campi qui a fianco.</div>`),
     url: null,
   };
+}
+
+// Errore di lettura (quota AI esaurita, formato non riconosciuto, ecc.):
+// un banner ben visibile invece di una riga di testo grigia, che passava
+// facilmente inosservata mescolata agli altri messaggi di stato.
+function bannerErroreLettura(messaggio) {
+  return el(`<div class="banner warn" style="margin:10px 0 0">
+    <div class="bi">⚠️</div>
+    <div><b>Lettura automatica non riuscita</b><div class="small">${esc(messaggio)} Compila i campi a mano, confrontando con l'anteprima.</div></div>
+  </div>`);
 }
