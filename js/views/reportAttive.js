@@ -32,6 +32,7 @@ export async function renderReportAttive(view, ctx) {
         <span>Incassi per cliente</span>
         <div class="search" style="flex:none;min-width:220px"><span class="search-icon">🔎</span><input type="text" id="r-ricerca" placeholder="Cerca cliente…"></div>
       </div>
+      <div class="muted" style="font-size:12.5px;padding:10px 18px 0">Clicca un'intestazione per ordinare la tabella.</div>
       <div class="card-b tbl-wrap" id="r-clienti"></div>
     </div>
     <div class="card">
