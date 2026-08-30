@@ -11,7 +11,7 @@ export async function renderReport(view, ctx) {
   // Anni disponibili: dalla data fattura, così anche fatture senza scadenza
   // rientrano nel filtro. Ordinati dal più recente.
   const anni = [...new Set(tutte.filter(f => f.data_fattura).map(f => f.data_fattura.slice(0, 4)))].sort().reverse();
-  const state = { anno: anni[0] || '' };
+  const state = { anno: anni[0] || '', ricerca: '' };
 
   const wrap = el(`<div>
     <div class="page-head">
@@ -26,7 +26,10 @@ export async function renderReport(view, ctx) {
     </div>
     <div class="grid stats" id="r-stats" style="margin-bottom:22px"></div>
     <div class="card" style="margin-bottom:22px">
-      <div class="card-h">Spesa per fornitore</div>
+      <div class="card-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <span>Spesa per fornitore</span>
+        <input type="search" id="r-ricerca" placeholder="Cerca fornitore…" style="max-width:240px">
+      </div>
       <div class="card-b tbl-wrap" id="r-fornitori"></div>
     </div>
     <div class="card">
@@ -37,17 +40,25 @@ export async function renderReport(view, ctx) {
   view.appendChild(wrap);
 
   wrap.querySelector('#r-anno').addEventListener('change', e => { state.anno = e.target.value; refresh(); });
-  wrap.querySelector('#r-csv').addEventListener('click', () => esportaFornitoriCSV(perFornitore(filtrate())));
+  wrap.querySelector('#r-ricerca').addEventListener('input', e => { state.ricerca = e.target.value; renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim()); });
+  wrap.querySelector('#r-csv').addEventListener('click', () => esportaFornitoriCSV(gruppiFornitori()));
 
   function filtrate() {
     if (!state.anno) return tutte;
     return tutte.filter(f => (f.data_fattura || '').slice(0, 4) === state.anno);
   }
 
+  function gruppiFornitori() {
+    const gruppi = perFornitore(filtrate());
+    const termine = state.ricerca.trim().toLowerCase();
+    if (!termine) return gruppi;
+    return gruppi.filter(g => g.fornitore.toLowerCase().includes(termine));
+  }
+
   function refresh() {
     const righe = filtrate();
     renderStats(wrap.querySelector('#r-stats'), righe);
-    renderFornitori(wrap.querySelector('#r-fornitori'), perFornitore(righe));
+    renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim());
     renderMesi(wrap.querySelector('#r-mesi'), perMese(righe, tutte, state.anno));
   }
 
@@ -88,16 +99,14 @@ function renderStats(node, righe) {
   const cards = [
     { k: 'FATTURATO', v: fmtEuro(fatturato), s: `${righe.length} fatture`, cls: 'accent' },
     { k: 'PAGATO', v: fmtEuro(pagato), s: fatturato ? Math.round(pagato / fatturato * 100) + '% del totale' : '—', cls: 'ok' },
-    { k: 'DA INCASSARE', v: fmtEuro(residuo), s: righe.filter(f => f._residuo > 0).length + ' fatture aperte', cls: residuo > 0 ? 'warn' : '' },
-    { k: 'IMPORTO MEDIO', v: fmtEuro(righe.length ? fatturato / righe.length : 0), s: 'per fattura', cls: '' },
+    { k: 'DA PAGARE', v: fmtEuro(residuo), s: righe.filter(f => f._residuo > 0).length + ' fatture aperte', cls: residuo > 0 ? 'warn' : '' },
     { k: 'TEMPO MEDIO DI PAGAMENTO', v: mediaGiorni !== null ? Math.round(mediaGiorni) + ' giorni' : '—', s: `${giorni.length} fatture saldate`, cls: '' },
   ];
   if (stornato > 0) cards.push({ k: 'STORNATO (NOTE DI CREDITO)', v: fmtEuro(stornato), s: righe.filter(f => f._stornato > 0).length + ' fatture', cls: '' });
   for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
 }
 
-// Raggruppa per fornitore, ordinato per fatturato decrescente: chi pesa di
-// più sul totale sta in cima, senza dover ordinare a mano una tabella lunga.
+// Raggruppa per fornitore, ordinato alfabeticamente.
 function perFornitore(righe) {
   const mappa = new Map();
   for (const f of righe) {
@@ -109,12 +118,16 @@ function perFornitore(righe) {
     mappa.set(chiave, g);
   }
   for (const g of mappa.values()) g.giorniMedi = media(g.giorni);
-  return [...mappa.values()].sort((a, b) => b.fatturato - a.fatturato);
+  return [...mappa.values()].sort((a, b) => a.fornitore.localeCompare(b.fornitore));
 }
 
-function renderFornitori(node, gruppi) {
+function renderFornitori(node, gruppi, ricerca) {
   clear(node);
-  if (!gruppi.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura nel periodo selezionato.</p></div>`)); return; }
+  if (!gruppi.length) {
+    const msg = ricerca ? `Nessun fornitore trovato per "${esc(ricerca)}".` : 'Nessuna fattura nel periodo selezionato.';
+    node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>${msg}</p></div>`));
+    return;
+  }
   const mostraStornato = gruppi.some(g => g.stornato > 0);
   const table = el(`<table class="tbl"><thead><tr>
     <th>Fornitore</th><th>N. Fatture</th><th class="money-col">Fatturato</th><th class="money-col">Pagato</th>${mostraStornato ? '<th class="money-col">Stornato</th>' : ''}<th class="money-col">Residuo</th><th>Giorni medi pagamento</th>
