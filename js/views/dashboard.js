@@ -183,7 +183,7 @@ function renderAlert(node, tutte) {
   const entro7 = nonPagate.filter(f => { const g = giorniDa(f.scadenza); return g >= 0 && g <= 7; });
   if (!scadute.length && !entro7.length) return;
   const parts = [];
-  if (scadute.length) parts.push(`<b>⚠️ ${scadute.length} fattura/e scadute e non pagate</b><ul>${scadute.slice(0, 6).map(f => `<li>${esc(f.fornitore)} — ${fmtEuro(f._residuo)} (scaduta il ${fmtDate(f.scadenza)})</li>`).join('')}${scadute.length > 6 ? `<li>… e altre ${scadute.length - 6}</li>` : ''}</ul>`);
+  if (scadute.length) parts.push(`<b>⚠️ ${scadute.length} fattura/e scadute e non pagate</b>`);
   if (entro7.length) parts.push(`<div style="margin-top:${scadute.length ? '10px' : '0'}"><b>⏰ ${entro7.length} fattura/e in scadenza nei prossimi 7 giorni</b></div>`);
   node.appendChild(el(`<div class="banner ${scadute.length ? 'danger' : 'warn'}"><div class="bi">${scadute.length ? '⚠️' : '⏰'}</div><div>${parts.join('')}</div></div>`));
 }
