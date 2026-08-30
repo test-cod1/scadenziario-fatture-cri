@@ -14,7 +14,7 @@ const COLS = [
 ];
 
 function statoLabel(s) {
-  return { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parzialmente', pagata: 'Pagata' }[s] || s;
+  return { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parzialmente', pagata: 'Pagata', stornata: 'Stornata' }[s] || s;
 }
 
 // CSV con separatore ; (si apre correttamente in Excel con locale italiana)

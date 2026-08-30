@@ -7,6 +7,8 @@ const AZIONE_LABEL = {
   cancellazione: { t: 'Cancellazione fattura', ic: '🗑️', cls: 'danger' },
   pagamento_aggiunto: { t: 'Pagamento registrato', ic: '💶', cls: 'ok' },
   pagamento_rimosso: { t: 'Pagamento rimosso', ic: '↩️', cls: 'danger' },
+  nota_credito_aggiunta: { t: 'Nota di credito registrata', ic: '🧾', cls: 'info' },
+  nota_credito_rimossa: { t: 'Nota di credito rimossa', ic: '↩️', cls: 'danger' },
 };
 
 export async function renderLog(view, ctx) {

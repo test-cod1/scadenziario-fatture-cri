@@ -1,10 +1,11 @@
 import { fatture, proposte } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast } from '../lib/ui.js';
 import { exportCSV, exportPDF } from '../lib/export.js';
-import { apriEditor, apriUpload, apriPagamentoRapido, apriProponiPagamento } from './fattura.js';
+import { apriEditor, apriUpload, apriPagamentoRapido, apriProponiPagamento, apriNuovaNotaCredito } from './fattura.js';
 
-const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata' };
-const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok' };
+const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata', stornata: 'Stornata' };
+const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok', stornata: 'info' };
+const STATI_CHIUSI = ['pagata', 'stornata']; // niente altro da pagare: il chip non apre più pagamento/proposta
 
 export async function renderDashboard(view, ctx) {
   let tutte = [];
@@ -21,6 +22,7 @@ export async function renderDashboard(view, ctx) {
         <button class="btn" id="exp-csv">📊 Esporta Excel (CSV)</button>
         <button class="btn" id="exp-pdf">🖨️ Esporta PDF</button>
         <button class="btn" id="carica">📎 Carica PDF/XML</button>
+        <button class="btn" id="nuova-nc">+ Nota di credito</button>
         <button class="btn primary" id="nuova">+ Nuova fattura</button>
       </div>
     </div>
@@ -33,6 +35,7 @@ export async function renderDashboard(view, ctx) {
         <option value="da_pagare">Da pagare</option>
         <option value="pagata_parziale">Pagata parzialmente</option>
         <option value="pagata">Pagata</option>
+        <option value="stornata">Stornata</option>
       </select>
       <input type="date" id="f-da" title="Scadenza da">
       <input type="date" id="f-a" title="Scadenza a">
@@ -123,6 +126,7 @@ export async function renderDashboard(view, ctx) {
   wrap.querySelector('#exp-pdf').addEventListener('click', () => exportPDF(applyFilters()));
   wrap.querySelector('#nuova').addEventListener('click', () => apriEditor(null, ctx, ricarica));
   wrap.querySelector('#carica').addEventListener('click', () => apriUpload(ctx, ricarica));
+  wrap.querySelector('#nuova-nc').addEventListener('click', () => apriNuovaNotaCredito(ctx, ricarica));
 
   refreshTable();
 }
@@ -143,7 +147,7 @@ async function caricaProposteInAttesa() {
 
 function renderStats(node, tutte) {
   clear(node);
-  const nonPagate = tutte.filter(f => f.stato !== 'pagata');
+  const nonPagate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
   const totaleDovuto = nonPagate.reduce((s, f) => s + f._residuo, 0);
   const oggi = new Date().toISOString().slice(0, 10);
   const scadute = nonPagate.filter(f => f.scadenza && f.scadenza < oggi);
@@ -164,7 +168,7 @@ function renderStats(node, tutte) {
 function renderAlert(node, tutte) {
   clear(node);
   const oggi = new Date().toISOString().slice(0, 10);
-  const nonPagate = tutte.filter(f => f.stato !== 'pagata' && f.scadenza);
+  const nonPagate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato) && f.scadenza);
   const scadute = nonPagate.filter(f => f.scadenza < oggi);
   const entro7 = nonPagate.filter(f => { const g = giorniDa(f.scadenza); return g >= 0 && g <= 7; });
   if (!scadute.length && !entro7.length) return;
@@ -186,7 +190,7 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
   </tr></thead><tbody></tbody></table>`);
   const tbody = table.querySelector('tbody');
   for (const f of righe) {
-    const scaduta = f.stato !== 'pagata' && f.scadenza && f.scadenza < oggi;
+    const scaduta = !STATI_CHIUSI.includes(f.stato) && f.scadenza && f.scadenza < oggi;
     const nProposte = proposteInAttesa ? (proposteInAttesa.get(f.id) || 0) : 0;
     const tr = el(`<tr class="${scaduta ? 'scaduta' : ''}">
       <td>${esc(f.fornitore)}</td>
@@ -195,7 +199,7 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
       <td class="money money-col">${fmtEuro(f.importo)}</td>
       <td>${fmtDate(f.scadenza)}</td>
       <td>
-        <span class="chip ${STATO_CHIP[f.stato] || ''}" ${f.stato !== 'pagata' ? `data-stato title="${esc(titoloChip)}"` : ''}>${STATO_LABEL[f.stato] || f.stato}</span>
+        <span class="chip ${STATO_CHIP[f.stato] || ''}" ${!STATI_CHIUSI.includes(f.stato) ? `data-stato title="${esc(titoloChip)}"` : ''}>${STATO_LABEL[f.stato] || f.stato}</span>
         ${nProposte ? `<span class="chip" title="${isAdmin ? 'In attesa di conferma' : 'Hai già una proposta in attesa per questa fattura'}" style="margin-left:4px">📨 ${nProposte}</span>` : ''}
       </td>
       <td class="money money-col">${fmtEuro(f._residuo)}</td>

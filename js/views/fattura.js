@@ -1,5 +1,5 @@
-import { fatture, pagamenti, impostazioni, proposte } from '../data/store.js';
-import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro } from '../lib/ui.js';
+import { fatture, pagamenti, noteCredito, impostazioni, proposte } from '../data/store.js';
+import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml } from '../lib/xmlFattura.js';
 
 // Valori ammessi per il metodo di pagamento: la lista deve restare allineata
@@ -54,6 +54,7 @@ export async function apriEditor(id, ctx, onSaved) {
         </div>
         <div class="field"><label>Note</label><textarea id="f-note" rows="2">${esc(rec.note || '')}</textarea></div>
         <div id="pag-zone"></div>
+        <div id="note-credito-zone"></div>
         <div id="err" style="color:var(--danger);font-size:13px"></div>
       </div>
       <div class="col" id="preview-col" style="display:none">
@@ -62,7 +63,15 @@ export async function apriEditor(id, ctx, onSaved) {
     </div>
   </div>`);
 
-  if (id) renderPagamenti(body.querySelector('#pag-zone'), rec, ctx, (r) => { rec = r; datiModificati = true; });
+  // Pagamenti e note di credito concorrono entrambi a "quanto resta da
+  // pagare": un cambiamento nell'uno deve aggiornare anche il riepilogo
+  // mostrato nell'altro, non solo la propria lista.
+  function refreshPagamentiENote(fresh) {
+    rec = fresh; datiModificati = true;
+    renderPagamenti(body.querySelector('#pag-zone'), rec, ctx, refreshPagamentiENote);
+    renderNoteCredito(body.querySelector('#note-credito-zone'), rec, ctx, refreshPagamentiENote);
+  }
+  if (id) refreshPagamentiENote(rec);
 
   body.querySelector('#file-in').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -246,7 +255,7 @@ function renderPagamenti(node, rec, ctx, onChange) {
   const isAdmin = ctx.user.ruolo === 'admin';
   const wrap = el(`<div class="card" style="margin-top:6px"><div class="card-h">Pagamenti / acconti</div><div class="card-b">
     <div class="pag-list"></div>
-    <div class="residuo-box"><span>Pagato: <b>${fmtEuro(rec._pagato)}</b></span><span>Residuo: <b>${fmtEuro(rec._residuo)}</b></span></div>
+    <div class="residuo-box"><span>Pagato: <b>${fmtEuro(rec._pagato)}</b></span>${rec._stornato > 0 ? `<span>Stornato: <b>${fmtEuro(rec._stornato)}</b></span>` : ''}<span>Residuo: <b>${fmtEuro(rec._residuo)}</b></span></div>
     ${isAdmin
       ? '<button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi pagamento</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>'
       : (rec._residuo > 0 ? '<button class="btn sm" style="margin-top:10px" id="proponi-pag">+ Proponi pagamento</button><p class="hint" style="margin-top:8px">Solo l\'amministratore registra i pagamenti effettivi: qui puoi solo proporli.</p>' : '')}
@@ -258,9 +267,7 @@ function renderPagamenti(node, rec, ctx, onChange) {
       if (!await confirmDialog('Rimuovere questo pagamento?', { danger: true, okLabel: 'Rimuovi' })) return;
       try {
         await pagamenti.remove(p.id);
-        const fresh = await fatture.get(rec.id);
-        onChange(fresh);
-        renderPagamenti(node, fresh, ctx, onChange);
+        onChange(await fatture.get(rec.id));
         toast('Pagamento rimosso', 'ok');
       } catch (e) { toast('Errore: ' + e.message, 'err'); }
     });
@@ -285,22 +292,157 @@ function renderPagamenti(node, rec, ctx, onChange) {
         if (!importo || importo <= 0 || !data_pagamento) { toast('Inserisci data e importo validi', 'err'); return; }
         try {
           await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null });
-          const fresh = await fatture.get(rec.id);
-          onChange(fresh);
-          renderPagamenti(node, fresh, ctx, onChange);
+          onChange(await fatture.get(rec.id));
           toast('Pagamento registrato', 'ok');
         } catch (e) { toast('Errore: ' + e.message, 'err'); }
       });
     });
   } else {
     const btnProponi = wrap.querySelector('#proponi-pag');
-    if (btnProponi) btnProponi.addEventListener('click', () => apriProponiPagamento(rec, ctx, async () => {
-      const fresh = await fatture.get(rec.id);
-      onChange(fresh);
-      renderPagamenti(node, fresh, ctx, onChange);
-    }));
+    if (btnProponi) btnProponi.addEventListener('click', () => apriProponiPagamento(rec, ctx, async () => onChange(await fatture.get(rec.id))));
   }
   node.appendChild(wrap);
+}
+
+// ============================================================
+//  Note di credito — documenti ricevuti dai fornitori: a differenza dei
+//  pagamenti veri e propri, anche l'operatore può registrarle e rimuoverle.
+// ============================================================
+function renderNoteCredito(node, rec, ctx, onChange) {
+  clear(node);
+  const righe = rec.note_credito_righe || [];
+  const wrap = el(`<div class="card" style="margin-top:14px"><div class="card-h">Note di credito</div><div class="card-b">
+    <div class="nc-list"></div>
+    <button class="btn sm" style="margin-top:10px" id="add-nc">+ Aggiungi nota di credito</button>
+  </div></div>`);
+  const list = wrap.querySelector('.nc-list');
+  for (const n of righe.slice().sort((a, b) => (a.note_credito?.data || '').localeCompare(b.note_credito?.data || ''))) {
+    const nc = n.note_credito || {};
+    const row = el(`<div class="pag-row"><span>${fmtDate(nc.data)} · ${fmtEuro(n.importo)} ${nc.numero ? '· n. ' + esc(nc.numero) : ''} ${nc.note ? '· ' + esc(nc.note) : ''}</span><button class="rm" data-id="${n.id}">✕</button></div>`);
+    row.querySelector('.rm').addEventListener('click', async () => {
+      if (!await confirmDialog('Rimuovere il collegamento di questa nota di credito a questa fattura?', { danger: true, okLabel: 'Rimuovi' })) return;
+      try {
+        await noteCredito.removeRiga(n.id);
+        onChange(await fatture.get(rec.id));
+        toast('Nota di credito rimossa', 'ok');
+      } catch (e) { toast('Errore: ' + e.message, 'err'); }
+    });
+    list.appendChild(row);
+  }
+  if (!righe.length) list.appendChild(el('<div class="muted" style="font-size:13px">Nessuna nota di credito registrata.</div>'));
+
+  wrap.querySelector('#add-nc').addEventListener('click', () => apriNuovaNotaCredito(ctx, async () => onChange(await fatture.get(rec.id)), rec));
+  node.appendChild(wrap);
+}
+
+// ============================================================
+//  Nuova nota di credito — può stornare più fatture insieme, ciascuna per
+//  una quota diversa: capita spesso nella pratica che un unico documento
+//  copra più fatture dello stesso fornitore. Aperta sia da qui (con la
+//  fattura corrente già preselezionata) sia dalla dashboard come inserimento
+//  manuale a sé stante (nessuna fattura preselezionata).
+// ============================================================
+export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata) {
+  const body = el(`<div>
+    <div class="form-row three">
+      <div class="field"><label>Numero</label><input type="text" id="nc-numero"></div>
+      <div class="field"><label>Data</label><input type="date" id="nc-data" value="${todayISO()}"></div>
+      <div class="field"><label>Note</label><input type="text" id="nc-note"></div>
+    </div>
+    <div class="field"><label>Fatture stornate da questa nota</label>
+      <input type="text" id="nc-cerca" placeholder="Cerca fornitore o numero fattura…">
+    </div>
+    <div id="nc-elenco" style="max-height:320px;overflow-y:auto;margin-top:8px"><div class="spinner sm"></div></div>
+    <div class="residuo-box" style="margin-top:10px"><span>Fatture selezionate: <b id="nc-n-selezionate">0</b></span><span>Totale storno: <b id="nc-tot-selezionato">€ 0,00</b></span></div>
+    <div id="nc-err" style="color:var(--danger);font-size:13px;margin-top:8px"></div>
+  </div>`);
+  const footer = el(`<div style="display:flex;gap:10px;width:100%">
+    <div style="flex:1"></div>
+    <button class="btn" id="nc-cancel">Annulla</button>
+    <button class="btn primary" id="nc-save">Registra nota di credito</button>
+  </div>`);
+  const { close } = openModal({ title: 'Nuova nota di credito', body, footer, wide: true });
+  footer.querySelector('#nc-cancel').addEventListener('click', close);
+
+  const selezionate = new Map(); // fattura_id -> importo
+
+  function aggiornaRiepilogo() {
+    const tot = [...selezionate.values()].reduce((s, v) => s + v, 0);
+    body.querySelector('#nc-n-selezionate').textContent = selezionate.size;
+    body.querySelector('#nc-tot-selezionato').textContent = fmtEuro(tot);
+  }
+
+  fatture.list().then(tutte => {
+    const apribili = tutte.filter(f => f.stato !== 'stornata');
+    if (fatturaPreselezionata) selezionate.set(fatturaPreselezionata.id, fatturaPreselezionata._residuo > 0 ? fatturaPreselezionata._residuo : Number(fatturaPreselezionata.importo));
+
+    function disegnaElenco(filtro) {
+      const elenco = body.querySelector('#nc-elenco');
+      clear(elenco);
+      const q = (filtro || '').trim().toLowerCase();
+      const righeMostrate = apribili.filter(f => !q || (f.fornitore || '').toLowerCase().includes(q) || (f.numero_fattura || '').toLowerCase().includes(q));
+      if (!righeMostrate.length) { elenco.appendChild(el('<div class="muted" style="font-size:13px">Nessuna fattura trovata.</div>')); return; }
+      for (const f of righeMostrate.slice(0, 200)) { // limite di visualizzazione: la ricerca restringe, non serve mostrarle tutte
+        const checked = selezionate.has(f.id);
+        const row = el(`<div class="pag-row" style="align-items:center">
+          <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer">
+            <input type="checkbox" ${checked ? 'checked' : ''}>
+            <span>${esc(f.fornitore)} ${f.numero_fattura ? '· n. ' + esc(f.numero_fattura) : ''} · residuo ${fmtEuro(f._residuo)}</span>
+          </label>
+          <input type="number" step="0.01" style="width:110px" placeholder="Importo €" value="${checked ? selezionate.get(f.id).toFixed(2) : ''}" ${checked ? '' : 'disabled'}>
+        </div>`);
+        const checkbox = row.querySelector('input[type=checkbox]');
+        const importoInput = row.querySelector('input[type=number]');
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            const def = f._residuo > 0 ? f._residuo : Number(f.importo);
+            selezionate.set(f.id, def);
+            importoInput.value = def.toFixed(2);
+            importoInput.disabled = false;
+          } else {
+            selezionate.delete(f.id);
+            importoInput.value = '';
+            importoInput.disabled = true;
+          }
+          aggiornaRiepilogo();
+        });
+        importoInput.addEventListener('input', () => {
+          const v = parseEuro(importoInput.value);
+          if (v && v > 0) selezionate.set(f.id, v);
+          aggiornaRiepilogo();
+        });
+        elenco.appendChild(row);
+      }
+    }
+
+    disegnaElenco('');
+    aggiornaRiepilogo();
+    body.querySelector('#nc-cerca').addEventListener('input', debounce(e => disegnaElenco(e.target.value), 200));
+  });
+
+  footer.querySelector('#nc-save').addEventListener('click', async () => {
+    const err = body.querySelector('#nc-err'); err.textContent = '';
+    const data = body.querySelector('#nc-data').value;
+    if (!data) { err.textContent = 'Indica la data della nota di credito.'; return; }
+    if (!selezionate.size) { err.textContent = 'Seleziona almeno una fattura da stornare.'; return; }
+    const righe = [...selezionate.entries()].map(([fattura_id, importo]) => ({ fattura_id, importo }));
+    if (righe.some(r => !r.importo || r.importo <= 0)) { err.textContent = 'Ogni fattura selezionata deve avere un importo valido.'; return; }
+    const btn = footer.querySelector('#nc-save'); const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
+    try {
+      await noteCredito.create({
+        numero: body.querySelector('#nc-numero').value.trim() || null,
+        data,
+        note: body.querySelector('#nc-note').value.trim() || null,
+      }, righe);
+      toast(`Nota di credito registrata su ${righe.length} fattura/e`, 'ok');
+      close();
+      onSaved();
+    } catch (e) {
+      err.textContent = 'Errore: ' + e.message;
+      btn.disabled = false; btn.innerHTML = old;
+    }
+  });
 }
 
 // ============================================================

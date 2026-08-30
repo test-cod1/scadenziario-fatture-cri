@@ -13,6 +13,8 @@
   --warn-soft:#fff6e0;
   --danger:#d32029;
   --danger-soft:#fdecec;
+  --info:#1c6fd3;
+  --info-soft:#e8f0fd;
   --radius:14px;
   --shadow:0 1px 3px rgba(20,30,40,.08),0 6px 18px rgba(20,30,40,.05);
   --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
@@ -80,6 +82,7 @@ a{color:var(--cri-red);text-decoration:none}
 .chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
 .chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
 .chip.danger{background:var(--danger-soft);color:var(--danger);border-color:transparent}
+.chip.info{background:var(--info-soft);color:var(--info);border-color:transparent}
 .chip[data-stato]{cursor:pointer}
 .chip[data-stato]:hover{filter:brightness(0.94);box-shadow:0 0 0 2px var(--line) inset}
 

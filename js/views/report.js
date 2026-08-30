@@ -75,6 +75,7 @@ function renderStats(node, righe) {
   clear(node);
   const fatturato = righe.reduce((s, f) => s + Number(f.importo || 0), 0);
   const pagato = righe.reduce((s, f) => s + f._pagato, 0);
+  const stornato = righe.reduce((s, f) => s + (f._stornato || 0), 0);
   const residuo = righe.reduce((s, f) => s + f._residuo, 0);
   const giorni = righe.map(giorniPagamento).filter(g => g !== null);
   const mediaGiorni = media(giorni);
@@ -85,6 +86,7 @@ function renderStats(node, righe) {
     { k: 'IMPORTO MEDIO', v: fmtEuro(righe.length ? fatturato / righe.length : 0), s: 'per fattura', cls: '' },
     { k: 'TEMPO MEDIO DI PAGAMENTO', v: mediaGiorni !== null ? Math.round(mediaGiorni) + ' giorni' : '—', s: `${giorni.length} fatture saldate`, cls: '' },
   ];
+  if (stornato > 0) cards.push({ k: 'STORNATO (NOTE DI CREDITO)', v: fmtEuro(stornato), s: righe.filter(f => f._stornato > 0).length + ' fatture', cls: '' });
   for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
 }
 
@@ -94,8 +96,8 @@ function perFornitore(righe) {
   const mappa = new Map();
   for (const f of righe) {
     const chiave = f.fornitore || '—';
-    const g = mappa.get(chiave) || { fornitore: chiave, n: 0, fatturato: 0, pagato: 0, residuo: 0, giorni: [] };
-    g.n++; g.fatturato += Number(f.importo || 0); g.pagato += f._pagato; g.residuo += f._residuo;
+    const g = mappa.get(chiave) || { fornitore: chiave, n: 0, fatturato: 0, pagato: 0, stornato: 0, residuo: 0, giorni: [] };
+    g.n++; g.fatturato += Number(f.importo || 0); g.pagato += f._pagato; g.stornato += (f._stornato || 0); g.residuo += f._residuo;
     const gp = giorniPagamento(f);
     if (gp !== null) g.giorni.push(gp);
     mappa.set(chiave, g);
@@ -107,8 +109,9 @@ function perFornitore(righe) {
 function renderFornitori(node, gruppi) {
   clear(node);
   if (!gruppi.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura nel periodo selezionato.</p></div>`)); return; }
+  const mostraStornato = gruppi.some(g => g.stornato > 0);
   const table = el(`<table class="tbl"><thead><tr>
-    <th>Fornitore</th><th>N. Fatture</th><th class="money-col">Fatturato</th><th class="money-col">Pagato</th><th class="money-col">Residuo</th><th>Giorni medi pagamento</th>
+    <th>Fornitore</th><th>N. Fatture</th><th class="money-col">Fatturato</th><th class="money-col">Pagato</th>${mostraStornato ? '<th class="money-col">Stornato</th>' : ''}<th class="money-col">Residuo</th><th>Giorni medi pagamento</th>
   </tr></thead><tbody></tbody></table>`);
   const tbody = table.querySelector('tbody');
   for (const g of gruppi) {
@@ -117,6 +120,7 @@ function renderFornitori(node, gruppi) {
       <td>${g.n}</td>
       <td class="money money-col">${fmtEuro(g.fatturato)}</td>
       <td class="money money-col">${fmtEuro(g.pagato)}</td>
+      ${mostraStornato ? `<td class="money money-col">${fmtEuro(g.stornato)}</td>` : ''}
       <td class="money money-col">${fmtEuro(g.residuo)}</td>
       <td>${g.giorniMedi !== null ? Math.round(g.giorniMedi) + ' gg' : '—'}</td>
     </tr>`));
@@ -164,9 +168,9 @@ function renderMesi(node, righe) {
 }
 
 function esportaFornitoriCSV(gruppi) {
-  const lines = ['Fornitore;N. Fatture;Fatturato;Pagato;Residuo;Giorni medi pagamento'];
+  const lines = ['Fornitore;N. Fatture;Fatturato;Pagato;Stornato;Residuo;Giorni medi pagamento'];
   for (const g of gruppi) {
-    lines.push([g.fornitore, g.n, g.fatturato.toFixed(2).replace('.', ','), g.pagato.toFixed(2).replace('.', ','), g.residuo.toFixed(2).replace('.', ','), g.giorniMedi !== null ? Math.round(g.giorniMedi) : '']
+    lines.push([g.fornitore, g.n, g.fatturato.toFixed(2).replace('.', ','), g.pagato.toFixed(2).replace('.', ','), g.stornato.toFixed(2).replace('.', ','), g.residuo.toFixed(2).replace('.', ','), g.giorniMedi !== null ? Math.round(g.giorniMedi) : '']
       .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';'));
   }
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });

@@ -92,7 +92,7 @@ export const fatture = {
     const tutte = [];
     for (let da = 0; ; da += BLOCCO) {
       const { data, error } = await sb.from("fatture")
-        .select("*, pagamenti(*)")
+        .select("*, pagamenti(*), note_credito_righe(*, note_credito(numero, data, note))")
         .order("scadenza", { ascending: true, nullsFirst: false })
         .order("id", { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
         .range(da, da + BLOCCO - 1);
@@ -104,7 +104,7 @@ export const fatture = {
   },
   async get(id) {
     const sb = await sbClient();
-    const { data, error } = await sb.from('fatture').select('*, pagamenti(*)').eq('id', id).single();
+    const { data, error } = await sb.from('fatture').select('*, pagamenti(*), note_credito_righe(*, note_credito(numero, data, note))').eq('id', id).single();
     if (error) throw error;
     return withResiduo(data);
   },
@@ -116,7 +116,7 @@ export const fatture = {
     const isNew = nuovo || !rec.id;
     const sb = await sbClient();
     const payload = { ...rec };
-    delete payload.pagamenti; delete payload._residuo; delete payload._pagato;
+    delete payload.pagamenti; delete payload.note_credito_righe; delete payload._residuo; delete payload._pagato; delete payload._stornato;
     if (isNew) {
       const { data: u } = await sb.auth.getUser();
       if (u?.user) payload.created_by = u.user.id;
@@ -152,8 +152,37 @@ export const fatture = {
 
 function withResiduo(f) {
   const pagato = (f.pagamenti || []).reduce((s, p) => s + Number(p.importo || 0), 0);
-  return { ...f, _pagato: pagato, _residuo: Math.max(0, Number(f.importo || 0) - pagato) };
+  const stornato = (f.note_credito_righe || []).reduce((s, n) => s + Number(n.importo || 0), 0);
+  return { ...f, _pagato: pagato, _stornato: stornato, _residuo: Math.max(0, Number(f.importo || 0) - pagato - stornato) };
 }
+
+// ---------------------------------------------------------------
+//  NOTE DI CREDITO — un documento (testata) che può stornare più fatture
+//  insieme, ciascuna per una quota diversa (note_credito_righe). Solo
+//  l'admin le scrive (stessa scelta fatta per i pagamenti veri e propri).
+// ---------------------------------------------------------------
+export const noteCredito = {
+  // righe: [{ fattura_id, importo }, ...] — una per ciascuna fattura
+  // stornata da questo stesso documento.
+  async create({ numero, data, note }, righe) {
+    const sb = await sbClient();
+    const { data: u } = await sb.auth.getUser();
+    const { data: testata, error: errTestata } = await sb.from('note_credito')
+      .insert({ numero: numero || null, data, note: note || null, created_by: u?.user?.id })
+      .select().single();
+    if (errTestata) throw errTestata;
+    const payloadRighe = righe.map(r => ({ nota_credito_id: testata.id, fattura_id: r.fattura_id, importo: r.importo }));
+    const { error: errRighe } = await sb.from('note_credito_righe').insert(payloadRighe);
+    if (errRighe) throw errRighe;
+    return testata;
+  },
+  // Rimuove solo il legame con UNA fattura (una riga), non l'intero documento.
+  async removeRiga(rigaId) {
+    const sb = await sbClient();
+    const { error } = await sb.from('note_credito_righe').delete().eq('id', rigaId);
+    if (error) throw error;
+  },
+};
 
 // ---------------------------------------------------------------
 //  PAGAMENTI (acconti / rate)

@@ -64,7 +64,9 @@ create table if not exists public.fatture (
   data_fattura date,
   importo numeric(12,2) not null default 0,
   scadenza date,
-  stato text not null default 'da_pagare' check (stato in ('da_pagare','pagata_parziale','pagata')),
+  -- 'stornata' = chiusa da una nota di credito (in tutto o compensando il
+  -- residuo), non da un pagamento vero: vedi note_credito più sotto.
+  stato text not null default 'da_pagare' check (stato in ('da_pagare','pagata_parziale','pagata','stornata')),
   metodo_pagamento text,          -- bonifico / riba / rid / contanti / altro
   note text,
   estratta_da_ai boolean default false,
@@ -89,24 +91,51 @@ create table if not exists public.pagamenti (
 );
 create index if not exists idx_pagamenti_fattura on public.pagamenti(fattura_id);
 
--- Ricalcola automaticamente lo stato della fattura in base ai pagamenti registrati.
--- L'UPDATE viene eseguito SOLO se lo stato cambia davvero: altrimenti farebbe
--- scattare il trigger di audit generando una riga 'modifica' fittizia accanto
--- a ogni 'pagamento_aggiunto'/'pagamento_rimosso'.
+-- ---------- NOTE DI CREDITO ----------
+-- Una nota di credito è un documento (testata) che può stornare PIÙ fatture
+-- insieme, ciascuna per una quota diversa: capita spesso nella pratica. Per
+-- questo ha una riga per ciascuna fattura stornata, come le fatture con i
+-- loro pagamenti.
+create table if not exists public.note_credito (
+  id uuid primary key default gen_random_uuid(),
+  numero text,
+  data date not null,
+  note text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.note_credito_righe (
+  id uuid primary key default gen_random_uuid(),
+  nota_credito_id uuid not null references public.note_credito(id) on delete cascade,
+  fattura_id uuid not null references public.fatture(id) on delete cascade,
+  importo numeric(12,2) not null check (importo > 0),
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_ncr_nota on public.note_credito_righe(nota_credito_id);
+create index if not exists idx_ncr_fattura on public.note_credito_righe(fattura_id);
+
+-- Ricalcola automaticamente lo stato della fattura in base a pagamenti E note
+-- di credito collegate. L'UPDATE viene eseguito SOLO se lo stato cambia
+-- davvero: altrimenti farebbe scattare il trigger di audit generando una riga
+-- 'modifica' fittizia accanto a ogni 'pagamento_aggiunto'/'pagamento_rimosso'.
 create or replace function public.ricalcola_stato_fattura(p_fattura_id uuid)
 returns void language plpgsql security definer set search_path = public as $$
 declare
-  v_importo numeric(12,2);
-  v_pagato  numeric(12,2);
-  v_stato   text;
+  v_importo  numeric(12,2);
+  v_pagato   numeric(12,2);
+  v_stornato numeric(12,2);
+  v_stato    text;
 begin
   select importo into v_importo from public.fatture where id = p_fattura_id;
   if v_importo is null then return; end if;
-  select coalesce(sum(importo),0) into v_pagato from public.pagamenti where fattura_id = p_fattura_id;
+  select coalesce(sum(importo),0) into v_pagato   from public.pagamenti         where fattura_id = p_fattura_id;
+  select coalesce(sum(importo),0) into v_stornato from public.note_credito_righe where fattura_id = p_fattura_id;
   v_stato := case
-    when v_pagato <= 0          then 'da_pagare'
-    when v_pagato >= v_importo  then 'pagata'
-    else                             'pagata_parziale'
+    when (v_pagato + v_stornato) <= 0          then 'da_pagare'
+    when (v_pagato + v_stornato) <  v_importo  then 'pagata_parziale'
+    when v_stornato > 0                        then 'stornata'
+    else                                             'pagata'
   end;
   update public.fatture
      set stato = v_stato, updated_at = now()
@@ -130,21 +159,49 @@ create trigger on_pagamento_change
   after insert or update or delete on public.pagamenti
   for each row execute procedure public.trg_pagamenti_ricalcola();
 
+-- A differenza dei pagamenti, una riga di nota di credito può in teoria
+-- cambiare fattura_id in un UPDATE: si ricalcolano entrambe le fatture
+-- coinvolte, non solo quella nuova.
+create or replace function public.trg_note_credito_righe_ricalcola()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'DELETE' then
+    perform public.ricalcola_stato_fattura(old.fattura_id);
+  elsif tg_op = 'UPDATE' then
+    perform public.ricalcola_stato_fattura(new.fattura_id);
+    if new.fattura_id is distinct from old.fattura_id then
+      perform public.ricalcola_stato_fattura(old.fattura_id);
+    end if;
+  else
+    perform public.ricalcola_stato_fattura(new.fattura_id);
+  end if;
+  return null;
+end; $$;
+
+drop trigger if exists on_nota_credito_riga_change on public.note_credito_righe;
+create trigger on_nota_credito_riga_change
+  after insert or update or delete on public.note_credito_righe
+  for each row execute procedure public.trg_note_credito_righe_ricalcola();
+
 -- Se cambia l'importo della fattura, lo stato va ricalcolato confrontandolo
--- con i pagamenti già registrati: senza questo trigger, correggendo l'importo
--- di una fattura già saldata lo stato sarebbe rimasto 'pagata' e la fattura
--- sarebbe sparita da "Da pagare", dagli alert e dai totali pur avendo residuo.
+-- con pagamenti e note di credito già registrati: senza questo trigger,
+-- correggendo l'importo di una fattura già saldata lo stato sarebbe rimasto
+-- 'pagata' e la fattura sarebbe sparita da "Da pagare", dagli alert e dai
+-- totali pur avendo residuo.
 create or replace function public.trg_fatture_stato()
 returns trigger language plpgsql security definer set search_path = public as $$
-declare v_pagato numeric(12,2);
+declare v_pagato numeric(12,2); v_stornato numeric(12,2);
 begin
   if new.importo is distinct from old.importo then
     select coalesce(sum(importo),0) into v_pagato
       from public.pagamenti where fattura_id = new.id;
+    select coalesce(sum(importo),0) into v_stornato
+      from public.note_credito_righe where fattura_id = new.id;
     new.stato := case
-      when v_pagato <= 0            then 'da_pagare'
-      when v_pagato >= new.importo  then 'pagata'
-      else                               'pagata_parziale'
+      when (v_pagato + v_stornato) <= 0           then 'da_pagare'
+      when (v_pagato + v_stornato) <  new.importo then 'pagata_parziale'
+      when v_stornato > 0                         then 'stornata'
+      else                                              'pagata'
     end;
   end if;
   return new;
@@ -188,7 +245,7 @@ create table if not exists public.log_modifiche (
   fattura_id uuid,                -- niente FK: la riga deve restare leggibile anche dopo la cancellazione
   fornitore_snapshot text,
   numero_snapshot text,
-  azione text not null check (azione in ('creazione','modifica','cancellazione','pagamento_aggiunto','pagamento_rimosso')),
+  azione text not null check (azione in ('creazione','modifica','cancellazione','pagamento_aggiunto','pagamento_rimosso','nota_credito_aggiunta','nota_credito_rimossa')),
   dettagli jsonb,
   utente_id uuid,
   utente_email text,
@@ -248,14 +305,76 @@ create trigger on_pagamenti_log
   after insert or delete on public.pagamenti
   for each row execute procedure public.trg_pagamenti_log();
 
+-- Una riga di log per ogni fattura toccata da una nota di credito (non una
+-- per documento): risponde a "quali fatture si sono viste stornare" tanto
+-- quanto "chi ha creato la nota", coerente con com'è organizzato il resto
+-- del registro modifiche (sempre per fattura).
+create or replace function public.trg_note_credito_righe_log()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare v_email text; v_nome text; v_fornitore text; v_numero text; v_nc_numero text; v_nc_data date;
+begin
+  select email, nome into v_email, v_nome from public.log_utente_info();
+  if tg_op = 'INSERT' then
+    select fornitore, numero_fattura into v_fornitore, v_numero from public.fatture where id = new.fattura_id;
+    select numero, data into v_nc_numero, v_nc_data from public.note_credito where id = new.nota_credito_id;
+    insert into public.log_modifiche (fattura_id, fornitore_snapshot, numero_snapshot, azione, dettagli, utente_id, utente_email, utente_nome)
+    values (new.fattura_id, v_fornitore, v_numero, 'nota_credito_aggiunta',
+      jsonb_build_object('importo', new.importo, 'nota_credito_numero', v_nc_numero, 'nota_credito_data', v_nc_data),
+      auth.uid(), v_email, v_nome);
+  elsif tg_op = 'DELETE' then
+    select fornitore, numero_fattura into v_fornitore, v_numero from public.fatture where id = old.fattura_id;
+    select numero, data into v_nc_numero, v_nc_data from public.note_credito where id = old.nota_credito_id;
+    insert into public.log_modifiche (fattura_id, fornitore_snapshot, numero_snapshot, azione, dettagli, utente_id, utente_email, utente_nome)
+    values (old.fattura_id, v_fornitore, v_numero, 'nota_credito_rimossa',
+      jsonb_build_object('importo', old.importo, 'nota_credito_numero', v_nc_numero, 'nota_credito_data', v_nc_data),
+      auth.uid(), v_email, v_nome);
+  end if;
+  return null;
+end; $$;
+
+drop trigger if exists on_note_credito_righe_log on public.note_credito_righe;
+create trigger on_note_credito_righe_log
+  after insert or delete on public.note_credito_righe
+  for each row execute procedure public.trg_note_credito_righe_log();
+
+-- ---------- PROPOSTE DI PAGAMENTO ----------
+-- L'operatore propone (importo, data prevista, metodo); solo l'admin può
+-- confermarle (scrive il pagamento vero e proprio) o rifiutarle.
+create table if not exists public.proposte_pagamento (
+  id uuid primary key default gen_random_uuid(),
+  fattura_id uuid not null references public.fatture(id) on delete cascade,
+  importo numeric(12,2) not null check (importo > 0),
+  data_prevista date,
+  metodo text,
+  note text,
+  stato text not null default 'proposta' check (stato in ('proposta','confermata','rifiutata')),
+  -- Nome/email salvati al momento della proposta (non solo l'id): restano
+  -- leggibili anche se in futuro cambia il profilo, senza dover fare un
+  -- embed su auth.users (non esposto da PostgREST).
+  proposta_da uuid references auth.users(id),
+  proposta_da_nome text,
+  proposta_da_email text,
+  decisa_da uuid references auth.users(id),
+  decisa_da_nome text,
+  decisa_il timestamptz,
+  motivo_rifiuto text,
+  pagamento_id uuid references public.pagamenti(id) on delete set null,
+  created_at timestamptz not null default now()
+);
+create index if not exists idx_proposte_fattura on public.proposte_pagamento(fattura_id);
+create index if not exists idx_proposte_stato on public.proposte_pagamento(stato);
+
 -- ============================================================
 --  ROW LEVEL SECURITY
 -- ============================================================
-alter table public.profili       enable row level security;
-alter table public.fatture       enable row level security;
-alter table public.pagamenti     enable row level security;
-alter table public.log_modifiche enable row level security;
-alter table public.impostazioni  enable row level security;
+alter table public.profili           enable row level security;
+alter table public.fatture           enable row level security;
+alter table public.pagamenti         enable row level security;
+alter table public.note_credito       enable row level security;
+alter table public.note_credito_righe enable row level security;
+alter table public.proposte_pagamento enable row level security;
+alter table public.log_modifiche     enable row level security;
+alter table public.impostazioni      enable row level security;
 
 drop policy if exists prof_self on public.profili;
 create policy prof_self on public.profili for select using (id = auth.uid());
@@ -274,9 +393,48 @@ create policy fatture_write on public.fatture for all
 
 drop policy if exists pagamenti_read on public.pagamenti;
 create policy pagamenti_read on public.pagamenti for select using (public.puo_leggere());
+-- Solo l'admin scrive pagamenti: è lui che li esegue davvero. L'operatore
+-- può solo proporli (vedi proposte_pagamento più sotto).
 drop policy if exists pagamenti_write on public.pagamenti;
 create policy pagamenti_write on public.pagamenti for all
+  using (public.e_admin()) with check (public.e_admin());
+
+-- A differenza dei pagamenti (dove scrive solo l'admin, perché è lui che li
+-- esegue davvero), le note di credito sono documenti ricevuti dai fornitori:
+-- anche l'operatore può registrarle, come già può fare con le fatture.
+drop policy if exists note_credito_read on public.note_credito;
+create policy note_credito_read on public.note_credito for select using (public.puo_leggere());
+drop policy if exists note_credito_write on public.note_credito;
+create policy note_credito_write on public.note_credito for all
   using (public.puo_scrivere()) with check (public.puo_scrivere());
+
+drop policy if exists note_credito_righe_read on public.note_credito_righe;
+create policy note_credito_righe_read on public.note_credito_righe for select using (public.puo_leggere());
+drop policy if exists note_credito_righe_write on public.note_credito_righe;
+create policy note_credito_righe_write on public.note_credito_righe for all
+  using (public.puo_scrivere()) with check (public.puo_scrivere());
+
+-- Lettura: l'admin vede tutte le proposte, l'operatore solo le proprie.
+drop policy if exists proposte_read on public.proposte_pagamento;
+create policy proposte_read on public.proposte_pagamento for select
+  using (public.e_admin() or proposta_da = auth.uid());
+-- Creazione: chiunque possa scrivere (admin/operatore) può proporre, ma solo
+-- a proprio nome (non si può proporre "per conto di" un collega).
+drop policy if exists proposte_insert on public.proposte_pagamento;
+create policy proposte_insert on public.proposte_pagamento for insert
+  with check (public.puo_scrivere() and proposta_da = auth.uid());
+-- Conferma/rifiuto: solo l'admin può cambiare stato/esito di una proposta.
+drop policy if exists proposte_update_admin on public.proposte_pagamento;
+create policy proposte_update_admin on public.proposte_pagamento for update
+  using (public.e_admin()) with check (public.e_admin());
+-- Ritiro: l'autore può cancellare una propria proposta finché è ancora in
+-- attesa (non più se l'admin l'ha già confermata o rifiutata).
+drop policy if exists proposte_delete_own on public.proposte_pagamento;
+create policy proposte_delete_own on public.proposte_pagamento for delete
+  using (proposta_da = auth.uid() and stato = 'proposta');
+drop policy if exists proposte_delete_admin on public.proposte_pagamento;
+create policy proposte_delete_admin on public.proposte_pagamento for delete
+  using (public.e_admin());
 
 -- Il log è sola lettura per gli admin: nessuna policy di insert/update/delete
 -- per il ruolo authenticated, quindi solo le funzioni trigger (security
