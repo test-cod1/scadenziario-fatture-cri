@@ -17,7 +17,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 7812.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 7812.00, '2026-01-28', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -25,7 +25,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1510.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1510.00, '2026-01-20', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -33,7 +33,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 7436.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 7436.00, '2026-02-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -41,7 +41,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 279.27, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 279.27, '2026-02-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -49,7 +49,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 298.56, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 298.56, '2026-02-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -57,7 +57,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 298.56, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 298.56, '2026-02-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -65,7 +65,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 22600.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 22600.00, '2026-01-26', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -73,7 +73,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 450.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 450.00, '2026-06-19', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -81,7 +81,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 125.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 125.00, '2026-01-28', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -89,7 +89,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 2800.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 2800.00, '2026-02-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -97,7 +97,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 630.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 630.00, '2026-03-30', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -105,7 +105,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 80.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 80.00, '2026-02-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -113,7 +113,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 386.90, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 386.90, '2026-03-13', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -121,7 +121,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 2685.14, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 2685.14, '2026-03-13', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('AZIENDA OSPEDALIERA SAN MARTINO', NULL, '2026-01-29', 3545.60, NULL, 'stornata', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 14 del file originale · [Import fatture attive] fattura segnata stornata ma il file riporta anche un valore in PAGATA (datetime.datetime(2026, 3, 13, 0, 0)): non collegato, verificare a mano.', NULL);
@@ -138,7 +138,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 2632.58, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 2632.58, '2026-03-13', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -146,7 +146,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 175.10, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 175.10, '2026-03-13', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -154,7 +154,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 2650.60, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 2650.60, '2026-03-13', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -162,7 +162,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1918.30, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1918.30, '2026-03-13', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -170,7 +170,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 16466.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 16466.00, '2026-03-13', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -178,7 +178,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 14288.50, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 14288.50, '2026-03-06', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -186,7 +186,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 15828.90, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 15828.90, '2026-03-06', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -194,7 +194,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 12636.15, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 12636.15, '2026-03-06', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -202,7 +202,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1100.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1100.00, '2026-03-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -210,7 +210,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1135.75, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1135.75, '2026-03-09', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -218,7 +218,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 264.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 264.00, '2026-03-09', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -226,7 +226,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 110.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 110.00, '2026-02-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -234,7 +234,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 110.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 110.00, '2026-02-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -242,7 +242,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 60.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 60.00, '2026-05-29', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -250,7 +250,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 17119.05, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 17119.05, '2026-04-21', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -258,7 +258,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 118.25, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 118.25, '2026-03-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -266,7 +266,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 347.50, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 347.50, '2026-03-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -274,7 +274,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 197.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 197.20, '2026-04-21', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -282,7 +282,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 4078.60, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 4078.60, '2026-04-21', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -290,7 +290,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 124.95, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 124.95, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -298,7 +298,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 30.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 30.00, '2026-03-20', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -306,7 +306,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 140.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 140.00, '2026-03-20', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -314,7 +314,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 7696.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 7696.00, '2026-03-24', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -322,7 +322,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 7592.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 7592.00, '2026-04-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -330,7 +330,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 7852.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 7852.00, '2026-04-08', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -338,7 +338,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 40.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 40.00, '2026-03-20', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('ISTITUTO COMPRENSIVO DI BORZOLI', NULL, '2026-03-10', 829.60, '2026-04-09', 'stornata', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 47 del file originale', NULL);
@@ -349,7 +349,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 680.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 680.00, '2026-03-17', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -357,7 +357,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 120.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 120.00, '2026-02-24', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -365,7 +365,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 730.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 730.00, '2026-06-05', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -373,7 +373,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 12090.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 12090.00, '2026-04-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('COMUNE DI GENOVA ATS 41', NULL, '2026-03-13', 7852.00, NULL, 'stornata', NULL, 'Centro di costo: SOS BAMBINO · [Import fatture attive] rif. riga 54 del file originale', NULL);
@@ -384,7 +384,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 2156.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 2156.20, '2026-03-31', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -392,7 +392,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 244.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 244.00, '2026-03-31', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -400,7 +400,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 244.75, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 244.75, '2026-06-24', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -408,7 +408,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 2671.65, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 2671.65, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -416,7 +416,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 16435.40, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 16435.40, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -424,7 +424,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 260.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 260.00, '2026-04-22', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -432,7 +432,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 219.60, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 219.60, '2026-05-21', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -440,7 +440,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 158.60, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 158.60, '2026-04-02', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -448,7 +448,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 180.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 180.00, '2026-04-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -456,7 +456,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 270.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 270.00, '2026-04-14', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -464,7 +464,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 450.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 450.00, '2026-04-14', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('GENOA BIKE ASD', NULL, '2026-03-24', 280.00, '2026-04-23', 'da_incassare', NULL, 'Centro di costo: ASSISTENZA SPETTACOLI · [Import fatture attive] rif. riga 66 del file originale', '2026-06-26');
@@ -475,7 +475,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 230.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 230.00, '2026-04-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -483,7 +483,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1100.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1100.00, '2026-06-05', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -491,7 +491,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 300.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 300.00, '2026-08-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -499,7 +499,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 467.80, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 467.80, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -507,7 +507,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1254.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1254.00, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -515,7 +515,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 5404.85, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 5404.85, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -523,7 +523,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 15765.55, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 15765.55, '2026-04-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -531,7 +531,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-30', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -539,7 +539,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, NULL, 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-30', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -547,7 +547,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, NULL, 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-30', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -555,7 +555,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 268.40, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 268.40, '2026-06-08', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -563,7 +563,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 700.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 700.00, '2026-05-29', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('COMUNE DI GENOVA ATS 41 V MUNICIPIO VALPOLCERA', NULL, '2026-04-02', 7176.00, NULL, 'stornata', NULL, 'Centro di costo: SOS BAMBINO · [Import fatture attive] rif. riga 79 del file originale', NULL);
@@ -574,7 +574,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 10894.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 10894.00, '2026-04-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -582,7 +582,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1550.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1550.00, '2026-04-10', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -590,7 +590,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 85.40, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 85.40, '2026-04-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -598,7 +598,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 195.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 195.20, '2026-05-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -606,7 +606,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 80.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 80.00, '2026-04-22', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -614,7 +614,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 30.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 30.00, '2026-04-22', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -622,7 +622,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 60.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 60.00, '2026-04-22', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -630,7 +630,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2026-04-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -638,7 +638,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3770.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3770.00, '2026-05-12', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -646,7 +646,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 2731.65, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 2731.65, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -654,7 +654,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1287.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1287.00, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -662,7 +662,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 7176.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 7176.00, '2026-04-23', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -670,7 +670,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 7852.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 7852.00, '2026-04-23', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -678,7 +678,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 400.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 400.00, '2026-06-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -686,7 +686,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 210.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 210.00, '2026-04-22', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -694,7 +694,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 228.25, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 228.25, '2026-06-24', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -702,7 +702,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 12038.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 12038.00, '2026-05-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -710,7 +710,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3991.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3991.00, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -718,7 +718,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3443.30, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3443.30, '2026-05-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -726,7 +726,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 360.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 360.00, '2026-05-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -734,7 +734,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 646.80, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 646.80, '2026-06-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -742,7 +742,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 5431.95, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 5431.95, '2026-06-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -750,7 +750,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 800.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 800.20, '2026-06-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -758,7 +758,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 600.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 600.00, '2026-05-29', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -766,7 +766,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 7956.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 7956.00, '2026-05-20', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('AZIENDA OSPEDALIERA SAN MARTINO', NULL, '2026-04-30', 16341.00, NULL, 'stornata', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 109 del file originale', NULL);
@@ -777,7 +777,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 55.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 55.00, '2026-06-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -785,7 +785,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 30.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 30.00, '2026-06-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -793,7 +793,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 30.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 30.00, '2026-06-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -801,7 +801,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 30.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 30.00, '2026-06-11', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -809,7 +809,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3822.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3822.00, '2026-05-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -817,7 +817,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1171.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1171.20, '2026-06-22', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -825,7 +825,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 35.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 35.00, '2026-05-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -833,7 +833,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 270.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 270.00, '2026-05-13', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('COOPERATIVA SAN CARLO ONLUS SCS', NULL, '2026-05-12', 45.00, NULL, 'da_incassare', NULL, 'Centro di costo: CRI SOL/ASSISTENZA SANITARIA MIGRANTI · [Import fatture attive] rif. riga 119 del file originale', NULL);
@@ -844,7 +844,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 540.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 540.00, '2026-06-03', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -852,7 +852,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 540.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 540.00, '2026-06-08', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -860,7 +860,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1110.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1110.20, '2026-05-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -868,7 +868,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 134.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 134.20, '2026-05-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -876,7 +876,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 2000.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 2000.00, '2026-05-28', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -884,7 +884,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 14501.30, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 14501.30, '2026-06-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('COOPERATIVA SAN CARLO ONLUS SCS', NULL, '2026-05-15', 50.00, '2026-05-16', 'da_incassare', NULL, 'Centro di costo: CRI SOL/ASSISTENZA SANITARIA MIGRANTI · [Import fatture attive] rif. riga 126 del file originale', NULL);
@@ -895,7 +895,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 11440.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 11440.00, '2026-06-03', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -903,7 +903,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 230.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 230.00, '2026-05-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -911,7 +911,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 402.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 402.00, '2026-05-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -919,7 +919,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 30.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 30.00, '2026-03-26', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -927,7 +927,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 16341.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 16341.00, '2026-07-17', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -935,7 +935,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 750.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 750.00, '2026-07-01', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -943,7 +943,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 90.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 90.00, '2026-05-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('COOPERATIVA SAN CARLO ONLUS SCS', NULL, '2026-05-26', 40.00, '2026-06-27', 'da_incassare', NULL, 'Centro di costo: CRI SOL/ASSISTENZA SANITARIA MIGRANTI · [Import fatture attive] rif. riga 136 del file originale', NULL);
@@ -957,7 +957,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3360.30, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3360.30, '2026-06-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -965,7 +965,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 443.65, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 443.65, '2026-07-17', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -973,7 +973,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 4632.30, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 4632.30, '2026-07-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -981,7 +981,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1407.80, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1407.80, '2026-07-19', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -989,7 +989,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 15245.35, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 15245.35, '2026-07-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('HR TRAINING SRL', NULL, '2026-06-04', 244.00, '2026-06-05', 'da_incassare', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] valore SOLLECITO PAG illeggibile nel file: ''?'' — non importato. · [Import fatture attive] rif. riga 145 del file originale', NULL);
@@ -1000,7 +1000,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3900.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3900.00, '2026-07-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1008,7 +1008,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 30.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 30.00, '2026-07-08', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1016,7 +1016,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 40.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 40.00, '2026-07-08', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('ISTITUTO GIANNINA GASLINI', NULL, '2026-06-15', 140.25, '2026-06-16', 'da_incassare', NULL, 'Centro di costo: GENERALE/FORNITURA SANGUE · [Import fatture attive] rif. riga 150 del file originale', '2026-06-22');
@@ -1030,7 +1030,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 134.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 134.20, '2026-06-18', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1038,7 +1038,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 91.50, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 91.50, '2026-06-15', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1046,7 +1046,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 39.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 39.00, '2026-07-14', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1054,7 +1054,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 4017.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 4017.00, '2026-07-14', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('PETERCOM S.R.L.', NULL, '2026-06-18', 240.00, '2026-06-19', 'da_incassare', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 156 del file originale', NULL);
@@ -1068,7 +1068,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 60.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 60.00, '2026-05-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('THE GREEN SCHOOL', NULL, '2026-06-23', 109.80, '2026-06-23', 'da_incassare', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 159 del file originale', NULL);
@@ -1085,7 +1085,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 158.60, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 158.60, '2026-08-06', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1093,7 +1093,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 768.60, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 768.60, '2026-07-03', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1101,7 +1101,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 900.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 900.00, '2026-06-25', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1109,7 +1109,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 134.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 134.20, '2026-07-14', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1117,7 +1117,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3438.25, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3438.25, '2026-07-20', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('AZIENDA OSPEDALIERA SAN MARTINO', NULL, '2026-06-25', 14308.30, '2026-06-25', 'da_incassare', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 167 del file originale', NULL);
@@ -1176,7 +1176,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 800.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 800.00, '2026-07-20', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('FONDAZIONE L''ANCORA', NULL, '2026-07-07', 70.00, '2026-08-06', 'da_incassare', NULL, 'Centro di costo: CRI SOL/ASSISTENZA SANITARIA MIGRANTI · [Import fatture attive] rif. riga 185 del file originale', NULL);
@@ -1187,7 +1187,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 225.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 225.00, '2026-07-30', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('SKILLSUP S.R.L', NULL, '2026-07-08', 900.00, '2026-09-06', 'da_incassare', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 187 del file originale', NULL);
@@ -1198,7 +1198,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3300.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3300.00, '2026-08-04', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('COOPSSE SOC. COOP. SOCIALE ONLUS', NULL, '2026-07-08', 244.00, '2026-07-09', 'da_incassare', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 189 del file originale', NULL);
@@ -1215,7 +1215,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3874.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3874.00, '2026-07-31', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1223,7 +1223,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 5500.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 5500.00, '2026-07-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1231,7 +1231,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 11596.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 11596.00, '2026-07-31', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1239,7 +1239,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 12090.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 12090.00, '2026-08-05', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1247,7 +1247,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 4004.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 4004.00, '2026-08-05', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1255,7 +1255,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 3900.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 3900.00, '2026-08-05', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('COMUNE DI GENOVA ATS 41 V MUNICIPIO VALPOLCEVERA', NULL, '2026-07-20', 7852.00, '2026-07-21', 'da_incassare', NULL, 'Centro di costo: SOS BAMBINO · [Import fatture attive] rif. riga 198 del file originale', NULL);
@@ -1269,7 +1269,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 270.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 270.00, '2026-08-04', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1277,7 +1277,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 540.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 540.00, '2026-08-04', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('AZIENDA OSPEDALIERA SAN MARTINO', NULL, '2026-07-21', 2679.90, '2026-09-19', 'da_incassare', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 202 del file originale', NULL);
@@ -1291,7 +1291,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 770.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 770.00, '2026-07-27', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('COMITATO GENOVA 2026 A.S.D.', NULL, '2026-07-22', 770.00, '2026-07-23', 'da_incassare', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 205 del file originale', NULL);
@@ -1347,7 +1347,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 634.40, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 634.40, '2026-08-10', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1355,7 +1355,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 134.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 134.20, '2026-08-07', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1363,7 +1363,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 91.50, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 91.50, '2026-08-05', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('AZIENDA OSPEDALIERA SAN MARTINO', NULL, '2026-03-26', 467.80, NULL, 'da_incassare', NULL, 'Centro di costo: APPARIZIONE · [Import fatture attive] rif. riga 70 del file originale', NULL);
@@ -1383,7 +1383,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, NULL, 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-24', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1391,7 +1391,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, NULL, 'bonifico', NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-24', 'bonifico', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1399,7 +1399,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, NULL, 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2027-03-24', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1407,7 +1407,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 268.40, NULL, 'bonifico', NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 268.40, '2026-03-30', 'bonifico', NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('AD INTERNATIONAL ASSISTANCE SRL', NULL, '2026-04-01', 700.00, NULL, 'da_incassare', NULL, 'Centro di costo: Trasporto COSTA TOSCANA/AUTOPARCO · [Import fatture attive] rif. riga 78 del file originale', NULL);
@@ -1421,7 +1421,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1550.00, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 1550.00, '2026-04-10', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('RONDASERVICE SRL', NULL, '2026-04-07', 85.40, '2026-04-28', 'da_incassare', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 82 del file originale', NULL);
@@ -1432,7 +1432,7 @@ WITH f AS (
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 195.20, NULL, NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 195.20, '2026-05-12', NULL, NULL) AS v(importo, data_incasso, metodo, note);
 
 INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
 VALUES ('FONDAZIONE L''ANCORA ONLUS', NULL, '2026-04-07', 80.00, NULL, 'da_incassare', NULL, 'Centro di costo: CRI SOL/ASSISTENZA SANITARIA MIGRANTI · [Import fatture attive] rif. riga 84 del file originale', NULL);
