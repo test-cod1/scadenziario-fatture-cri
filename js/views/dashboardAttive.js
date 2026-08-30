@@ -110,11 +110,14 @@ function renderStats(node, tutte) {
   const totaleDovuto = nonIncassate.reduce((s, f) => s + f._residuo, 0);
   const oggi = new Date().toISOString().slice(0, 10);
   const meseCorrente = oggi.slice(0, 7);
+  const annoCorrente = oggi.slice(0, 4);
   const incassatoMese = tutte.reduce((s, f) => s + (f.incassi || []).filter(p => (p.data_incasso || '').slice(0, 7) === meseCorrente).reduce((a, p) => a + Number(p.importo || 0), 0), 0);
+  const incassatoAnno = tutte.reduce((s, f) => s + (f.incassi || []).filter(p => (p.data_incasso || '').slice(0, 4) === annoCorrente).reduce((a, p) => a + Number(p.importo || 0), 0), 0);
 
   const cards = [
     { k: 'DA INCASSARE (TOTALE)', v: fmtEuro(totaleDovuto), s: `${nonIncassate.length} fatture`, cls: 'accent' },
     { k: 'INCASSATO QUESTO MESE', v: fmtEuro(incassatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok' },
+    { k: 'INCASSATO QUEST\'ANNO', v: fmtEuro(incassatoAnno), s: annoCorrente, cls: 'ok' },
   ];
   for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
 }
