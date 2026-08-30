@@ -463,7 +463,6 @@ create table if not exists public.fatture_attive (
   numero_fattura text,
   data_fattura date,
   importo numeric(12,2) not null default 0,
-  scadenza date,
   -- 'stornata' = chiusa da una nota di credito emessa (in tutto o compensando
   -- il residuo), non da un incasso vero: vedi note_credito_attive più sotto.
   stato text not null default 'da_incassare' check (stato in ('da_incassare','incassata_parziale','incassata','stornata')),
@@ -477,7 +476,6 @@ create table if not exists public.fatture_attive (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
-create index if not exists idx_fatture_attive_scadenza on public.fatture_attive(scadenza);
 create index if not exists idx_fatture_attive_stato on public.fatture_attive(stato);
 create index if not exists idx_fatture_attive_cliente on public.fatture_attive(cliente);
 

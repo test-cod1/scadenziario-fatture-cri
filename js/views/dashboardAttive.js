@@ -1,5 +1,5 @@
 import { fattureAttive } from '../data/storeAttive.js';
-import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast } from '../lib/ui.js';
+import { el, clear, esc, fmtDate, fmtEuro, debounce } from '../lib/ui.js';
 import { exportCSVAttive, exportPDFAttive } from '../lib/export.js';
 import { apriEditorAttiva, apriUploadAttive, apriIncassoRapido, apriNuovaNotaCreditoAttiva, apriSollecitoRapido } from './fatturaAttiva.js';
 
@@ -12,7 +12,7 @@ export async function renderDashboardAttive(view, ctx) {
   try { tutte = await fattureAttive.list(); }
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
 
-  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '' };
+  const state = { q: '', stato: '', importoMin: '', importoMax: '' };
 
   const wrap = el(`<div>
     <div class="page-head">
@@ -25,7 +25,6 @@ export async function renderDashboardAttive(view, ctx) {
         <button class="btn primary" id="nuova">+ Nuova fattura</button>
       </div>
     </div>
-    <div id="alert-zone"></div>
     <div class="grid stats" id="stats" style="margin-bottom:22px"></div>
     <div class="toolbar">
       <div class="search"><span class="search-icon">🔎</span><input type="text" id="q" placeholder="Cerca cliente, numero fattura, note…"></div>
@@ -36,13 +35,10 @@ export async function renderDashboardAttive(view, ctx) {
         <option value="incassata">Incassata</option>
         <option value="stornata">Stornata</option>
       </select>
-      <input type="date" id="f-da" title="Scadenza da">
-      <input type="date" id="f-a" title="Scadenza a">
       <input type="number" id="f-min" placeholder="Importo min €" style="width:120px">
       <input type="number" id="f-max" placeholder="Importo max €" style="width:120px">
       <button class="btn ghost sm" id="f-reset">Azzera filtri</button>
     </div>
-    <div class="muted" id="nota-filtri" style="font-size:13px;margin:-8px 0 10px"></div>
     <div class="card"><div class="card-b tbl-wrap" id="tbl-zone"></div></div>
     <div class="drop-page-overlay" id="drop-overlay"><div class="box">📎 Rilascia qui i file per caricare le fatture</div></div>
   </div>`);
@@ -66,7 +62,6 @@ export async function renderDashboardAttive(view, ctx) {
   });
 
   renderStats(wrap.querySelector('#stats'), tutte);
-  renderAlert(wrap.querySelector('#alert-zone'), tutte);
 
   function applyFilters() {
     let r = tutte;
@@ -75,8 +70,6 @@ export async function renderDashboardAttive(view, ctx) {
       r = r.filter(f => (f.cliente || '').toLowerCase().includes(q) || (f.numero_fattura || '').toLowerCase().includes(q) || (f.note || '').toLowerCase().includes(q));
     }
     if (state.stato) r = r.filter(f => f.stato === state.stato);
-    if (state.da) r = r.filter(f => f.scadenza && f.scadenza >= state.da);
-    if (state.aData) r = r.filter(f => f.scadenza && f.scadenza <= state.aData);
     if (state.importoMin) r = r.filter(f => Number(f.importo) >= Number(state.importoMin));
     if (state.importoMax) r = r.filter(f => Number(f.importo) <= Number(state.importoMax));
     return r;
@@ -84,35 +77,22 @@ export async function renderDashboardAttive(view, ctx) {
 
   function refreshTable() {
     renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica);
-    mostraNotaSenzaScadenza();
-  }
-
-  function mostraNotaSenzaScadenza() {
-    const zona = wrap.querySelector("#nota-filtri");
-    const filtroData = !!(state.da || state.aData);
-    const escluse = filtroData ? tutte.filter(f => !f.scadenza).length : 0;
-    zona.textContent = escluse
-      ? escluse + (escluse === 1 ? " fattura senza data di scadenza non rientra" : " fatture senza data di scadenza non rientrano") + " nel filtro per data."
-      : "";
   }
 
   async function ricarica() {
     tutte = await fattureAttive.list();
     renderStats(wrap.querySelector('#stats'), tutte);
-    renderAlert(wrap.querySelector('#alert-zone'), tutte);
     refreshTable();
   }
 
   const onSearch = debounce(v => { state.q = v; refreshTable(); }, 250);
   wrap.querySelector('#q').addEventListener('input', e => onSearch(e.target.value));
   wrap.querySelector('#f-stato').addEventListener('change', e => { state.stato = e.target.value; refreshTable(); });
-  wrap.querySelector('#f-da').addEventListener('change', e => { state.da = e.target.value; refreshTable(); });
-  wrap.querySelector('#f-a').addEventListener('change', e => { state.aData = e.target.value; refreshTable(); });
   wrap.querySelector('#f-min').addEventListener('input', debounce(e => { state.importoMin = e.target.value; refreshTable(); }, 250));
   wrap.querySelector('#f-max').addEventListener('input', debounce(e => { state.importoMax = e.target.value; refreshTable(); }, 250));
   wrap.querySelector('#f-reset').addEventListener('click', () => {
-    Object.assign(state, { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '' });
-    wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
+    Object.assign(state, { q: '', stato: '', importoMin: '', importoMax: '' });
+    wrap.querySelectorAll('#q,#f-stato,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });
   wrap.querySelector('#exp-csv').addEventListener('click', () => exportCSVAttive(applyFilters()));
@@ -129,50 +109,29 @@ function renderStats(node, tutte) {
   const nonIncassate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
   const totaleDovuto = nonIncassate.reduce((s, f) => s + f._residuo, 0);
   const oggi = new Date().toISOString().slice(0, 10);
-  const scadute = nonIncassate.filter(f => f.scadenza && f.scadenza < oggi);
-  const totaleScaduto = scadute.reduce((s, f) => s + f._residuo, 0);
   const meseCorrente = oggi.slice(0, 7);
   const incassatoMese = tutte.reduce((s, f) => s + (f.incassi || []).filter(p => (p.data_incasso || '').slice(0, 7) === meseCorrente).reduce((a, p) => a + Number(p.importo || 0), 0), 0);
-  const inScadenza7 = nonIncassate.filter(f => { const g = giorniDa(f.scadenza); return g !== null && g >= 0 && g <= 7; });
 
   const cards = [
     { k: 'DA INCASSARE (TOTALE)', v: fmtEuro(totaleDovuto), s: `${nonIncassate.length} fatture`, cls: 'accent' },
-    { k: 'SCADUTO E NON INCASSATO', v: fmtEuro(totaleScaduto), s: `${scadute.length} fatture in ritardo`, cls: totaleScaduto > 0 ? 'warn' : '' },
-    { k: 'IN SCADENZA (7 GIORNI)', v: inScadenza7.length, s: fmtEuro(inScadenza7.reduce((s, f) => s + f._residuo, 0)), cls: '' },
     { k: 'INCASSATO QUESTO MESE', v: fmtEuro(incassatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok' },
   ];
   for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
 }
 
-function renderAlert(node, tutte) {
-  clear(node);
-  const oggi = new Date().toISOString().slice(0, 10);
-  const nonIncassate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato) && f.scadenza);
-  const scadute = nonIncassate.filter(f => f.scadenza < oggi);
-  const entro7 = nonIncassate.filter(f => { const g = giorniDa(f.scadenza); return g >= 0 && g <= 7; });
-  if (!scadute.length && !entro7.length) return;
-  const parts = [];
-  if (scadute.length) parts.push(`<b>⚠️ ${scadute.length} fattura/e scadute e non incassate</b><ul>${scadute.slice(0, 6).map(f => `<li>${esc(f.cliente)} — ${fmtEuro(f._residuo)} (scaduta il ${fmtDate(f.scadenza)})${f.data_sollecito ? '' : ' · nessun sollecito inviato'}</li>`).join('')}${scadute.length > 6 ? `<li>… e altre ${scadute.length - 6}</li>` : ''}</ul>`);
-  if (entro7.length) parts.push(`<div style="margin-top:${scadute.length ? '10px' : '0'}"><b>⏰ ${entro7.length} fattura/e in scadenza nei prossimi 7 giorni</b></div>`);
-  node.appendChild(el(`<div class="banner ${scadute.length ? 'danger' : 'warn'}"><div class="bi">${scadute.length ? '⚠️' : '⏰'}</div><div>${parts.join('')}</div></div>`));
-}
-
 function renderTable(node, righe, ctx, ricarica) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura trovata con questi filtri.</p></div>`)); return; }
-  const oggi = new Date().toISOString().slice(0, 10);
   const table = el(`<table class="tbl tbl-fatture"><thead><tr>
-    <th>Cliente</th><th>N. Fattura</th><th>Data</th><th class="money-col">Importo</th><th>Scadenza</th><th>Stato</th><th class="money-col">Residuo</th><th>Sollecito</th><th></th>
+    <th>Cliente</th><th>N. Fattura</th><th>Data</th><th class="money-col">Importo</th><th>Stato</th><th class="money-col">Residuo</th><th>Sollecito</th><th></th>
   </tr></thead><tbody></tbody></table>`);
   const tbody = table.querySelector('tbody');
   for (const f of righe) {
-    const scaduta = !STATI_CHIUSI.includes(f.stato) && f.scadenza && f.scadenza < oggi;
-    const tr = el(`<tr class="${scaduta ? 'scaduta' : ''}">
+    const tr = el(`<tr>
       <td>${esc(f.cliente)}</td>
       <td>${esc(f.numero_fattura || '—')}</td>
       <td>${fmtDate(f.data_fattura)}</td>
       <td class="money money-col">${fmtEuro(f.importo)}</td>
-      <td>${fmtDate(f.scadenza)}</td>
       <td>
         <span class="chip ${STATO_CHIP[f.stato] || ''}" ${!STATI_CHIUSI.includes(f.stato) ? `data-stato title="Clicca per segnare un incasso"` : ''}>${STATO_LABEL[f.stato] || f.stato}</span>
       </td>

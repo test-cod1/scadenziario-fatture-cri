@@ -95,7 +95,6 @@ const COLS_ATTIVE = [
   { k: 'numero_fattura', h: 'N. Fattura' },
   { k: 'data_fattura', h: 'Data', fmt: fmtDate },
   { k: 'importo', h: 'Importo', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
-  { k: 'scadenza', h: 'Scadenza', fmt: fmtDate },
   { k: 'stato', h: 'Stato', fmt: statoLabelAttiva },
   { k: '_incassato', h: 'Incassato', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
   { k: '_residuo', h: 'Residuo', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
@@ -129,7 +128,6 @@ export function exportPDFAttive(righe, titolo = 'Fatture attive') {
     <td>${esc(r.numero_fattura || '')}</td>
     <td>${fmtDate(r.data_fattura)}</td>
     <td class="num">${fmtEuro(r.importo)}</td>
-    <td>${fmtDate(r.scadenza)}</td>
     <td>${esc(statoLabelAttiva(r.stato))}</td>
     <td class="num">${fmtEuro(r._residuo)}</td>
     <td>${fmtDate(r.data_sollecito)}</td>
@@ -150,9 +148,9 @@ export function exportPDFAttive(righe, titolo = 'Fatture attive') {
   <h1>${esc(titolo)}</h1>
   <div class="sub">Croce Rossa Italiana — Genova · generato il ${new Date().toLocaleString('it-IT')}</div>
   <table>
-    <thead><tr><th>Cliente</th><th>N. Fattura</th><th>Data</th><th class="num">Importo</th><th>Scadenza</th><th>Stato</th><th class="num">Residuo</th><th>Ultimo sollecito</th></tr></thead>
+    <thead><tr><th>Cliente</th><th>N. Fattura</th><th>Data</th><th class="num">Importo</th><th>Stato</th><th class="num">Residuo</th><th>Ultimo sollecito</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
-    <tfoot><tr><td colspan="3">Totale (${righe.length} fatture)</td><td class="num">${fmtEuro(totale)}</td><td colspan="2"></td><td class="num">${fmtEuro(residuo)}</td><td></td></tr></tfoot>
+    <tfoot><tr><td colspan="3">Totale (${righe.length} fatture)</td><td class="num">${fmtEuro(totale)}</td><td></td><td class="num">${fmtEuro(residuo)}</td><td></td></tr></tfoot>
   </table>
   </body></html>`);
   w.document.close();
