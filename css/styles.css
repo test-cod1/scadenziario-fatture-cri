@@ -20,7 +20,11 @@
   --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
 }
 *{box-sizing:border-box}
-html,body{margin:0;padding:0}
+/* Se un elemento qualsiasi finisce anche di poco più largo dello schermo
+   (una card, una riga di una tabella non contenuta bene, ecc.) senza questo
+   il telefono non va a capo: allarga tutta la pagina, che appare "zoomata"
+   e tagliata ai lati invece di essere semplicemente più stretta. */
+html,body{margin:0;padding:0;overflow-x:hidden;max-width:100vw}
 body{font-family:var(--font);color:var(--ink);background:var(--bg);-webkit-font-smoothing:antialiased;line-height:1.45}
 .boot{display:grid;place-items:center;height:100vh;color:var(--ink-soft)}
 button{font-family:inherit}
@@ -47,6 +51,7 @@ a{color:var(--cri-red);text-decoration:none}
 
 /* ---------- Header ---------- */
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
+.page-head>div:first-child{min-width:0}
 .page-head h1{font-size:24px;margin:0}
 .page-head p{margin:4px 0 0;color:var(--ink-soft);font-size:14px}
 .page-head .actions{display:flex;gap:10px;flex-wrap:wrap}
@@ -65,9 +70,9 @@ a{color:var(--cri-red);text-decoration:none}
 /* ---------- Cards / grid ---------- */
 .grid{display:grid;gap:16px}
 .stats{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow)}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow);min-width:0}
 .stat .k{font-size:12.5px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
-.stat .v{font-size:30px;font-weight:800;margin-top:6px;letter-spacing:-.02em}
+.stat .v{font-size:30px;font-weight:800;margin-top:6px;letter-spacing:-.02em;overflow-wrap:break-word}
 .stat .s{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
 .stat.accent{border-left:4px solid var(--cri-red)}
 .stat.warn{border-left:4px solid var(--warn)}
@@ -111,6 +116,7 @@ tr.scaduta:hover td{background:#fbdcdd}
 
 /* ---------- Banner ---------- */
 .banner{border-radius:var(--radius);padding:15px 18px;display:flex;gap:12px;align-items:flex-start;margin-bottom:18px}
+.banner>div{min-width:0}
 .banner.danger{background:var(--danger-soft);border:1px solid #f3c0c3}
 .banner.warn{background:var(--warn-soft);border:1px solid #f0dca0}
 .banner.ok{background:var(--ok-soft);border:1px solid #b8e2c4}
@@ -209,6 +215,10 @@ tr.scaduta:hover td{background:#fbdcdd}
   .nav a .ic{font-size:19px}
   .nav a .txt{font-size:10.5px}
   .main{padding:18px 16px 90px}
+  /* Una sola colonna, esplicita: "auto-fit" con un numero grande (es. "€
+     194.532,79") può decidere che due colonne ci stanno anche quando non è
+     vero, allargando tutta la pagina invece di andare a capo. */
+  .stats{grid-template-columns:1fr}
   .form-row,.form-row.three{grid-template-columns:1fr}
   .upload-item .u-fields{grid-template-columns:1fr}
   table.tbl th,table.tbl td{padding:8px}
