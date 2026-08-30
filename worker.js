@@ -56,6 +56,14 @@ const HEADER_SICUREZZA = {
 function conSicurezza(res) {
   const out = new Response(res.body, res);
   for (const [k, v] of Object.entries(HEADER_SICUREZZA)) out.headers.set(k, v);
+  // Niente cache "silenziosa" su HTML/CSS/JS: senza questo, chi aveva già
+  // aperto il sito prima di un deploy poteva restare con la versione vecchia
+  // (specie su mobile) finché non svuotava la cache a mano. "no-cache" non
+  // è "no-store": il browser continua a poter riusare il file, ma solo dopo
+  // aver controllato con una richiesta condizionale (ETag) se è ancora quello
+  // giusto — quindi un deploy nuovo si vede subito, senza perdere la velocità
+  // della cache quando il file non è cambiato.
+  out.headers.set('Cache-Control', 'no-cache');
   return out;
 }
 
