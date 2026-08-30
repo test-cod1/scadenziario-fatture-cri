@@ -1,6 +1,12 @@
 # Scadenziario Fatture — CRI Genova
 
-Gestionale online per lo scadenziario delle fatture fornitori: inserimento manuale o automatico (PDF via AI Gemini, XML fattura elettronica letto direttamente), pagamenti/acconti, alert scadenze, ricerca e filtri, export Excel/PDF, registro modifiche per gli admin.
+Gestionale online per lo scadenziario delle fatture: inserimento manuale o automatico (PDF via AI Gemini, XML fattura elettronica letto direttamente), pagamenti/acconti, alert scadenze, ricerca e filtri, export Excel/PDF, registro modifiche per gli admin.
+
+L'app ha due sezioni completamente indipendenti, selezionabili come due schede dalla barra laterale:
+- **Fatture Passive**: fatture ricevute dai fornitori (quando *noi* paghiamo).
+- **Fatture Attive**: fatture emesse ai clienti (quando *veniamo pagati*) — stesse funzionalità delle passive (inserimento manuale o da PDF/XML, incassi/acconti, note di credito, export, registro modifiche), più un campo per segnare la data dell'ultimo sollecito di pagamento inviato al cliente.
+
+Le due sezioni hanno tabelle, dati e permessi separati: nulla di quanto inserito in una compare nell'altra.
 
 ## 1. Crea il progetto Supabase
 
@@ -15,7 +21,7 @@ Gestionale online per lo scadenziario delle fatture fornitori: inserimento manua
    Ogni profilo nasce con ruolo `in_attesa`, che **non vede alcun dato**, finché un admin non lo abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Gli `operatore` possono inserire/modificare/eliminare fatture ma non vedono il registro modifiche né le Impostazioni; gli `admin` vedono tutto.
 6. Vai su **Project Settings → API**: copia **Project URL**, **anon public key** e **service_role key** (quest'ultima serve solo per la creazione utenti dall'app, punto 3 sotto — è una chiave molto potente, mai da esporre lato client).
 
-> Se il database è stato creato prima del 30/08/2026, esegui anche i patch in `supabase/patch-*.sql` nell'ordine della data nel nome del file. Su un database nuovo non serve: `schema.sql` li include già tutti.
+> Se il database è stato creato prima del 31/08/2026, esegui anche i patch in `supabase/patch-*.sql` nell'ordine della data nel nome del file. Su un database nuovo non serve: `schema.sql` li include già tutti.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -65,20 +71,26 @@ Un admin può creare nuovi utenti da **Impostazioni → Aggiungi un utente** (em
 ## Struttura del progetto
 
 ```
-index.html              pagina unica (SPA)
-css/styles.css           stile
-js/app.js                router e shell dell'applicazione
-js/config.js              configurazione (URL/chiavi Supabase)
-js/data/store.js          layer dati: auth, fatture, pagamenti, log
-js/lib/                   helper: UI, client Supabase, parser XML, export
-js/views/                 dashboard, editor fattura, registro modifiche
-functions/api/            endpoint: proxy verso Gemini, creazione utenti
-functions/_lib/auth.js     verifica sessione/ruolo Supabase lato server
-supabase/schema.sql       schema database + RLS + trigger di audit log
-supabase/patch-...sql     correzioni da applicare a un database già esistente
-worker.js                 entry point del Worker: instrada /api/* e serve gli asset statici
-wrangler.jsonc            configurazione del deploy Cloudflare
-.assetsignore             file esclusi dagli asset statici (node_modules, ecc.)
+index.html                   pagina unica (SPA)
+css/styles.css                stile
+js/app.js                     router e shell dell'applicazione (tab Passive/Attive)
+js/config.js                   configurazione (URL/chiavi Supabase)
+js/data/store.js               layer dati fatture PASSIVE: auth, fatture, pagamenti, log
+js/data/storeAttive.js          layer dati fatture ATTIVE: fatture, incassi, log (tabelle indipendenti)
+js/lib/                        helper: UI, client Supabase, parser XML (passive+attive), export
+js/views/dashboard.js           dashboard fatture passive
+js/views/fattura.js             editor fattura passiva
+js/views/log.js                 registro modifiche fatture passive
+js/views/dashboardAttive.js     dashboard fatture attive
+js/views/fatturaAttiva.js       editor fattura attiva (incl. sollecito di pagamento)
+js/views/logAttive.js           registro modifiche fatture attive
+functions/api/                 endpoint: proxy verso Gemini (passive+attive), creazione utenti
+functions/_lib/auth.js          verifica sessione/ruolo Supabase lato server
+supabase/schema.sql            schema database + RLS + trigger di audit log (passive+attive)
+supabase/patch-...sql          correzioni da applicare a un database già esistente
+worker.js                      entry point del Worker: instrada /api/* e serve gli asset statici
+wrangler.jsonc                 configurazione del deploy Cloudflare
+.assetsignore                  file esclusi dagli asset statici (node_modules, ecc.)
 ```
 
 ## Note sul funzionamento
@@ -86,5 +98,6 @@ wrangler.jsonc            configurazione del deploy Cloudflare
 - **Lettura automatica**: XML di fattura elettronica → letto localmente nel browser, gratuito e sempre accurato sui campi presenti nel tracciato. Sono accettati anche i file firmati `.xml.p7m` scaricati dal cassetto fiscale: l'XML viene estratto dalla busta di firma direttamente nel browser (la firma non viene verificata — il documento probante resta quello conservato a norma). PDF/immagini → inviati a Gemini (AI) tramite la function serverless, che tiene la chiave al sicuro lato server.
 - **Duplicati**: al salvataggio l'app avvisa se esiste già una fattura con lo stesso numero dello stesso fornitore, e chiede conferma. Non è un blocco: reinserire volutamente un documento resta possibile.
 - **Pagamenti/acconti**: ogni fattura può avere più pagamenti parziali; lo stato (da pagare / pagata parzialmente / pagata) si aggiorna automaticamente in base al totale pagato.
+- **Fatture attive**: stesse funzionalità delle passive, tabelle e permessi indipendenti (vedi sopra). Unica differenza voluta: gli **incassi** li registra direttamente anche l'operatore (non solo l'admin come per i pagamenti delle passive), perché qui non esiste un flusso di "proposte" — chiunque può segnare che una fattura è stata incassata. Il campo **sollecito** (data dell'ultimo sollecito di pagamento inviato al cliente) è puramente informativo: si aggiorna a mano dall'editor o con un click rapido dalla tabella, non invia nulla automaticamente.
 - **Registro modifiche**: ogni creazione, modifica, cancellazione di una fattura (e ogni pagamento aggiunto/rimosso) viene registrata automaticamente da un trigger del database — non è disattivabile dall'app, visibile in sola lettura solo agli admin.
 - **Niente collegamento diretto al cassetto fiscale**: richiederebbe login SPID/CIE (non automatizzabile) o un accreditamento come intermediario SdI presso l'Agenzia delle Entrate (procedura complessa, sproporzionata per questo progetto). Il flusso previsto è: scarichi tu il PDF o l'XML dal cassetto fiscale, poi lo carichi qui.

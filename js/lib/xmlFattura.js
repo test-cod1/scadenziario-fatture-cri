@@ -110,6 +110,76 @@ export function parseFatturaXml(xmlText) {
   };
 }
 
+// Come parseFatturaXml, ma per le fatture ATTIVE (emesse a un cliente): il
+// tracciato FatturaPA è lo stesso, cambia solo la parte anagrafica letta —
+// qui serve il CessionarioCommittente (l'acquirente, cioè il nostro cliente),
+// non il CedentePrestatore (che nelle fatture emesse siamo noi).
+// Ritorna { cliente, numero_fattura, data_fattura, importo, scadenza, metodo_pagamento, note }.
+export function parseFatturaAttivaXml(xmlText) {
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(xmlText, 'application/xml');
+  if (doc.querySelector('parsererror')) throw new Error('XML non valido o corrotto.');
+
+  const header = tag(doc, "FatturaElettronicaHeader");
+  const corpi = allTags(doc, "FatturaElettronicaBody");
+  const body = corpi[0] || null;
+  if (!header || !body) throw new Error('Il file non è una Fattura Elettronica riconoscibile.');
+
+  const cessionario = tag(header, 'CessionarioCommittente');
+  let cliente = '';
+  if (cessionario) {
+    const anagrafica = tag(cessionario, 'Anagrafica');
+    if (anagrafica) {
+      const denom = txt(anagrafica, 'Denominazione');
+      if (denom) cliente = denom;
+      else {
+        const nome = txt(anagrafica, 'Nome');
+        const cognome = txt(anagrafica, 'Cognome');
+        cliente = [nome, cognome].filter(Boolean).join(' ');
+      }
+    }
+  }
+
+  const datiGen = tag(body, 'DatiGeneraliDocumento');
+  const numero_fattura = datiGen ? txt(datiGen, 'Numero') : '';
+  const data_fattura = datiGen ? txt(datiGen, 'Data') : '';
+
+  const rate = allTags(body, 'DettaglioPagamento').map(d => ({
+    scadenza: txt(d, 'DataScadenzaPagamento'),
+    importo: numero(txt(d, 'ImportoPagamento')) || 0,
+  })).filter(r => r.scadenza || r.importo);
+  rate.sort((a, b) => (a.scadenza || '').localeCompare(b.scadenza || ''));
+
+  const importo = calcolaImporto(body, datiGen, rate);
+  const scadenza = rate[0]?.scadenza || '';
+  const modPagTag = allTags(body, 'ModalitaPagamento')[0];
+  const metodo_pagamento = modPagTag ? traduciModalita(modPagTag.textContent.trim()) : '';
+
+  const avvisi = [];
+  if (corpi.length > 1) {
+    avvisi.push("ATTENZIONE: il file contiene " + corpi.length + " fatture (lotto); qui è stata letta solo la prima.");
+  }
+  let note = "";
+  if (rate.length > 1) {
+    note = 'Pagamento in ' + rate.length + ' rate: ' +
+      rate.map(r => `${r.scadenza || '?'} (${r.importo.toFixed(2)}€)`).join(', ');
+  }
+  if (note) avvisi.push(note);
+  note = avvisi.join(" ");
+
+  if (!cliente && !importo) throw new Error('Non sono riuscito a leggere i campi principali dal file XML.');
+
+  return {
+    cliente: cliente || null,
+    numero_fattura: numero_fattura || null,
+    data_fattura: data_fattura || null,
+    importo,
+    scadenza: scadenza || null,
+    metodo_pagamento: metodo_pagamento || null,
+    note: note || null,
+  };
+}
+
 // I codici del tracciato vengono ricondotti ai soli valori presenti nella
 // tendina "Metodo di pagamento": prima si producevano etichette come
 // "assegno" o "SEPA Direct Debit (RID)", che non combaciando con nessuna

@@ -11,10 +11,12 @@
 // ============================================================
 
 import { onRequestPost as estraiFatturaPost } from './functions/api/estrai-fattura.js';
+import { onRequestPost as estraiFatturaAttivaPost } from './functions/api/estrai-fattura-attiva.js';
 import { onRequestPost as creaUtentePost } from './functions/api/crea-utente.js';
 
 const ROUTES = {
   '/api/estrai-fattura': { POST: estraiFatturaPost },
+  '/api/estrai-fattura-attiva': { POST: estraiFatturaAttivaPost },
   '/api/crea-utente': { POST: creaUtentePost },
 };
 
