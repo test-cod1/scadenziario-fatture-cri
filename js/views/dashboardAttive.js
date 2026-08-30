@@ -2,6 +2,7 @@ import { fattureAttive } from '../data/storeAttive.js';
 import { el, clear, esc, fmtDate, fmtEuro, debounce } from '../lib/ui.js';
 import { exportCSVAttive, exportPDFAttive } from '../lib/export.js';
 import { apriEditorAttiva, apriUploadAttive, apriIncassoRapido, apriNuovaNotaCreditoAttiva, apriSollecitoRapido } from './fatturaAttiva.js';
+import { FILTRO_CLIENTE_KEY } from './reportAttive.js';
 
 const STATO_LABEL = { da_incassare: 'Da incassare', incassata_parziale: 'Incassata parz.', incassata: 'Incassata', stornata: 'Stornata' };
 const STATO_CHIP = { da_incassare: 'warn', incassata_parziale: 'red', incassata: 'ok', stornata: 'info' };
@@ -13,6 +14,11 @@ export async function renderDashboardAttive(view, ctx) {
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
 
   const state = { q: '', stato: '', importoMin: '', importoMax: '' };
+  // Arrivo da un click su un cliente nel Report: preimposta la ricerca e
+  // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
+  // nella dashboard finché non viene aperto di nuovo il Report.
+  const filtroCliente = sessionStorage.getItem(FILTRO_CLIENTE_KEY);
+  if (filtroCliente !== null) { state.q = filtroCliente; sessionStorage.removeItem(FILTRO_CLIENTE_KEY); }
 
   const wrap = el(`<div>
     <div class="page-head">
@@ -62,6 +68,7 @@ export async function renderDashboardAttive(view, ctx) {
   });
 
   renderStats(wrap.querySelector('#stats'), tutte);
+  if (state.q) wrap.querySelector('#q').value = state.q;
 
   function applyFilters() {
     let r = tutte;

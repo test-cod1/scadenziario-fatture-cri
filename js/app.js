@@ -8,6 +8,7 @@ import { renderProposte } from './views/proposte.js';
 import { renderImpostazioni } from './views/impostazioni.js';
 import { renderDashboardAttive } from './views/dashboardAttive.js';
 import { renderLogAttive } from './views/logAttive.js';
+import { renderReportAttive } from './views/reportAttive.js';
 
 const app = document.getElementById('app');
 let currentUser = null;
@@ -82,6 +83,7 @@ function navItemsPassive() {
 function navItemsAttive() {
   const items = [
     { id: 'fatture', icon: '💶', label: 'Fatture' },
+    { id: 'report', icon: '📊', label: 'Report' },
   ];
   if (currentUser.ruolo === 'admin') items.push({ id: 'log', icon: '📋', label: 'Registro modifiche' });
   return items;
@@ -145,6 +147,7 @@ async function route() {
     clear(view);
     if (section === 'attive') {
       if (sub === 'log') await renderLogAttive(view, ctx);
+      else if (sub === 'report') await renderReportAttive(view, ctx);
       else await renderDashboardAttive(view, ctx);
     } else if (sub === 'log') await renderLog(view, ctx);
     else if (sub === 'report') await renderReport(view, ctx);
