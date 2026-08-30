@@ -53,7 +53,7 @@ a{color:var(--cri-red);text-decoration:none}
 .page-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:22px;flex-wrap:wrap}
 .page-head>div:first-child{min-width:0}
 .page-head h1{font-size:24px;margin:0}
-.page-head p{margin:4px 0 0;color:var(--ink-soft);font-size:14px}
+.page-head p{margin:4px 0 0;color:var(--ink-soft);font-size:14px;overflow-wrap:anywhere}
 .page-head .actions{display:flex;gap:10px;flex-wrap:wrap}
 
 /* ---------- Buttons ---------- */
@@ -228,6 +228,14 @@ tr.scaduta:hover td{background:#fbdcdd}
      in fila con flex-wrap, finivano ammucchiati in righe disomogenee. */
   .toolbar{flex-direction:column;align-items:stretch}
   .toolbar>*{width:100%}
+
+  /* Stessa cosa per i controlli nell'intestazione di pagina (es. il
+     selettore anno + pulsante export del Report): "flex-wrap" da solo non
+     basta perché un elemento come il <select> o il testo di un pulsante può
+     restare più largo dello spazio disponibile invece di andare a capo al
+     suo interno — un-width:100% esplicito lo forza in ogni caso. */
+  .page-head .actions{flex-direction:column;align-items:stretch;width:100%}
+  .page-head .actions>*{width:100%}
 
   /* La tabella principale delle fatture ha 8 colonne: su schermo stretto se
      ne nascondono due meno essenziali (N. Fattura, Data fattura — restano
