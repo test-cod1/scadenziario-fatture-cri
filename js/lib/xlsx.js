@@ -125,14 +125,14 @@ const WORKBOOK_RELS = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`;
 
-// Stili applicati per indice (cellXfs): 0 generale, 1 valuta (due decimali),
-// 2 data (dd/mm/yyyy), 3 intestazione in grassetto. Il formato valuta usa il
-// codice "#,##0.00": è Excel stesso, in base alla lingua del sistema, a
-// scegliere virgola o punto come separatore — coerente con quanto l'utente
-// vede già nell'app.
+// Stili applicati per indice (cellXfs): 0 generale, 1 valuta (formato
+// Contabilità, simbolo Euro allineato a destra e trattino per lo zero), 2
+// data (dd/mm/yyyy), 3 intestazione in grassetto. I separatori (virgola o
+// punto) restano scelti da Excel in base alla lingua del sistema, coerenti
+// con quanto l'utente vede già nell'app.
 const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<numFmts count="2"><numFmt numFmtId="164" formatCode="#,##0.00"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy"/></numFmts>
+<numFmts count="2"><numFmt numFmtId="164" formatCode="_-* #,##0.00\\ &quot;€&quot;_-;-* #,##0.00\\ &quot;€&quot;_-;_-* &quot;-&quot;??\\ &quot;€&quot;_-;_-@_-"/><numFmt numFmtId="165" formatCode="dd/mm/yyyy"/></numFmts>
 <fonts count="2"><font><sz val="11"/><name val="Calibri"/></font><font><b/><sz val="11"/><name val="Calibri"/></font></fonts>
 <fills count="2"><fill><patternFill patternType="none"/></fill><fill><patternFill patternType="gray125"/></fill></fills>
 <borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
@@ -145,14 +145,31 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 </cellXfs>
 </styleSheet>`;
 
+// Stima quanto sarà largo il contenuto UNA VOLTA FORMATTATO dalla cella, non
+// il valore grezzo: una data ISO "2026-08-30" (10 caratteri) è larga uguale
+// una volta scritta "30/08/2026", ma un importo come 17150 diventa "17.150,00
+// €" (11 caratteri) — usare la lunghezza del numero grezzo lascerebbe la
+// colonna troppo stretta e Excel la mostrerebbe come "####" o tronca il
+// simbolo, esattamente il difetto da evitare.
+function stimaLarghezza(c, valore) {
+  if (c.tipo === 'data') return 10; // "31/12/2026"
+  if (c.tipo === 'valuta') {
+    const n = Number(valore);
+    if (!Number.isFinite(n)) return 0;
+    const cifreIntere = Math.max(1, Math.trunc(Math.abs(n)).toString().length);
+    const separatoriMigliaia = Math.floor((cifreIntere - 1) / 3);
+    return cifreIntere + separatoriMigliaia + 3 /* ",00" */ + 2 /* spazio+simbolo € */ + (n < 0 ? 1 : 0);
+  }
+  return String(valore ?? '').length;
+}
+
 // colonne: [{ header, tipo: 'testo'|'valuta'|'data', get: riga => valore }]
 function costruisciFoglio(colonne, righe) {
   const larghezze = colonne.map(c => {
     let max = String(c.header).length;
     for (const r of righe) {
-      const v = c.get(r);
-      const testo = c.tipo === 'data' ? '' : String(v ?? '');
-      if (testo.length > max) max = testo.length;
+      const len = stimaLarghezza(c, c.get(r));
+      if (len > max) max = len;
     }
     return Math.min(40, Math.max(9, max + 2));
   });
