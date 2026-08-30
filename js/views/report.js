@@ -2,6 +2,7 @@ import { fatture } from '../data/store.js';
 import { el, clear, esc, fmtEuro } from '../lib/ui.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+const FILTRO_FORNITORE_KEY = 'report:filtroFornitore';
 
 export async function renderReport(view, ctx) {
   let tutte = [];
@@ -11,19 +12,21 @@ export async function renderReport(view, ctx) {
   // Anni disponibili: dalla data fattura, così anche fatture senza scadenza
   // rientrano nel filtro. Ordinati dal più recente.
   const anni = [...new Set(tutte.filter(f => f.data_fattura).map(f => f.data_fattura.slice(0, 4)))].sort().reverse();
-  const state = { anno: anni[0] || '', ricerca: '' };
+  // Default: dal 1° gennaio dell'anno più recente, senza limite superiore —
+  // stesso periodo mostrato di default prima dell'introduzione dell'intervallo.
+  const state = { da: anni[0] ? `${anni[0]}-01-01` : '', a: '', ricerca: '' };
 
   const wrap = el(`<div>
     <div class="page-head">
       <div><h1>Report</h1><p>Riepilogo di spesa per fornitore e nel tempo — Croce Rossa Italiana Genova</p></div>
       <div class="actions">
-        <select id="r-anno">
-          <option value="">Tutti gli anni</option>
-          ${anni.map(a => `<option value="${a}" ${a === state.anno ? 'selected' : ''}>${a}</option>`).join('')}
-        </select>
+        <input type="date" id="r-da" title="Data fattura da" value="${esc(state.da)}">
+        <input type="date" id="r-a" title="Data fattura a" value="${esc(state.a)}">
+        <button class="btn ghost sm" id="r-reset">Tutto il periodo</button>
         <button class="btn" id="r-csv">📊 Esporta per fornitore (CSV)</button>
       </div>
     </div>
+    <div class="muted" id="r-nota-filtri" style="font-size:13px;margin:-12px 0 10px"></div>
     <div class="grid stats" id="r-stats" style="margin-bottom:22px"></div>
     <div class="card" style="margin-bottom:22px">
       <div class="card-h">
@@ -34,18 +37,26 @@ export async function renderReport(view, ctx) {
     </div>
     <div class="card">
       <div class="card-h">Andamento mensile</div>
-      <div class="card-b tbl-wrap" id="r-mesi"></div>
+      <div class="card-b tbl-wrap" id="r-mesi" style="padding:18px"></div>
     </div>
   </div>`);
   view.appendChild(wrap);
 
-  wrap.querySelector('#r-anno').addEventListener('change', e => { state.anno = e.target.value; refresh(); });
-  wrap.querySelector('#r-ricerca').addEventListener('input', e => { state.ricerca = e.target.value; renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim()); });
+  wrap.querySelector('#r-da').addEventListener('change', e => { state.da = e.target.value; refresh(); });
+  wrap.querySelector('#r-a').addEventListener('change', e => { state.a = e.target.value; refresh(); });
+  wrap.querySelector('#r-reset').addEventListener('click', () => {
+    state.da = ''; state.a = '';
+    wrap.querySelector('#r-da').value = ''; wrap.querySelector('#r-a').value = '';
+    refresh();
+  });
+  wrap.querySelector('#r-ricerca').addEventListener('input', e => { state.ricerca = e.target.value; renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim(), ctx); });
   wrap.querySelector('#r-csv').addEventListener('click', () => esportaFornitoriCSV(gruppiFornitori()));
 
   function filtrate() {
-    if (!state.anno) return tutte;
-    return tutte.filter(f => (f.data_fattura || '').slice(0, 4) === state.anno);
+    let r = tutte;
+    if (state.da) r = r.filter(f => f.data_fattura && f.data_fattura >= state.da);
+    if (state.a) r = r.filter(f => f.data_fattura && f.data_fattura <= state.a);
+    return r;
   }
 
   function gruppiFornitori() {
@@ -55,11 +66,24 @@ export async function renderReport(view, ctx) {
     return gruppi.filter(g => g.fornitore.toLowerCase().includes(termine));
   }
 
+  // Un filtro per data esclude necessariamente le fatture prive di data
+  // fattura: senza avvisare, sembrerebbero sparite (stesso avviso della
+  // dashboard fatture per il filtro sulla scadenza).
+  function mostraNotaFiltri() {
+    const zona = wrap.querySelector('#r-nota-filtri');
+    const filtroData = !!(state.da || state.a);
+    const escluse = filtroData ? tutte.filter(f => !f.data_fattura).length : 0;
+    zona.textContent = escluse
+      ? escluse + (escluse === 1 ? ' fattura senza data non rientra' : ' fatture senza data non rientrano') + ' nel periodo selezionato.'
+      : '';
+  }
+
   function refresh() {
     const righe = filtrate();
+    mostraNotaFiltri();
     renderStats(wrap.querySelector('#r-stats'), righe);
-    renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim());
-    renderMesi(wrap.querySelector('#r-mesi'), perMese(righe, tutte, state.anno));
+    renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim(), ctx);
+    renderMesiChart(wrap.querySelector('#r-mesi'), perMese(righe, tutte, state.da, state.a));
   }
 
   refresh();
@@ -121,7 +145,10 @@ function perFornitore(righe) {
   return [...mappa.values()].sort((a, b) => a.fornitore.localeCompare(b.fornitore));
 }
 
-function renderFornitori(node, gruppi, ricerca) {
+// Cliccando una riga si passa alla dashboard fatture già filtrata su quel
+// fornitore (via sessionStorage, letto una tantum da renderDashboard): utile
+// quando un residuo alto fa venire la domanda "quali fatture pesano?".
+function renderFornitori(node, gruppi, ricerca, ctx) {
   clear(node);
   if (!gruppi.length) {
     const msg = ricerca ? `Nessun fornitore trovato per "${esc(ricerca)}".` : 'Nessuna fattura nel periodo selezionato.';
@@ -134,7 +161,7 @@ function renderFornitori(node, gruppi, ricerca) {
   </tr></thead><tbody></tbody></table>`);
   const tbody = table.querySelector('tbody');
   for (const g of gruppi) {
-    tbody.appendChild(el(`<tr>
+    const tr = el(`<tr title="Vedi le fatture di ${esc(g.fornitore)}">
       <td>${esc(g.fornitore)}</td>
       <td>${g.n}</td>
       <td class="money money-col">${fmtEuro(g.fatturato)}</td>
@@ -142,19 +169,24 @@ function renderFornitori(node, gruppi, ricerca) {
       ${mostraStornato ? `<td class="money money-col">${fmtEuro(g.stornato)}</td>` : ''}
       <td class="money money-col">${fmtEuro(g.residuo)}</td>
       <td>${g.giorniMedi !== null ? Math.round(g.giorniMedi) + ' gg' : '—'}</td>
-    </tr>`));
+    </tr>`);
+    tr.addEventListener('click', () => {
+      sessionStorage.setItem(FILTRO_FORNITORE_KEY, g.fornitore === '—' ? '' : g.fornitore);
+      ctx.go('#/passive/fatture');
+    });
+    tbody.appendChild(tr);
   }
   node.appendChild(table);
 }
 
 // Fatturato del mese = fatture con data_fattura in quel mese (usa
-// `righeFatturato`, già filtrato per anno se selezionato). Pagato del mese =
-// pagamenti effettuati in quel mese, DI QUALUNQUE FATTURA anche se datata in
-// un anno diverso (fattura di dicembre pagata a gennaio è tutt'altro che
-// rara) — per questo scorre sempre `tutte`, l'elenco completo non filtrato,
-// e filtra i singoli pagamenti per data, non per anno della fattura: sono
-// due cose distinte e vanno lette come tali, non sommate.
-function perMese(righeFatturato, tutte, anno) {
+// `righeFatturato`, già filtrato per periodo se selezionato). Pagato del
+// mese = pagamenti effettuati in quel mese, DI QUALUNQUE FATTURA anche se
+// datata fuori dal periodo (fattura di dicembre pagata a gennaio è tutt'altro
+// che rara) — per questo scorre sempre `tutte`, l'elenco completo non
+// filtrato, e filtra i singoli pagamenti per data, non per la fattura di
+// appartenenza: sono due cose distinte e vanno lette come tali, non sommate.
+function perMese(righeFatturato, tutte, da, a) {
   const mappa = new Map();
   const key = (iso) => iso.slice(0, 7);
   const voce = (k) => {
@@ -168,24 +200,51 @@ function perMese(righeFatturato, tutte, anno) {
   for (const f of tutte) {
     for (const p of (f.pagamenti || [])) {
       if (!p.data_pagamento) continue;
-      if (anno && !p.data_pagamento.startsWith(anno)) continue; // il pagamento può cadere fuori dall'anno della fattura
+      if (da && p.data_pagamento < da) continue; // il pagamento può cadere fuori dal periodo della fattura
+      if (a && p.data_pagamento > a) continue;
       voce(key(p.data_pagamento)).pagato += Number(p.importo || 0);
     }
   }
   return [...mappa.values()].sort((a, b) => a.chiave.localeCompare(b.chiave));
 }
 
-function renderMesi(node, righe) {
+// Grafico a barre (fatturato vs pagato per mese) invece di una tabella: con
+// più di un paio di mesi una tabella di sole cifre non fa vedere trend o
+// stagionalità a colpo d'occhio. Dimensioni in pixel reali (non viewBox
+// scalato): con molti mesi il grafico scorre in orizzontale come farebbe una
+// tabella larga, invece di schiacciarsi. Il valore esatto resta comunque
+// consultabile passandoci sopra (tooltip nativo del <title> nell'SVG).
+function renderMesiChart(node, righe) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">📅</div><p>Nessun dato nel periodo selezionato.</p></div>`)); return; }
-  const table = el(`<table class="tbl"><thead><tr><th>Mese</th><th class="money-col">Fatturato</th><th class="money-col">Pagato</th></tr></thead><tbody></tbody></table>`);
-  const tbody = table.querySelector('tbody');
-  for (const r of righe) {
+  const maxVal = Math.max(1, ...righe.flatMap(r => [r.fatturato, r.pagato]));
+  const slotW = 64, barW = 22, barGap = 4, chartH = 190, padTop = 6, padBottom = 30, padX = 14;
+  const W = righe.length * slotW + padX * 2;
+  const H = chartH + padTop + padBottom;
+  const scale = v => Math.round((v / maxVal) * chartH);
+
+  let bars = '';
+  righe.forEach((r, i) => {
+    const x0 = padX + i * slotW;
+    const hF = scale(r.fatturato), hP = scale(r.pagato);
     const [anno, mese] = r.chiave.split('-');
-    const etichetta = `${MESI[Number(mese) - 1] || mese} ${anno}`;
-    tbody.appendChild(el(`<tr><td>${esc(etichetta)}</td><td class="money money-col">${fmtEuro(r.fatturato)}</td><td class="money money-col">${fmtEuro(r.pagato)}</td></tr>`));
-  }
-  node.appendChild(table);
+    const etichetta = `${MESI[Number(mese) - 1] || mese} ${anno.slice(2)}`;
+    bars += `
+      <rect x="${x0}" y="${padTop + chartH - hF}" width="${barW}" height="${hF}" rx="3" fill="var(--cri-red)"><title>${esc(etichetta)} — Fatturato: ${esc(fmtEuro(r.fatturato))}</title></rect>
+      <rect x="${x0 + barW + barGap}" y="${padTop + chartH - hP}" width="${barW}" height="${hP}" rx="3" fill="var(--ok)"><title>${esc(etichetta)} — Pagato: ${esc(fmtEuro(r.pagato))}</title></rect>
+      <text x="${x0 + barW + barGap / 2}" y="${padTop + chartH + 18}" text-anchor="middle" font-size="11" fill="var(--ink-soft)">${esc(etichetta)}</text>`;
+  });
+
+  node.appendChild(el(`<div>
+    <div style="display:flex;gap:16px;align-items:center;margin-bottom:10px;font-size:12.5px;color:var(--ink-soft)">
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--cri-red);margin-right:5px;vertical-align:middle"></span>Fatturato</span>
+      <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:var(--ok);margin-right:5px;vertical-align:middle"></span>Pagato</span>
+    </div>
+    <svg width="${W}" height="${H}" style="display:block">
+      <line x1="${padX}" y1="${padTop + chartH}" x2="${W - padX}" y2="${padTop + chartH}" stroke="var(--line)" stroke-width="1"/>
+      ${bars}
+    </svg>
+  </div>`));
 }
 
 function esportaFornitoriCSV(gruppi) {
@@ -201,3 +260,5 @@ function esportaFornitoriCSV(gruppi) {
   document.body.appendChild(a); a.click(); a.remove();
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
+
+export { FILTRO_FORNITORE_KEY };

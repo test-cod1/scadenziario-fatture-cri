@@ -2,6 +2,7 @@ import { fatture, proposte } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast } from '../lib/ui.js';
 import { exportCSV, exportPDF } from '../lib/export.js';
 import { apriEditor, apriUpload, apriPagamentoRapido, apriProponiPagamento, apriNuovaNotaCredito } from './fattura.js';
+import { FILTRO_FORNITORE_KEY } from './report.js';
 
 const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata', stornata: 'Stornata' };
 const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok', stornata: 'info' };
@@ -14,6 +15,11 @@ export async function renderDashboard(view, ctx) {
   let proposteInAttesa = await caricaProposteInAttesa();
 
   const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '' };
+  // Arrivo da un click su un fornitore nel Report: preimposta la ricerca e
+  // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
+  // nella dashboard finché non viene aperto di nuovo il Report.
+  const filtroFornitore = sessionStorage.getItem(FILTRO_FORNITORE_KEY);
+  if (filtroFornitore !== null) { state.q = filtroFornitore; sessionStorage.removeItem(FILTRO_FORNITORE_KEY); }
 
   const wrap = el(`<div>
     <div class="page-head">
@@ -71,6 +77,7 @@ export async function renderDashboard(view, ctx) {
 
   renderStats(wrap.querySelector('#stats'), tutte);
   renderAlert(wrap.querySelector('#alert-zone'), tutte);
+  if (state.q) wrap.querySelector('#q').value = state.q;
 
   function applyFilters() {
     let r = tutte;
