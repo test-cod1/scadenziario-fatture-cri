@@ -108,6 +108,63 @@ export const fatture = {
     if (error) throw error;
     return withResiduo(data);
   },
+  // Sottoinsieme "attivo" per la dashboard: fatture dell'anno corrente
+  // (qualunque stato) più le fatture ancora aperte di anni precedenti — cioè
+  // tutto ciò che è recente o richiede ancora un'azione. Le fatture chiuse
+  // (pagata/stornata) di anni precedenti restano fuori: si caricano solo
+  // aprendo l'archivio (vedi listArchivio), invece di scaricare anni di
+  // storico ormai concluso ad ogni apertura della dashboard. Una fattura
+  // senza data_fattura resta comunque qui (non in archivio): a differenza di
+  // una data nota, non si può escludere che sia "di un anno precedente".
+  async listAperte() {
+    const sb = await sbClient();
+    const inizioAnno = `${new Date().getFullYear()}-01-01`;
+    const BLOCCO = 1000;
+    const tutte = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from("fatture")
+        .select("*, pagamenti(*), note_credito_righe(*, note_credito(numero, data, note))")
+        .or(`data_fattura.gte.${inizioAnno},data_fattura.is.null,stato.in.(da_pagare,pagata_parziale)`)
+        .order("scadenza", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true })
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutte.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutte.map(withResiduo);
+  },
+  // Il complementare di listAperte(): fatture chiuse di anni precedenti,
+  // caricate solo quando l'utente apre l'archivio nella dashboard.
+  async listArchivio() {
+    const sb = await sbClient();
+    const inizioAnno = `${new Date().getFullYear()}-01-01`;
+    const BLOCCO = 1000;
+    const tutte = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from("fatture")
+        .select("*, pagamenti(*), note_credito_righe(*, note_credito(numero, data, note))")
+        .lt("data_fattura", inizioAnno)
+        .in("stato", ["pagata", "stornata"])
+        .order("data_fattura", { ascending: false })
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutte.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutte.map(withResiduo);
+  },
+  // Quante fatture ci sono in archivio: una query leggera (solo conteggio,
+  // nessuna riga scaricata) per mostrare un numero accanto al menu a
+  // scomparsa anche prima di aprirlo.
+  async contaArchivio() {
+    const sb = await sbClient();
+    const inizioAnno = `${new Date().getFullYear()}-01-01`;
+    const { count, error } = await sb.from('fatture').select('id', { count: 'exact', head: true })
+      .lt('data_fattura', inizioAnno).in('stato', ['pagata', 'stornata']);
+    if (error) throw error;
+    return count || 0;
+  },
   // `nuovo: true` forza l'INSERT anche se rec.id è valorizzato: serve per
   // creare la fattura con un id generato lato client, così l'eventuale
   // allegato può essere caricato PRIMA dell'insert e la creazione risulta
@@ -234,6 +291,17 @@ export const pagamenti = {
     const sb = await sbClient();
     const { error } = await sb.from('pagamenti').delete().eq('id', id);
     if (error) throw error;
+  },
+  // Somma dei pagamenti in un intervallo di date, di QUALUNQUE fattura anche
+  // se ormai archiviata (vedi fatture.listAperte/listArchivio): le statistiche
+  // "Pagato questo mese/anno" della dashboard devono contare anche un
+  // pagamento appena registrato su una fattura vecchia già chiusa, che non fa
+  // più parte del sottoinsieme caricato di default.
+  async sommaPeriodo(da, a) {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('pagamenti').select('importo').gte('data_pagamento', da).lte('data_pagamento', a);
+    if (error) throw error;
+    return data.reduce((s, p) => s + Number(p.importo || 0), 0);
   },
 };
 
