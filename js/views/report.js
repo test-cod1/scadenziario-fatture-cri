@@ -14,7 +14,7 @@ export async function renderReport(view, ctx) {
   const anni = [...new Set(tutte.filter(f => f.data_fattura).map(f => f.data_fattura.slice(0, 4)))].sort().reverse();
   // Default: dal 1° gennaio dell'anno più recente, senza limite superiore —
   // stesso periodo mostrato di default prima dell'introduzione dell'intervallo.
-  const state = { da: anni[0] ? `${anni[0]}-01-01` : '', a: '', ricerca: '' };
+  const state = { da: anni[0] ? `${anni[0]}-01-01` : '', a: '', ricerca: '', sort: { campo: 'fornitore', dir: 'asc' } };
 
   const wrap = el(`<div>
     <div class="page-head">
@@ -49,7 +49,7 @@ export async function renderReport(view, ctx) {
     wrap.querySelector('#r-da').value = ''; wrap.querySelector('#r-a').value = '';
     refresh();
   });
-  wrap.querySelector('#r-ricerca').addEventListener('input', e => { state.ricerca = e.target.value; renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim(), ctx); });
+  wrap.querySelector('#r-ricerca').addEventListener('input', e => { state.ricerca = e.target.value; disegnaFornitori(); });
   wrap.querySelector('#r-csv').addEventListener('click', () => esportaFornitoriCSV(gruppiFornitori()));
 
   function filtrate() {
@@ -60,10 +60,21 @@ export async function renderReport(view, ctx) {
   }
 
   function gruppiFornitori() {
-    const gruppi = perFornitore(filtrate());
+    let gruppi = perFornitore(filtrate());
     const termine = state.ricerca.trim().toLowerCase();
-    if (!termine) return gruppi;
-    return gruppi.filter(g => g.fornitore.toLowerCase().includes(termine));
+    if (termine) gruppi = gruppi.filter(g => g.fornitore.toLowerCase().includes(termine));
+    return ordina(gruppi, state.sort, 'fornitore');
+  }
+
+  // Clic sull'intestazione: stesso campo -> inverte il verso; campo diverso
+  // -> lo attiva con il verso più utile (testo: crescente; numeri: dal più
+  // alto, per vedere subito chi pesa di più senza dover invertire a mano).
+  function disegnaFornitori() {
+    renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim(), ctx, state.sort, campo => {
+      if (state.sort.campo === campo) state.sort.dir = state.sort.dir === 'asc' ? 'desc' : 'asc';
+      else state.sort = { campo, dir: campo === 'fornitore' ? 'asc' : 'desc' };
+      disegnaFornitori();
+    });
   }
 
   // Un filtro per data esclude necessariamente le fatture prive di data
@@ -82,7 +93,7 @@ export async function renderReport(view, ctx) {
     const righe = filtrate();
     mostraNotaFiltri();
     renderStats(wrap.querySelector('#r-stats'), righe);
-    renderFornitori(wrap.querySelector('#r-fornitori'), gruppiFornitori(), state.ricerca.trim(), ctx);
+    disegnaFornitori();
     renderMesiChart(wrap.querySelector('#r-mesi'), perMese(righe, tutte, state.da, state.a));
   }
 
@@ -130,7 +141,8 @@ function renderStats(node, righe) {
   for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
 }
 
-// Raggruppa per fornitore, ordinato alfabeticamente.
+// Raggruppa per fornitore (l'ordine lo decide poi `ordina`, in base
+// all'intestazione su cui l'utente ha cliccato).
 function perFornitore(righe) {
   const mappa = new Map();
   for (const f of righe) {
@@ -142,13 +154,42 @@ function perFornitore(righe) {
     mappa.set(chiave, g);
   }
   for (const g of mappa.values()) g.giorniMedi = media(g.giorni);
-  return [...mappa.values()].sort((a, b) => a.fornitore.localeCompare(b.fornitore));
+  return [...mappa.values()];
+}
+
+// Ordina un array di gruppi (fornitori/clienti) secondo {campo, dir}. Il
+// campo testuale (`campoTesto`) usa il confronto alfabetico; tutti gli altri
+// sono numerici, con i valori nulli (giorni medi quando non c'è ancora
+// nessuna fattura chiusa) sempre in fondo indipendentemente dal verso —
+// altrimenti invertendo l'ordine finirebbero in cima, il che non ha senso
+// per un dato che semplicemente manca.
+function ordina(gruppi, sort, campoTesto) {
+  const { campo, dir } = sort;
+  const mul = dir === 'desc' ? -1 : 1;
+  const arr = [...gruppi];
+  arr.sort((a, b) => {
+    if (campo === campoTesto) return a[campo].localeCompare(b[campo]) * mul;
+    const va = a[campo], vb = b[campo];
+    if (va === null && vb === null) return 0;
+    if (va === null) return 1;
+    if (vb === null) return -1;
+    return (va - vb) * mul;
+  });
+  return arr;
+}
+
+// Etichetta di un'intestazione cliccabile per l'ordinamento, con la
+// freccina sulla colonna attiva.
+function thOrdinabile(label, campo, extraClass, sort) {
+  const attiva = sort.campo === campo;
+  const freccia = attiva ? (sort.dir === 'desc' ? ' ▼' : ' ▲') : '';
+  return `<th${extraClass ? ` class="${extraClass}"` : ''} data-sort="${campo}" style="cursor:pointer;user-select:none">${esc(label)}${freccia}</th>`;
 }
 
 // Cliccando una riga si passa alla dashboard fatture già filtrata su quel
 // fornitore (via sessionStorage, letto una tantum da renderDashboard): utile
 // quando un residuo alto fa venire la domanda "quali fatture pesano?".
-function renderFornitori(node, gruppi, ricerca, ctx) {
+function renderFornitori(node, gruppi, ricerca, ctx, sort, onSort) {
   clear(node);
   if (!gruppi.length) {
     const msg = ricerca ? `Nessun fornitore trovato per "${esc(ricerca)}".` : 'Nessuna fattura nel periodo selezionato.';
@@ -157,8 +198,15 @@ function renderFornitori(node, gruppi, ricerca, ctx) {
   }
   const mostraStornato = gruppi.some(g => g.stornato > 0);
   const table = el(`<table class="tbl"><thead><tr>
-    <th>Fornitore</th><th>N. Fatture</th><th class="money-col">Fatturato</th><th class="money-col">Pagato</th>${mostraStornato ? '<th class="money-col">Stornato</th>' : ''}<th class="money-col">Residuo</th><th>Giorni medi pagamento</th>
+    ${thOrdinabile('Fornitore', 'fornitore', '', sort)}
+    ${thOrdinabile('N. Fatture', 'n', '', sort)}
+    ${thOrdinabile('Fatturato', 'fatturato', 'money-col', sort)}
+    ${thOrdinabile('Pagato', 'pagato', 'money-col', sort)}
+    ${mostraStornato ? thOrdinabile('Stornato', 'stornato', 'money-col', sort) : ''}
+    ${thOrdinabile('Residuo', 'residuo', 'money-col', sort)}
+    ${thOrdinabile('Giorni medi pagamento', 'giorniMedi', '', sort)}
   </tr></thead><tbody></tbody></table>`);
+  table.querySelectorAll('th[data-sort]').forEach(th => th.addEventListener('click', () => onSort(th.dataset.sort)));
   const tbody = table.querySelector('tbody');
   for (const g of gruppi) {
     const tr = el(`<tr title="Vedi le fatture di ${esc(g.fornitore)}">

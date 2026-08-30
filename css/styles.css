@@ -110,6 +110,7 @@ input:focus,select:focus,textarea:focus{outline:none;border-color:var(--cri-red)
 /* ---------- Table ---------- */
 table.tbl{width:100%;border-collapse:collapse;font-size:14px}
 table.tbl th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);padding:10px 12px;border-bottom:1px solid var(--line);white-space:nowrap}
+table.tbl th[data-sort]:hover{color:var(--ink)}
 table.tbl td{padding:11px 12px;border-bottom:1px solid var(--line)}
 table.tbl tr:last-child td{border-bottom:none}
 table.tbl tbody tr:hover td{background:#fafbfc;cursor:pointer}
