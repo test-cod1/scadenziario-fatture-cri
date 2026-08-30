@@ -182,13 +182,17 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
     </div>
     <div id="qp-err" style="color:var(--danger);font-size:13px"></div>
   </div>`);
+  const isAdmin = ctx.user.ruolo === 'admin';
   const footer = el(`<div style="display:flex;gap:10px;width:100%">
+    ${isAdmin ? '<button class="btn ghost" id="qp-proponi">📨 Proponi invece</button>' : ''}
     <div style="flex:1"></div>
     <button class="btn" id="qp-cancel">Annulla</button>
     <button class="btn primary" id="qp-save">Registra pagamento</button>
   </div>`);
   const { close } = openModal({ title: 'Segna pagamento — ' + rec.fornitore, body, footer });
   footer.querySelector('#qp-cancel').addEventListener('click', close);
+  const btnProponi = footer.querySelector('#qp-proponi');
+  if (btnProponi) btnProponi.addEventListener('click', () => { close(); apriProponiPagamento(rec, ctx, onSaved); });
   footer.querySelector('#qp-save').addEventListener('click', async () => {
     const err = body.querySelector('#qp-err'); err.textContent = '';
     const importo = parseEuro(body.querySelector('#qp-importo').value);
