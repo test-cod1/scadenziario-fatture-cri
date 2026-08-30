@@ -40,20 +40,35 @@ export async function renderImpostazioni(view, ctx) {
       <div id="nu-err" style="color:var(--danger);font-size:13px;margin-top:10px"></div>
     </div></div>
 
-    <div class="card" style="margin-top:22px">
-      <div class="card-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
-        <span>Registro modifiche</span>
-        <select id="log-tipo">
-          <option value="">Tutte le fatture</option>
-          <option value="passiva">Solo fatture passive (fornitori)</option>
-          <option value="attiva">Solo fatture attive (clienti)</option>
-        </select>
+    <details class="card" id="log-panel" style="margin-top:22px">
+      <summary class="card-h">
+        <span>📋 Registro modifiche</span>
+        <span class="archivio-freccia">▸</span>
+      </summary>
+      <div class="card-b">
+        <div style="display:flex;justify-content:flex-end;margin-bottom:14px">
+          <select id="log-tipo">
+            <option value="">Tutte le fatture</option>
+            <option value="passiva">Solo fatture passive (fornitori)</option>
+            <option value="attiva">Solo fatture attive (clienti)</option>
+          </select>
+        </div>
+        <div id="log-zone"><div class="muted" style="padding:6px 0">Si carica aprendo questo pannello.</div></div>
       </div>
-      <div class="card-b" id="log-zone"></div>
-    </div>
+    </details>
   </div>`);
   view.appendChild(wrap);
-  renderRegistroModifiche(wrap.querySelector('#log-zone'), wrap.querySelector('#log-tipo'), ctx);
+  // Non appesantisce il caricamento della pagina Impostazioni: il registro
+  // (due tabelle, fino a 300 righe ciascuna) si scarica dal server solo alla
+  // prima apertura del pannello, non ad ogni volta che si apre questa pagina.
+  let logCaricato = false;
+  wrap.querySelector('#log-panel').addEventListener('toggle', (e) => {
+    if (!e.target.open || logCaricato) return;
+    logCaricato = true;
+    const zona = wrap.querySelector('#log-zone');
+    zona.innerHTML = '<div class="spinner" style="margin:20px auto"></div>';
+    renderRegistroModifiche(zona, wrap.querySelector('#log-tipo'), ctx);
+  });
   wrap.querySelector('#giorni').value = rec.giorni_scadenza_default;
 
   wrap.querySelector('#save').addEventListener('click', async () => {

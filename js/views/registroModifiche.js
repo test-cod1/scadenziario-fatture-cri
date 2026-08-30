@@ -30,6 +30,7 @@ export async function renderRegistroModifiche(zone, selectTipo, ctx) {
       ...attive.map(r => ({ ...r, _tipo: 'attiva', _soggetto: r.cliente_snapshot })),
     ].sort((a, b) => (b.created_at || '').localeCompare(a.created_at || ''));
   } catch (e) {
+    clear(zone);
     zone.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${esc(e.message)}</p></div>`));
     return;
   }
