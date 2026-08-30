@@ -268,9 +268,10 @@ function renderPagamenti(node, rec, ctx, onChange) {
   const wrap = el(`<div class="card" style="margin-top:6px"><div class="card-h">Pagamenti / acconti</div><div class="card-b">
     <div class="pag-list"></div>
     <div class="residuo-box"><span>Pagato: <b>${fmtEuro(rec._pagato)}</b></span>${rec._stornato > 0 ? `<span>Stornato: <b>${fmtEuro(rec._stornato)}</b></span>` : ''}<span>Residuo: <b>${fmtEuro(rec._residuo)}</b></span></div>
-    ${isAdmin
-      ? '<button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi pagamento</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>'
-      : (rec._residuo > 0 ? '<button class="btn sm" style="margin-top:10px" id="proponi-pag">+ Proponi pagamento</button><p class="hint" style="margin-top:8px">Solo l\'amministratore registra i pagamenti effettivi: qui puoi solo proporli.</p>' : '')}
+    ${isAdmin ? '<button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi pagamento</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>' : ''}
+    ${rec._residuo > 0
+      ? `<button class="btn ${isAdmin ? 'ghost' : ''} sm" style="margin-top:10px" id="proponi-pag">+ Proponi pagamento</button>${isAdmin ? '' : '<p class="hint" style="margin-top:8px">Solo l\'amministratore registra i pagamenti effettivi: qui puoi solo proporli.</p>'}`
+      : ''}
   </div></div>`);
   const list = wrap.querySelector('.pag-list');
   for (const p of (rec.pagamenti || []).slice().sort((a, b) => (a.data_pagamento || '').localeCompare(b.data_pagamento || ''))) {
@@ -309,10 +310,9 @@ function renderPagamenti(node, rec, ctx, onChange) {
         } catch (e) { toast('Errore: ' + e.message, 'err'); }
       });
     });
-  } else {
-    const btnProponi = wrap.querySelector('#proponi-pag');
-    if (btnProponi) btnProponi.addEventListener('click', () => apriProponiPagamento(rec, ctx, async () => onChange(await fatture.get(rec.id))));
   }
+  const btnProponi = wrap.querySelector('#proponi-pag');
+  if (btnProponi) btnProponi.addEventListener('click', () => apriProponiPagamento(rec, ctx, async () => onChange(await fatture.get(rec.id))));
   node.appendChild(wrap);
 }
 
