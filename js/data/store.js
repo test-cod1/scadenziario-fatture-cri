@@ -131,17 +131,23 @@ export const fatture = {
   // Il confronto sul fornitore avviene qui in JavaScript (normalizzando spazi e
   // maiuscole) invece che con ilike, per non trattare come jolly gli eventuali
   // caratteri % o _ presenti nella ragione sociale.
+  // Il confronto sul numero fattura avviene anch'esso qui in JavaScript
+  // (normalizzato come il fornitore, non con .eq esatto lato Postgres): un
+  // confronto SQL sarebbe case-sensitive e "FT-001"/"ft-001" o un numero con
+  // spazi iniziali/finali sfuggirebbero al controllo. Serve comunque un
+  // filtro grezzo lato query (ilike, jolly disabilitati) per non scaricare
+  // l'intera tabella fatture ad ogni salvataggio.
   async trovaDuplicato({ fornitore, numero_fattura }, escludiId) {
     if (!numero_fattura || !fornitore) return null;   // senza numero non si può parlare di duplicato
+    const norm = (v) => String(v || "").trim().toLowerCase().split(" ").filter(Boolean).join(" ");
     const sb = await sbClient();
     const { data, error } = await sb.from("fatture")
       .select("id, fornitore, numero_fattura, data_fattura, importo")
-      .eq("numero_fattura", numero_fattura)
+      .ilike("numero_fattura", numero_fattura.trim().replace(/[%_]/g, m => '\\' + m))
       .limit(20);
     if (error) throw error;
-    const norm = (v) => String(v || "").toLowerCase().split(" ").filter(Boolean).join(" ");
     const cercato = norm(fornitore);
-    return (data || []).find(f => f.id !== escludiId && norm(f.fornitore) === cercato) || null;
+    return (data || []).find(f => f.id !== escludiId && norm(f.numero_fattura) === norm(numero_fattura) && norm(f.fornitore) === cercato) || null;
   },
   async remove(id) {
     const sb = await sbClient();
@@ -241,13 +247,17 @@ export const pagamenti = {
 //  proprie proposte, l'admin le vede tutte.
 // ---------------------------------------------------------------
 export const proposte = {
+  // Include i pagamenti/note di credito della fattura collegata per poterne
+  // calcolare il residuo (vedi withResiduo): senza, l'admin confermava una
+  // proposta senza sapere se la fattura risultava già saldata da un altro
+  // pagamento nel frattempo.
   async list() {
     const sb = await sbClient();
     const { data, error } = await sb.from('proposte_pagamento')
-      .select('*, fatture(fornitore, numero_fattura, importo, scadenza, stato)')
+      .select('*, fatture(fornitore, numero_fattura, importo, scadenza, stato, pagamenti(*), note_credito_righe(*))')
       .order('created_at', { ascending: false });
     if (error) throw error;
-    return data;
+    return data.map(r => ({ ...r, fatture: r.fatture ? withResiduo(r.fatture) : r.fatture }));
   },
   async create(fatturaId, rec, proponente) {
     const sb = await sbClient();

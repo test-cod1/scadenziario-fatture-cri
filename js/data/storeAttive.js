@@ -55,17 +55,20 @@ export const fattureAttive = {
   },
   // Cerca una fattura attiva già registrata con lo stesso numero e lo stesso
   // cliente (stesso criterio delle passive, confronto normalizzato in JS).
+  // Vedi il commento gemello in store.js: il confronto sul numero fattura è
+  // normalizzato in JavaScript (non un .eq esatto lato Postgres, che sarebbe
+  // case-sensitive), con un ilike come filtro grezzo lato query.
   async trovaDuplicato({ cliente, numero_fattura }, escludiId) {
     if (!numero_fattura || !cliente) return null;
+    const norm = (v) => String(v || "").trim().toLowerCase().split(" ").filter(Boolean).join(" ");
     const sb = await sbClient();
     const { data, error } = await sb.from("fatture_attive")
       .select("id, cliente, numero_fattura, data_fattura, importo")
-      .eq("numero_fattura", numero_fattura)
+      .ilike("numero_fattura", numero_fattura.trim().replace(/[%_]/g, m => '\\' + m))
       .limit(20);
     if (error) throw error;
-    const norm = (v) => String(v || "").toLowerCase().split(" ").filter(Boolean).join(" ");
     const cercato = norm(cliente);
-    return (data || []).find(f => f.id !== escludiId && norm(f.cliente) === cercato) || null;
+    return (data || []).find(f => f.id !== escludiId && norm(f.numero_fattura) === norm(numero_fattura) && norm(f.cliente) === cercato) || null;
   },
   async remove(id) {
     const sb = await sbClient();

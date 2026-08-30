@@ -199,6 +199,7 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
     const data_pagamento = body.querySelector('#qp-data').value;
     if (!importo || importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
     if (!data_pagamento) { err.textContent = 'Indica la data del pagamento.'; return; }
+    if (!await confermaSeSuperaResiduo(importo, rec._residuo)) return;
     const btn = footer.querySelector('#qp-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
     try {
@@ -307,6 +308,7 @@ function renderPagamenti(node, rec, ctx, onChange) {
         const importo = parseEuro(f.querySelector('#p-importo').value);
         const data_pagamento = f.querySelector('#p-data').value;
         if (!importo || importo <= 0 || !data_pagamento) { toast('Inserisci data e importo validi', 'err'); return; }
+        if (!await confermaSeSuperaResiduo(importo, rec._residuo)) return;
         try {
           await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null }, ctx.user);
           onChange(await fatture.get(rec.id));
@@ -645,6 +647,18 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
 //  prima il doppione veniva creato in silenzio e finiva nei totali due volte.
 //  Ritorna true se si può procedere.
 // ============================================================
+// Avviso non bloccante quando un pagamento supera il residuo indicato: un
+// errore di battitura (un importo con uno zero di troppo) altrimenti registra
+// un "sovrapagamento" che sparisce silenziosamente, perché _residuo resta
+// clampato a 0 (vedi withResiduo in data/store.js) invece di segnalare
+// l'anomalia. Esportata perché usata anche da proposte.js nella conferma.
+export async function confermaSeSuperaResiduo(importo, residuo) {
+  if (importo <= residuo) return true;
+  return confirmDialog(
+    `L'importo (${fmtEuro(importo)}) supera il residuo della fattura (${fmtEuro(residuo)}). Registrare comunque?`,
+    { danger: true, okLabel: 'Registra comunque' });
+}
+
 async function confermaSeDuplicato(payload, escludiId) {
   let doppia = null;
   try { doppia = await fatture.trovaDuplicato(payload, escludiId); }
@@ -661,12 +675,15 @@ async function confermaSeDuplicato(payload, escludiId) {
 // ------------------------------------------------------------
 //  Il file caricato serve solo per estrarre i campi (AI o parsing XML): non
 //  viene conservato da nessuna parte, quindi qui si salva solo il record.
-//  Se manca la scadenza (fattura senza data indicata, letta o inserita a
-//  mano) si applica lo scadenzario di default configurato in Impostazioni.
+//  Se manca la scadenza di una fattura NUOVA (senza data indicata, letta o
+//  inserita a mano) si applica lo scadenzario di default configurato in
+//  Impostazioni. Solo alla creazione, non in modifica: altrimenti svuotare
+//  deliberatamente la scadenza di una fattura già esistente non aveva alcun
+//  effetto, perché veniva ricalcolata da capo ad ogni salvataggio.
 // ============================================================
 async function salvaFattura(payload, viaAI) {
-  if (!payload.scadenza) payload.scadenza = await scadenzaDefault(payload.data_fattura);
   if (payload.id) return fatture.save(payload);
+  if (!payload.scadenza) payload.scadenza = await scadenzaDefault(payload.data_fattura);
   const id = nuovoIdFattura();
   return fatture.save({ ...payload, id, estratta_da_ai: !!viaAI }, { nuovo: true });
 }

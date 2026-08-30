@@ -82,7 +82,7 @@ create index if not exists idx_fatture_fornitore on public.fatture(fornitore);
 create table if not exists public.pagamenti (
   id uuid primary key default gen_random_uuid(),
   fattura_id uuid not null references public.fatture(id) on delete cascade,
-  importo numeric(12,2) not null,
+  importo numeric(12,2) not null check (importo > 0),
   data_pagamento date not null,
   metodo text,
   note text,
@@ -483,7 +483,7 @@ create index if not exists idx_fatture_attive_cliente on public.fatture_attive(c
 create table if not exists public.incassi (
   id uuid primary key default gen_random_uuid(),
   fattura_attiva_id uuid not null references public.fatture_attive(id) on delete cascade,
-  importo numeric(12,2) not null,
+  importo numeric(12,2) not null check (importo > 0),
   data_incasso date not null,
   metodo text,
   note text,

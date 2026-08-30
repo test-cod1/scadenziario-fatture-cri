@@ -112,7 +112,10 @@ function giorniIncasso(f) {
   if (!ultimo) return null;
   const a = new Date(f.data_fattura + 'T00:00:00');
   const b = new Date(ultimo + 'T00:00:00');
-  return Math.round((b - a) / 86400000);
+  const giorni = Math.round((b - a) / 86400000);
+  // Vedi il commento gemello in report.js: date malformate producono NaN,
+  // da trattare come "non calcolabile" invece di propagarlo nelle medie.
+  return Number.isFinite(giorni) ? giorni : null;
 }
 
 function media(numeri) {

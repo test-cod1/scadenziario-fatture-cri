@@ -182,6 +182,7 @@ export function apriIncassoRapido(rec, ctx, onSaved) {
     const data_incasso = body.querySelector('#qp-data').value;
     if (!importo || importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
     if (!data_incasso) { err.textContent = 'Indica la data dell\'incasso.'; return; }
+    if (!await confermaSeSuperaResiduo(importo, rec._residuo)) return;
     const btn = footer.querySelector('#qp-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
     try {
@@ -262,6 +263,7 @@ function renderIncassi(node, rec, ctx, onChange) {
       const importo = parseEuro(f.querySelector('#p-importo').value);
       const data_incasso = f.querySelector('#p-data').value;
       if (!importo || importo <= 0 || !data_incasso) { toast('Inserisci data e importo validi', 'err'); return; }
+      if (!await confermaSeSuperaResiduo(importo, rec._residuo)) return;
       try {
         await incassi.add(rec.id, { importo, data_incasso, metodo: f.querySelector('#p-metodo').value || null });
         onChange(await fattureAttive.get(rec.id));
@@ -565,6 +567,15 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
 // ============================================================
 //  Controllo duplicati (stessa logica delle passive)
 // ============================================================
+// Vedi il commento gemello in fattura.js: avviso non bloccante quando un
+// incasso supera il residuo indicato.
+async function confermaSeSuperaResiduo(importo, residuo) {
+  if (importo <= residuo) return true;
+  return confirmDialog(
+    `L'importo (${fmtEuro(importo)}) supera il residuo della fattura (${fmtEuro(residuo)}). Registrare comunque?`,
+    { danger: true, okLabel: 'Registra comunque' });
+}
+
 async function confermaSeDuplicato(payload, escludiId) {
   let doppia = null;
   try { doppia = await fattureAttive.trovaDuplicato(payload, escludiId); }

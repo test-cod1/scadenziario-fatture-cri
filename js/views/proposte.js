@@ -1,6 +1,6 @@
 import { proposte } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro } from '../lib/ui.js';
-import { METODI } from './fattura.js';
+import { METODI, confermaSeSuperaResiduo } from './fattura.js';
 
 const ESITO_CHIP = { proposta: 'warn', confermata: 'ok', rifiutata: 'danger' };
 const ESITO_LABEL = { proposta: 'In attesa', confermata: 'Confermata', rifiutata: 'Rifiutata' };
@@ -46,14 +46,20 @@ function renderInAttesa(node, righe, ctx, ricarica) {
   const isAdmin = ctx.user.ruolo === 'admin';
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">📭</div><p>Nessuna proposta in attesa.</p></div>`)); return; }
   const table = el(`<table class="tbl"><thead><tr>
-    <th>Fornitore</th><th>N. Fattura</th><th class="money-col">Importo proposto</th><th>Data prevista</th><th>Metodo</th>${isAdmin ? '<th>Proposto da</th>' : ''}<th>Note</th><th></th>
+    <th>Fornitore</th><th>N. Fattura</th><th class="money-col">Residuo fattura</th><th class="money-col">Importo proposto</th><th>Data prevista</th><th>Metodo</th>${isAdmin ? '<th>Proposto da</th>' : ''}<th>Note</th><th></th>
   </tr></thead><tbody></tbody></table>`);
   const tbody = table.querySelector('tbody');
   for (const r of righe) {
     const f = r.fatture || {};
+    // Il residuo può essere già coperto da un pagamento nel frattempo (es.
+    // un'altra proposta confermata, o un pagamento diretto): evidenziarlo
+    // qui evita di scoprirlo solo dopo aver confermato per errore un
+    // pagamento che eccede quanto resta davvero da pagare.
+    const residuoBasso = f._residuo !== undefined && f._residuo <= 0;
     const tr = el(`<tr>
       <td>${esc(f.fornitore || '—')}</td>
       <td>${esc(f.numero_fattura || '—')}</td>
+      <td class="money money-col">${f._residuo !== undefined ? fmtEuro(f._residuo) : '—'}${residuoBasso ? ' ⚠️' : ''}</td>
       <td class="money money-col">${fmtEuro(r.importo)}</td>
       <td>${fmtDate(r.data_prevista)}</td>
       <td>${esc(r.metodo || '—')}</td>
@@ -109,7 +115,7 @@ function renderStorico(node, righe) {
 // diverso (es. un acconto invece dell'intero importo).
 function apriConfermaProposta(proposta, fattura, ctx, ricarica) {
   const body = el(`<div>
-    <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(fattura.fornitore || '')} ${fattura.numero_fattura ? '· ' + esc(fattura.numero_fattura) : ''} — proposto da ${esc(proposta.proposta_da_nome || proposta.proposta_da_email || 'un operatore')}</p>
+    <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(fattura.fornitore || '')} ${fattura.numero_fattura ? '· ' + esc(fattura.numero_fattura) : ''} — proposto da ${esc(proposta.proposta_da_nome || proposta.proposta_da_email || 'un operatore')}${fattura._residuo !== undefined ? ` — residuo <b>${fmtEuro(fattura._residuo)}</b>` : ''}</p>
     <div class="form-row three" style="align-items:end">
       <div class="field"><label>Data pagamento</label><input type="date" id="cp-data" value="${proposta.data_prevista || todayISO()}"></div>
       <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="cp-importo" value="${Number(proposta.importo).toFixed(2)}"></div>
@@ -130,6 +136,7 @@ function apriConfermaProposta(proposta, fattura, ctx, ricarica) {
     const data_pagamento = body.querySelector('#cp-data').value;
     if (!importo || importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
     if (!data_pagamento) { err.textContent = 'Indica la data del pagamento.'; return; }
+    if (fattura._residuo !== undefined && !await confermaSeSuperaResiduo(importo, fattura._residuo)) return;
     const btn = footer.querySelector('#cp-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Conferma…';
     try {
