@@ -37,7 +37,7 @@ export async function renderDashboardAttive(view, ctx) {
 
   const wrap = el(`<div>
     <div class="page-head">
-      <div><h1>Fatture Attive</h1><p>Fatture emesse ai clienti — Croce Rossa Italiana Genova</p></div>
+      <div><h1>Fatture Attive</h1><p>Fatture emesse ai clienti — CRI Genova</p></div>
       <div class="actions">
         <button class="btn" id="exp-csv">📊 Esporta Excel (CSV)</button>
         <button class="btn" id="exp-pdf">🖨️ Esporta PDF</button>

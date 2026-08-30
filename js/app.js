@@ -35,7 +35,7 @@ const RUOLI_ABILITATI = ['admin', 'operatore'];
 function renderNonAbilitato() {
   clear(app);
   app.appendChild(el(`<div class="login-wrap"><div class="login">
-    <div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>Croce Rossa Italiana</span></div></div>
+    <div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>CRI Genova</span></div></div>
     <div class="banner warn" style="margin:18px 0"><div class="bi">⏳</div><div>
       <b>Account non ancora abilitato</b>
       <div class="small">L'accesso è riuscito, ma un amministratore deve autorizzare il tuo utente
@@ -90,7 +90,7 @@ function renderShell() {
   clear(app);
   const layout = el(`<div class="layout">
     <aside class="sidebar">
-      <div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>Croce Rossa Italiana</span></div></div>
+      <div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>CRI Genova</span></div></div>
       <div class="section-switch">
         <button data-sezione="passive">🧾 Fatture Passive</button>
         <button data-sezione="attive">💶 Fatture Attive</button>

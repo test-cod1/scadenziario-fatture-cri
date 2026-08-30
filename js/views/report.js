@@ -18,7 +18,7 @@ export async function renderReport(view, ctx) {
 
   const wrap = el(`<div>
     <div class="page-head">
-      <div><h1>Report</h1><p>Riepilogo di spesa per fornitore e nel tempo — Croce Rossa Italiana Genova</p></div>
+      <div><h1>Report</h1><p>Riepilogo di spesa per fornitore e nel tempo — CRI Genova</p></div>
       <div class="actions">
         <input type="date" id="r-da" title="Data fattura da" value="${esc(state.da)}">
         <input type="date" id="r-a" title="Data fattura a" value="${esc(state.a)}">
