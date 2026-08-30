@@ -65,13 +65,19 @@ export async function apriEditor(id, ctx, onSaved) {
 
   // Pagamenti e note di credito concorrono entrambi a "quanto resta da
   // pagare": un cambiamento nell'uno deve aggiornare anche il riepilogo
-  // mostrato nell'altro, non solo la propria lista.
-  function refreshPagamentiENote(fresh) {
-    rec = fresh; datiModificati = true;
+  // mostrato nell'altro, non solo la propria lista. Il primo disegno (al
+  // solo apertura dell'editor) NON deve segnare datiModificati: altrimenti
+  // anche solo guardando una fattura, senza toccare nulla, la dashboard
+  // sottostante verrebbe ricaricata inutilmente alla chiusura.
+  function disegnaPagamentiENote() {
     renderPagamenti(body.querySelector('#pag-zone'), rec, ctx, refreshPagamentiENote);
     renderNoteCredito(body.querySelector('#note-credito-zone'), rec, ctx, refreshPagamentiENote);
   }
-  if (id) refreshPagamentiENote(rec);
+  function refreshPagamentiENote(fresh) {
+    rec = fresh; datiModificati = true;
+    disegnaPagamentiENote();
+  }
+  if (id) disegnaPagamentiENote();
 
   body.querySelector('#file-in').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -192,7 +198,7 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
     const btn = footer.querySelector('#qp-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
     try {
-      await pagamenti.add(rec.id, { importo, data_pagamento, metodo: body.querySelector('#qp-metodo').value || null });
+      await pagamenti.add(rec.id, { importo, data_pagamento, metodo: body.querySelector('#qp-metodo').value || null }, ctx.user);
       toast('Pagamento registrato', 'ok');
       close();
       onSaved();
@@ -232,6 +238,12 @@ export function apriProponiPagamento(rec, ctx, onSaved) {
     const importo = parseEuro(body.querySelector('#pp-importo').value);
     const data_prevista = body.querySelector('#pp-data').value || null;
     if (!importo || importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
+    try {
+      const giaInAttesa = await proposte.contaInAttesaPerFattura(rec.id);
+      if (giaInAttesa > 0 && !await confirmDialog(
+        `Per questa fattura c'è già ${giaInAttesa === 1 ? 'una proposta' : giaInAttesa + ' proposte'} in attesa di conferma. Inviarne comunque un'altra?`,
+        { danger: true, okLabel: 'Invia comunque' })) return;
+    } catch { /* un intoppo nel controllo non deve impedire l'invio */ }
     const btn = footer.querySelector('#pp-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Invio…';
     try {
@@ -291,7 +303,7 @@ function renderPagamenti(node, rec, ctx, onChange) {
         const data_pagamento = f.querySelector('#p-data').value;
         if (!importo || importo <= 0 || !data_pagamento) { toast('Inserisci data e importo validi', 'err'); return; }
         try {
-          await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null });
+          await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null }, ctx.user);
           onChange(await fatture.get(rec.id));
           toast('Pagamento registrato', 'ok');
         } catch (e) { toast('Errore: ' + e.message, 'err'); }
@@ -349,7 +361,8 @@ export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata) {
       <div class="field"><label>Data</label><input type="date" id="nc-data" value="${todayISO()}"></div>
       <div class="field"><label>Note</label><input type="text" id="nc-note"></div>
     </div>
-    <div class="field"><label>Fatture stornate da questa nota</label>
+    <div id="nc-pinned"></div>
+    <div class="field"><label>Altre fatture stornate da questa nota</label>
       <input type="text" id="nc-cerca" placeholder="Cerca fornitore o numero fattura…">
     </div>
     <div id="nc-elenco" style="max-height:320px;overflow-y:auto;margin-top:8px"><div class="spinner sm"></div></div>
@@ -372,9 +385,53 @@ export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata) {
     body.querySelector('#nc-tot-selezionato').textContent = fmtEuro(tot);
   }
 
+  // Riga selezionabile per una fattura: usata sia per l'elenco cercabile sia
+  // per la fattura preselezionata "appuntata" in cima, così restano sempre
+  // coerenti fra loro. Il default è il residuo VERO (anche se 0): meglio
+  // costringere a scrivere un importo a mano che proporre per sbaglio
+  // l'intero valore di una fattura già saldata.
+  function creaRigaFattura(f, preselezionata) {
+    const checked = preselezionata || selezionate.has(f.id);
+    if (checked && !selezionate.has(f.id)) selezionate.set(f.id, f._residuo);
+    const row = el(`<div class="pag-row" style="align-items:center">
+      <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer">
+        <input type="checkbox" ${checked ? 'checked' : ''}>
+        <span>${esc(f.fornitore)} ${f.numero_fattura ? '· n. ' + esc(f.numero_fattura) : ''} · residuo ${fmtEuro(f._residuo)}</span>
+      </label>
+      <input type="number" step="0.01" style="width:110px" placeholder="Importo €" value="${checked ? selezionate.get(f.id).toFixed(2) : ''}" ${checked ? '' : 'disabled'}>
+    </div>`);
+    const checkbox = row.querySelector('input[type=checkbox]');
+    const importoInput = row.querySelector('input[type=number]');
+    checkbox.addEventListener('change', () => {
+      if (checkbox.checked) {
+        selezionate.set(f.id, f._residuo);
+        importoInput.value = f._residuo.toFixed(2);
+        importoInput.disabled = false;
+      } else {
+        selezionate.delete(f.id);
+        importoInput.value = '';
+        importoInput.disabled = true;
+      }
+      aggiornaRiepilogo();
+    });
+    importoInput.addEventListener('input', () => {
+      const v = parseEuro(importoInput.value);
+      if (v && v > 0) selezionate.set(f.id, v);
+      aggiornaRiepilogo();
+    });
+    return row;
+  }
+
   fatture.list().then(tutte => {
-    const apribili = tutte.filter(f => f.stato !== 'stornata');
-    if (fatturaPreselezionata) selezionate.set(fatturaPreselezionata.id, fatturaPreselezionata._residuo > 0 ? fatturaPreselezionata._residuo : Number(fatturaPreselezionata.importo));
+    // La fattura preselezionata ha una riga fissa, sempre visibile, separata
+    // dall'elenco cercabile qui sotto: così resta sempre sotto controllo,
+    // anche se ce ne sono più di 200 (il limite di visualizzazione
+    // dell'elenco cercabile) o se non compare nella pagina corrente.
+    if (fatturaPreselezionata) {
+      body.querySelector('#nc-pinned').appendChild(creaRigaFattura(fatturaPreselezionata, true));
+      aggiornaRiepilogo();
+    }
+    const apribili = tutte.filter(f => f.stato !== 'stornata' && f.id !== fatturaPreselezionata?.id);
 
     function disegnaElenco(filtro) {
       const elenco = body.querySelector('#nc-elenco');
@@ -382,37 +439,7 @@ export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata) {
       const q = (filtro || '').trim().toLowerCase();
       const righeMostrate = apribili.filter(f => !q || (f.fornitore || '').toLowerCase().includes(q) || (f.numero_fattura || '').toLowerCase().includes(q));
       if (!righeMostrate.length) { elenco.appendChild(el('<div class="muted" style="font-size:13px">Nessuna fattura trovata.</div>')); return; }
-      for (const f of righeMostrate.slice(0, 200)) { // limite di visualizzazione: la ricerca restringe, non serve mostrarle tutte
-        const checked = selezionate.has(f.id);
-        const row = el(`<div class="pag-row" style="align-items:center">
-          <label style="display:flex;align-items:center;gap:8px;flex:1;cursor:pointer">
-            <input type="checkbox" ${checked ? 'checked' : ''}>
-            <span>${esc(f.fornitore)} ${f.numero_fattura ? '· n. ' + esc(f.numero_fattura) : ''} · residuo ${fmtEuro(f._residuo)}</span>
-          </label>
-          <input type="number" step="0.01" style="width:110px" placeholder="Importo €" value="${checked ? selezionate.get(f.id).toFixed(2) : ''}" ${checked ? '' : 'disabled'}>
-        </div>`);
-        const checkbox = row.querySelector('input[type=checkbox]');
-        const importoInput = row.querySelector('input[type=number]');
-        checkbox.addEventListener('change', () => {
-          if (checkbox.checked) {
-            const def = f._residuo > 0 ? f._residuo : Number(f.importo);
-            selezionate.set(f.id, def);
-            importoInput.value = def.toFixed(2);
-            importoInput.disabled = false;
-          } else {
-            selezionate.delete(f.id);
-            importoInput.value = '';
-            importoInput.disabled = true;
-          }
-          aggiornaRiepilogo();
-        });
-        importoInput.addEventListener('input', () => {
-          const v = parseEuro(importoInput.value);
-          if (v && v > 0) selezionate.set(f.id, v);
-          aggiornaRiepilogo();
-        });
-        elenco.appendChild(row);
-      }
+      for (const f of righeMostrate.slice(0, 200)) elenco.appendChild(creaRigaFattura(f, false)); // limite di visualizzazione: la ricerca restringe, non serve mostrarle tutte
     }
 
     disegnaElenco('');

@@ -48,18 +48,24 @@ export async function renderReport(view, ctx) {
     const righe = filtrate();
     renderStats(wrap.querySelector('#r-stats'), righe);
     renderFornitori(wrap.querySelector('#r-fornitori'), perFornitore(righe));
-    renderMesi(wrap.querySelector('#r-mesi'), perMese(righe, state.anno));
+    renderMesi(wrap.querySelector('#r-mesi'), perMese(righe, tutte, state.anno));
   }
 
   refresh();
 }
 
 // Giorni impiegati a saldare una fattura: da data_fattura all'ultimo
-// pagamento registrato. Ha senso solo per fatture saldate per intero — un
-// acconto parziale non dice quando la fattura sarà chiusa, quindi le fatture
-// non ancora "pagata" restano fuori da questa statistica.
+// pagamento REALE registrato (mai la data di una nota di credito). Ha senso
+// solo per fatture chiuse per intero (stato 'pagata' o 'stornata') — un
+// acconto parziale non dice quando la fattura sarà chiusa. Una fattura
+// chiusa "stornata" ma con almeno un pagamento vero (es. saldata al 95% e
+// stornata per il resto con una nota di credito) va comunque contata: ha un
+// vero tempo di pagamento da misurare, solo il residuo non è stato pagato
+// in denaro. Una fattura stornata SENZA alcun pagamento reale (chiusa solo
+// da nota di credito) resta esclusa, perché non c'è nulla da misurare.
 function giorniPagamento(f) {
-  if (f.stato !== 'pagata' || !f.data_fattura || !(f.pagamenti || []).length) return null;
+  const chiusa = f.stato === 'pagata' || f.stato === 'stornata';
+  if (!chiusa || !f.data_fattura || !(f.pagamenti || []).length) return null;
   const ultimo = f.pagamenti.reduce((max, p) => (p.data_pagamento && p.data_pagamento > max ? p.data_pagamento : max), '');
   if (!ultimo) return null;
   const a = new Date(f.data_fattura + 'T00:00:00');
@@ -128,12 +134,14 @@ function renderFornitori(node, gruppi) {
   node.appendChild(table);
 }
 
-// Fatturato del mese = fatture con data_fattura in quel mese. Pagato del mese
-// = pagamenti (di qualunque fattura, anche di anni diversi) effettuati in
-// quel mese: sono due cose distinte e vanno lette come tali, non sommate.
-// Se è selezionato un anno si mostrano solo i 12 mesi di quell'anno, altrimenti
-// tutti i mesi che compaiono nei dati (fatture o pagamenti), in ordine cronologico.
-function perMese(righeFatturato, anno) {
+// Fatturato del mese = fatture con data_fattura in quel mese (usa
+// `righeFatturato`, già filtrato per anno se selezionato). Pagato del mese =
+// pagamenti effettuati in quel mese, DI QUALUNQUE FATTURA anche se datata in
+// un anno diverso (fattura di dicembre pagata a gennaio è tutt'altro che
+// rara) — per questo scorre sempre `tutte`, l'elenco completo non filtrato,
+// e filtra i singoli pagamenti per data, non per anno della fattura: sono
+// due cose distinte e vanno lette come tali, non sommate.
+function perMese(righeFatturato, tutte, anno) {
   const mappa = new Map();
   const key = (iso) => iso.slice(0, 7);
   const voce = (k) => {
@@ -144,7 +152,7 @@ function perMese(righeFatturato, anno) {
     if (!f.data_fattura) continue;
     voce(key(f.data_fattura)).fatturato += Number(f.importo || 0);
   }
-  for (const f of righeFatturato) {
+  for (const f of tutte) {
     for (const p of (f.pagamenti || [])) {
       if (!p.data_pagamento) continue;
       if (anno && !p.data_pagamento.startsWith(anno)) continue; // il pagamento può cadere fuori dall'anno della fattura

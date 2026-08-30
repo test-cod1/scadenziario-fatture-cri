@@ -173,14 +173,30 @@ export const noteCredito = {
     if (errTestata) throw errTestata;
     const payloadRighe = righe.map(r => ({ nota_credito_id: testata.id, fattura_id: r.fattura_id, importo: r.importo }));
     const { error: errRighe } = await sb.from('note_credito_righe').insert(payloadRighe);
-    if (errRighe) throw errRighe;
+    if (errRighe) {
+      // Le righe non sono state scritte: senza questa pulizia la testata
+      // resterebbe orfana nel database, invisibile a qualunque vista
+      // dell'app (tutte leggono le note di credito tramite le righe).
+      await sb.from('note_credito').delete().eq('id', testata.id);
+      throw errRighe;
+    }
     return testata;
   },
-  // Rimuove solo il legame con UNA fattura (una riga), non l'intero documento.
+  // Rimuove solo il legame con UNA fattura (una riga), non l'intero documento
+  // — ma se era l'ultima riga rimasta, elimina anche la testata: altrimenti
+  // resterebbe un documento "vuoto" per sempre, senza alcuna schermata per
+  // trovarlo o cancellarlo.
   async removeRiga(rigaId) {
     const sb = await sbClient();
+    const { data: riga, error: errGet } = await sb.from('note_credito_righe').select('nota_credito_id').eq('id', rigaId).single();
+    if (errGet) throw errGet;
     const { error } = await sb.from('note_credito_righe').delete().eq('id', rigaId);
     if (error) throw error;
+    const { count, error: errCount } = await sb.from('note_credito_righe')
+      .select('id', { count: 'exact', head: true }).eq('nota_credito_id', riga.nota_credito_id);
+    if (!errCount && count === 0) {
+      await sb.from('note_credito').delete().eq('id', riga.nota_credito_id);
+    }
   },
 };
 
@@ -188,12 +204,25 @@ export const noteCredito = {
 //  PAGAMENTI (acconti / rate)
 // ---------------------------------------------------------------
 export const pagamenti = {
-  async add(fatturaId, rec) {
+  // `decisore` è opzionale: serve solo per etichettare le eventuali proposte
+  // di pagamento che questo pagamento chiude (vedi sotto), non per il
+  // pagamento in sé.
+  async add(fatturaId, rec, decisore) {
     const sb = await sbClient();
     const { data: u } = await sb.auth.getUser();
     const payload = { ...rec, fattura_id: fatturaId, created_by: u?.user?.id };
     const { data, error } = await sb.from('pagamenti').insert(payload).select().single();
-    if (error) throw error; return data;
+    if (error) throw error;
+    // Un pagamento registrato direttamente (fuori dal flusso "conferma
+    // proposta", es. dal pagamento rapido) chiude comunque ogni proposta
+    // ancora in attesa per la stessa fattura: senza questo, resterebbero
+    // bloccate e riconfermabili in seguito, con un secondo pagamento
+    // duplicato come conseguenza.
+    await sb.from('proposte_pagamento')
+      .update({ stato: 'confermata', pagamento_id: data.id, decisa_da: u?.user?.id, decisa_da_nome: decisore?.nome || null, decisa_il: new Date().toISOString() })
+      .eq('fattura_id', fatturaId)
+      .eq('stato', 'proposta');
+    return data;
   },
   async remove(id) {
     const sb = await sbClient();
@@ -227,6 +256,16 @@ export const proposte = {
     const { data, error } = await sb.from('proposte_pagamento').insert(payload).select().single();
     if (error) throw error; return data;
   },
+  // Quante proposte sono già in attesa per questa fattura: usato solo per
+  // avvisare prima di inviarne una seconda (es. doppio click), non per
+  // impedirlo — può essere voluto (due acconti proposti separatamente).
+  async contaInAttesaPerFattura(fatturaId) {
+    const sb = await sbClient();
+    const { count, error } = await sb.from('proposte_pagamento')
+      .select('id', { count: 'exact', head: true }).eq('fattura_id', fatturaId).eq('stato', 'proposta');
+    if (error) throw error;
+    return count || 0;
+  },
   // Ritira una propria proposta ancora in attesa (le RLS impediscono di
   // cancellare quelle altrui o già decise dall'admin).
   async remove(id) {
@@ -234,21 +273,34 @@ export const proposte = {
     const { error } = await sb.from('proposte_pagamento').delete().eq('id', id);
     if (error) throw error;
   },
-  // Registra il pagamento vero e proprio e marca la proposta come confermata,
-  // collegandola al pagamento creato. Due scritture separate (niente
-  // transazioni lato client con Supabase): in caso di errore sulla seconda,
-  // il pagamento resta comunque registrato correttamente sulla fattura.
+  // Registra il pagamento vero e proprio e marca la proposta come confermata.
+  // Si "prenota" la proposta PRIMA di scrivere il pagamento, passandola a
+  // 'confermata' solo se in quel momento è ancora 'proposta' (condizione
+  // nella .eq qui sotto): se due admin la confermano quasi insieme, il
+  // secondo update tocca zero righe e la funzione si ferma subito, invece
+  // di creare comunque un secondo pagamento duplicato.
   async confermare(proposta, { importo, data_pagamento, metodo }, decisore) {
     const sb = await sbClient();
     const { data: u } = await sb.auth.getUser();
+    const { data: prenotate, error: errPrenota } = await sb.from('proposte_pagamento')
+      .update({ stato: 'confermata', decisa_da: u?.user?.id, decisa_da_nome: decisore?.nome || null, decisa_il: new Date().toISOString() })
+      .eq('id', proposta.id).eq('stato', 'proposta')
+      .select('id');
+    if (errPrenota) throw errPrenota;
+    if (!prenotate || !prenotate.length) throw new Error('Questa proposta è già stata gestita nel frattempo (da un altro admin, o in un\'altra scheda).');
     const { data: pag, error: errPag } = await sb.from('pagamenti')
       .insert({ fattura_id: proposta.fattura_id, importo, data_pagamento, metodo: metodo || null, created_by: u?.user?.id })
       .select().single();
-    if (errPag) throw errPag;
-    const { error: errProp } = await sb.from('proposte_pagamento')
-      .update({ stato: 'confermata', decisa_da: u?.user?.id, decisa_da_nome: decisore?.nome || null, decisa_il: new Date().toISOString(), pagamento_id: pag.id })
-      .eq('id', proposta.id);
-    if (errProp) throw errProp;
+    if (errPag) {
+      // Il pagamento non è stato registrato: si riporta la proposta in
+      // attesa invece di lasciarla "confermata" senza alcun pagamento
+      // collegato, cosa che la nasconderebbe per sempre senza che sia
+      // stato davvero pagato nulla.
+      await sb.from('proposte_pagamento').update({ stato: 'proposta', decisa_da: null, decisa_da_nome: null, decisa_il: null }).eq('id', proposta.id);
+      throw errPag;
+    }
+    const { error: errLink } = await sb.from('proposte_pagamento').update({ pagamento_id: pag.id }).eq('id', proposta.id);
+    if (errLink) throw errLink;
     return pag;
   },
   async rifiutare(id, motivo, decisore) {
