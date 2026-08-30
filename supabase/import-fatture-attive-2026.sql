@@ -6,9 +6,15 @@
 --  il file originale era ambiguo o incompleto e si è dovuta fare un'assunzione.
 --  Esegui DOPO patch-2026-08-30-fatture-attive.sql (richiede le tabelle
 --  fatture_attive / incassi già presenti).
---  Fatture importate: 224. Escluse (vedi blocco commenti in fondo):
+--  Fatture importate: 208. Escluse (vedi blocco commenti in fondo):
 --  3 senza importo leggibile, 13 note di credito
 --  (da collegare a mano dall'app). Consigliato un controllo a campione dopo l'import.
+--  NOTA: 16 fatture (righe 70-86) erano duplicate due volte nel file con dati
+--  leggermente diversi (probabile incollaggio accidentale) — confermato con
+--  l'utente: si è tenuta la 1a copia (di norma più completa: ha scadenza e
+--  data di pagamento), tranne per le righe 74-77 dove si è preso il campo
+--  PAGATA dalla 2a copia (più precisa: riporta metodo e data invece di un
+--  generico "PAGATA"/"pag CONTANTI").
 -- ============================================================
 
 WITH f AS (
@@ -527,35 +533,35 @@ SELECT id, v.* FROM f, (SELECT 15765.55, '2026-04-15', NULL, NULL) AS v(importo,
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('PAOLA DILEO', NULL, '2026-03-30', 50.00, NULL, 'incassata', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 74 del file originale · [Import fatture attive] PAGATA senza data indicata nel file · [Import fatture attive] data di incasso non specificata nel file — approssimata alla scadenza/data fattura.', NULL)
+  VALUES ('PAOLA DILEO', NULL, '2026-03-30', 50.00, NULL, 'incassata', 'contanti', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 74 del file originale', NULL)
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-30', NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-24', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('MUGNANI SIMONE', NULL, '2026-03-30', 50.00, NULL, 'incassata', 'contanti', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 75 del file originale · [Import fatture attive] pagamento senza data leggibile nel file: ''pag CONTANTI'' · [Import fatture attive] data di incasso non specificata nel file — approssimata alla scadenza/data fattura.', NULL)
+  VALUES ('MUGNANI SIMONE', NULL, '2026-03-30', 50.00, NULL, 'incassata', 'bonifico', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 75 del file originale', NULL)
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-30', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-24', 'bonifico', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('CAMERA RICCARDO', NULL, '2026-03-30', 50.00, NULL, 'incassata', 'contanti', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 76 del file originale · [Import fatture attive] pagamento senza data leggibile nel file: ''pag CONTANTI'' · [Import fatture attive] data di incasso non specificata nel file — approssimata alla scadenza/data fattura.', NULL)
+  VALUES ('CAMERA RICCARDO', NULL, '2026-03-30', 50.00, NULL, 'incassata', 'contanti', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 76 del file originale · [Import fatture attive] anno 2027 nel file (probabile refuso per 2026): ''PAG.CONTANTI 24/03/2027''', NULL)
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-30', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 50.00, '2027-03-24', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('AMATO FABRIZIO', NULL, '2026-03-31', 268.40, NULL, 'incassata', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 77 del file originale', NULL)
+  VALUES ('AMATO FABRIZIO', NULL, '2026-03-31', 268.40, NULL, 'incassata', 'bonifico', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 77 del file originale', NULL)
   RETURNING id
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 268.40, '2026-06-08', NULL, NULL) AS v(importo, data_incasso, metodo, note);
+SELECT id, v.* FROM f, (SELECT 268.40, '2026-03-30', 'bonifico', NULL) AS v(importo, data_incasso, metodo, note);
 
 WITH f AS (
   INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
@@ -1364,84 +1370,6 @@ WITH f AS (
 )
 INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
 SELECT id, v.* FROM f, (SELECT 91.50, '2026-08-05', NULL, NULL) AS v(importo, data_incasso, metodo, note);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('AZIENDA OSPEDALIERA SAN MARTINO', NULL, '2026-03-26', 467.80, NULL, 'da_incassare', NULL, 'Centro di costo: APPARIZIONE · [Import fatture attive] rif. riga 70 del file originale', NULL);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('AZIENDA OSPEDALIERA SAN MARTINO', NULL, '2026-03-26', 1254.00, NULL, 'da_incassare', NULL, 'Centro di costo: STURLA · [Import fatture attive] rif. riga 71 del file originale', NULL);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('AZIENDA OSPEDALIERA SAN MARTINO', NULL, '2026-03-26', 5404.85, NULL, 'da_incassare', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 72 del file originale', NULL);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('ATSL AZIENDA TUTELA SALUTE ASL3', NULL, '2026-03-30', 15765.55, NULL, 'da_incassare', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 73 del file originale', NULL);
-
-WITH f AS (
-  INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('PAOLA DILEO', NULL, '2026-03-30', 50.00, NULL, 'incassata', 'contanti', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 74 del file originale', NULL)
-  RETURNING id
-)
-INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-24', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
-
-WITH f AS (
-  INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('MUGNAINI SIMONE', NULL, '2026-03-30', 50.00, NULL, 'incassata', 'bonifico', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 75 del file originale', NULL)
-  RETURNING id
-)
-INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, '2026-03-24', 'bonifico', NULL) AS v(importo, data_incasso, metodo, note);
-
-WITH f AS (
-  INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('CAMERA RICCARDO', NULL, '2026-03-30', 50.00, NULL, 'incassata', 'contanti', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 76 del file originale · [Import fatture attive] anno 2027 nel file (probabile refuso per 2026): ''PAG.CONTANTI 24/03/2027''', NULL)
-  RETURNING id
-)
-INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 50.00, '2027-03-24', 'contanti', NULL) AS v(importo, data_incasso, metodo, note);
-
-WITH f AS (
-  INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('AMATO FABRIZIO', NULL, '2026-03-31', 268.40, NULL, 'incassata', 'bonifico', 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 77 del file originale', NULL)
-  RETURNING id
-)
-INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 268.40, '2026-03-30', 'bonifico', NULL) AS v(importo, data_incasso, metodo, note);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('AD INTERNATIONAL ASSISTANCE SRL', NULL, '2026-04-01', 700.00, NULL, 'da_incassare', NULL, 'Centro di costo: Trasporto COSTA TOSCANA/AUTOPARCO · [Import fatture attive] rif. riga 78 del file originale', NULL);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('COMUNE DI GENOVA ATS 41', NULL, '2026-04-02', 7176.00, NULL, 'da_incassare', NULL, 'Centro di costo: SOS BAMBINO · [Import fatture attive] rif. riga 79 del file originale', NULL);
-
-WITH f AS (
-  INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('ASD FREERIDETIGULLIO', NULL, '2026-04-07', 1550.00, NULL, 'incassata', NULL, 'Centro di costo: AUTOPARCO · [Import fatture attive] rif. riga 81 del file originale', NULL)
-  RETURNING id
-)
-INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 1550.00, '2026-04-10', NULL, NULL) AS v(importo, data_incasso, metodo, note);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('RONDASERVICE SRL', NULL, '2026-04-07', 85.40, '2026-04-28', 'da_incassare', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 82 del file originale', NULL);
-
-WITH f AS (
-  INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-  VALUES ('SEDAPTA SRL', NULL, '2026-04-07', 195.20, NULL, 'incassata', NULL, 'Centro di costo: FORMAZIONE · [Import fatture attive] rif. riga 83 del file originale', NULL)
-  RETURNING id
-)
-INSERT INTO public.incassi (fattura_attiva_id, importo, data_incasso, metodo, note)
-SELECT id, v.* FROM f, (SELECT 195.20, '2026-05-12', NULL, NULL) AS v(importo, data_incasso, metodo, note);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('FONDAZIONE L''ANCORA ONLUS', NULL, '2026-04-07', 80.00, NULL, 'da_incassare', NULL, 'Centro di costo: CRI SOL/ASSISTENZA SANITARIA MIGRANTI · [Import fatture attive] rif. riga 84 del file originale', NULL);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('FONDAZIONE L''ANCORA ONLUS', NULL, '2026-04-07', 30.00, NULL, 'da_incassare', NULL, 'Centro di costo: CRI SOL/ASSISTENZA SANITARIA MIGRANTI · [Import fatture attive] rif. riga 85 del file originale', NULL);
-
-INSERT INTO public.fatture_attive (cliente, numero_fattura, data_fattura, importo, scadenza, stato, metodo_incasso, note, data_sollecito)
-VALUES ('FONDAZIONE L''ANCORA ONLUS', NULL, '2026-04-07', 60.00, NULL, 'da_incassare', NULL, 'Centro di costo: CRI SOL/ASSISTENZA SANITARIA MIGRANTI · [Import fatture attive] rif. riga 86 del file originale', NULL);
 
 -- ============================================================
 --  NON IMPORTATE — da inserire/collegare A MANO dall'app:
