@@ -174,6 +174,65 @@ export const pagamenti = {
 };
 
 // ---------------------------------------------------------------
+//  PROPOSTE DI PAGAMENTO
+// ------------------------------------------------------------
+//  L'operatore propone (importo, data prevista, metodo); solo l'admin può
+//  confermarle (scrive il pagamento vero e proprio, che a sua volta fa
+//  scattare il ricalcolo automatico dello stato della fattura) o rifiutarle.
+//  Le RLS filtrano già cosa list() restituisce: l'operatore vede solo le
+//  proprie proposte, l'admin le vede tutte.
+// ---------------------------------------------------------------
+export const proposte = {
+  async list() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('proposte_pagamento')
+      .select('*, fatture(fornitore, numero_fattura, importo, scadenza, stato)')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    return data;
+  },
+  async create(fatturaId, rec, proponente) {
+    const sb = await sbClient();
+    const { data: u } = await sb.auth.getUser();
+    const payload = { ...rec, fattura_id: fatturaId, proposta_da: u?.user?.id, proposta_da_nome: proponente?.nome || null, proposta_da_email: proponente?.email || null };
+    const { data, error } = await sb.from('proposte_pagamento').insert(payload).select().single();
+    if (error) throw error; return data;
+  },
+  // Ritira una propria proposta ancora in attesa (le RLS impediscono di
+  // cancellare quelle altrui o già decise dall'admin).
+  async remove(id) {
+    const sb = await sbClient();
+    const { error } = await sb.from('proposte_pagamento').delete().eq('id', id);
+    if (error) throw error;
+  },
+  // Registra il pagamento vero e proprio e marca la proposta come confermata,
+  // collegandola al pagamento creato. Due scritture separate (niente
+  // transazioni lato client con Supabase): in caso di errore sulla seconda,
+  // il pagamento resta comunque registrato correttamente sulla fattura.
+  async confermare(proposta, { importo, data_pagamento, metodo }, decisore) {
+    const sb = await sbClient();
+    const { data: u } = await sb.auth.getUser();
+    const { data: pag, error: errPag } = await sb.from('pagamenti')
+      .insert({ fattura_id: proposta.fattura_id, importo, data_pagamento, metodo: metodo || null, created_by: u?.user?.id })
+      .select().single();
+    if (errPag) throw errPag;
+    const { error: errProp } = await sb.from('proposte_pagamento')
+      .update({ stato: 'confermata', decisa_da: u?.user?.id, decisa_da_nome: decisore?.nome || null, decisa_il: new Date().toISOString(), pagamento_id: pag.id })
+      .eq('id', proposta.id);
+    if (errProp) throw errProp;
+    return pag;
+  },
+  async rifiutare(id, motivo, decisore) {
+    const sb = await sbClient();
+    const { data: u } = await sb.auth.getUser();
+    const { error } = await sb.from('proposte_pagamento')
+      .update({ stato: 'rifiutata', decisa_da: u?.user?.id, decisa_da_nome: decisore?.nome || null, decisa_il: new Date().toISOString(), motivo_rifiuto: motivo || null })
+      .eq('id', id);
+    if (error) throw error;
+  },
+};
+
+// ---------------------------------------------------------------
 //  IMPOSTAZIONI (riga singola, configurazione globale)
 // ---------------------------------------------------------------
 export const impostazioni = {

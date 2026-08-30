@@ -1,7 +1,7 @@
-import { fatture } from '../data/store.js';
+import { fatture, proposte } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast } from '../lib/ui.js';
 import { exportCSV, exportPDF } from '../lib/export.js';
-import { apriEditor, apriUpload, apriPagamentoRapido } from './fattura.js';
+import { apriEditor, apriUpload, apriPagamentoRapido, apriProponiPagamento } from './fattura.js';
 
 const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata' };
 const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok' };
@@ -10,6 +10,7 @@ export async function renderDashboard(view, ctx) {
   let tutte = [];
   try { tutte = await fatture.list(); }
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
+  let proposteInAttesa = await caricaProposteInAttesa();
 
   const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '' };
 
@@ -83,7 +84,7 @@ export async function renderDashboard(view, ctx) {
   }
 
   function refreshTable() {
-    renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica);
+    renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica, proposteInAttesa);
     mostraNotaSenzaScadenza();
   }
 
@@ -100,6 +101,7 @@ export async function renderDashboard(view, ctx) {
 
   async function ricarica() {
     tutte = await fatture.list();
+    proposteInAttesa = await caricaProposteInAttesa();
     renderStats(wrap.querySelector('#stats'), tutte);
     renderAlert(wrap.querySelector('#alert-zone'), tutte);
     refreshTable();
@@ -123,6 +125,20 @@ export async function renderDashboard(view, ctx) {
   wrap.querySelector('#carica').addEventListener('click', () => apriUpload(ctx, ricarica));
 
   refreshTable();
+}
+
+// Mappa fattura_id -> n. proposte in attesa: usata solo per mostrare un
+// avviso accanto allo stato, così non si propone due volte la stessa cosa
+// senza accorgersene. Se la tabella non esiste ancora (patch SQL non
+// eseguita) si degrada in silenzio a "nessuna proposta", senza rompere la
+// dashboard.
+async function caricaProposteInAttesa() {
+  try {
+    const righe = await proposte.list();
+    const mappa = new Map();
+    for (const r of righe) if (r.stato === 'proposta') mappa.set(r.fattura_id, (mappa.get(r.fattura_id) || 0) + 1);
+    return mappa;
+  } catch { return new Map(); }
 }
 
 function renderStats(node, tutte) {
@@ -158,9 +174,12 @@ function renderAlert(node, tutte) {
   node.appendChild(el(`<div class="banner ${scadute.length ? 'danger' : 'warn'}"><div class="bi">${scadute.length ? '⚠️' : '⏰'}</div><div>${parts.join('')}</div></div>`));
 }
 
-function renderTable(node, righe, ctx, ricarica) {
+function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura trovata con questi filtri.</p></div>`)); return; }
+  const isAdmin = ctx.user.ruolo === 'admin';
+  const azione = isAdmin ? apriPagamentoRapido : apriProponiPagamento;
+  const titoloChip = isAdmin ? 'Clicca per segnare un pagamento' : 'Clicca per proporre un pagamento';
   const oggi = new Date().toISOString().slice(0, 10);
   const table = el(`<table class="tbl"><thead><tr>
     <th>Fornitore</th><th>N. Fattura</th><th>Data</th><th class="money-col">Importo</th><th>Scadenza</th><th>Stato</th><th class="money-col">Residuo</th><th></th>
@@ -168,20 +187,24 @@ function renderTable(node, righe, ctx, ricarica) {
   const tbody = table.querySelector('tbody');
   for (const f of righe) {
     const scaduta = f.stato !== 'pagata' && f.scadenza && f.scadenza < oggi;
+    const nProposte = proposteInAttesa ? (proposteInAttesa.get(f.id) || 0) : 0;
     const tr = el(`<tr class="${scaduta ? 'scaduta' : ''}">
       <td>${esc(f.fornitore)}</td>
       <td>${esc(f.numero_fattura || '—')}</td>
       <td>${fmtDate(f.data_fattura)}</td>
       <td class="money money-col">${fmtEuro(f.importo)}</td>
       <td>${fmtDate(f.scadenza)}</td>
-      <td><span class="chip ${STATO_CHIP[f.stato] || ''}" ${f.stato !== 'pagata' ? 'data-stato title="Clicca per segnare un pagamento"' : ''}>${STATO_LABEL[f.stato] || f.stato}</span></td>
+      <td>
+        <span class="chip ${STATO_CHIP[f.stato] || ''}" ${f.stato !== 'pagata' ? `data-stato title="${esc(titoloChip)}"` : ''}>${STATO_LABEL[f.stato] || f.stato}</span>
+        ${nProposte ? `<span class="chip" title="${isAdmin ? 'In attesa di conferma' : 'Hai già una proposta in attesa per questa fattura'}" style="margin-left:4px">📨 ${nProposte}</span>` : ''}
+      </td>
       <td class="money money-col">${fmtEuro(f._residuo)}</td>
       <td style="text-align:right"><button class="btn ghost sm" data-edit>✏️</button></td>
     </tr>`);
     tr.addEventListener('click', (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]')) apriEditor(f.id, ctx, ricarica); });
     tr.querySelector('[data-edit]').addEventListener('click', (e) => { e.stopPropagation(); apriEditor(f.id, ctx, ricarica); });
     const chipStato = tr.querySelector('[data-stato]');
-    if (chipStato) chipStato.addEventListener('click', (e) => { e.stopPropagation(); apriPagamentoRapido(f, ctx, ricarica); });
+    if (chipStato) chipStato.addEventListener('click', (e) => { e.stopPropagation(); azione(f, ctx, ricarica); });
     tbody.appendChild(tr);
   }
   node.appendChild(table);

@@ -1,11 +1,11 @@
-import { fatture, pagamenti, impostazioni } from '../data/store.js';
+import { fatture, pagamenti, impostazioni, proposte } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml } from '../lib/xmlFattura.js';
 
 // Valori ammessi per il metodo di pagamento: la lista deve restare allineata
 // a quanto può produrre traduciModalita() in lib/xmlFattura.js, altrimenti i
 // valori letti dalle fatture elettroniche non trovano posto nella tendina.
-const METODI = ['', 'bonifico', 'RIBA', 'RID', 'contanti', 'assegno', 'carta', 'altro'];
+export const METODI = ['', 'bonifico', 'RIBA', 'RID', 'contanti', 'assegno', 'carta', 'altro'];
 
 // Riporta un valore qualsiasi dentro la lista: così un metodo non previsto
 // diventa "altro" invece di sparire senza dire nulla.
@@ -194,18 +194,67 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
   });
 }
 
+// ============================================================
+//  Proposta di pagamento — l'operatore la invia, ma non registra il
+//  pagamento vero e proprio: solo l'admin, confermandola, lo fa (vedi
+//  proposte.confermare in data/store.js). Stessa forma della finestra di
+//  pagamento rapido, così l'esperienza resta coerente fra i due ruoli.
+// ============================================================
+export function apriProponiPagamento(rec, ctx, onSaved) {
+  const body = el(`<div>
+    <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.fornitore)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''} — residuo <b>${fmtEuro(rec._residuo)}</b></p>
+    <div class="form-row three" style="align-items:end">
+      <div class="field"><label>Data prevista</label><input type="date" id="pp-data" value="${todayISO()}"></div>
+      <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="pp-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
+      <div class="field"><label>Metodo</label><select id="pp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
+    </div>
+    <div class="field"><label>Note per l'admin (opzionale)</label><textarea id="pp-note" rows="2"></textarea></div>
+    <div id="pp-err" style="color:var(--danger);font-size:13px"></div>
+  </div>`);
+  const footer = el(`<div style="display:flex;gap:10px;width:100%">
+    <div style="flex:1"></div>
+    <button class="btn" id="pp-cancel">Annulla</button>
+    <button class="btn primary" id="pp-save">Invia proposta</button>
+  </div>`);
+  const { close } = openModal({ title: 'Proponi pagamento — ' + rec.fornitore, body, footer });
+  footer.querySelector('#pp-cancel').addEventListener('click', close);
+  footer.querySelector('#pp-save').addEventListener('click', async () => {
+    const err = body.querySelector('#pp-err'); err.textContent = '';
+    const importo = parseEuro(body.querySelector('#pp-importo').value);
+    const data_prevista = body.querySelector('#pp-data').value || null;
+    if (!importo || importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
+    const btn = footer.querySelector('#pp-save'); const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Invio…';
+    try {
+      await proposte.create(rec.id, {
+        importo, data_prevista,
+        metodo: body.querySelector('#pp-metodo').value || null,
+        note: body.querySelector('#pp-note').value.trim() || null,
+      }, ctx.user);
+      toast('Proposta inviata all\'amministratore', 'ok');
+      close();
+      onSaved();
+    } catch (e) {
+      err.textContent = 'Errore: ' + e.message;
+      btn.disabled = false; btn.innerHTML = old;
+    }
+  });
+}
+
 function renderPagamenti(node, rec, ctx, onChange) {
   clear(node);
+  const isAdmin = ctx.user.ruolo === 'admin';
   const wrap = el(`<div class="card" style="margin-top:6px"><div class="card-h">Pagamenti / acconti</div><div class="card-b">
     <div class="pag-list"></div>
     <div class="residuo-box"><span>Pagato: <b>${fmtEuro(rec._pagato)}</b></span><span>Residuo: <b>${fmtEuro(rec._residuo)}</b></span></div>
-    <button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi pagamento</button>
-    <div id="add-pag-form" style="display:none;margin-top:10px"></div>
+    ${isAdmin
+      ? '<button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi pagamento</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>'
+      : (rec._residuo > 0 ? '<button class="btn sm" style="margin-top:10px" id="proponi-pag">+ Proponi pagamento</button><p class="hint" style="margin-top:8px">Solo l\'amministratore registra i pagamenti effettivi: qui puoi solo proporli.</p>' : '')}
   </div></div>`);
   const list = wrap.querySelector('.pag-list');
   for (const p of (rec.pagamenti || []).slice().sort((a, b) => (a.data_pagamento || '').localeCompare(b.data_pagamento || ''))) {
-    const row = el(`<div class="pag-row"><span>${fmtDate(p.data_pagamento)} · ${fmtEuro(p.importo)} ${p.metodo ? '· ' + esc(p.metodo) : ''} ${p.note ? '· ' + esc(p.note) : ''}</span><button class="rm" data-id="${p.id}">✕</button></div>`);
-    row.querySelector('.rm').addEventListener('click', async () => {
+    const row = el(`<div class="pag-row"><span>${fmtDate(p.data_pagamento)} · ${fmtEuro(p.importo)} ${p.metodo ? '· ' + esc(p.metodo) : ''} ${p.note ? '· ' + esc(p.note) : ''}</span>${isAdmin ? `<button class="rm" data-id="${p.id}">✕</button>` : ''}</div>`);
+    if (isAdmin) row.querySelector('.rm').addEventListener('click', async () => {
       if (!await confirmDialog('Rimuovere questo pagamento?', { danger: true, okLabel: 'Rimuovi' })) return;
       try {
         await pagamenti.remove(p.id);
@@ -219,29 +268,38 @@ function renderPagamenti(node, rec, ctx, onChange) {
   }
   if (!(rec.pagamenti || []).length) list.appendChild(el('<div class="muted" style="font-size:13px">Nessun pagamento registrato.</div>'));
 
-  wrap.querySelector('#add-pag').addEventListener('click', () => {
-    const formZone = wrap.querySelector('#add-pag-form');
-    formZone.style.display = 'block';
-    clear(formZone);
-    const f = el(`<div class="form-row three" style="align-items:end">
-      <div class="field"><label>Data</label><input type="date" id="p-data" value="${todayISO()}"></div>
-      <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="p-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
-      <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
-    </div><button class="btn primary sm" id="p-save">Registra pagamento</button>`);
-    formZone.appendChild(f);
-    f.querySelector('#p-save').addEventListener('click', async () => {
-      const importo = parseEuro(f.querySelector('#p-importo').value);
-      const data_pagamento = f.querySelector('#p-data').value;
-      if (!importo || importo <= 0 || !data_pagamento) { toast('Inserisci data e importo validi', 'err'); return; }
-      try {
-        await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null });
-        const fresh = await fatture.get(rec.id);
-        onChange(fresh);
-        renderPagamenti(node, fresh, ctx, onChange);
-        toast('Pagamento registrato', 'ok');
-      } catch (e) { toast('Errore: ' + e.message, 'err'); }
+  if (isAdmin) {
+    wrap.querySelector('#add-pag').addEventListener('click', () => {
+      const formZone = wrap.querySelector('#add-pag-form');
+      formZone.style.display = 'block';
+      clear(formZone);
+      const f = el(`<div class="form-row three" style="align-items:end">
+        <div class="field"><label>Data</label><input type="date" id="p-data" value="${todayISO()}"></div>
+        <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="p-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
+        <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
+      </div><button class="btn primary sm" id="p-save">Registra pagamento</button>`);
+      formZone.appendChild(f);
+      f.querySelector('#p-save').addEventListener('click', async () => {
+        const importo = parseEuro(f.querySelector('#p-importo').value);
+        const data_pagamento = f.querySelector('#p-data').value;
+        if (!importo || importo <= 0 || !data_pagamento) { toast('Inserisci data e importo validi', 'err'); return; }
+        try {
+          await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null });
+          const fresh = await fatture.get(rec.id);
+          onChange(fresh);
+          renderPagamenti(node, fresh, ctx, onChange);
+          toast('Pagamento registrato', 'ok');
+        } catch (e) { toast('Errore: ' + e.message, 'err'); }
+      });
     });
-  });
+  } else {
+    const btnProponi = wrap.querySelector('#proponi-pag');
+    if (btnProponi) btnProponi.addEventListener('click', () => apriProponiPagamento(rec, ctx, async () => {
+      const fresh = await fatture.get(rec.id);
+      onChange(fresh);
+      renderPagamenti(node, fresh, ctx, onChange);
+    }));
+  }
   node.appendChild(wrap);
 }
 
