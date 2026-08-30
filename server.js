@@ -32,43 +32,11 @@ if (!process.env.GEMINI_API_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
   } catch {}
 }
 
-// Le stesse intestazioni di sicurezza servite in produzione dal Worker: se in
-// locale non ci fossero, una violazione della CSP verrebbe scoperta solo dopo
-// il deploy.
-// ============================================================
-//  Intestazioni di sicurezza applicate a ogni risposta
-// ------------------------------------------------------------
-//  La CSP è volutamente stretta e va tenuta
-//  allineata a ciò che carica davvero la pagina:
-//   - script-src: solo file nostri + esm.sh, da cui arriva il client Supabase
-//     (import dinamico in js/lib/supabase.js);
-//   - connect-src: le chiamate REST/Storage/Auth vanno a *.supabase.co, più
-//     le nostre /api/*;
-//   - style-src consente gli stili inline perché le viste usano attributi
-//     style="..." su molti elementi;
-//   - niente script inline: la stampa PDF ora è avviata dal codice del sito.
-// ============================================================
-const CSP = [
-  "default-src 'self'",
-  "script-src 'self' https://esm.sh",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co https://esm.sh",
-  "frame-ancestors 'none'",
-  "base-uri 'self'",
-  "form-action 'self'",
-  "object-src 'none'",
-].join("; ");
-
-const HEADER_SICUREZZA = {
-  "Content-Security-Policy": CSP,
-  "X-Content-Type-Options": "nosniff",
-  "X-Frame-Options": "DENY",
-  "Referrer-Policy": "no-referrer",
-  "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=()",
-  "Cross-Origin-Opener-Policy": "same-origin",
-};
+// Le stesse intestazioni di sicurezza servite in produzione dal Worker (unica
+// fonte in js/lib/securityHeaders.mjs, un modulo ES caricato qui con un
+// import() dinamico perché questo file è CommonJS): se in locale non ci
+// fossero, una violazione della CSP verrebbe scoperta solo dopo il deploy.
+let HEADER_SICUREZZA = {};
 
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -97,7 +65,10 @@ const server = http.createServer(async (req, res) => {
     res.end(data);
   });
 });
-server.listen(PORT, () => console.log(`Server attivo su http://localhost:${PORT}  (GEMINI_API_KEY ${process.env.GEMINI_API_KEY ? 'presente' : 'ASSENTE — solo XML/manuale'}, SUPABASE_SERVICE_ROLE_KEY ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'presente' : 'ASSENTE — niente creazione utenti'})`));
+import('./js/lib/securityHeaders.mjs').then(({ HEADER_SICUREZZA: h }) => {
+  HEADER_SICUREZZA = h;
+  server.listen(PORT, () => console.log(`Server attivo su http://localhost:${PORT}  (GEMINI_API_KEY ${process.env.GEMINI_API_KEY ? 'presente' : 'ASSENTE — solo XML/manuale'}, SUPABASE_SERVICE_ROLE_KEY ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'presente' : 'ASSENTE — niente creazione utenti'})`));
+});
 
 function sendJson(res, obj, status = 200) {
   res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });

@@ -53,7 +53,7 @@ Senza queste chiavi l'app funziona lo stesso per il resto (inserimento manuale, 
 
 Il progetto Cloudflare collegato a questo repo è di tipo **Worker** (il nuovo flusso unificato "Workers & Pages": build command `npx wrangler deploy`), non la vecchia Pages classica. Per questo motivo il repo contiene già:
 - [`wrangler.jsonc`](wrangler.jsonc): configurazione del deploy (nome, asset statici, entry point)
-- [`worker.js`](worker.js): instrada `/api/estrai-fattura` e `/api/crea-utente` alle function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
+- [`worker.js`](worker.js): instrada `/api/estrai-fattura`, `/api/estrai-fattura-attiva` e `/api/crea-utente` alle function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
 - [`.assetsignore`](.assetsignore): esclude dagli asset statici i file che non fanno parte del sito (node_modules, supabase/, ecc. — senza questo file il deploy falliva per un asset da 146MB)
 
 Passaggi:
@@ -80,10 +80,13 @@ js/data/storeAttive.js          layer dati fatture ATTIVE: fatture, incassi, log
 js/lib/                        helper: UI, client Supabase, parser XML (passive+attive), export
 js/views/dashboard.js           dashboard fatture passive
 js/views/fattura.js             editor fattura passiva
-js/views/log.js                 registro modifiche fatture passive
+js/views/proposte.js            proposte di pagamento (operatore -> admin), solo passive
+js/views/report.js              report/statistiche fatture passive (per fornitore + andamento mensile)
 js/views/dashboardAttive.js     dashboard fatture attive
 js/views/fatturaAttiva.js       editor fattura attiva (incl. sollecito di pagamento)
-js/views/logAttive.js           registro modifiche fatture attive
+js/views/reportAttive.js        report/statistiche fatture attive (per cliente + andamento mensile)
+js/views/registroModifiche.js   registro modifiche unificato (passive+attive), dentro Impostazioni
+js/views/impostazioni.js        configurazione, creazione utenti, registro modifiche (solo admin)
 functions/api/                 endpoint: proxy verso Gemini (passive+attive), creazione utenti
 functions/_lib/auth.js          verifica sessione/ruolo Supabase lato server
 supabase/schema.sql            schema database + RLS + trigger di audit log (passive+attive)

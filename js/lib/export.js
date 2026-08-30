@@ -1,4 +1,4 @@
-import { fmtDate, fmtEuro } from './ui.js';
+import { fmtDate, fmtEuro, esc } from './ui.js';
 
 const COLS = [
   { k: 'fornitore', h: 'Fornitore' },
@@ -79,11 +79,6 @@ export function exportPDF(righe, titolo = 'Scadenziario fatture') {
   // generata: uno script inline sarebbe bloccato dalla Content-Security-Policy
   // servita dal Worker (la finestra about:blank eredita quella di chi la apre).
   setTimeout(() => { try { w.focus(); w.print(); } catch { /* finestra chiusa dall'utente */ } }, 300);
-}
-
-function esc(s) {
-  if (s === null || s === undefined) return '';
-  return String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 }
 
 // ============================================================

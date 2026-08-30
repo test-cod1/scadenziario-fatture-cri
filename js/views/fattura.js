@@ -1,11 +1,8 @@
 import { fatture, pagamenti, noteCredito, impostazioni, proposte } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro, debounce } from '../lib/ui.js';
-import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml } from '../lib/xmlFattura.js';
+import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml, METODI } from '../lib/xmlFattura.js';
 
-// Valori ammessi per il metodo di pagamento: la lista deve restare allineata
-// a quanto può produrre traduciModalita() in lib/xmlFattura.js, altrimenti i
-// valori letti dalle fatture elettroniche non trovano posto nella tendina.
-export const METODI = ['', 'bonifico', 'RIBA', 'RID', 'contanti', 'assegno', 'carta', 'altro'];
+export { METODI };
 
 // Riporta un valore qualsiasi dentro la lista: così un metodo non previsto
 // diventa "altro" invece di sparire senza dire nulla.

@@ -1,5 +1,5 @@
 import { fattureAttive } from '../data/storeAttive.js';
-import { el, clear, esc, fmtDate, fmtEuro, debounce } from '../lib/ui.js';
+import { el, clear, esc, fmtDate, fmtEuro, debounce, rendiCliccabile } from '../lib/ui.js';
 import { exportCSVAttive, exportPDFAttive } from '../lib/export.js';
 import { apriEditorAttiva, apriUploadAttive, apriIncassoRapido, apriNuovaNotaCreditoAttiva, apriSollecitoRapido } from './fatturaAttiva.js';
 import { FILTRO_CLIENTE_KEY } from './reportAttive.js';
@@ -149,11 +149,11 @@ function renderTable(node, righe, ctx, ricarica) {
       <td><span class="chip ${f.data_sollecito ? 'info' : ''}" data-sollecito title="Clicca per aggiornare il sollecito">${f.data_sollecito ? '🔔 ' + fmtDate(f.data_sollecito) : '— nessuno'}</span></td>
       <td style="text-align:right"><button class="btn ghost sm" data-edit>✏️</button></td>
     </tr>`);
-    tr.addEventListener('click', (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]') && !e.target.closest('[data-sollecito]')) apriEditorAttiva(f.id, ctx, ricarica); });
+    rendiCliccabile(tr, (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]') && !e.target.closest('[data-sollecito]')) apriEditorAttiva(f.id, ctx, ricarica); });
     tr.querySelector('[data-edit]').addEventListener('click', (e) => { e.stopPropagation(); apriEditorAttiva(f.id, ctx, ricarica); });
     const chipStato = tr.querySelector('[data-stato]');
-    if (chipStato) chipStato.addEventListener('click', (e) => { e.stopPropagation(); apriIncassoRapido(f, ctx, ricarica); });
-    tr.querySelector('[data-sollecito]').addEventListener('click', (e) => { e.stopPropagation(); apriSollecitoRapido(f, ctx, ricarica); });
+    if (chipStato) rendiCliccabile(chipStato, (e) => { e.stopPropagation(); apriIncassoRapido(f, ctx, ricarica); });
+    rendiCliccabile(tr.querySelector('[data-sollecito]'), (e) => { e.stopPropagation(); apriSollecitoRapido(f, ctx, ricarica); });
     tbody.appendChild(tr);
   }
   node.appendChild(table);

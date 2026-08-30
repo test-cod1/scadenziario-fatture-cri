@@ -1,5 +1,5 @@
 import { auth } from '../data/store.js';
-import { el, clear, toast } from '../lib/ui.js';
+import { el, clear, esc, toast } from '../lib/ui.js';
 
 const BRAND = `<div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>Croce Rossa Italiana — Genova</span></div></div>`;
 
@@ -8,12 +8,13 @@ export function renderLogin(app, onDone) {
   const wrap = el(`<div class="login-wrap"><div class="login">
     ${BRAND}
     <div class="field"><label>Email</label><input type="text" id="email" placeholder="nome@cri.it" autocomplete="username"></div>
-    <div class="field"><label>Password</label><input type="password" id="pw" placeholder="••••••••" autocomplete="current-password"></div>
+    ${campoPassword('pw', 'Password', '••••••••', 'current-password')}
     <button class="btn primary" id="go" style="width:100%;justify-content:center;margin-top:6px">Accedi</button>
     <div style="text-align:center;margin-top:14px"><a href="#" id="forgot" style="font-size:13px">Password dimenticata?</a></div>
     <div id="err" style="color:var(--danger);font-size:13px;margin-top:12px;text-align:center"></div>
   </div></div>`);
   app.appendChild(wrap);
+  collegaTogglePassword(wrap);
 
   const err = wrap.querySelector('#err');
   async function doLogin(email, pw) {
@@ -72,12 +73,13 @@ export function renderResetPassword(app, onDone, { invite = false, obbligatorio 
   const wrap = el(`<div class="login-wrap"><div class="login">
     ${BRAND}
     <div class="banner ok" style="margin-bottom:18px"><div class="bi">🔒</div><div><b>${esc(title)}</b><div class="small">${esc(sub)}</div></div></div>
-    <div class="field"><label>Nuova password</label><input type="password" id="pw1" placeholder="almeno 6 caratteri" autocomplete="new-password"></div>
-    <div class="field"><label>Conferma password</label><input type="password" id="pw2" placeholder="ripeti la password" autocomplete="new-password"></div>
+    ${campoPassword('pw1', 'Nuova password', 'almeno 6 caratteri', 'new-password')}
+    ${campoPassword('pw2', 'Conferma password', 'ripeti la password', 'new-password')}
     <button class="btn primary" id="save" style="width:100%;justify-content:center;margin-top:6px">${invite || obbligatorio ? 'Crea password e accedi' : 'Salva nuova password'}</button>
     <div id="err" style="color:var(--danger);font-size:13px;margin-top:12px;text-align:center"></div>
   </div></div>`);
   app.appendChild(wrap);
+  collegaTogglePassword(wrap);
 
   const err = wrap.querySelector('#err');
   wrap.querySelector('#save').addEventListener('click', async () => {
@@ -115,4 +117,25 @@ function traduci(m) {
   if (s.includes('expired') || s.includes('invalid')) return 'Link scaduto o non valido: richiedine uno nuovo.';
   return m;
 }
-function esc(s) { return String(s || '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])); }
+
+// Campo password con un pulsante per mostrarla in chiaro: utile su una
+// password lunga digitata due volte (creazione/conferma), dove finora
+// l'unico riscontro era l'errore "le due password non coincidono" dopo
+// l'invio.
+function campoPassword(id, label, placeholder, autocomplete) {
+  return `<div class="field"><label>${esc(label)}</label><div class="pw-wrap">
+    <input type="password" id="${id}" placeholder="${esc(placeholder)}" autocomplete="${autocomplete}">
+    <button type="button" class="pw-toggle" data-toggle="${id}" aria-label="Mostra password">👁️</button>
+  </div></div>`;
+}
+function collegaTogglePassword(wrap) {
+  wrap.querySelectorAll('[data-toggle]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const input = wrap.querySelector('#' + btn.dataset.toggle);
+      const showing = input.type === 'text';
+      input.type = showing ? 'password' : 'text';
+      btn.textContent = showing ? '👁️' : '🙈';
+      btn.setAttribute('aria-label', showing ? 'Mostra password' : 'Nascondi password');
+    });
+  });
+}

@@ -1,10 +1,8 @@
 import { fattureAttive, incassi, noteCreditoAttive } from '../data/storeAttive.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro, debounce } from '../lib/ui.js';
-import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaAttivaXml } from '../lib/xmlFattura.js';
+import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaAttivaXml, METODI } from '../lib/xmlFattura.js';
 
-// Vedi il commento gemello in fattura.js: la lista deve restare allineata a
-// ciò che produce traduciModalita() in lib/xmlFattura.js.
-export const METODI = ['', 'bonifico', 'RIBA', 'RID', 'contanti', 'assegno', 'carta', 'altro'];
+export { METODI };
 
 function metodoAmmesso(v) {
   if (!v) return "";

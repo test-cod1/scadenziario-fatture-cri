@@ -1,5 +1,5 @@
 import { fatture } from '../data/store.js';
-import { el, clear, esc, fmtEuro } from '../lib/ui.js';
+import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile } from '../lib/ui.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const FILTRO_FORNITORE_KEY = 'report:filtroFornitore';
@@ -223,7 +223,7 @@ function renderFornitori(node, gruppi, ricerca, ctx, sort, onSort) {
       <td class="money money-col">${fmtEuro(g.residuo)}</td>
       <td>${g.giorniMedi !== null ? Math.round(g.giorniMedi) + ' gg' : '—'}</td>
     </tr>`);
-    tr.addEventListener('click', () => {
+    rendiCliccabile(tr, () => {
       sessionStorage.setItem(FILTRO_FORNITORE_KEY, g.fornitore === '—' ? '' : g.fornitore);
       ctx.go('#/passive/fatture');
     });
@@ -266,12 +266,14 @@ function perMese(righeFatturato, tutte, da, a) {
 // stagionalità a colpo d'occhio. Dimensioni in pixel reali (non viewBox
 // scalato): con molti mesi il grafico scorre in orizzontale come farebbe una
 // tabella larga, invece di schiacciarsi. Il valore esatto resta comunque
-// consultabile passandoci sopra (tooltip nativo del <title> nell'SVG).
+// consultabile passandoci sopra (tooltip nativo del <title> nell'SVG);
+// un'etichetta compatta sempre visibile sopra ogni barra serve invece a chi
+// naviga da touch, dove quel tooltip non è raggiungibile con un tocco.
 function renderMesiChart(node, righe) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">📅</div><p>Nessun dato nel periodo selezionato.</p></div>`)); return; }
   const maxVal = Math.max(1, ...righe.flatMap(r => [r.fatturato, r.pagato]));
-  const slotW = 64, barW = 22, barGap = 4, chartH = 190, padTop = 6, padBottom = 30, padX = 14;
+  const slotW = 64, barW = 22, barGap = 4, chartH = 190, padTop = 16, padBottom = 30, padX = 14;
   const W = righe.length * slotW + padX * 2;
   const H = chartH + padTop + padBottom;
   const scale = v => Math.round((v / maxVal) * chartH);
@@ -285,6 +287,8 @@ function renderMesiChart(node, righe) {
     bars += `
       <rect x="${x0}" y="${padTop + chartH - hF}" width="${barW}" height="${hF}" rx="3" fill="var(--cri-red)"><title>${esc(etichetta)} — Fatturato: ${esc(fmtEuro(r.fatturato))}</title></rect>
       <rect x="${x0 + barW + barGap}" y="${padTop + chartH - hP}" width="${barW}" height="${hP}" rx="3" fill="var(--ok)"><title>${esc(etichetta)} — Pagato: ${esc(fmtEuro(r.pagato))}</title></rect>
+      ${r.fatturato > 0 ? `<text x="${x0 + barW / 2}" y="${padTop + chartH - hF - 4}" text-anchor="middle" font-size="8.5" fill="var(--ink-soft)">${esc(fmtEuroCompatto(r.fatturato))}</text>` : ''}
+      ${r.pagato > 0 ? `<text x="${x0 + barW + barGap + barW / 2}" y="${padTop + chartH - hP - 4}" text-anchor="middle" font-size="8.5" fill="var(--ink-soft)">${esc(fmtEuroCompatto(r.pagato))}</text>` : ''}
       <text x="${x0 + barW + barGap / 2}" y="${padTop + chartH + 18}" text-anchor="middle" font-size="11" fill="var(--ink-soft)">${esc(etichetta)}</text>`;
   });
 

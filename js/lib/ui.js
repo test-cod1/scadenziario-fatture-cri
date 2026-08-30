@@ -26,6 +26,16 @@ export function fmtEuro(nv, dash = '—') {
   if (nv === null || nv === undefined || nv === '' || (typeof nv === 'number' && !Number.isFinite(nv))) return dash;
   return Number(nv).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 }
+// Versione senza simbolo valuta e abbreviata oltre le migliaia (usata come
+// etichetta sempre visibile sopra le barre del grafico mensile del Report:
+// il valore esatto in centesimi resta comunque nel tooltip): un utente su
+// touch, dove il tooltip nativo dell'SVG non è raggiungibile con un tocco
+// semplice, vede comunque un ordine di grandezza senza dover interagire.
+export function fmtEuroCompatto(nv) {
+  const n = Number(nv || 0);
+  if (Math.abs(n) < 1000) return String(Math.round(n));
+  return (n / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + 'k';
+}
 export function todayISO() { return new Date().toISOString().slice(0, 10); }
 export function giorniDa(iso) {
   if (!iso) return null;
@@ -45,15 +55,33 @@ export function toast(msg, kind = '') {
 }
 
 // ---------- Modal ----------
+let _modalIdSeq = 0;
+
+// Elementi che si possono raggiungere con Tab dentro un nodo, escludendo
+// quelli nascosti (es. un form "add-pag-form" ancora display:none): usata
+// sia per il focus iniziale sia per il focus-trap qui sotto.
+function elementiFocalizzabili(node) {
+  return [...node.querySelectorAll('a[href],button:not([disabled]),input:not([disabled]),select:not([disabled]),textarea:not([disabled]),[tabindex]:not([tabindex="-1"])')]
+    .filter(e => e.offsetParent !== null);
+}
+
 // onClose viene invocata su OGNI via di uscita (pulsante ✕, tasto Esc, click
 // sullo sfondo, o close() chiamata dal codice) e una sola volta: è lì che il
 // chiamante può, per esempio, ricaricare i dati se nel frattempo ha scritto
 // qualcosa sul database. Senza, chiudendo con la ✕ la dashboard sottostante
 // restava ferma ai valori precedenti.
+//
+// Accessibilità: role="dialog"/aria-modal segnalano a uno screen reader che
+// si è aperta una finestra; il focus si sposta dentro il modale all'apertura
+// e torna a chi l'aveva aperto alla chiusura (altrimenti restava "perso" sul
+// <body>); Tab/Shift+Tab restano intrappolati dentro il modale finché è
+// aperto, invece di poter continuare a navigare la pagina sottostante pur
+// essendo coperta dall'overlay.
 export function openModal({ title, body, footer, wide, onClose }) {
+  const titleId = 'modal-title-' + (++_modalIdSeq);
   const back = el(`<div class="modal-back"></div>`);
-  const modal = el(`<div class="modal" ${wide ? 'style="max-width:860px"' : ''}>
-    <div class="m-h"><h3>${esc(title)}</h3><button class="btn ghost sm" data-x>✕</button></div>
+  const modal = el(`<div class="modal" role="dialog" aria-modal="true" aria-labelledby="${titleId}" ${wide ? 'style="max-width:860px"' : ''}>
+    <div class="m-h"><h3 id="${titleId}">${esc(title)}</h3><button class="btn ghost sm" data-x aria-label="Chiudi">✕</button></div>
     <div class="m-b"></div>
     <div class="m-f"></div>
   </div>`);
@@ -61,26 +89,37 @@ export function openModal({ title, body, footer, wide, onClose }) {
   if (footer) modal.querySelector('.m-f').append(footer); else modal.querySelector('.m-f').remove();
   back.appendChild(modal);
 
+  const elementoAttivoPrima = document.activeElement;
   let chiuso = false;
   // Esc chiude solo il modale in cima alla pila: con una conferma aperta sopra
-  // l'editor, prima si chiudeva anche l'editor sottostante.
+  // l'editor, prima si chiudeva anche l'editor sottostante. Stessa logica per
+  // il focus-trap: Tab agisce solo sul modale più in alto.
   const onKey = (e) => {
-    if (e.key !== 'Escape') return;
     const aperti = document.querySelectorAll('.modal-back');
     if (aperti[aperti.length - 1] !== back) return;
-    close();
+    if (e.key === 'Escape') { close(); return; }
+    if (e.key !== 'Tab') return;
+    const focalizzabili = elementiFocalizzabili(modal);
+    if (!focalizzabili.length) return;
+    const primo = focalizzabili[0], ultimo = focalizzabili[focalizzabili.length - 1];
+    if (e.shiftKey && document.activeElement === primo) { e.preventDefault(); ultimo.focus(); }
+    else if (!e.shiftKey && document.activeElement === ultimo) { e.preventDefault(); primo.focus(); }
   };
   const close = () => {
     if (chiuso) return;            // close() può arrivare da più strade: agisci una volta sola
     chiuso = true;
     document.removeEventListener('keydown', onKey);
     back.remove();
+    if (elementoAttivoPrima && document.contains(elementoAttivoPrima)) elementoAttivoPrima.focus();
     if (onClose) onClose();
   };
   back.addEventListener('click', e => { if (e.target === back) close(); });
   modal.querySelector('[data-x]').addEventListener('click', close);
   document.addEventListener('keydown', onKey);
   document.body.appendChild(back);
+  const focalizzabili = elementiFocalizzabili(modal);
+  if (focalizzabili.length) focalizzabili[0].focus();
+  else { modal.setAttribute('tabindex', '-1'); modal.focus(); }
   return { close, modal, back };
 }
 
@@ -99,6 +138,23 @@ export function confirmDialog(msg, { danger, okLabel } = {}) {
     const { close } = openModal({ title: 'Conferma', body, footer: foot, onClose: () => res(esito) });
     foot.querySelector('[data-no]').onclick = () => close();
     foot.querySelector('[data-yes]').onclick = () => { esito = true; close(); };
+  });
+}
+
+// ---------- Accessibilità ----------
+// Rende un elemento non nativamente interattivo (un <tr>, uno <span> usato
+// come "chip" cliccabile) raggiungibile da tastiera e attivabile con
+// Invio/Spazio: senza, chi non usa il mouse (o uno screen reader) non poteva
+// registrare un pagamento rapido, aprire una fattura dalla dashboard o un
+// fornitore/cliente dal Report, perché l'unico listener era un "click".
+export function rendiCliccabile(elx, handler, ruolo = 'button') {
+  elx.setAttribute('role', ruolo);
+  elx.setAttribute('tabindex', '0');
+  elx.addEventListener('click', handler);
+  elx.addEventListener('keydown', e => {
+    if (e.key !== 'Enter' && e.key !== ' ') return;
+    e.preventDefault();
+    handler(e);
   });
 }
 

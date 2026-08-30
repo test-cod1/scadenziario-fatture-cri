@@ -178,6 +178,12 @@ export function parseFatturaAttivaXml(xmlText) {
   };
 }
 
+// Valori ammessi per il metodo di pagamento/incasso, usati sia dalle
+// tendine di fattura.js/fatturaAttiva.js sia da traduciModalita() qui sotto:
+// un'unica lista, così un nuovo metodo prodotto dal parsing XML non può
+// dimenticare di essere aggiunto a una delle due tendine ma non all'altra.
+export const METODI = ['', 'bonifico', 'RIBA', 'RID', 'contanti', 'assegno', 'carta', 'altro'];
+
 // I codici del tracciato vengono ricondotti ai soli valori presenti nella
 // tendina "Metodo di pagamento": prima si producevano etichette come
 // "assegno" o "SEPA Direct Debit (RID)", che non combaciando con nessuna

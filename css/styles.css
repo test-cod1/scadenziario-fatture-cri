@@ -93,8 +93,9 @@ a{color:var(--cri-red);text-decoration:none}
 .chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
 .chip.danger{background:var(--danger-soft);color:var(--danger);border-color:transparent}
 .chip.info{background:var(--info-soft);color:var(--info);border-color:transparent}
-.chip[data-stato]{cursor:pointer}
-.chip[data-stato]:hover{filter:brightness(0.94);box-shadow:0 0 0 2px var(--line) inset}
+.chip[data-stato],.chip[data-sollecito]{cursor:pointer}
+.chip[data-stato]:hover,.chip[data-sollecito]:hover{filter:brightness(0.94);box-shadow:0 0 0 2px var(--line) inset}
+[role="button"]:focus-visible,table.tbl tbody tr[role="button"]:focus-visible{outline:2px solid var(--cri-red);outline-offset:-2px}
 
 /* ---------- Toolbar ---------- */
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
@@ -140,6 +141,11 @@ tr.scaduta:hover td{background:#fbdcdd}
 .modal .m-b{padding:22px}
 .modal .m-f{padding:16px 22px;border-top:1px solid var(--line);display:flex;gap:10px;justify-content:flex-end;position:sticky;bottom:0;background:#fff}
 .field{margin-bottom:15px}
+.pw-wrap{position:relative}
+.pw-wrap input{padding-right:40px}
+.pw-toggle{position:absolute;right:4px;top:50%;transform:translateY(-50%);background:none;border:none;cursor:pointer;font-size:15px;line-height:1;padding:6px;color:var(--ink-soft)}
+.pw-toggle:hover{color:var(--ink)}
+.pw-toggle:focus-visible{outline:2px solid var(--cri-red);outline-offset:2px;border-radius:6px}
 .field label{display:block;font-size:13px;font-weight:600;margin-bottom:5px;color:var(--ink)}
 .field input,.field select,.field textarea{width:100%}
 .field .hint{font-size:12px;color:var(--ink-soft);margin-top:4px}

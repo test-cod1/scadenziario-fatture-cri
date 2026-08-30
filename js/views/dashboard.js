@@ -1,5 +1,5 @@
 import { fatture, proposte } from '../data/store.js';
-import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast } from '../lib/ui.js';
+import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast, rendiCliccabile } from '../lib/ui.js';
 import { exportCSV, exportPDF } from '../lib/export.js';
 import { apriEditor, apriUpload, apriPagamentoRapido, apriProponiPagamento, apriNuovaNotaCredito } from './fattura.js';
 import { FILTRO_FORNITORE_KEY } from './report.js';
@@ -160,7 +160,9 @@ function renderStats(node, tutte) {
   const scadute = nonPagate.filter(f => f.scadenza && f.scadenza < oggi);
   const totaleScaduto = scadute.reduce((s, f) => s + f._residuo, 0);
   const meseCorrente = oggi.slice(0, 7);
+  const annoCorrente = oggi.slice(0, 4);
   const pagatoMese = tutte.reduce((s, f) => s + (f.pagamenti || []).filter(p => (p.data_pagamento || '').slice(0, 7) === meseCorrente).reduce((a, p) => a + Number(p.importo || 0), 0), 0);
+  const pagatoAnno = tutte.reduce((s, f) => s + (f.pagamenti || []).filter(p => (p.data_pagamento || '').slice(0, 4) === annoCorrente).reduce((a, p) => a + Number(p.importo || 0), 0), 0);
   const inScadenza7 = nonPagate.filter(f => { const g = giorniDa(f.scadenza); return g !== null && g >= 0 && g <= 7; });
 
   const cards = [
@@ -168,6 +170,7 @@ function renderStats(node, tutte) {
     { k: 'SCADUTO E NON PAGATO', v: fmtEuro(totaleScaduto), s: `${scadute.length} fatture in ritardo`, cls: totaleScaduto > 0 ? 'warn' : '' },
     { k: 'IN SCADENZA (7 GIORNI)', v: inScadenza7.length, s: fmtEuro(inScadenza7.reduce((s, f) => s + f._residuo, 0)), cls: '' },
     { k: 'PAGATO QUESTO MESE', v: fmtEuro(pagatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok' },
+    { k: 'PAGATO QUEST\'ANNO', v: fmtEuro(pagatoAnno), s: annoCorrente, cls: 'ok' },
   ];
   for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
 }
@@ -212,10 +215,10 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
       <td class="money money-col">${fmtEuro(f._residuo)}</td>
       <td style="text-align:right"><button class="btn ghost sm" data-edit>✏️</button></td>
     </tr>`);
-    tr.addEventListener('click', (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]')) apriEditor(f.id, ctx, ricarica); });
+    rendiCliccabile(tr, (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]')) apriEditor(f.id, ctx, ricarica); });
     tr.querySelector('[data-edit]').addEventListener('click', (e) => { e.stopPropagation(); apriEditor(f.id, ctx, ricarica); });
     const chipStato = tr.querySelector('[data-stato]');
-    if (chipStato) chipStato.addEventListener('click', (e) => { e.stopPropagation(); azione(f, ctx, ricarica); });
+    if (chipStato) rendiCliccabile(chipStato, (e) => { e.stopPropagation(); azione(f, ctx, ricarica); });
     tbody.appendChild(tr);
   }
   node.appendChild(table);

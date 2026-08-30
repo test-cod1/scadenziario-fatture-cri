@@ -1,5 +1,5 @@
 import { fattureAttive } from '../data/storeAttive.js';
-import { el, clear, esc, fmtEuro } from '../lib/ui.js';
+import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile } from '../lib/ui.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const FILTRO_CLIENTE_KEY = 'reportAttive:filtroCliente';
@@ -212,7 +212,7 @@ function renderClienti(node, gruppi, ricerca, ctx, sort, onSort) {
       <td class="money money-col">${fmtEuro(g.residuo)}</td>
       <td>${g.giorniMedi !== null ? Math.round(g.giorniMedi) + ' gg' : '—'}</td>
     </tr>`);
-    tr.addEventListener('click', () => {
+    rendiCliccabile(tr, () => {
       sessionStorage.setItem(FILTRO_CLIENTE_KEY, g.cliente === '—' ? '' : g.cliente);
       ctx.go('#/attive/fatture');
     });
@@ -256,7 +256,7 @@ function renderMesiChart(node, righe) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">📅</div><p>Nessun dato nel periodo selezionato.</p></div>`)); return; }
   const maxVal = Math.max(1, ...righe.flatMap(r => [r.fatturato, r.incassato]));
-  const slotW = 64, barW = 22, barGap = 4, chartH = 190, padTop = 6, padBottom = 30, padX = 14;
+  const slotW = 64, barW = 22, barGap = 4, chartH = 190, padTop = 16, padBottom = 30, padX = 14;
   const W = righe.length * slotW + padX * 2;
   const H = chartH + padTop + padBottom;
   const scale = v => Math.round((v / maxVal) * chartH);
@@ -270,6 +270,8 @@ function renderMesiChart(node, righe) {
     bars += `
       <rect x="${x0}" y="${padTop + chartH - hF}" width="${barW}" height="${hF}" rx="3" fill="var(--cri-red)"><title>${esc(etichetta)} — Fatturato: ${esc(fmtEuro(r.fatturato))}</title></rect>
       <rect x="${x0 + barW + barGap}" y="${padTop + chartH - hI}" width="${barW}" height="${hI}" rx="3" fill="var(--ok)"><title>${esc(etichetta)} — Incassato: ${esc(fmtEuro(r.incassato))}</title></rect>
+      ${r.fatturato > 0 ? `<text x="${x0 + barW / 2}" y="${padTop + chartH - hF - 4}" text-anchor="middle" font-size="8.5" fill="var(--ink-soft)">${esc(fmtEuroCompatto(r.fatturato))}</text>` : ''}
+      ${r.incassato > 0 ? `<text x="${x0 + barW + barGap + barW / 2}" y="${padTop + chartH - hI - 4}" text-anchor="middle" font-size="8.5" fill="var(--ink-soft)">${esc(fmtEuroCompatto(r.incassato))}</text>` : ''}
       <text x="${x0 + barW + barGap / 2}" y="${padTop + chartH + 18}" text-anchor="middle" font-size="11" fill="var(--ink-soft)">${esc(etichetta)}</text>`;
   });
 
