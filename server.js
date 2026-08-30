@@ -81,6 +81,7 @@ const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
 
   if (u.pathname === '/api/estrai-fattura' && req.method === 'POST') return apiEstrai(req, res);
+  if (u.pathname === '/api/estrai-fattura-attiva' && req.method === 'POST') return apiEstraiAttiva(req, res);
   if (u.pathname === '/api/crea-utente' && req.method === 'POST') return apiCreaUtente(req, res);
 
   let p = decodeURIComponent(u.pathname);
@@ -132,6 +133,47 @@ function apiEstrai(req, res) {
         body: JSON.stringify({
           contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: mimeType, data: dataBase64 } }] }],
           generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0 },
+        }),
+      });
+      if (!r.ok) {
+        if (r.status === 429) return sendJson(res, { error: 'Quota gratuita giornaliera di Gemini esaurita: riprova più tardi.' }, 429);
+        let m = `Estrazione non riuscita (${r.status}).`; try { const e = await r.json(); m = e?.error?.message || m; } catch {}
+        return sendJson(res, { error: m }, r.status);
+      }
+      const data = await r.json();
+      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+      if (!text) return sendJson(res, { error: 'Risposta AI vuota.' }, 502);
+      return sendJson(res, { estratti: JSON.parse(text) });
+    } catch (e) { return sendJson(res, { error: 'Gemini non raggiungibile: ' + e.message }, 502); }
+  });
+}
+
+const SCHEMA_ATTIVA = {
+  type: 'OBJECT',
+  properties: {
+    cliente: { type: 'STRING' }, numero_fattura: { type: 'STRING' },
+    data_fattura: { type: 'STRING' }, importo: { type: 'NUMBER' },
+    scadenza: { type: 'STRING' }, metodo_pagamento: { type: 'STRING' }, note: { type: 'STRING' },
+  },
+  required: ['cliente', 'importo'],
+};
+const PROMPT_ATTIVA = `Sei un assistente contabile. Analizza il documento allegato (una fattura di vendita EMESSA da noi verso un cliente) ed estrai i campi richiesti secondo lo schema JSON fornito. Il campo "cliente" deve riportare il destinatario/acquirente del documento, MAI chi ha emesso la fattura. Usa il formato data YYYY-MM-DD. Se un campo non è presente, omettilo: non inventare valori. Per l'importo usa il totale finale (IVA inclusa). Per metodo_pagamento restituisci SOLO una di queste parole, senza codici né altro testo: bonifico, RIBA, RID, contanti, altro.`;
+
+function apiEstraiAttiva(req, res) {
+  let raw = '';
+  req.on('data', c => raw += c);
+  req.on('end', async () => {
+    if (!process.env.GEMINI_API_KEY) return sendJson(res, { error: 'Chiave Gemini non configurata (GEMINI_API_KEY).' }, 500);
+    let body; try { body = JSON.parse(raw); } catch { return sendJson(res, { error: 'Body non valido.' }, 400); }
+    const { mimeType, dataBase64 } = body || {};
+    if (!dataBase64 || !mimeType) return sendJson(res, { error: 'File mancante.' }, 400);
+    try {
+      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
+      const r = await fetch(apiUrl, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: PROMPT_ATTIVA }, { inline_data: { mime_type: mimeType, data: dataBase64 } }] }],
+          generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA_ATTIVA, temperature: 0 },
         }),
       });
       if (!r.ok) {

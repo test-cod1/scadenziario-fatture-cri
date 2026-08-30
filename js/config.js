@@ -18,6 +18,7 @@ export const CONFIG = {
   // dei campi dalle fatture PDF: la chiave Gemini resta lato server.
   api: {
     estraiFattura: '/api/estrai-fattura',
+    estraiFatturaAttiva: '/api/estrai-fattura-attiva',
     creaUtente: '/api/crea-utente',
   },
 
