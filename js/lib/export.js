@@ -1,34 +1,29 @@
 import { fmtDate, fmtEuro, esc } from './ui.js';
+import { buildXlsxBlob } from './xlsx.js';
 
+// Colonne dell'export Excel: "tipo" dice a xlsx.js come scrivere la cella
+// (testo/valuta/data) così Excel non deve indovinarlo da solo — è proprio
+// quel meccanismo a rompersi con i numeri di fattura lunghi (diventano
+// notazione scientifica) e con le date (restano testo, non riconosciute).
 const COLS = [
-  { k: 'fornitore', h: 'Fornitore' },
-  { k: 'numero_fattura', h: 'N. Fattura' },
-  { k: 'data_fattura', h: 'Data', fmt: fmtDate },
-  { k: 'importo', h: 'Importo', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
-  { k: 'scadenza', h: 'Scadenza', fmt: fmtDate },
-  { k: 'stato', h: 'Stato', fmt: statoLabel },
-  { k: '_pagato', h: 'Pagato', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
-  { k: '_residuo', h: 'Residuo', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
-  { k: 'metodo_pagamento', h: 'Metodo' },
-  { k: 'note', h: 'Note' },
+  { header: 'Fornitore', tipo: 'testo', get: r => r.fornitore },
+  { header: 'N. Fattura', tipo: 'testo', get: r => r.numero_fattura || '' },
+  { header: 'Data', tipo: 'data', get: r => r.data_fattura },
+  { header: 'Importo', tipo: 'valuta', get: r => r.importo },
+  { header: 'Scadenza', tipo: 'data', get: r => r.scadenza },
+  { header: 'Stato', tipo: 'testo', get: r => statoLabel(r.stato) },
+  { header: 'Pagato', tipo: 'valuta', get: r => r._pagato },
+  { header: 'Residuo', tipo: 'valuta', get: r => r._residuo },
+  { header: 'Metodo', tipo: 'testo', get: r => r.metodo_pagamento || '' },
+  { header: 'Note', tipo: 'testo', get: r => r.note || '' },
 ];
 
 function statoLabel(s) {
   return { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parzialmente', pagata: 'Pagata', stornata: 'Stornata' }[s] || s;
 }
 
-// CSV con separatore ; (si apre correttamente in Excel con locale italiana)
-export function exportCSV(righe, filename = 'scadenziario.csv') {
-  const lines = [COLS.map(c => c.h).join(';')];
-  for (const r of righe) {
-    lines.push(COLS.map(c => {
-      const raw = r[c.k];
-      const v = c.fmt ? c.fmt(raw) : (raw ?? '');
-      return '"' + String(v).replace(/"/g, '""') + '"';
-    }).join(';'));
-  }
-  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  downloadBlob(blob, filename);
+export function exportXLSX(righe, filename = 'scadenziario.xlsx') {
+  downloadBlob(buildXlsxBlob(COLS, righe), filename);
 }
 
 function downloadBlob(blob, filename) {
@@ -86,33 +81,24 @@ export function exportPDF(righe, titolo = 'Scadenziario fatture') {
 //  cliente/incasso e con la colonna "Sollecito" in più.
 // ============================================================
 const COLS_ATTIVE = [
-  { k: 'cliente', h: 'Cliente' },
-  { k: 'numero_fattura', h: 'N. Fattura' },
-  { k: 'data_fattura', h: 'Data', fmt: fmtDate },
-  { k: 'importo', h: 'Importo', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
-  { k: 'stato', h: 'Stato', fmt: statoLabelAttiva },
-  { k: '_incassato', h: 'Incassato', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
-  { k: '_residuo', h: 'Residuo', fmt: v => Number(v || 0).toFixed(2).replace('.', ',') },
-  { k: 'data_sollecito', h: 'Ultimo sollecito', fmt: fmtDate },
-  { k: 'metodo_incasso', h: 'Metodo' },
-  { k: 'note', h: 'Note' },
+  { header: 'Cliente', tipo: 'testo', get: r => r.cliente },
+  { header: 'N. Fattura', tipo: 'testo', get: r => r.numero_fattura || '' },
+  { header: 'Data', tipo: 'data', get: r => r.data_fattura },
+  { header: 'Importo', tipo: 'valuta', get: r => r.importo },
+  { header: 'Stato', tipo: 'testo', get: r => statoLabelAttiva(r.stato) },
+  { header: 'Incassato', tipo: 'valuta', get: r => r._incassato },
+  { header: 'Residuo', tipo: 'valuta', get: r => r._residuo },
+  { header: 'Ultimo sollecito', tipo: 'data', get: r => r.data_sollecito },
+  { header: 'Metodo', tipo: 'testo', get: r => r.metodo_incasso || '' },
+  { header: 'Note', tipo: 'testo', get: r => r.note || '' },
 ];
 
 function statoLabelAttiva(s) {
   return { da_incassare: 'Da incassare', incassata_parziale: 'Incassata parzialmente', incassata: 'Incassata', stornata: 'Stornata' }[s] || s;
 }
 
-export function exportCSVAttive(righe, filename = 'fatture-attive.csv') {
-  const lines = [COLS_ATTIVE.map(c => c.h).join(';')];
-  for (const r of righe) {
-    lines.push(COLS_ATTIVE.map(c => {
-      const raw = r[c.k];
-      const v = c.fmt ? c.fmt(raw) : (raw ?? '');
-      return '"' + String(v).replace(/"/g, '""') + '"';
-    }).join(';'));
-  }
-  const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
-  downloadBlob(blob, filename);
+export function exportXLSXAttive(righe, filename = 'fatture-attive.xlsx') {
+  downloadBlob(buildXlsxBlob(COLS_ATTIVE, righe), filename);
 }
 
 export function exportPDFAttive(righe, titolo = 'Fatture attive') {

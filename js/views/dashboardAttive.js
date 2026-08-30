@@ -1,6 +1,6 @@
 import { fattureAttive, incassi } from '../data/storeAttive.js';
 import { el, clear, esc, fmtDate, fmtEuro, debounce, rendiCliccabile } from '../lib/ui.js';
-import { exportCSVAttive, exportPDFAttive } from '../lib/export.js';
+import { exportXLSXAttive, exportPDFAttive } from '../lib/export.js';
 import { apriEditorAttiva, apriUploadAttive, apriIncassoRapido, apriNuovaNotaCreditoAttiva, apriSollecitoRapido } from './fatturaAttiva.js';
 import { FILTRO_CLIENTE_KEY } from './reportAttive.js';
 
@@ -39,7 +39,7 @@ export async function renderDashboardAttive(view, ctx) {
     <div class="page-head">
       <div><h1>Fatture Attive</h1><p>Fatture emesse ai clienti — CRI Genova</p></div>
       <div class="actions">
-        <button class="btn" id="exp-csv">📊 Esporta Excel (CSV)</button>
+        <button class="btn" id="exp-csv">📊 Esporta Excel</button>
         <button class="btn" id="exp-pdf">🖨️ Esporta PDF</button>
         <button class="btn" id="carica">📎 Carica PDF/XML</button>
         <button class="btn" id="nuova-nc">+ Nota di credito</button>
@@ -155,7 +155,7 @@ export async function renderDashboardAttive(view, ctx) {
     wrap.querySelectorAll('#q,#f-stato,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });
-  wrap.querySelector('#exp-csv').addEventListener('click', () => exportCSVAttive(applyFilters()));
+  wrap.querySelector('#exp-csv').addEventListener('click', () => exportXLSXAttive(applyFilters()));
   wrap.querySelector('#exp-pdf').addEventListener('click', () => exportPDFAttive(applyFilters()));
   wrap.querySelector('#nuova').addEventListener('click', () => apriEditorAttiva(null, ctx, ricarica));
   wrap.querySelector('#carica').addEventListener('click', () => apriUploadAttive(ctx, ricarica));

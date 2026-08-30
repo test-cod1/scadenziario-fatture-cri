@@ -1,6 +1,6 @@
 import { fatture, pagamenti, proposte } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast, rendiCliccabile } from '../lib/ui.js';
-import { exportCSV, exportPDF } from '../lib/export.js';
+import { exportXLSX, exportPDF } from '../lib/export.js';
 import { apriEditor, apriUpload, apriPagamentoRapido, apriProponiPagamento, apriNuovaNotaCredito } from './fattura.js';
 import { FILTRO_FORNITORE_KEY } from './report.js';
 
@@ -41,7 +41,7 @@ export async function renderDashboard(view, ctx) {
     <div class="page-head">
       <div><h1>Scadenziario Fatture</h1><p>Fatture fornitori — CRI Genova</p></div>
       <div class="actions">
-        <button class="btn" id="exp-csv">📊 Esporta Excel (CSV)</button>
+        <button class="btn" id="exp-csv">📊 Esporta Excel</button>
         <button class="btn" id="exp-pdf">🖨️ Esporta PDF</button>
         <button class="btn" id="carica">📎 Carica PDF/XML</button>
         <button class="btn" id="nuova-nc">+ Nota di credito</button>
@@ -211,7 +211,7 @@ export async function renderDashboard(view, ctx) {
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });
-  wrap.querySelector('#exp-csv').addEventListener('click', () => exportCSV(applyFilters()));
+  wrap.querySelector('#exp-csv').addEventListener('click', () => exportXLSX(applyFilters()));
   wrap.querySelector('#exp-pdf').addEventListener('click', () => exportPDF(applyFilters()));
   wrap.querySelector('#nuova').addEventListener('click', () => apriEditor(null, ctx, ricarica));
   wrap.querySelector('#carica').addEventListener('click', () => apriUpload(ctx, ricarica));
