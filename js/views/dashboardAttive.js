@@ -1,4 +1,4 @@
-import { fattureAttive } from '../data/storeAttive.js';
+import { fattureAttive, incassi } from '../data/storeAttive.js';
 import { el, clear, esc, fmtDate, fmtEuro, debounce, rendiCliccabile } from '../lib/ui.js';
 import { exportCSVAttive, exportPDFAttive } from '../lib/export.js';
 import { apriEditorAttiva, apriUploadAttive, apriIncassoRapido, apriNuovaNotaCreditoAttiva, apriSollecitoRapido } from './fatturaAttiva.js';
@@ -8,10 +8,25 @@ const STATO_LABEL = { da_incassare: 'Da incassare', incassata_parziale: 'Incassa
 const STATO_CHIP = { da_incassare: 'warn', incassata_parziale: 'red', incassata: 'ok', stornata: 'info' };
 const STATI_CHIUSI = ['incassata', 'stornata'];
 
+// Vedi il commento gemello in dashboard.js.
+function confiniPeriodoCorrente() {
+  const oggi = new Date().toISOString().slice(0, 10);
+  return { oggi, inizioMese: oggi.slice(0, 7) + '-01', inizioAnno: oggi.slice(0, 4) + '-01-01' };
+}
+
 export async function renderDashboardAttive(view, ctx) {
-  let tutte = [];
-  try { tutte = await fattureAttive.list(); }
+  let tutte = [], incassatoMese = 0, incassatoAnno = 0, contaArchivio = 0;
+  try {
+    const { oggi, inizioMese, inizioAnno } = confiniPeriodoCorrente();
+    [tutte, incassatoMese, incassatoAnno, contaArchivio] = await Promise.all([
+      fattureAttive.listAperte(),
+      incassi.sommaPeriodo(inizioMese, oggi),
+      incassi.sommaPeriodo(inizioAnno, oggi),
+      fattureAttive.contaArchivio(),
+    ]);
+  }
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
+  let archivioCaricato = false;
 
   const state = { q: '', stato: '', importoMin: '', importoMax: '' };
   // Arrivo da un click su un cliente nel Report: preimposta la ricerca e
@@ -46,6 +61,15 @@ export async function renderDashboardAttive(view, ctx) {
       <button class="btn ghost sm" id="f-reset">Azzera filtri</button>
     </div>
     <div class="card"><div class="card-b tbl-wrap" id="tbl-zone"></div></div>
+    <details class="card" id="archivio" style="margin-top:22px">
+      <summary class="card-h">
+        <span>📁 Archivio fatture concluse (<span id="archivio-conta">${contaArchivio}</span>)</span>
+        <span class="archivio-freccia">▸</span>
+      </summary>
+      <div class="card-b tbl-wrap" id="archivio-zone">
+        <div class="muted" style="padding:6px 0">Fatture incassate/stornate di anni precedenti: si caricano aprendo questo pannello.</div>
+      </div>
+    </details>
     <div class="drop-page-overlay" id="drop-overlay"><div class="box">📎 Rilascia qui i file per caricare le fatture</div></div>
   </div>`);
   view.appendChild(wrap);
@@ -67,8 +91,26 @@ export async function renderDashboardAttive(view, ctx) {
     if (e.dataTransfer.files.length) apriUploadAttive(ctx, ricarica, e.dataTransfer.files);
   });
 
-  renderStats(wrap.querySelector('#stats'), tutte);
+  renderStats(wrap.querySelector('#stats'), tutte, incassatoMese, incassatoAnno);
   if (state.q) wrap.querySelector('#q').value = state.q;
+
+  // Vedi il commento gemello in dashboard.js: l'archivio si carica solo alla
+  // prima apertura del pannello.
+  async function caricaArchivio() {
+    if (archivioCaricato) return;
+    const zona = wrap.querySelector('#archivio-zone');
+    clear(zona);
+    zona.appendChild(el('<div class="spinner" style="margin:20px auto"></div>'));
+    try {
+      const righe = await fattureAttive.listArchivio();
+      archivioCaricato = true;
+      renderTable(zona, righe, ctx, ricarica);
+    } catch (e) {
+      clear(zona);
+      zona.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${esc(e.message)}</p></div>`));
+    }
+  }
+  wrap.querySelector('#archivio').addEventListener('toggle', (e) => { if (e.target.open) caricaArchivio(); });
 
   function applyFilters() {
     let r = tutte;
@@ -86,10 +128,21 @@ export async function renderDashboardAttive(view, ctx) {
     renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica);
   }
 
+  // Vedi il commento gemello in dashboard.js: si ricaricano sempre sia il
+  // sottoinsieme attivo sia, se il pannello è già aperto, l'archivio.
   async function ricarica() {
-    tutte = await fattureAttive.list();
-    renderStats(wrap.querySelector('#stats'), tutte);
+    const { oggi, inizioMese, inizioAnno } = confiniPeriodoCorrente();
+    let contaArchivio;
+    [tutte, incassatoMese, incassatoAnno, contaArchivio] = await Promise.all([
+      fattureAttive.listAperte(),
+      incassi.sommaPeriodo(inizioMese, oggi),
+      incassi.sommaPeriodo(inizioAnno, oggi),
+      fattureAttive.contaArchivio(),
+    ]);
+    renderStats(wrap.querySelector('#stats'), tutte, incassatoMese, incassatoAnno);
     refreshTable();
+    wrap.querySelector('#archivio-conta').textContent = contaArchivio;
+    if (wrap.querySelector('#archivio').open) { archivioCaricato = false; await caricaArchivio(); }
   }
 
   const onSearch = debounce(v => { state.q = v; refreshTable(); }, 250);
@@ -111,15 +164,17 @@ export async function renderDashboardAttive(view, ctx) {
   refreshTable();
 }
 
-function renderStats(node, tutte) {
+// `tutte` è il sottoinsieme "attivo" (fattureAttive.listAperte): esclude le
+// fatture chiuse di anni precedenti, ormai in archivio. "Incassato questo
+// mese/anno" arriva già calcolato da fuori (incassi.sommaPeriodo,
+// indipendente da cosa è archiviato) — vedi il commento gemello in
+// dashboard.js.
+function renderStats(node, tutte, incassatoMese, incassatoAnno) {
   clear(node);
   const nonIncassate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
   const totaleDovuto = nonIncassate.reduce((s, f) => s + f._residuo, 0);
   const oggi = new Date().toISOString().slice(0, 10);
-  const meseCorrente = oggi.slice(0, 7);
   const annoCorrente = oggi.slice(0, 4);
-  const incassatoMese = tutte.reduce((s, f) => s + (f.incassi || []).filter(p => (p.data_incasso || '').slice(0, 7) === meseCorrente).reduce((a, p) => a + Number(p.importo || 0), 0), 0);
-  const incassatoAnno = tutte.reduce((s, f) => s + (f.incassi || []).filter(p => (p.data_incasso || '').slice(0, 4) === annoCorrente).reduce((a, p) => a + Number(p.importo || 0), 0), 0);
 
   const cards = [
     { k: 'DA INCASSARE (TOTALE)', v: fmtEuro(totaleDovuto), s: `${nonIncassate.length} fatture`, cls: 'accent' },

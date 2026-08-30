@@ -35,6 +35,57 @@ export const fattureAttive = {
     if (error) throw error;
     return withResiduo(data);
   },
+  // Vedi il commento gemello in store.js: sottoinsieme "attivo" per la
+  // dashboard (anno corrente + fatture ancora aperte di anni precedenti),
+  // per non scaricare ad ogni apertura anni di fatture ormai incassate.
+  async listAperte() {
+    const sb = await sbClient();
+    const inizioAnno = `${new Date().getFullYear()}-01-01`;
+    const BLOCCO = 1000;
+    const tutte = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from("fatture_attive")
+        .select("*, incassi(*), note_credito_attive_righe(*, note_credito_attive(numero, data, note))")
+        .or(`data_fattura.gte.${inizioAnno},data_fattura.is.null,stato.in.(da_incassare,incassata_parziale)`)
+        .order("data_fattura", { ascending: true, nullsFirst: false })
+        .order("id", { ascending: true })
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutte.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutte.map(withResiduo);
+  },
+  // Il complementare di listAperte(): fatture chiuse (incassata/stornata) di
+  // anni precedenti, caricate solo quando si apre l'archivio in dashboard.
+  async listArchivio() {
+    const sb = await sbClient();
+    const inizioAnno = `${new Date().getFullYear()}-01-01`;
+    const BLOCCO = 1000;
+    const tutte = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from("fatture_attive")
+        .select("*, incassi(*), note_credito_attive_righe(*, note_credito_attive(numero, data, note))")
+        .lt("data_fattura", inizioAnno)
+        .in("stato", ["incassata", "stornata"])
+        .order("data_fattura", { ascending: false })
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutte.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutte.map(withResiduo);
+  },
+  // Conteggio leggero (nessuna riga scaricata) da mostrare accanto al menu a
+  // scomparsa anche prima di aprirlo.
+  async contaArchivio() {
+    const sb = await sbClient();
+    const inizioAnno = `${new Date().getFullYear()}-01-01`;
+    const { count, error } = await sb.from('fatture_attive').select('id', { count: 'exact', head: true })
+      .lt('data_fattura', inizioAnno).in('stato', ['incassata', 'stornata']);
+    if (error) throw error;
+    return count || 0;
+  },
   // `nuovo: true` forza l'INSERT anche se rec.id è valorizzato: serve per
   // creare la fattura con un id generato lato client, così l'eventuale
   // allegato può essere caricato PRIMA dell'insert (vedi fatturaAttiva.js).
@@ -145,6 +196,14 @@ export const incassi = {
     const sb = await sbClient();
     const { error } = await sb.from('incassi').delete().eq('id', id);
     if (error) throw error;
+  },
+  // Vedi il commento gemello in store.js: somma degli incassi in un
+  // intervallo di date, di qualunque fattura anche se ormai archiviata.
+  async sommaPeriodo(da, a) {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('incassi').select('importo').gte('data_incasso', da).lte('data_incasso', a);
+    if (error) throw error;
+    return data.reduce((s, p) => s + Number(p.importo || 0), 0);
   },
 };
 
