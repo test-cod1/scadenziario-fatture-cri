@@ -212,4 +212,34 @@ tr.scaduta:hover td{background:#fbdcdd}
   .form-row,.form-row.three{grid-template-columns:1fr}
   .upload-item .u-fields{grid-template-columns:1fr}
   table.tbl th,table.tbl td{padding:8px}
+
+  /* Ogni filtro della toolbar a piena larghezza, uno sotto l'altro: gli
+     input di data/numero hanno una larghezza intrinseca stretta e, lasciati
+     in fila con flex-wrap, finivano ammucchiati in righe disomogenee. */
+  .toolbar{flex-direction:column;align-items:stretch}
+  .toolbar>*{width:100%}
+
+  /* La tabella principale delle fatture ha 8 colonne: su schermo stretto se
+     ne nascondono due meno essenziali (N. Fattura, Data fattura — restano
+     comunque consultabili aprendo la fattura) per ridurre lo scroll
+     orizzontale. Solo su questa tabella (classe tbl-fatture): le altre
+     tabelle dell'app hanno colonne diverse, nasconderle allo stesso modo
+     nasconderebbe dati sbagliati.*/
+  .tbl-fatture th:nth-child(2),.tbl-fatture td:nth-child(2),
+  .tbl-fatture th:nth-child(3),.tbl-fatture td:nth-child(3){display:none}
+
+  /* Pulsanti del footer di modali/editor: se non ci stanno su una riga,
+     vanno impilati a piena larghezza invece di restare compressi o uscire
+     dal bordo. Lo spaziatore flessibile che li spinge a destra su schermi
+     larghi (un <div style="flex:1">, primo figlio del contenitore del
+     footer) non serve più quando sono impilati: lo si toglie di mezzo. */
+  .m-f>div{flex-wrap:wrap}
+  .m-f>div>div[style*="flex:1"]{flex-basis:100%;order:-1;padding:0}
+  .m-f>div>button{flex:1 1 auto}
+
+  /* Riga selezionabile di una fattura (pagamenti, note di credito, note di
+     credito multiple): l'input dell'importo può andare a capo sotto
+     l'etichetta invece di restringersi fino a diventare illeggibile. */
+  .pag-row{flex-wrap:wrap}
+  .pag-row input[type=number]{width:100%!important}
 }

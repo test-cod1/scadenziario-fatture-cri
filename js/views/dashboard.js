@@ -185,7 +185,7 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
   const azione = isAdmin ? apriPagamentoRapido : apriProponiPagamento;
   const titoloChip = isAdmin ? 'Clicca per segnare un pagamento' : 'Clicca per proporre un pagamento';
   const oggi = new Date().toISOString().slice(0, 10);
-  const table = el(`<table class="tbl"><thead><tr>
+  const table = el(`<table class="tbl tbl-fatture"><thead><tr>
     <th>Fornitore</th><th>N. Fattura</th><th>Data</th><th class="money-col">Importo</th><th>Scadenza</th><th>Stato</th><th class="money-col">Residuo</th><th></th>
   </tr></thead><tbody></tbody></table>`);
   const tbody = table.querySelector('tbody');
