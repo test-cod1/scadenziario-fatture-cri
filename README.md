@@ -87,6 +87,9 @@ js/views/fatturaAttiva.js       editor fattura attiva (incl. sollecito di pagame
 js/views/reportAttive.js        report/statistiche fatture attive (per cliente + andamento mensile)
 js/views/registroModifiche.js   registro modifiche unificato (passive+attive), dentro Impostazioni
 js/views/impostazioni.js        configurazione, creazione utenti, registro modifiche (solo admin)
+manifest.json                  manifest PWA (nome, icone, tema) — abilita "Aggiungi a schermata Home"
+sw.js                          service worker: cache di riserva se la rete cade, sempre network-first
+icons/                          icone PWA (192px, 512px)
 functions/api/                 endpoint: proxy verso Gemini (passive+attive), creazione utenti
 functions/_lib/auth.js          verifica sessione/ruolo Supabase lato server
 supabase/schema.sql            schema database + RLS + trigger di audit log (passive+attive)

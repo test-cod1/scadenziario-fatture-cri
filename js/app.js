@@ -9,6 +9,12 @@ import { renderDashboardAttive } from './views/dashboardAttive.js';
 import { renderReportAttive } from './views/reportAttive.js';
 import { startTour } from './lib/tour.js';
 
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/sw.js').catch(() => {});
+  });
+}
+
 const app = document.getElementById('app');
 let currentUser = null;
 
