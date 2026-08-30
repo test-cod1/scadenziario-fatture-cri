@@ -7,6 +7,7 @@ import { renderProposte } from './views/proposte.js';
 import { renderImpostazioni } from './views/impostazioni.js';
 import { renderDashboardAttive } from './views/dashboardAttive.js';
 import { renderReportAttive } from './views/reportAttive.js';
+import { startTour } from './lib/tour.js';
 
 const app = document.getElementById('app');
 let currentUser = null;
@@ -110,6 +111,16 @@ function renderShell() {
   });
   layout.querySelector('[data-logout]').addEventListener('click', async () => { await auth.signOut(); location.hash = ''; location.reload(); });
   app.appendChild(layout);
+
+  // Il pulsante vive fuori da #app (in fondo a <body>, posizione fissa) così
+  // resta identico e cliccabile a ogni cambio di pagina, invece di essere
+  // ridisegnato da ogni singola vista: lo si crea una sola volta qui, dove
+  // renderShell() gira una volta sola dopo il login.
+  if (!document.querySelector('.tour-fab')) {
+    const fab = el(`<button class="tour-fab" type="button" title="Tutorial guidato" aria-label="Avvia il tutorial guidato">🎓</button>`);
+    fab.addEventListener('click', () => startTour({ user: currentUser }));
+    document.body.appendChild(fab);
+  }
 }
 
 function disegnaNav(sezione, sub) {
