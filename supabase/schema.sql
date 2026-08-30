@@ -44,12 +44,12 @@ $$;
 
 -- Chi puo' LEGGERE i dati: solo utenti con un profilo e un ruolo abilitato.
 create or replace function public.puo_leggere()
-returns boolean language sql stable security definer set search_path = public as $
+returns boolean language sql stable security definer set search_path = public as $$
   select exists (
     select 1 from public.profili
     where id = auth.uid() and ruolo in ('admin','operatore')
   );
-$;
+$$;
 
 create or replace function public.e_admin()
 returns boolean language sql stable security definer set search_path = public as $$
@@ -215,11 +215,11 @@ create trigger on_fattura_importo_change
 -- updated_at va aggiornata a ogni modifica: il solo default now() la lasciava
 -- ferma alla creazione, rendendola inutilizzabile.
 create or replace function public.trg_fatture_updated_at()
-returns trigger language plpgsql as $
+returns trigger language plpgsql as $$
 begin
   new.updated_at := now();
   return new;
-end; $;
+end; $$;
 
 drop trigger if exists on_fatture_updated_at on public.fatture;
 create trigger on_fatture_updated_at
