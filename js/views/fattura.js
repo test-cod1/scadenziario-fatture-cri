@@ -184,7 +184,7 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
   </div>`);
   const isAdmin = ctx.user.ruolo === 'admin';
   const footer = el(`<div style="display:flex;gap:10px;width:100%">
-    ${isAdmin ? '<button class="btn ghost" id="qp-proponi">📨 Proponi invece</button>' : ''}
+    ${isAdmin ? '<button class="btn ghost" id="qp-proponi">Proponi pagamento</button>' : ''}
     <div style="flex:1"></div>
     <button class="btn" id="qp-cancel">Annulla</button>
     <button class="btn primary" id="qp-save">Registra pagamento</button>
@@ -225,7 +225,7 @@ export function apriProponiPagamento(rec, ctx, onSaved) {
     <div class="form-row three" style="align-items:end">
       <div class="field"><label>Data prevista</label><input type="date" id="pp-data" value="${todayISO()}"></div>
       <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="pp-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
-      <div class="field"><label>Metodo</label><select id="pp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
+      <div class="field"><label>Metodo</label><select id="pp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${(rec.metodo_pagamento || 'bonifico') === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
     </div>
     <div class="field"><label>Note per l'admin (opzionale)</label><textarea id="pp-note" rows="2"></textarea></div>
     <div id="pp-err" style="color:var(--danger);font-size:13px"></div>
