@@ -3,6 +3,7 @@ import { el, clear, esc } from './lib/ui.js';
 import { renderLogin, renderResetPassword } from './views/auth.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderLog } from './views/log.js';
+import { renderReport } from './views/report.js';
 import { renderImpostazioni } from './views/impostazioni.js';
 
 const app = document.getElementById('app');
@@ -61,7 +62,7 @@ async function startApp() {
 }
 
 function navItems() {
-  const items = [{ id: 'fatture', icon: '🧾', label: 'Fatture' }];
+  const items = [{ id: 'fatture', icon: '🧾', label: 'Fatture' }, { id: 'report', icon: '📊', label: 'Report' }];
   if (currentUser.ruolo === 'admin') {
     items.push({ id: 'log', icon: '📋', label: 'Registro modifiche' });
     items.push({ id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' });
@@ -110,6 +111,7 @@ async function route() {
     if (my !== _routeSeq) return;
     clear(view);
     if (section === 'log') await renderLog(view, ctx);
+    else if (section === 'report') await renderReport(view, ctx);
     else if (section === 'impostazioni') await renderImpostazioni(view, ctx);
     else await renderDashboard(view, ctx);
   } catch (e) {
