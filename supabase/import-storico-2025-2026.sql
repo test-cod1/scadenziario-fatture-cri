@@ -4,8 +4,9 @@
 --  "[Import storico]" sulle singole fatture/pagamenti: segnalano i punti
 --  dove il file originale era ambiguo e si è dovuta fare un'assunzione.
 --  Esegui DOPO schema.sql, patch-proposte-pagamento.sql e
---  patch-note-credito.sql (richiede le tabelle pagamenti/note_credito
---  aggiornate), e dopo aver verificato con un controllo a campione
+--  patch-note-credito.sql (richiede le tabelle pagamenti / note_credito /
+--  note_credito_righe già presenti, e lo stato fattura esteso con
+--  'stornata'), e dopo aver verificato con un controllo a campione
 --  (es. SELECT count(*) FROM fatture prima/dopo).
 --  Le note di credito trovate nel file NON sono in questo script: vedi il
 --  blocco di commenti in fondo, vanno collegate a mano dall'app.
