@@ -80,6 +80,8 @@ a{color:var(--cri-red);text-decoration:none}
 .chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
 .chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
 .chip.danger{background:var(--danger-soft);color:var(--danger);border-color:transparent}
+.chip[data-stato]{cursor:pointer}
+.chip[data-stato]:hover{filter:brightness(0.94);box-shadow:0 0 0 2px var(--line) inset}
 
 /* ---------- Toolbar ---------- */
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center}

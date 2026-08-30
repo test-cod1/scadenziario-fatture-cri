@@ -1,7 +1,7 @@
 import { fatture } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast } from '../lib/ui.js';
 import { exportCSV, exportPDF } from '../lib/export.js';
-import { apriEditor, apriUpload } from './fattura.js';
+import { apriEditor, apriUpload, apriPagamentoRapido } from './fattura.js';
 
 const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata' };
 const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok' };
@@ -174,12 +174,14 @@ function renderTable(node, righe, ctx, ricarica) {
       <td>${fmtDate(f.data_fattura)}</td>
       <td class="money money-col">${fmtEuro(f.importo)}</td>
       <td>${fmtDate(f.scadenza)}</td>
-      <td><span class="chip ${STATO_CHIP[f.stato] || ''}">${STATO_LABEL[f.stato] || f.stato}</span></td>
+      <td><span class="chip ${STATO_CHIP[f.stato] || ''}" ${f.stato !== 'pagata' ? 'data-stato title="Clicca per segnare un pagamento"' : ''}>${STATO_LABEL[f.stato] || f.stato}</span></td>
       <td class="money money-col">${fmtEuro(f._residuo)}</td>
       <td style="text-align:right"><button class="btn ghost sm" data-edit>✏️</button></td>
     </tr>`);
-    tr.addEventListener('click', (e) => { if (!e.target.closest('[data-edit]')) apriEditor(f.id, ctx, ricarica); });
+    tr.addEventListener('click', (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]')) apriEditor(f.id, ctx, ricarica); });
     tr.querySelector('[data-edit]').addEventListener('click', (e) => { e.stopPropagation(); apriEditor(f.id, ctx, ricarica); });
+    const chipStato = tr.querySelector('[data-stato]');
+    if (chipStato) chipStato.addEventListener('click', (e) => { e.stopPropagation(); apriPagamentoRapido(f, ctx, ricarica); });
     tbody.appendChild(tr);
   }
   node.appendChild(table);

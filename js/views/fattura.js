@@ -151,6 +151,49 @@ export async function apriEditor(id, ctx, onSaved) {
   });
 }
 
+// ============================================================
+//  Pagamento rapido — popup minimale aperto cliccando sul chip di stato in
+//  dashboard, per registrare un pagamento senza aprire l'intero editor.
+//  Precompila l'importo con il residuo (saldo per intero con un click), ma
+//  resta modificabile per registrare un acconto.
+// ============================================================
+export function apriPagamentoRapido(rec, ctx, onSaved) {
+  const body = el(`<div>
+    <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.fornitore)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''} — residuo <b>${fmtEuro(rec._residuo)}</b></p>
+    <div class="form-row three" style="align-items:end">
+      <div class="field"><label>Data</label><input type="date" id="qp-data" value="${todayISO()}"></div>
+      <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="qp-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
+      <div class="field"><label>Metodo</label><select id="qp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
+    </div>
+    <div id="qp-err" style="color:var(--danger);font-size:13px"></div>
+  </div>`);
+  const footer = el(`<div style="display:flex;gap:10px;width:100%">
+    <div style="flex:1"></div>
+    <button class="btn" id="qp-cancel">Annulla</button>
+    <button class="btn primary" id="qp-save">Registra pagamento</button>
+  </div>`);
+  const { close } = openModal({ title: 'Segna pagamento — ' + rec.fornitore, body, footer });
+  footer.querySelector('#qp-cancel').addEventListener('click', close);
+  footer.querySelector('#qp-save').addEventListener('click', async () => {
+    const err = body.querySelector('#qp-err'); err.textContent = '';
+    const importo = parseEuro(body.querySelector('#qp-importo').value);
+    const data_pagamento = body.querySelector('#qp-data').value;
+    if (!importo || importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
+    if (!data_pagamento) { err.textContent = 'Indica la data del pagamento.'; return; }
+    const btn = footer.querySelector('#qp-save'); const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
+    try {
+      await pagamenti.add(rec.id, { importo, data_pagamento, metodo: body.querySelector('#qp-metodo').value || null });
+      toast('Pagamento registrato', 'ok');
+      close();
+      onSaved();
+    } catch (e) {
+      err.textContent = 'Errore: ' + e.message;
+      btn.disabled = false; btn.innerHTML = old;
+    }
+  });
+}
+
 function renderPagamenti(node, rec, ctx, onChange) {
   clear(node);
   const wrap = el(`<div class="card" style="margin-top:6px"><div class="card-h">Pagamenti / acconti</div><div class="card-b">
