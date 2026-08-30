@@ -100,7 +100,7 @@ export async function renderDashboard(view, ctx) {
     if (e.dataTransfer.files.length) apriUpload(ctx, ricarica, e.dataTransfer.files);
   });
 
-  renderStats(wrap.querySelector('#stats'), tutte, filtraInScadenza7, pagatoMese, pagatoAnno);
+  renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraScadute, filtraInScadenza7, pagatoMese, pagatoAnno);
   renderAlert(wrap.querySelector('#alert-zone'), tutte);
   if (state.q) wrap.querySelector('#q').value = state.q;
 
@@ -136,6 +136,31 @@ export async function renderDashboard(view, ctx) {
     if (state.importoMin) r = r.filter(f => Number(f.importo) >= Number(state.importoMin));
     if (state.importoMax) r = r.filter(f => Number(f.importo) <= Number(state.importoMax));
     return r;
+  }
+
+  // Clic sulla card "Da pagare (totale)": filtra la tabella sulle fatture
+  // ancora aperte, azzerando gli altri filtri per lo stesso motivo di
+  // filtraInScadenza7 qui sotto.
+  function filtraSoloAperte() {
+    Object.assign(state, { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: true });
+    wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
+    refreshTable();
+  }
+
+  // Clic sulla card "Scaduto e non pagato": stesso calcolo di renderStats
+  // (fatture aperte con scadenza già passata), qui espresso come filtro per
+  // data fino a ieri incluso.
+  function filtraScadute() {
+    const ieri = new Date(); ieri.setDate(ieri.getDate() - 1);
+    const isoIeri = ieri.toISOString().slice(0, 10);
+    Object.assign(state, { q: '', stato: '', da: '', aData: isoIeri, importoMin: '', importoMax: '', soloAperte: true });
+    wrap.querySelector('#q').value = '';
+    wrap.querySelector('#f-stato').value = '';
+    wrap.querySelector('#f-da').value = '';
+    wrap.querySelector('#f-a').value = isoIeri;
+    wrap.querySelector('#f-min').value = '';
+    wrap.querySelector('#f-max').value = '';
+    refreshTable();
   }
 
   // Clic sulla card "In scadenza (7 giorni)": filtra la tabella sotto sulle
@@ -188,7 +213,7 @@ export async function renderDashboard(view, ctx) {
       fatture.contaArchivio(),
     ]);
     proposteInAttesa = await caricaProposteInAttesa();
-    renderStats(wrap.querySelector('#stats'), tutte, filtraInScadenza7, pagatoMese, pagatoAnno);
+    renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraScadute, filtraInScadenza7, pagatoMese, pagatoAnno);
     renderAlert(wrap.querySelector('#alert-zone'), tutte);
     refreshTable();
     wrap.querySelector('#archivio-conta').textContent = contaArchivio;
@@ -240,7 +265,7 @@ async function caricaProposteInAttesa() {
 // fatture ancora aperte, sempre presenti in `tutte` a prescindere dall'anno)
 // tranne "Pagato questo mese/anno", che infatti arriva già calcolato da fuori
 // (pagamenti.sommaPeriodo, indipendente da cosa è archiviato).
-function renderStats(node, tutte, onClickInScadenza7, pagatoMese, pagatoAnno) {
+function renderStats(node, tutte, onClickTotale, onClickScadute, onClickInScadenza7, pagatoMese, pagatoAnno) {
   clear(node);
   const nonPagate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
   const totaleDovuto = nonPagate.reduce((s, f) => s + f._residuo, 0);
@@ -251,8 +276,8 @@ function renderStats(node, tutte, onClickInScadenza7, pagatoMese, pagatoAnno) {
   const inScadenza7 = nonPagate.filter(f => { const g = giorniDa(f.scadenza); return g !== null && g >= 0 && g <= 7; });
 
   const cards = [
-    { k: 'DA PAGARE (TOTALE)', v: fmtEuro(totaleDovuto), s: `${nonPagate.length} fatture`, cls: 'accent' },
-    { k: 'SCADUTO E NON PAGATO', v: fmtEuro(totaleScaduto), s: `${scadute.length} fatture in ritardo`, cls: totaleScaduto > 0 ? 'warn' : '' },
+    { k: 'DA PAGARE (TOTALE)', v: fmtEuro(totaleDovuto), s: `${nonPagate.length} fatture`, cls: 'accent', onClick: onClickTotale, titolo: 'Filtra la tabella su queste fatture' },
+    { k: 'SCADUTO E NON PAGATO', v: fmtEuro(totaleScaduto), s: `${scadute.length} fatture in ritardo`, cls: totaleScaduto > 0 ? 'warn' : '', onClick: onClickScadute, titolo: 'Filtra la tabella su queste fatture' },
     { k: 'IN SCADENZA (7 GIORNI)', v: inScadenza7.length, s: fmtEuro(inScadenza7.reduce((s, f) => s + f._residuo, 0)), cls: '', onClick: onClickInScadenza7, titolo: 'Filtra la tabella su queste fatture' },
     { k: 'PAGATO QUESTO MESE', v: fmtEuro(pagatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok' },
     { k: 'PAGATO QUEST\'ANNO', v: fmtEuro(pagatoAnno), s: annoCorrente, cls: 'ok' },

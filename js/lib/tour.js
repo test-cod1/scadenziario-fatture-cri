@@ -26,7 +26,7 @@ function costruisciPassi(ctx) {
     {
       selettore: '#stats',
       titolo: 'Situazione a colpo d\'occhio',
-      testo: 'Quanto resta da pagare in totale, cosa è già scaduto, cosa scade nei prossimi 7 giorni e quanto è stato pagato questo mese e quest\'anno. La card "In scadenza" è cliccabile: filtra subito la tabella su quelle fatture.',
+      testo: 'Quanto resta da pagare in totale, cosa è già scaduto, cosa scade nei prossimi 7 giorni e quanto è stato pagato questo mese e quest\'anno. Le prime tre card sono cliccabili: filtrano subito la tabella su quelle fatture.',
     },
     {
       selettore: '.page-head .actions',
