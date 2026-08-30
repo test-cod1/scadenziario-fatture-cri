@@ -26,9 +26,9 @@ export async function renderReport(view, ctx) {
     </div>
     <div class="grid stats" id="r-stats" style="margin-bottom:22px"></div>
     <div class="card" style="margin-bottom:22px">
-      <div class="card-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+      <div class="card-h">
         <span>Spesa per fornitore</span>
-        <input type="search" id="r-ricerca" placeholder="Cerca fornitore…" style="max-width:240px">
+        <div class="search" style="flex:none;min-width:220px"><span class="search-icon">🔎</span><input type="text" id="r-ricerca" placeholder="Cerca fornitore…"></div>
       </div>
       <div class="card-b tbl-wrap" id="r-fornitori"></div>
     </div>
