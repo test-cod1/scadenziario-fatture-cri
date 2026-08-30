@@ -1,5 +1,6 @@
 import { impostazioni, amministrazione } from '../data/store.js';
 import { el, esc, toast, openModal } from '../lib/ui.js';
+import { renderRegistroModifiche } from './registroModifiche.js';
 
 export async function renderImpostazioni(view, ctx) {
   if (ctx.user.ruolo !== 'admin') {
@@ -38,8 +39,21 @@ export async function renderImpostazioni(view, ctx) {
       <button class="btn primary" id="nu-crea" style="margin-top:6px">Crea utente</button>
       <div id="nu-err" style="color:var(--danger);font-size:13px;margin-top:10px"></div>
     </div></div>
+
+    <div class="card" style="margin-top:22px">
+      <div class="card-h" style="display:flex;align-items:center;justify-content:space-between;gap:12px">
+        <span>Registro modifiche</span>
+        <select id="log-tipo">
+          <option value="">Tutte le fatture</option>
+          <option value="passiva">Solo fatture passive (fornitori)</option>
+          <option value="attiva">Solo fatture attive (clienti)</option>
+        </select>
+      </div>
+      <div class="card-b" id="log-zone"></div>
+    </div>
   </div>`);
   view.appendChild(wrap);
+  renderRegistroModifiche(wrap.querySelector('#log-zone'), wrap.querySelector('#log-tipo'), ctx);
   wrap.querySelector('#giorni').value = rec.giorni_scadenza_default;
 
   wrap.querySelector('#save').addEventListener('click', async () => {

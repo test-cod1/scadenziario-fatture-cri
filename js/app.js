@@ -2,12 +2,10 @@ import { auth } from './data/store.js';
 import { el, clear, esc } from './lib/ui.js';
 import { renderLogin, renderResetPassword } from './views/auth.js';
 import { renderDashboard } from './views/dashboard.js';
-import { renderLog } from './views/log.js';
 import { renderReport } from './views/report.js';
 import { renderProposte } from './views/proposte.js';
 import { renderImpostazioni } from './views/impostazioni.js';
 import { renderDashboardAttive } from './views/dashboardAttive.js';
-import { renderLogAttive } from './views/logAttive.js';
 import { renderReportAttive } from './views/reportAttive.js';
 
 const app = document.getElementById('app');
@@ -71,22 +69,21 @@ async function startApp() {
 // route()), così non si rompe nulla per chi aveva già l'app aperta.
 const SEZIONI = ['passive', 'attive'];
 
+// Il Registro modifiche non ha più una voce di menu propria: è un'unica
+// pagina condivisa fra passive e attive, raggiungibile da Impostazioni
+// (vedi anche il redirect dei vecchi segnalibri "…/log" in route()).
 function navItemsPassive() {
-  const items = [
+  return [
     { id: 'fatture', icon: '🧾', label: 'Fatture' },
     { id: 'proposte', icon: '📨', label: 'Proposte pagamento' },
     { id: 'report', icon: '📊', label: 'Report' },
   ];
-  if (currentUser.ruolo === 'admin') items.push({ id: 'log', icon: '📋', label: 'Registro modifiche' });
-  return items;
 }
 function navItemsAttive() {
-  const items = [
+  return [
     { id: 'fatture', icon: '💶', label: 'Fatture' },
     { id: 'report', icon: '📊', label: 'Report' },
   ];
-  if (currentUser.ruolo === 'admin') items.push({ id: 'log', icon: '📋', label: 'Registro modifiche' });
-  return items;
 }
 
 function renderShell() {
@@ -138,6 +135,10 @@ async function route() {
   let [section, sub] = hash.split('/');
   if (!SEZIONI.includes(section)) { sub = section; section = 'passive'; }   // vecchi segnalibri senza prefisso di sezione
   if (!sub) sub = 'fatture';
+  // Il Registro modifiche è confluito in un'unica pagina dentro Impostazioni
+  // (vedi navItemsPassive/navItemsAttive): un vecchio segnalibro su
+  // "…/log", di qualunque sezione, ci finisce comunque.
+  if (sub === 'log') { location.hash = '#/passive/impostazioni'; return; }
   disegnaNav(section, sub);
   clear(view);
   view.appendChild(el('<div class="spinner" style="margin-top:60px"></div>'));
@@ -146,11 +147,9 @@ async function route() {
     if (my !== _routeSeq) return;
     clear(view);
     if (section === 'attive') {
-      if (sub === 'log') await renderLogAttive(view, ctx);
-      else if (sub === 'report') await renderReportAttive(view, ctx);
+      if (sub === 'report') await renderReportAttive(view, ctx);
       else await renderDashboardAttive(view, ctx);
-    } else if (sub === 'log') await renderLog(view, ctx);
-    else if (sub === 'report') await renderReport(view, ctx);
+    } else if (sub === 'report') await renderReport(view, ctx);
     else if (sub === 'proposte') await renderProposte(view, ctx);
     else if (sub === 'impostazioni') await renderImpostazioni(view, ctx);
     else await renderDashboard(view, ctx);
