@@ -19,7 +19,6 @@ const SCHEMA = {
     numero_fattura: { type: 'STRING', description: 'Numero della fattura' },
     data_fattura: { type: 'STRING', description: 'Data di emissione della fattura, formato YYYY-MM-DD' },
     importo: { type: 'NUMBER', description: 'Importo totale della fattura (numero, punto decimale, senza simbolo di valuta)' },
-    scadenza: { type: 'STRING', description: 'Data di scadenza del pagamento, formato YYYY-MM-DD. Se non indicata nel documento, ometti il campo: non inventarla.' },
     metodo_pagamento: { type: 'STRING', description: 'Modalità di incasso se indicata: bonifico, RIBA, RID, contanti, altro' },
     note: { type: 'STRING', description: 'Eventuali dettagli utili non altrimenti catalogabili (es. rate/acconti indicati nel documento)' },
   },

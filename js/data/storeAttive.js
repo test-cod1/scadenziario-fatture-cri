@@ -20,7 +20,7 @@ export const fattureAttive = {
     for (let da = 0; ; da += BLOCCO) {
       const { data, error } = await sb.from("fatture_attive")
         .select("*, incassi(*), note_credito_attive_righe(*, note_credito_attive(numero, data, note))")
-        .order("scadenza", { ascending: true, nullsFirst: false })
+        .order("data_fattura", { ascending: true, nullsFirst: false })
         .order("id", { ascending: true })
         .range(da, da + BLOCCO - 1);
       if (error) throw error;

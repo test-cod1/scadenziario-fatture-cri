@@ -114,7 +114,7 @@ export function parseFatturaXml(xmlText) {
 // tracciato FatturaPA è lo stesso, cambia solo la parte anagrafica letta —
 // qui serve il CessionarioCommittente (l'acquirente, cioè il nostro cliente),
 // non il CedentePrestatore (che nelle fatture emesse siamo noi).
-// Ritorna { cliente, numero_fattura, data_fattura, importo, scadenza, metodo_pagamento, note }.
+// Ritorna { cliente, numero_fattura, data_fattura, importo, metodo_pagamento, note }.
 export function parseFatturaAttivaXml(xmlText) {
   const parser = new DOMParser();
   const doc = parser.parseFromString(xmlText, 'application/xml');
@@ -151,7 +151,6 @@ export function parseFatturaAttivaXml(xmlText) {
   rate.sort((a, b) => (a.scadenza || '').localeCompare(b.scadenza || ''));
 
   const importo = calcolaImporto(body, datiGen, rate);
-  const scadenza = rate[0]?.scadenza || '';
   const modPagTag = allTags(body, 'ModalitaPagamento')[0];
   const metodo_pagamento = modPagTag ? traduciModalita(modPagTag.textContent.trim()) : '';
 
@@ -174,7 +173,6 @@ export function parseFatturaAttivaXml(xmlText) {
     numero_fattura: numero_fattura || null,
     data_fattura: data_fattura || null,
     importo,
-    scadenza: scadenza || null,
     metodo_pagamento: metodo_pagamento || null,
     note: note || null,
   };

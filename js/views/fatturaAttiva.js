@@ -1,5 +1,4 @@
 import { fattureAttive, incassi, noteCreditoAttive } from '../data/storeAttive.js';
-import { impostazioni } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaAttivaXml } from '../lib/xmlFattura.js';
 
@@ -17,7 +16,7 @@ function metodoAmmesso(v) {
 // ============================================================
 export async function apriEditorAttiva(id, ctx, onSaved) {
   let rec = id ? await fattureAttive.get(id) : {
-    cliente: '', numero_fattura: '', data_fattura: todayISO(), importo: '', scadenza: '',
+    cliente: '', numero_fattura: '', data_fattura: todayISO(), importo: '',
     stato: 'da_incassare', metodo_incasso: '', note: '', data_sollecito: '', estratta_da_ai: false,
   };
   let viaAI = false;
@@ -39,10 +38,9 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
           <div class="field"><label>Cliente *</label><input type="text" id="f-cliente" value="${esc(rec.cliente)}"></div>
           <div class="field"><label>Numero fattura</label><input type="text" id="f-numero" value="${esc(rec.numero_fattura || '')}"></div>
         </div>
-        <div class="form-row three">
+        <div class="form-row">
           <div class="field"><label>Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
           <div class="field"><label>Importo (€) *</label><input type="number" step="0.01" id="f-importo" value="${esc(rec.importo ?? '')}"></div>
-          <div class="field"><label>Scadenza</label><input type="date" id="f-scadenza" value="${esc(rec.scadenza || '')}"></div>
         </div>
         <div class="form-row three">
           <div class="field"><label>Metodo di incasso</label><select id="f-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_incasso === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
@@ -88,7 +86,6 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
       if (estratti.numero_fattura) body.querySelector('#f-numero').value = estratti.numero_fattura;
       if (estratti.data_fattura) body.querySelector('#f-data').value = estratti.data_fattura;
       if (estratti.importo !== null && estratti.importo !== undefined) body.querySelector('#f-importo').value = estratti.importo;
-      if (estratti.scadenza) body.querySelector('#f-scadenza').value = estratti.scadenza;
       if (estratti.metodo_pagamento) body.querySelector('#f-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) body.querySelector('#f-note').value = estratti.note;
       viaAI = !!estratti._viaAI;
@@ -137,7 +134,6 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
       numero_fattura: body.querySelector('#f-numero').value.trim() || null,
       data_fattura: body.querySelector('#f-data').value || null,
       importo: parseEuro(body.querySelector('#f-importo').value),
-      scadenza: body.querySelector('#f-scadenza').value || null,
       metodo_incasso: body.querySelector('#f-metodo').value || null,
       data_sollecito: body.querySelector('#f-sollecito').value || null,
       note: body.querySelector('#f-note').value.trim() || null,
@@ -505,7 +501,6 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
             <div class="field"><label>Importo €</label><input type="number" step="0.01" class="i-importo"></div>
           </div>
           <div class="u-fields" style="margin-top:8px">
-            <div class="field"><label>Scadenza</label><input type="date" class="i-scadenza"></div>
             <div class="field"><label>Metodo</label><select class="i-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
             <div class="field" style="grid-column:span 2"><label>Note</label><input type="text" class="i-note"></div>
           </div>
@@ -533,7 +528,6 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
       if (estratti.numero_fattura) box.querySelector('.i-numero').value = estratti.numero_fattura;
       if (estratti.data_fattura) box.querySelector('.i-data').value = estratti.data_fattura;
       if (estratti.importo !== null && estratti.importo !== undefined) box.querySelector('.i-importo').value = estratti.importo;
-      if (estratti.scadenza) box.querySelector('.i-scadenza').value = estratti.scadenza;
       if (estratti.metodo_pagamento) box.querySelector('.i-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) box.querySelector('.i-note').value = estratti.note;
     }).catch(err => {
@@ -548,7 +542,6 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
         numero_fattura: box.querySelector('.i-numero').value.trim() || null,
         data_fattura: box.querySelector('.i-data').value || null,
         importo: parseEuro(box.querySelector('.i-importo').value),
-        scadenza: box.querySelector('.i-scadenza').value || null,
         metodo_incasso: box.querySelector('.i-metodo').value || null,
         note: box.querySelector('.i-note').value.trim() || null,
       };
@@ -584,27 +577,12 @@ async function confermaSeDuplicato(payload, escludiId) {
 }
 
 // ============================================================
-//  Salvataggio di una fattura attiva — stessa logica delle passive: se manca
-//  la scadenza, si applica lo scadenzario di default (stesso valore
-//  configurato in Impostazioni, condiviso fra le due sezioni).
+//  Salvataggio di una fattura attiva
 // ============================================================
 async function salvaFatturaAttiva(payload, viaAI) {
-  if (!payload.scadenza) payload.scadenza = await scadenzaDefault(payload.data_fattura);
   if (payload.id) return fattureAttive.save(payload);
   const id = nuovoIdFattura();
   return fattureAttive.save({ ...payload, id, estratta_da_ai: !!viaAI }, { nuovo: true });
-}
-
-async function scadenzaDefault(dataFattura) {
-  if (!dataFattura) return null;
-  let giorni = 60;
-  try {
-    const s = await impostazioni.get();
-    if (Number.isFinite(s?.giorni_scadenza_default)) giorni = s.giorni_scadenza_default;
-  } catch { /* un intoppo nella lettura non deve impedire il salvataggio: si usa il default */ }
-  const d = new Date(dataFattura + 'T00:00:00');
-  d.setDate(d.getDate() + giorni);
-  return d.toISOString().slice(0, 10);
 }
 
 function nuovoIdFattura() {

@@ -153,7 +153,7 @@ const SCHEMA_ATTIVA = {
   properties: {
     cliente: { type: 'STRING' }, numero_fattura: { type: 'STRING' },
     data_fattura: { type: 'STRING' }, importo: { type: 'NUMBER' },
-    scadenza: { type: 'STRING' }, metodo_pagamento: { type: 'STRING' }, note: { type: 'STRING' },
+    metodo_pagamento: { type: 'STRING' }, note: { type: 'STRING' },
   },
   required: ['cliente', 'importo'],
 };
