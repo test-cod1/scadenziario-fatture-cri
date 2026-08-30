@@ -14,7 +14,7 @@ export async function renderDashboard(view, ctx) {
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
   let proposteInAttesa = await caricaProposteInAttesa();
 
-  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '' };
+  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false };
   // Arrivo da un click su un fornitore nel Report: preimposta la ricerca e
   // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
   // nella dashboard finché non viene aperto di nuovo il Report.
@@ -75,12 +75,13 @@ export async function renderDashboard(view, ctx) {
     if (e.dataTransfer.files.length) apriUpload(ctx, ricarica, e.dataTransfer.files);
   });
 
-  renderStats(wrap.querySelector('#stats'), tutte);
+  renderStats(wrap.querySelector('#stats'), tutte, filtraInScadenza7);
   renderAlert(wrap.querySelector('#alert-zone'), tutte);
   if (state.q) wrap.querySelector('#q').value = state.q;
 
   function applyFilters() {
     let r = tutte;
+    if (state.soloAperte) r = r.filter(f => !STATI_CHIUSI.includes(f.stato));
     if (state.q) {
       const q = state.q.toLowerCase();
       r = r.filter(f => (f.fornitore || '').toLowerCase().includes(q) || (f.numero_fattura || '').toLowerCase().includes(q) || (f.note || '').toLowerCase().includes(q));
@@ -91,6 +92,25 @@ export async function renderDashboard(view, ctx) {
     if (state.importoMin) r = r.filter(f => Number(f.importo) >= Number(state.importoMin));
     if (state.importoMax) r = r.filter(f => Number(f.importo) <= Number(state.importoMax));
     return r;
+  }
+
+  // Clic sulla card "In scadenza (7 giorni)": filtra la tabella sotto sulle
+  // sole fatture di quella card (stesso calcolo di renderStats), azzerando
+  // gli altri filtri perché altrimenti potrebbero contraddirla silenziosamente
+  // (es. uno stato già scelto che esclude proprio quelle fatture).
+  function filtraInScadenza7() {
+    const oggi = new Date();
+    const tra7 = new Date(oggi); tra7.setDate(tra7.getDate() + 7);
+    const isoOggi = oggi.toISOString().slice(0, 10);
+    const isoTra7 = tra7.toISOString().slice(0, 10);
+    Object.assign(state, { q: '', stato: '', da: isoOggi, aData: isoTra7, importoMin: '', importoMax: '', soloAperte: true });
+    wrap.querySelector('#q').value = '';
+    wrap.querySelector('#f-stato').value = '';
+    wrap.querySelector('#f-da').value = isoOggi;
+    wrap.querySelector('#f-a').value = isoTra7;
+    wrap.querySelector('#f-min').value = '';
+    wrap.querySelector('#f-max').value = '';
+    refreshTable();
   }
 
   function refreshTable() {
@@ -112,20 +132,24 @@ export async function renderDashboard(view, ctx) {
   async function ricarica() {
     tutte = await fatture.list();
     proposteInAttesa = await caricaProposteInAttesa();
-    renderStats(wrap.querySelector('#stats'), tutte);
+    renderStats(wrap.querySelector('#stats'), tutte, filtraInScadenza7);
     renderAlert(wrap.querySelector('#alert-zone'), tutte);
     refreshTable();
   }
 
-  const onSearch = debounce(v => { state.q = v; refreshTable(); }, 250);
+  // Un tocco manuale a un qualsiasi altro filtro esce dalla vista "solo
+  // aperte" impostata da filtraInScadenza7: altrimenti scegliere ad es. lo
+  // stato "Pagata" darebbe sempre zero risultati, in contraddizione silenziosa
+  // con quel filtro rimasto attivo dietro le quinte.
+  const onSearch = debounce(v => { state.q = v; state.soloAperte = false; refreshTable(); }, 250);
   wrap.querySelector('#q').addEventListener('input', e => onSearch(e.target.value));
-  wrap.querySelector('#f-stato').addEventListener('change', e => { state.stato = e.target.value; refreshTable(); });
-  wrap.querySelector('#f-da').addEventListener('change', e => { state.da = e.target.value; refreshTable(); });
-  wrap.querySelector('#f-a').addEventListener('change', e => { state.aData = e.target.value; refreshTable(); });
-  wrap.querySelector('#f-min').addEventListener('input', debounce(e => { state.importoMin = e.target.value; refreshTable(); }, 250));
-  wrap.querySelector('#f-max').addEventListener('input', debounce(e => { state.importoMax = e.target.value; refreshTable(); }, 250));
+  wrap.querySelector('#f-stato').addEventListener('change', e => { state.stato = e.target.value; state.soloAperte = false; refreshTable(); });
+  wrap.querySelector('#f-da').addEventListener('change', e => { state.da = e.target.value; state.soloAperte = false; refreshTable(); });
+  wrap.querySelector('#f-a').addEventListener('change', e => { state.aData = e.target.value; state.soloAperte = false; refreshTable(); });
+  wrap.querySelector('#f-min').addEventListener('input', debounce(e => { state.importoMin = e.target.value; state.soloAperte = false; refreshTable(); }, 250));
+  wrap.querySelector('#f-max').addEventListener('input', debounce(e => { state.importoMax = e.target.value; state.soloAperte = false; refreshTable(); }, 250));
   wrap.querySelector('#f-reset').addEventListener('click', () => {
-    Object.assign(state, { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '' });
+    Object.assign(state, { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false });
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });
@@ -152,7 +176,7 @@ async function caricaProposteInAttesa() {
   } catch { return new Map(); }
 }
 
-function renderStats(node, tutte) {
+function renderStats(node, tutte, onClickInScadenza7) {
   clear(node);
   const nonPagate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
   const totaleDovuto = nonPagate.reduce((s, f) => s + f._residuo, 0);
@@ -168,11 +192,15 @@ function renderStats(node, tutte) {
   const cards = [
     { k: 'DA PAGARE (TOTALE)', v: fmtEuro(totaleDovuto), s: `${nonPagate.length} fatture`, cls: 'accent' },
     { k: 'SCADUTO E NON PAGATO', v: fmtEuro(totaleScaduto), s: `${scadute.length} fatture in ritardo`, cls: totaleScaduto > 0 ? 'warn' : '' },
-    { k: 'IN SCADENZA (7 GIORNI)', v: inScadenza7.length, s: fmtEuro(inScadenza7.reduce((s, f) => s + f._residuo, 0)), cls: '' },
+    { k: 'IN SCADENZA (7 GIORNI)', v: inScadenza7.length, s: fmtEuro(inScadenza7.reduce((s, f) => s + f._residuo, 0)), cls: '', onClick: onClickInScadenza7, titolo: 'Filtra la tabella su queste fatture' },
     { k: 'PAGATO QUESTO MESE', v: fmtEuro(pagatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok' },
     { k: 'PAGATO QUEST\'ANNO', v: fmtEuro(pagatoAnno), s: annoCorrente, cls: 'ok' },
   ];
-  for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
+  for (const c of cards) {
+    const cardEl = el(`<div class="stat ${c.cls}" ${c.titolo ? `title="${esc(c.titolo)}"` : ''}><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`);
+    if (c.onClick) { cardEl.classList.add('stat-clickable'); rendiCliccabile(cardEl, c.onClick); }
+    node.appendChild(cardEl);
+  }
 }
 
 function renderAlert(node, tutte) {
