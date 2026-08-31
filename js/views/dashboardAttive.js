@@ -1,5 +1,5 @@
 import { fattureAttive, incassi } from '../data/storeAttive.js';
-import { el, clear, esc, fmtDate, fmtEuro, debounce, rendiCliccabile } from '../lib/ui.js';
+import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, rendiCliccabile } from '../lib/ui.js';
 import { exportXLSXAttive, exportPDFAttive } from '../lib/export.js';
 import { apriEditorAttiva, apriUploadAttive, apriIncassoRapido, apriNuovaNotaCreditoAttiva, apriSollecitoRapido } from './fatturaAttiva.js';
 import { FILTRO_CLIENTE_KEY } from './reportAttive.js';
@@ -46,6 +46,7 @@ export async function renderDashboardAttive(view, ctx) {
         <button class="btn primary" id="nuova">+ Nuova fattura</button>
       </div>
     </div>
+    <div id="alert-zone"></div>
     <div class="grid stats" id="stats" style="margin-bottom:22px"></div>
     <div class="toolbar">
       <div class="search"><span class="search-icon">🔎</span><input type="text" id="q" placeholder="Cerca cliente, numero fattura, note…"></div>
@@ -92,6 +93,7 @@ export async function renderDashboardAttive(view, ctx) {
   });
 
   renderStats(wrap.querySelector('#stats'), tutte, incassatoMese, incassatoAnno);
+  renderAlertAttive(wrap.querySelector('#alert-zone'), tutte);
   if (state.q) wrap.querySelector('#q').value = state.q;
 
   // Vedi il commento gemello in dashboard.js: l'archivio si carica solo alla
@@ -140,6 +142,7 @@ export async function renderDashboardAttive(view, ctx) {
       fattureAttive.contaArchivio(),
     ]);
     renderStats(wrap.querySelector('#stats'), tutte, incassatoMese, incassatoAnno);
+    renderAlertAttive(wrap.querySelector('#alert-zone'), tutte);
     refreshTable();
     wrap.querySelector('#archivio-conta').textContent = contaArchivio;
     if (wrap.querySelector('#archivio').open) { archivioCaricato = false; await caricaArchivio(); }
@@ -182,6 +185,18 @@ function renderStats(node, tutte, incassatoMese, incassatoAnno) {
     { k: 'INCASSATO QUEST\'ANNO', v: fmtEuro(incassatoAnno), s: annoCorrente, cls: 'ok' },
   ];
   for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
+}
+
+// Le fatture attive non hanno una scadenza propria (a differenza delle
+// passive): l'unico riferimento temporale è la data di emissione, quindi
+// l'avviso segnala chi non è ancora stato incassato a distanza di oltre 60
+// giorni da quella data, indipendentemente da eventuali solleciti già inviati.
+function renderAlertAttive(node, tutte) {
+  clear(node);
+  const nonIncassate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato) && f.data_fattura);
+  const oltre60 = nonIncassate.filter(f => { const g = giorniDa(f.data_fattura); return g !== null && -g > 60; });
+  if (!oltre60.length) return;
+  node.appendChild(el(`<div class="banner danger"><div class="bi">⚠️</div><div><b>⚠️ ${oltre60.length} fattura/e emesse da oltre 60 giorni e non ancora incassate</b></div></div>`));
 }
 
 function renderTable(node, righe, ctx, ricarica) {
