@@ -28,7 +28,7 @@ export async function renderDashboardAttive(view, ctx) {
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
   let archivioCaricato = false;
 
-  const state = { q: '', stato: '', importoMin: '', importoMax: '' };
+  const state = { q: '', stato: '', importoMin: '', importoMax: '', soloAperte: false, soloIncassateMese: false };
   // Arrivo da un click su un cliente nel Report: preimposta la ricerca e
   // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
   // nella dashboard finché non viene aperto di nuovo il Report.
@@ -92,7 +92,7 @@ export async function renderDashboardAttive(view, ctx) {
     if (e.dataTransfer.files.length) apriUploadAttive(ctx, ricarica, e.dataTransfer.files);
   });
 
-  renderStats(wrap.querySelector('#stats'), tutte, incassatoMese, incassatoAnno);
+  renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraIncassatoMese, incassatoMese, incassatoAnno);
   renderAlertAttive(wrap.querySelector('#alert-zone'), tutte);
   if (state.q) wrap.querySelector('#q').value = state.q;
 
@@ -116,6 +116,11 @@ export async function renderDashboardAttive(view, ctx) {
 
   function applyFilters() {
     let r = tutte;
+    if (state.soloAperte) r = r.filter(f => !STATI_CHIUSI.includes(f.stato));
+    if (state.soloIncassateMese) {
+      const { oggi, inizioMese } = confiniPeriodoCorrente();
+      r = r.filter(f => (f.incassi || []).some(inc => inc.data_incasso >= inizioMese && inc.data_incasso <= oggi));
+    }
     if (state.q) {
       const q = state.q.toLowerCase();
       r = r.filter(f => (f.cliente || '').toLowerCase().includes(q) || (f.numero_fattura || '').toLowerCase().includes(q) || (f.note || '').toLowerCase().includes(q));
@@ -130,6 +135,24 @@ export async function renderDashboardAttive(view, ctx) {
     renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica);
   }
 
+  // Vedi il commento gemello in dashboard.js: clic sulla card "Da incassare
+  // (totale)", filtra sulle fatture ancora aperte azzerando gli altri filtri.
+  function filtraSoloAperte() {
+    Object.assign(state, { q: '', stato: '', importoMin: '', importoMax: '', soloAperte: true, soloIncassateMese: false });
+    wrap.querySelectorAll('#q,#f-stato,#f-min,#f-max').forEach(i => i.value = '');
+    refreshTable();
+  }
+
+  // Clic sulla card "Incassato questo mese": filtra sulle fatture che hanno
+  // ricevuto almeno un incasso nel mese corrente (stesso intervallo usato per
+  // calcolare il valore della card) — a differenza di filtraSoloAperte non è
+  // un filtro sullo stato della fattura, ma sulla data dei suoi incassi.
+  function filtraIncassatoMese() {
+    Object.assign(state, { q: '', stato: '', importoMin: '', importoMax: '', soloAperte: false, soloIncassateMese: true });
+    wrap.querySelectorAll('#q,#f-stato,#f-min,#f-max').forEach(i => i.value = '');
+    refreshTable();
+  }
+
   // Vedi il commento gemello in dashboard.js: si ricaricano sempre sia il
   // sottoinsieme attivo sia, se il pannello è già aperto, l'archivio.
   async function ricarica() {
@@ -141,20 +164,23 @@ export async function renderDashboardAttive(view, ctx) {
       incassi.sommaPeriodo(inizioAnno, oggi),
       fattureAttive.contaArchivio(),
     ]);
-    renderStats(wrap.querySelector('#stats'), tutte, incassatoMese, incassatoAnno);
+    renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraIncassatoMese, incassatoMese, incassatoAnno);
     renderAlertAttive(wrap.querySelector('#alert-zone'), tutte);
     refreshTable();
     wrap.querySelector('#archivio-conta').textContent = contaArchivio;
     if (wrap.querySelector('#archivio').open) { archivioCaricato = false; await caricaArchivio(); }
   }
 
-  const onSearch = debounce(v => { state.q = v; refreshTable(); }, 250);
+  // Un tocco manuale a un qualsiasi altro filtro esce dalle viste impostate
+  // da filtraSoloAperte/filtraIncassatoMese: vedi il commento gemello in
+  // dashboard.js.
+  const onSearch = debounce(v => { state.q = v; state.soloAperte = false; state.soloIncassateMese = false; refreshTable(); }, 250);
   wrap.querySelector('#q').addEventListener('input', e => onSearch(e.target.value));
-  wrap.querySelector('#f-stato').addEventListener('change', e => { state.stato = e.target.value; refreshTable(); });
-  wrap.querySelector('#f-min').addEventListener('input', debounce(e => { state.importoMin = e.target.value; refreshTable(); }, 250));
-  wrap.querySelector('#f-max').addEventListener('input', debounce(e => { state.importoMax = e.target.value; refreshTable(); }, 250));
+  wrap.querySelector('#f-stato').addEventListener('change', e => { state.stato = e.target.value; state.soloAperte = false; state.soloIncassateMese = false; refreshTable(); });
+  wrap.querySelector('#f-min').addEventListener('input', debounce(e => { state.importoMin = e.target.value; state.soloAperte = false; state.soloIncassateMese = false; refreshTable(); }, 250));
+  wrap.querySelector('#f-max').addEventListener('input', debounce(e => { state.importoMax = e.target.value; state.soloAperte = false; state.soloIncassateMese = false; refreshTable(); }, 250));
   wrap.querySelector('#f-reset').addEventListener('click', () => {
-    Object.assign(state, { q: '', stato: '', importoMin: '', importoMax: '' });
+    Object.assign(state, { q: '', stato: '', importoMin: '', importoMax: '', soloAperte: false, soloIncassateMese: false });
     wrap.querySelectorAll('#q,#f-stato,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });
@@ -172,7 +198,7 @@ export async function renderDashboardAttive(view, ctx) {
 // mese/anno" arriva già calcolato da fuori (incassi.sommaPeriodo,
 // indipendente da cosa è archiviato) — vedi il commento gemello in
 // dashboard.js.
-function renderStats(node, tutte, incassatoMese, incassatoAnno) {
+function renderStats(node, tutte, onClickTotale, onClickIncassatoMese, incassatoMese, incassatoAnno) {
   clear(node);
   const nonIncassate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
   const totaleDovuto = nonIncassate.reduce((s, f) => s + f._residuo, 0);
@@ -180,11 +206,15 @@ function renderStats(node, tutte, incassatoMese, incassatoAnno) {
   const annoCorrente = oggi.slice(0, 4);
 
   const cards = [
-    { k: 'DA INCASSARE (TOTALE)', v: fmtEuro(totaleDovuto), s: `${nonIncassate.length} fatture`, cls: 'accent' },
-    { k: 'INCASSATO QUESTO MESE', v: fmtEuro(incassatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok' },
+    { k: 'DA INCASSARE (TOTALE)', v: fmtEuro(totaleDovuto), s: `${nonIncassate.length} fatture`, cls: 'accent', onClick: onClickTotale, titolo: 'Filtra la tabella su queste fatture' },
+    { k: 'INCASSATO QUESTO MESE', v: fmtEuro(incassatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok', onClick: onClickIncassatoMese, titolo: 'Filtra la tabella su queste fatture' },
     { k: 'INCASSATO QUEST\'ANNO', v: fmtEuro(incassatoAnno), s: annoCorrente, cls: 'ok' },
   ];
-  for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
+  for (const c of cards) {
+    const cardEl = el(`<div class="stat ${c.cls}" ${c.titolo ? `title="${esc(c.titolo)}"` : ''}><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`);
+    if (c.onClick) { cardEl.classList.add('stat-clickable'); rendiCliccabile(cardEl, c.onClick); }
+    node.appendChild(cardEl);
+  }
 }
 
 // Le fatture attive non hanno una scadenza propria (a differenza delle

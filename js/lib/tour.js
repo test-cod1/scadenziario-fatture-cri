@@ -73,7 +73,7 @@ function costruisciPassi(ctx) {
     {
       selettore: '#stats',
       titolo: 'Da incassare',
-      testo: 'Qui vedi quanto c\'è ancora da incassare in totale e quanto hai già incassato questo mese e quest\'anno.',
+      testo: 'Qui vedi quanto c\'è ancora da incassare in totale e quanto hai già incassato questo mese e quest\'anno. Le card "Da incassare" e "Incassato questo mese" sono cliccabili: filtrano subito la tabella su quelle fatture.',
     },
     {
       hash: '#/attive/report',
