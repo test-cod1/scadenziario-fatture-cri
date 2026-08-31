@@ -4,6 +4,27 @@ import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, par
 
 export { METODI };
 
+// Somma giorni a una data ISO (YYYY-MM-DD) restando sempre in UTC: costruire
+// una Date locale (new Date(iso + 'T00:00:00')) e poi leggerla con
+// toISOString() sbaglia di un giorno in qualunque fuso avanti rispetto a UTC
+// (Italia compresa, sia in ora solare che legale) perché la mezzanotte locale
+// del risultato, riconvertita in UTC, cade nel giorno precedente.
+function sommaGiorniISO(iso, giorni) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + giorni)).toISOString().slice(0, 10);
+}
+
+// Scorciatoie "30gg"/"60gg" accanto al campo Scadenza: calcolano la data a
+// partire dalla data fattura invece di doverla sommare a mano ogni volta.
+// Condivisa fra l'editor singolo (id) e il caricamento multiplo (classi,
+// scoped al riquadro della fattura corrente): serve solo il container in cui
+// cercare i due campi.
+function impostaScadenzaOffset(scope, selettoreData, selettoreScadenza, giorni) {
+  const dataInput = scope.querySelector(selettoreData).value;
+  if (!dataInput) { toast('Indica prima la data fattura', 'err'); return; }
+  scope.querySelector(selettoreScadenza).value = sommaGiorniISO(dataInput, giorni);
+}
+
 // Riporta un valore qualsiasi dentro la lista: così un metodo non previsto
 // diventa "altro" invece di sparire senza dire nulla.
 function metodoAmmesso(v) {
@@ -44,7 +65,12 @@ export async function apriEditor(id, ctx, onSaved) {
         <div class="form-row three">
           <div class="field"><label>Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
           <div class="field"><label>Importo (€) *</label><input type="number" step="0.01" id="f-importo" value="${esc(rec.importo ?? '')}"></div>
-          <div class="field"><label>Scadenza</label><input type="date" id="f-scadenza" value="${esc(rec.scadenza || '')}"></div>
+          <div class="field"><label>Scadenza</label><input type="date" id="f-scadenza" value="${esc(rec.scadenza || '')}">
+            <div style="display:flex;gap:6px;margin-top:6px">
+              <button type="button" class="btn ghost sm" id="f-scad-30" title="Calcola: data fattura + 30 giorni">30gg</button>
+              <button type="button" class="btn ghost sm" id="f-scad-60" title="Calcola: data fattura + 60 giorni">60gg</button>
+            </div>
+          </div>
         </div>
         <div class="form-row">
           <div class="field"><label>Metodo di pagamento</label><select id="f-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
@@ -75,6 +101,11 @@ export async function apriEditor(id, ctx, onSaved) {
     disegnaPagamentiENote();
   }
   if (id) disegnaPagamentiENote();
+
+  // Scorciatoie "30gg"/"60gg": calcolano la scadenza a partire dalla data
+  // fattura invece di doverla sommare a mano ogni volta.
+  body.querySelector('#f-scad-30').addEventListener('click', () => impostaScadenzaOffset(body, '#f-data', '#f-scadenza', 30));
+  body.querySelector('#f-scad-60').addEventListener('click', () => impostaScadenzaOffset(body, '#f-data', '#f-scadenza', 60));
 
   body.querySelector('#file-in').addEventListener('change', async (e) => {
     const file = e.target.files[0];
@@ -570,7 +601,12 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
             <div class="field"><label>Importo €</label><input type="number" step="0.01" class="i-importo"></div>
           </div>
           <div class="u-fields" style="margin-top:8px">
-            <div class="field"><label>Scadenza</label><input type="date" class="i-scadenza"></div>
+            <div class="field"><label>Scadenza</label><input type="date" class="i-scadenza">
+              <div style="display:flex;gap:6px;margin-top:6px">
+                <button type="button" class="btn ghost sm i-scad-30" title="Calcola: data fattura + 30 giorni">30gg</button>
+                <button type="button" class="btn ghost sm i-scad-60" title="Calcola: data fattura + 60 giorni">60gg</button>
+              </div>
+            </div>
             <div class="field"><label>Metodo</label><select class="i-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
             <div class="field" style="grid-column:span 2"><label>Note</label><input type="text" class="i-note"></div>
           </div>
@@ -584,6 +620,9 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
       </div>
     </div>`);
     zona.appendChild(box);
+
+    box.querySelector('.i-scad-30').addEventListener('click', () => impostaScadenzaOffset(box, '.i-data', '.i-scadenza', 30));
+    box.querySelector('.i-scad-60').addEventListener('click', () => impostaScadenzaOffset(box, '.i-data', '.i-scadenza', 60));
 
     const { node, url } = renderAnteprimaFile(file);
     if (url) previewUrls.push(url);
@@ -692,9 +731,7 @@ async function scadenzaDefault(dataFattura) {
     const s = await impostazioni.get();
     if (Number.isFinite(s?.giorni_scadenza_default)) giorni = s.giorni_scadenza_default;
   } catch { /* un intoppo nella lettura non deve impedire il salvataggio: si usa il default */ }
-  const d = new Date(dataFattura + 'T00:00:00');
-  d.setDate(d.getDate() + giorni);
-  return d.toISOString().slice(0, 10);
+  return sommaGiorniISO(dataFattura, giorni);
 }
 
 function nuovoIdFattura() {
