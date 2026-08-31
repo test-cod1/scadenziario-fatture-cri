@@ -126,6 +126,12 @@ export const fattureAttive = {
     const { error } = await sb.from("fatture_attive").delete().eq("id", id);
     if (error) throw error;
   },
+  // Elenco dei clienti già usati, per l'autocompletamento nell'editor: vedi
+  // il commento gemello su fatture.fornitoriNoti() in store.js.
+  async clientiNoti() {
+    const { nomiNoti } = await import('./store.js');
+    return nomiNoti('fatture_attive', 'cliente');
+  },
   // Aggiorna solo la data dell'ultimo sollecito inviato al cliente: azione
   // rapida dalla dashboard, non passa per il resto dell'editor.
   async segnaSollecito(id, data_sollecito) {
@@ -199,11 +205,22 @@ export const incassi = {
   },
   // Vedi il commento gemello in store.js: somma degli incassi in un
   // intervallo di date, di qualunque fattura anche se ormai archiviata.
+  //  Scorre a blocchi come list(): senza, PostgREST tronca a 1000 righe e la
+  //  somma risultava più bassa del vero senza alcun errore visibile.
   async sommaPeriodo(da, a) {
     const sb = await sbClient();
-    const { data, error } = await sb.from('incassi').select('importo').gte('data_incasso', da).lte('data_incasso', a);
-    if (error) throw error;
-    return data.reduce((s, p) => s + Number(p.importo || 0), 0);
+    const BLOCCO = 1000;
+    let totale = 0;
+    for (let inizio = 0; ; inizio += BLOCCO) {
+      const { data, error } = await sb.from('incassi').select('importo')
+        .gte('data_incasso', da).lte('data_incasso', a)
+        .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
+        .range(inizio, inizio + BLOCCO - 1);
+      if (error) throw error;
+      totale = data.reduce((s, p) => s + Number(p.importo || 0), totale);
+      if (data.length < BLOCCO) break;
+    }
+    return totale;
   },
 };
 

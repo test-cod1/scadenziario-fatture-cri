@@ -1,5 +1,5 @@
 import { fatture, pagamenti, proposte } from '../data/store.js';
-import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast, rendiCliccabile } from '../lib/ui.js';
+import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast, rendiCliccabile, todayISO, sommaGiorniISO, fineMeseISO } from '../lib/ui.js';
 import { exportXLSX, exportPDF } from '../lib/export.js';
 import { apriEditor, apriUpload, apriPagamentoRapido, apriProponiPagamento, apriNuovaNotaCredito } from './fattura.js';
 import { FILTRO_FORNITORE_KEY } from './report.js';
@@ -10,25 +10,38 @@ const STATI_CHIUSI = ['pagata', 'stornata']; // niente altro da pagare: il chip 
 
 // Confini dell'intervallo "questo mese"/"quest'anno", usati sia al primo
 // caricamento sia a ogni ricarica per le statistiche di pagato.
+//
+// I periodi coprono il mese e l'anno INTERI, non si fermano a oggi: le card
+// si intitolano "agosto 2026" e "2026", quindi devono contare anche un
+// pagamento registrato con data più avanti nello stesso mese (capita, ad
+// esempio, annotando un bonifico con la sua data valuta). Fermandosi a oggi
+// il totale contraddiceva la propria etichetta.
 function confiniPeriodoCorrente() {
-  const oggi = new Date().toISOString().slice(0, 10);
-  return { oggi, inizioMese: oggi.slice(0, 7) + '-01', inizioAnno: oggi.slice(0, 4) + '-01-01' };
+  const oggi = todayISO();
+  const inizioMese = oggi.slice(0, 7) + '-01';
+  const anno = oggi.slice(0, 4);
+  return {
+    oggi,
+    inizioMese, fineMese: fineMeseISO(oggi),
+    inizioAnno: `${anno}-01-01`, fineAnno: `${anno}-12-31`,
+  };
 }
 
 export async function renderDashboard(view, ctx) {
   let tutte = [], pagatoMese = 0, pagatoAnno = 0, contaArchivio = 0;
   try {
-    const { oggi, inizioMese, inizioAnno } = confiniPeriodoCorrente();
+    const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
     [tutte, pagatoMese, pagatoAnno, contaArchivio] = await Promise.all([
       fatture.listAperte(),
-      pagamenti.sommaPeriodo(inizioMese, oggi),
-      pagamenti.sommaPeriodo(inizioAnno, oggi),
+      pagamenti.sommaPeriodo(inizioMese, fineMese),
+      pagamenti.sommaPeriodo(inizioAnno, fineAnno),
       fatture.contaArchivio(),
     ]);
   }
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
   let proposteInAttesa = await caricaProposteInAttesa();
   let archivioCaricato = false;
+  let archivio = [];   // fatture chiuse di anni precedenti, caricate su richiesta (vedi caricaArchivio)
 
   const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false };
   // Arrivo da un click su un fornitore nel Report: preimposta la ricerca e
@@ -106,16 +119,19 @@ export async function renderDashboard(view, ctx) {
 
   // L'archivio si carica solo alla prima apertura (evento nativo "toggle"
   // del <details>): non serve altro codice per renderlo raggiungibile da
-  // tastiera, <summary> lo è già di suo.
+  // tastiera, <summary> lo è già di suo. Viene però caricato anche da solo
+  // appena si usa un filtro o la ricerca (vedi filtriAttivi/refreshTable):
+  // prima una fattura vecchia già pagata non veniva trovata cercandola, e
+  // sembrava non essere mai stata inserita.
   async function caricaArchivio() {
     if (archivioCaricato) return;
     const zona = wrap.querySelector('#archivio-zone');
     clear(zona);
     zona.appendChild(el('<div class="spinner" style="margin:20px auto"></div>'));
     try {
-      const righe = await fatture.listArchivio();
+      archivio = await fatture.listArchivio();
       archivioCaricato = true;
-      renderTable(zona, righe, ctx, ricarica, proposteInAttesa);
+      disegnaArchivio();
     } catch (e) {
       clear(zona);
       zona.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${esc(e.message)}</p></div>`));
@@ -123,8 +139,20 @@ export async function renderDashboard(view, ctx) {
   }
   wrap.querySelector('#archivio').addEventListener('toggle', (e) => { if (e.target.open) caricaArchivio(); });
 
-  function applyFilters() {
-    let r = tutte;
+  // Gli stessi filtri della tabella principale valgono anche per l'archivio:
+  // altrimenti il pannello mostrava sempre tutto, ignorando la ricerca appena
+  // digitata sopra.
+  function disegnaArchivio() {
+    if (!archivioCaricato) return;
+    renderTable(wrap.querySelector('#archivio-zone'), applyFilters(archivio), ctx, ricarica, proposteInAttesa);
+  }
+
+  function filtriAttivi() {
+    return !!(state.q || state.stato || state.da || state.aData || state.importoMin || state.importoMax);
+  }
+
+  function applyFilters(sorgente = tutte) {
+    let r = sorgente;
     if (state.soloAperte) r = r.filter(f => !STATI_CHIUSI.includes(f.stato));
     if (state.q) {
       const q = state.q.toLowerCase();
@@ -136,6 +164,15 @@ export async function renderDashboard(view, ctx) {
     if (state.importoMin) r = r.filter(f => Number(f.importo) >= Number(state.importoMin));
     if (state.importoMax) r = r.filter(f => Number(f.importo) <= Number(state.importoMax));
     return r;
+  }
+
+  // Righe da esportare: sempre TUTTE quelle che rispettano i filtri, archivio
+  // compreso — se non è ancora stato scaricato lo si scarica adesso. Prima
+  // l'export lavorava solo sul sottoinsieme "aperte" e ometteva in silenzio le
+  // fatture chiuse di anni precedenti, anche col pannello archivio aperto.
+  async function righeDaEsportare() {
+    await caricaArchivio();
+    return [...applyFilters(tutte), ...applyFilters(archivio)];
   }
 
   // Clic sulla card "Da pagare (totale)": filtra la tabella sulle fatture
@@ -151,8 +188,7 @@ export async function renderDashboard(view, ctx) {
   // (fatture aperte con scadenza già passata), qui espresso come filtro per
   // data fino a ieri incluso.
   function filtraScadute() {
-    const ieri = new Date(); ieri.setDate(ieri.getDate() - 1);
-    const isoIeri = ieri.toISOString().slice(0, 10);
+    const isoIeri = sommaGiorniISO(todayISO(), -1);
     Object.assign(state, { q: '', stato: '', da: '', aData: isoIeri, importoMin: '', importoMax: '', soloAperte: true });
     wrap.querySelector('#q').value = '';
     wrap.querySelector('#f-stato').value = '';
@@ -168,10 +204,8 @@ export async function renderDashboard(view, ctx) {
   // gli altri filtri perché altrimenti potrebbero contraddirla silenziosamente
   // (es. uno stato già scelto che esclude proprio quelle fatture).
   function filtraInScadenza7() {
-    const oggi = new Date();
-    const tra7 = new Date(oggi); tra7.setDate(tra7.getDate() + 7);
-    const isoOggi = oggi.toISOString().slice(0, 10);
-    const isoTra7 = tra7.toISOString().slice(0, 10);
+    const isoOggi = todayISO();
+    const isoTra7 = sommaGiorniISO(isoOggi, 7);
     Object.assign(state, { q: '', stato: '', da: isoOggi, aData: isoTra7, importoMin: '', importoMax: '', soloAperte: true });
     wrap.querySelector('#q').value = '';
     wrap.querySelector('#f-stato').value = '';
@@ -185,6 +219,21 @@ export async function renderDashboard(view, ctx) {
   function refreshTable() {
     renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica, proposteInAttesa);
     mostraNotaSenzaScadenza();
+    // Appena si cerca o si filtra, l'archivio va caricato e filtrato anche
+    // lui: chi cerca una fattura del 2025 già pagata deve trovarla, non
+    // ricevere "nessun risultato".
+    if (filtriAttivi() && !archivioCaricato) caricaArchivio();
+    else disegnaArchivio();
+    aggiornaConteggioArchivio();
+  }
+
+  // Il titolo del pannello dice quante fatture archiviate rientrano nei
+  // filtri correnti, così il risultato è visibile senza doverlo aprire.
+  function aggiornaConteggioArchivio() {
+    const zona = wrap.querySelector('#archivio-conta');
+    if (!archivioCaricato) { zona.textContent = contaArchivio; return; }
+    const trovate = applyFilters(archivio).length;
+    zona.textContent = filtriAttivi() ? `${trovate} di ${archivio.length}` : archivio.length;
   }
 
   // Un filtro per data esclude necessariamente le fatture prive di scadenza:
@@ -204,20 +253,23 @@ export async function renderDashboard(view, ctx) {
   // sottoinsieme attivo E, se il pannello è già aperto, l'archivio — non solo
   // quello da cui è partita la modifica.
   async function ricarica() {
-    const { oggi, inizioMese, inizioAnno } = confiniPeriodoCorrente();
-    let contaArchivio;
+    const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
+    // Niente `let contaArchivio` qui: dichiararlo di nuovo mascherava quello
+    // esterno, che restava fermo al valore del primo caricamento.
     [tutte, pagatoMese, pagatoAnno, contaArchivio] = await Promise.all([
       fatture.listAperte(),
-      pagamenti.sommaPeriodo(inizioMese, oggi),
-      pagamenti.sommaPeriodo(inizioAnno, oggi),
+      pagamenti.sommaPeriodo(inizioMese, fineMese),
+      pagamenti.sommaPeriodo(inizioAnno, fineAnno),
       fatture.contaArchivio(),
     ]);
     proposteInAttesa = await caricaProposteInAttesa();
+    // L'archivio va riletto se era già stato scaricato, non solo se il
+    // pannello è aperto: da quando ricerca ed export lo usano, può essere in
+    // memoria anche a pannello chiuso.
+    if (archivioCaricato) { archivioCaricato = false; await caricaArchivio(); }
     renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraScadute, filtraInScadenza7, pagatoMese, pagatoAnno);
     renderAlert(wrap.querySelector('#alert-zone'), tutte);
     refreshTable();
-    wrap.querySelector('#archivio-conta').textContent = contaArchivio;
-    if (wrap.querySelector('#archivio').open) { archivioCaricato = false; await caricaArchivio(); }
   }
 
   // Un tocco manuale a un qualsiasi altro filtro esce dalla vista "solo
@@ -236,8 +288,21 @@ export async function renderDashboard(view, ctx) {
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });
-  wrap.querySelector('#exp-csv').addEventListener('click', () => exportXLSX(applyFilters()));
-  wrap.querySelector('#exp-pdf').addEventListener('click', () => exportPDF(applyFilters()));
+  collegaExport('#exp-csv', exportXLSX);
+  collegaExport('#exp-pdf', exportPDF);
+
+  // L'export può dover prima scaricare l'archivio: si disabilita il pulsante
+  // nel frattempo, così non si generano due file per un doppio click.
+  function collegaExport(selettore, esporta) {
+    const btn = wrap.querySelector(selettore);
+    btn.addEventListener('click', async () => {
+      const old = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Preparazione…';
+      try { esporta(await righeDaEsportare()); }
+      catch (e) { toast('Errore nell\'export: ' + e.message, 'err'); }
+      finally { btn.disabled = false; btn.innerHTML = old; }
+    });
+  }
   wrap.querySelector('#nuova').addEventListener('click', () => apriEditor(null, ctx, ricarica));
   wrap.querySelector('#carica').addEventListener('click', () => apriUpload(ctx, ricarica));
   wrap.querySelector('#nuova-nc').addEventListener('click', () => apriNuovaNotaCredito(ctx, ricarica));
@@ -251,12 +316,8 @@ export async function renderDashboard(view, ctx) {
 // eseguita) si degrada in silenzio a "nessuna proposta", senza rompere la
 // dashboard.
 async function caricaProposteInAttesa() {
-  try {
-    const righe = await proposte.list();
-    const mappa = new Map();
-    for (const r of righe) if (r.stato === 'proposta') mappa.set(r.fattura_id, (mappa.get(r.fattura_id) || 0) + 1);
-    return mappa;
-  } catch { return new Map(); }
+  try { return await proposte.conteggioInAttesa(); }
+  catch { return new Map(); }
 }
 
 // `tutte` è il sottoinsieme "attivo" (fatture.listAperte): esclude le
@@ -269,7 +330,7 @@ function renderStats(node, tutte, onClickTotale, onClickScadute, onClickInScaden
   clear(node);
   const nonPagate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
   const totaleDovuto = nonPagate.reduce((s, f) => s + f._residuo, 0);
-  const oggi = new Date().toISOString().slice(0, 10);
+  const oggi = todayISO();
   const scadute = nonPagate.filter(f => f.scadenza && f.scadenza < oggi);
   const totaleScaduto = scadute.reduce((s, f) => s + f._residuo, 0);
   const annoCorrente = oggi.slice(0, 4);
@@ -291,7 +352,7 @@ function renderStats(node, tutte, onClickTotale, onClickScadute, onClickInScaden
 
 function renderAlert(node, tutte) {
   clear(node);
-  const oggi = new Date().toISOString().slice(0, 10);
+  const oggi = todayISO();
   const nonPagate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato) && f.scadenza);
   const scadute = nonPagate.filter(f => f.scadenza < oggi);
   const entro7 = nonPagate.filter(f => { const g = giorniDa(f.scadenza); return g >= 0 && g <= 7; });
@@ -308,7 +369,7 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
   const isAdmin = ctx.user.ruolo === 'admin';
   const azione = isAdmin ? apriPagamentoRapido : apriProponiPagamento;
   const titoloChip = isAdmin ? 'Clicca per segnare un pagamento' : 'Clicca per proporre un pagamento';
-  const oggi = new Date().toISOString().slice(0, 10);
+  const oggi = todayISO();
   const table = el(`<table class="tbl tbl-fatture"><thead><tr>
     <th>Fornitore</th><th>N. Fattura</th><th>Data</th><th class="money-col">Importo</th><th>Scadenza</th><th>Stato</th><th class="money-col">Residuo</th><th></th>
   </tr></thead><tbody></tbody></table>`);

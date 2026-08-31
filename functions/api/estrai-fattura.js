@@ -10,9 +10,8 @@
 //  (chiave gratuita da https://aistudio.google.com/apikey)
 // ============================================================
 
-import { requireUser } from '../_lib/auth.js';
-
-const MODEL = 'gemini-3.6-flash';
+import { requireUser, ruoloUtente, RUOLI_ABILITATI } from '../_lib/auth.js';
+import { MODELLO_GEMINI } from '../_lib/gemini.mjs';
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -35,6 +34,15 @@ export async function onRequestPost(context) {
   const user = await requireUser(request, env);
   if (!user) return json({ error: 'Accesso non autorizzato: effettua il login.' }, 401);
 
+  // Un account che esiste ma non è ancora stato abilitato da un admin non
+  // vede alcun dato per via delle RLS, ma il suo token resta valido: senza
+  // questo controllo poteva comunque interrogare Gemini in loop ed esaurire
+  // la quota gratuita giornaliera per tutti gli altri.
+  const ruolo = await ruoloUtente(request, env, user.id);
+  if (!RUOLI_ABILITATI.includes(ruolo)) {
+    return json({ error: 'Il tuo account non è ancora abilitato: chiedi a un amministratore.' }, 403);
+  }
+
   if (!env.GEMINI_API_KEY) return json({ error: 'Chiave Gemini non configurata (GEMINI_API_KEY).' }, 500);
 
   let body;
@@ -46,7 +54,7 @@ export async function onRequestPost(context) {
   // pensata per allegati di pochi MB (fatture singole), non per archivi.
   if (dataBase64.length > 20_000_000) return json({ error: 'File troppo grande.' }, 413);
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODELLO_GEMINI}:generateContent?key=${env.GEMINI_API_KEY}`;
   const payload = {
     contents: [{
       parts: [

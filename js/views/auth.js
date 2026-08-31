@@ -93,7 +93,7 @@ export function renderResetPassword(app, onDone, { invite = false, obbligatorio 
     try {
       await auth.updatePassword(pw1);
       if (obbligatorio) await auth.confermaPasswordImpostata();
-      history.replaceState(null, '', location.pathname + '#/fatture');
+      history.replaceState(null, '', location.pathname + '#/passive/fatture');
       toast(invite || obbligatorio ? 'Password creata' : 'Password aggiornata', 'ok');
       onDone();
     } catch (e) {

@@ -13,15 +13,17 @@ Le due sezioni hanno tabelle, dati e permessi separati: nulla di quanto inserito
 1. Vai su [supabase.com](https://supabase.com) → New project (regione **EU**, es. Frankfurt).
 2. Apri **SQL Editor** → New query → copia tutto il contenuto di [`supabase/schema.sql`](supabase/schema.sql) → Run.
 3. Vai su **Authentication → Sign In / Providers** e imposta **"Allow new users to sign up" = OFF**: senza questa modifica chiunque conosca l'indirizzo del sito può crearsi un account.
-4. Crea il tuo account: **Authentication → Users → Add user**. I colleghi successivi puoi crearli direttamente dall'app (vedi sotto "Aggiungere utenti dall'app"), oppure allo stesso modo da qui.
+4. Crea il tuo account: **Authentication → Users → Add user**. I colleghi successivi puoi crearli direttamente dall'app (vedi sotto "Gestire gli utenti dall'app"), oppure allo stesso modo da qui.
 5. Promuoviti ad admin, in SQL Editor:
    ```sql
    update public.profili set ruolo='admin' where email='tua@email.it';
    ```
-   Ogni profilo nasce con ruolo `in_attesa`, che **non vede alcun dato**, finché un admin non lo abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Gli `operatore` possono inserire/modificare/eliminare fatture ma non vedono il registro modifiche né le Impostazioni; gli `admin` vedono tutto.
+   Questo è l'unico passaggio da fare in SQL: da qui in avanti i ruoli si gestiscono dall'app, in **Impostazioni → Utenti**. Ogni profilo nasce con ruolo `in_attesa`, che **non vede alcun dato** (e non può nemmeno usare la lettura AI), finché un admin non lo abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Gli `operatore` possono inserire/modificare/eliminare fatture ma non vedono il registro modifiche né le Impostazioni; gli `admin` vedono tutto.
 6. Vai su **Project Settings → API**: copia **Project URL**, **anon public key** e **service_role key** (quest'ultima serve solo per la creazione utenti dall'app, punto 3 sotto — è una chiave molto potente, mai da esporre lato client).
 
-> Se il database è stato creato prima del 31/08/2026, esegui anche i patch in `supabase/patch-*.sql` nell'ordine della data nel nome del file. Su un database nuovo non serve: `schema.sql` li include già tutti.
+> Se il database è stato creato prima del 01/09/2026, esegui anche i patch in `supabase/patch-*.sql` nell'ordine della data nel nome del file. Su un database nuovo non serve: `schema.sql` li include già tutti.
+>
+> **L'ultimo è [`patch-2026-08-31-revisione.sql`](supabase/patch-2026-08-31-revisione.sql)** e va eseguito anche su un database già in uso: corregge lo stato delle fatture pagate su cui è poi arrivata una nota di credito (erano marcate "stornata"), aggiunge il vincolo `importo > 0` sulle fatture, l'indice su `data_fattura` e la policy che permette a un admin di gestire i ruoli dall'app.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -64,9 +66,11 @@ Passaggi:
    - (opzionale, se preferisci non hardcodarle nel codice) `SUPABASE_URL` e `SUPABASE_ANON_KEY`
 3. Da qui in avanti, **ogni `git push` sul branch collegato aggiorna automaticamente il sito** — nessun altro passaggio richiesto.
 
-## Aggiungere utenti dall'app
+## Gestire gli utenti dall'app
 
 Un admin può creare nuovi utenti da **Impostazioni → Aggiungi un utente** (email, nome opzionale, ruolo): l'app genera una password provvisoria mostrata una sola volta, da comunicare tu stesso al collega (telefono, di persona — non viene inviata via email). Al primo accesso l'app lo obbliga a impostarne una propria prima di poter usare il gestionale.
+
+Sotto, in **Impostazioni → Utenti**, c'è l'elenco di tutti gli account con il ruolo modificabile da una tendina: è da qui che si abilita chi è rimasto `in_attesa` (per esempio chi si è registrato da solo), si promuove un operatore ad admin o si sospende un accesso riportandolo a `in_attesa`. L'unica cosa che non si può fare è togliere il ruolo admin a se stessi: serve a non chiudere fuori tutti dalle Impostazioni per errore, quando c'è un solo amministratore.
 
 ## Struttura del progetto
 
@@ -78,6 +82,7 @@ js/config.js                   configurazione (URL/chiavi Supabase)
 js/data/store.js               layer dati fatture PASSIVE: auth, fatture, pagamenti, log
 js/data/storeAttive.js          layer dati fatture ATTIVE: fatture, incassi, log (tabelle indipendenti)
 js/lib/                        helper: UI, client Supabase, parser XML (passive+attive), export
+js/lib/documenti.js             helper condivisi fra i due editor (anteprima file, autocompletamento, id)
 js/views/dashboard.js           dashboard fatture passive
 js/views/fattura.js             editor fattura passiva
 js/views/proposte.js            proposte di pagamento (operatore -> admin), solo passive
@@ -86,12 +91,13 @@ js/views/dashboardAttive.js     dashboard fatture attive
 js/views/fatturaAttiva.js       editor fattura attiva (incl. sollecito di pagamento)
 js/views/reportAttive.js        report/statistiche fatture attive (per cliente + andamento mensile)
 js/views/registroModifiche.js   registro modifiche unificato (passive+attive), dentro Impostazioni
-js/views/impostazioni.js        configurazione, creazione utenti, registro modifiche (solo admin)
+js/views/impostazioni.js        configurazione, gestione utenti e ruoli, registro modifiche (solo admin)
 manifest.json                  manifest PWA (nome, icone, tema) — abilita "Aggiungi a schermata Home"
 sw.js                          service worker: cache di riserva se la rete cade, sempre network-first
 icons/                          icone PWA (192px, 512px)
 functions/api/                 endpoint: proxy verso Gemini (passive+attive), creazione utenti
 functions/_lib/auth.js          verifica sessione/ruolo Supabase lato server
+functions/_lib/gemini.mjs       nome del modello Gemini (condiviso con server.js)
 supabase/schema.sql            schema database + RLS + trigger di audit log (passive+attive)
 supabase/patch-...sql          correzioni da applicare a un database già esistente
 worker.js                      entry point del Worker: instrada /api/* e serve gli asset statici
@@ -103,7 +109,9 @@ wrangler.jsonc                 configurazione del deploy Cloudflare
 
 - **Lettura automatica**: XML di fattura elettronica → letto localmente nel browser, gratuito e sempre accurato sui campi presenti nel tracciato. Sono accettati anche i file firmati `.xml.p7m` scaricati dal cassetto fiscale: l'XML viene estratto dalla busta di firma direttamente nel browser (la firma non viene verificata — il documento probante resta quello conservato a norma). PDF/immagini → inviati a Gemini (AI) tramite la function serverless, che tiene la chiave al sicuro lato server.
 - **Duplicati**: al salvataggio l'app avvisa se esiste già una fattura con lo stesso numero dello stesso fornitore, e chiede conferma. Non è un blocco: reinserire volutamente un documento resta possibile.
+- **Fornitore/cliente**: sono campi di testo libero (non c'è un'anagrafica), ma il campo suggerisce mentre si scrive i nomi già usati in archivio. Serve a non ritrovarsi "Enel SpA" ed "ENEL S.p.A." come due soggetti distinti nel Report, con il totale di quel fornitore spezzato in due. Il campo resta libero: un fornitore nuovo si scrive normalmente.
+- **Ricerca, filtri ed export**: la tabella principale mostra le fatture dell'anno corrente più quelle ancora aperte di anni precedenti; le fatture chiuse più vecchie stanno nell'archivio in fondo alla pagina. Appena si cerca o si filtra qualcosa, però, **l'archivio viene incluso**: il pannello si popola coi risultati e il titolo dice quanti ne rientrano. Anche **Esporta Excel/PDF esportano sempre tutto ciò che rispetta i filtri**, archivio compreso.
 - **Pagamenti/acconti**: ogni fattura può avere più pagamenti parziali; lo stato (da pagare / pagata parzialmente / pagata) si aggiorna automaticamente in base al totale pagato.
-- **Fatture attive**: stesse funzionalità delle passive, tabelle e permessi indipendenti (vedi sopra). Unica differenza voluta: gli **incassi** li registra direttamente anche l'operatore (non solo l'admin come per i pagamenti delle passive), perché qui non esiste un flusso di "proposte" — chiunque può segnare che una fattura è stata incassata. Il campo **sollecito** (data dell'ultimo sollecito di pagamento inviato al cliente) è puramente informativo: si aggiorna a mano dall'editor o con un click rapido dalla tabella, non invia nulla automaticamente.
+- **Fatture attive**: stesse funzionalità delle passive, tabelle e permessi indipendenti (vedi sopra). Unica differenza voluta: gli **incassi** li registra direttamente anche l'operatore (non solo l'admin come per i pagamenti delle passive), perché qui non esiste un flusso di "proposte" — chiunque può segnare che una fattura è stata incassata. Il campo **sollecito** (data dell'ultimo sollecito di pagamento inviato al cliente) è puramente informativo: si aggiorna a mano dall'editor o con un click rapido dalla tabella, non invia nulla automaticamente. Le fatture attive non hanno una data di scadenza propria: il filtro temporale della dashboard e l'avviso "emesse da troppo tempo e non incassate" lavorano quindi sulla **data di emissione**, con la stessa soglia in giorni configurata in Impostazioni.
 - **Registro modifiche**: ogni creazione, modifica, cancellazione di una fattura (e ogni pagamento aggiunto/rimosso) viene registrata automaticamente da un trigger del database — non è disattivabile dall'app, visibile in sola lettura solo agli admin.
 - **Niente collegamento diretto al cassetto fiscale**: richiederebbe login SPID/CIE (non automatizzabile) o un accreditamento come intermediario SdI presso l'Agenzia delle Entrate (procedura complessa, sproporzionata per questo progetto). Il flusso previsto è: scarichi tu il PDF o l'XML dal cassetto fiscale, poi lo carichi qui.

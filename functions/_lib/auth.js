@@ -18,6 +18,10 @@
 export const SUPABASE_URL = 'https://xmfqozojjplccnnttwxu.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_Cm8yAHlD3TZSjW0fW53_fw_OmfeWJT3';
 
+// Ruoli abilitati a usare gli endpoint dell'app: gli stessi che le RLS
+// lasciano leggere e scrivere. Un profilo 'in_attesa' non rientra.
+export const RUOLI_ABILITATI = ['admin', 'operatore'];
+
 // Ruolo dell'utente autenticato, letto rispettando le RLS (usa il suo stesso
 // token, non la service key): serve per verificare lato server che chi chiama
 // un endpoint sensibile (es. creazione utenti) sia davvero un admin, senza

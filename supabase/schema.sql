@@ -62,10 +62,11 @@ create table if not exists public.fatture (
   fornitore text not null,
   numero_fattura text,
   data_fattura date,
-  importo numeric(12,2) not null default 0,
+  importo numeric(12,2) not null check (importo > 0),
   scadenza date,
-  -- 'stornata' = chiusa da una nota di credito (in tutto o compensando il
-  -- residuo), non da un pagamento vero: vedi note_credito più sotto.
+  -- 'stornata' = chiusa da una nota di credito che copre da sola l'intero
+  -- importo, non da un pagamento vero: se c'è di mezzo anche un pagamento
+  -- reale la fattura resta 'pagata'. Vedi note_credito più sotto.
   stato text not null default 'da_pagare' check (stato in ('da_pagare','pagata_parziale','pagata','stornata')),
   metodo_pagamento text,          -- bonifico / riba / rid / contanti / altro
   note text,
@@ -74,6 +75,7 @@ create table if not exists public.fatture (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+create index if not exists idx_fatture_data on public.fatture(data_fattura);
 create index if not exists idx_fatture_scadenza on public.fatture(scadenza);
 create index if not exists idx_fatture_stato on public.fatture(stato);
 create index if not exists idx_fatture_fornitore on public.fatture(fornitore);
@@ -134,7 +136,7 @@ begin
   v_stato := case
     when (v_pagato + v_stornato) <= 0          then 'da_pagare'
     when (v_pagato + v_stornato) <  v_importo  then 'pagata_parziale'
-    when v_stornato > 0                        then 'stornata'
+    when v_stornato >= v_importo               then 'stornata'
     else                                             'pagata'
   end;
   update public.fatture
@@ -200,7 +202,7 @@ begin
     new.stato := case
       when (v_pagato + v_stornato) <= 0           then 'da_pagare'
       when (v_pagato + v_stornato) <  new.importo then 'pagata_parziale'
-      when v_stornato > 0                         then 'stornata'
+      when v_stornato >= new.importo              then 'stornata'
       else                                              'pagata'
     end;
   end if;
@@ -384,6 +386,15 @@ drop policy if exists prof_update_self on public.profili;
 create policy prof_update_self on public.profili for update
   using (id = auth.uid())
   with check (id = auth.uid() and ruolo = (select p.ruolo from public.profili p where p.id = auth.uid()));
+-- Un admin gestisce i profili dei colleghi dall'app (Impostazioni > Utenti):
+-- abilitare chi è rimasto 'in_attesa', cambiare un ruolo, correggere un nome.
+-- Non può però togliere il ruolo admin a SE STESSO: senza questa rete di
+-- sicurezza un clic distratto sull'ultimo amministratore chiudeva fuori tutti
+-- dalle Impostazioni, e si tornava per forza all'SQL Editor di Supabase.
+drop policy if exists prof_admin_update on public.profili;
+create policy prof_admin_update on public.profili for update
+  using (public.e_admin())
+  with check (public.e_admin() and (id <> auth.uid() or ruolo = 'admin'));
 
 drop policy if exists fatture_read on public.fatture;
 create policy fatture_read on public.fatture for select using (public.puo_leggere());
@@ -462,9 +473,10 @@ create table if not exists public.fatture_attive (
   cliente text not null,
   numero_fattura text,
   data_fattura date,
-  importo numeric(12,2) not null default 0,
-  -- 'stornata' = chiusa da una nota di credito emessa (in tutto o compensando
-  -- il residuo), non da un incasso vero: vedi note_credito_attive più sotto.
+  importo numeric(12,2) not null check (importo > 0),
+  -- 'stornata' = chiusa da una nota di credito emessa che copre da sola
+  -- l'intero importo, non da un incasso vero: se c'è di mezzo anche un incasso
+  -- reale la fattura resta 'incassata'. Vedi note_credito_attive più sotto.
   stato text not null default 'da_incassare' check (stato in ('da_incassare','incassata_parziale','incassata','stornata')),
   metodo_incasso text,          -- bonifico / riba / rid / contanti / altro
   note text,
@@ -476,6 +488,7 @@ create table if not exists public.fatture_attive (
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+create index if not exists idx_fatture_attive_data on public.fatture_attive(data_fattura);
 create index if not exists idx_fatture_attive_stato on public.fatture_attive(stato);
 create index if not exists idx_fatture_attive_cliente on public.fatture_attive(cliente);
 
@@ -533,7 +546,7 @@ begin
   v_stato := case
     when (v_incassato + v_stornato) <= 0          then 'da_incassare'
     when (v_incassato + v_stornato) <  v_importo  then 'incassata_parziale'
-    when v_stornato > 0                           then 'stornata'
+    when v_stornato >= v_importo                  then 'stornata'
     else                                                'incassata'
   end;
   update public.fatture_attive
@@ -595,7 +608,7 @@ begin
     new.stato := case
       when (v_incassato + v_stornato) <= 0           then 'da_incassare'
       when (v_incassato + v_stornato) <  new.importo then 'incassata_parziale'
-      when v_stornato > 0                            then 'stornata'
+      when v_stornato >= new.importo                 then 'stornata'
       else                                                 'incassata'
     end;
   end if;

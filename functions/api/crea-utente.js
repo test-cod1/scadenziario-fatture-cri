@@ -55,10 +55,12 @@ export async function onRequestPost(context) {
 
   // Il trigger handle_new_user() ha già creato il profilo (ruolo 'in_attesa',
   // stessa transazione dell'insert su auth.users): qui lo si completa.
+  // `nome` viene incluso solo se l'admin ne ha indicato uno: mandarlo a null
+  // cancellava il nome di default già ricavato dall'email dal trigger.
   const aggRes = await fetch(`${url}/rest/v1/profili?id=eq.${nuovoId}`, {
     method: 'PATCH',
     headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-    body: JSON.stringify({ ruolo, nome: nome || null, deve_cambiare_password: true }),
+    body: JSON.stringify(nome ? { ruolo, nome, deve_cambiare_password: true } : { ruolo, deve_cambiare_password: true }),
   });
   if (!aggRes.ok) {
     // L'utente Auth esiste già a questo punto: meglio dare comunque la

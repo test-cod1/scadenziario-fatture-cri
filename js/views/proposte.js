@@ -1,6 +1,7 @@
 import { proposte } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro } from '../lib/ui.js';
-import { METODI, confermaSeSuperaResiduo } from './fattura.js';
+import { METODI } from '../lib/xmlFattura.js';
+import { confermaSeSuperaResiduo } from '../lib/documenti.js';
 
 const ESITO_CHIP = { proposta: 'warn', confermata: 'ok', rifiutata: 'danger' };
 const ESITO_LABEL = { proposta: 'In attesa', confermata: 'Confermata', rifiutata: 'Rifiutata' };

@@ -1,18 +1,9 @@
-import { fatture, pagamenti, noteCredito, impostazioni, proposte } from '../data/store.js';
-import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro, debounce } from '../lib/ui.js';
+import { fatture, pagamenti, noteCredito, impostazioni, proposte, svuotaCacheNomi } from '../data/store.js';
+import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, sommaGiorniISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml, METODI } from '../lib/xmlFattura.js';
+import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento } from '../lib/documenti.js';
 
 export { METODI };
-
-// Somma giorni a una data ISO (YYYY-MM-DD) restando sempre in UTC: costruire
-// una Date locale (new Date(iso + 'T00:00:00')) e poi leggerla con
-// toISOString() sbaglia di un giorno in qualunque fuso avanti rispetto a UTC
-// (Italia compresa, sia in ora solare che legale) perché la mezzanotte locale
-// del risultato, riconvertita in UTC, cade nel giorno precedente.
-function sommaGiorniISO(iso, giorni) {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d + giorni)).toISOString().slice(0, 10);
-}
 
 // Scorciatoie "30gg"/"60gg" accanto al campo Scadenza: calcolano la data a
 // partire dalla data fattura invece di doverla sommare a mano ogni volta.
@@ -23,13 +14,6 @@ function impostaScadenzaOffset(scope, selettoreData, selettoreScadenza, giorni) 
   const dataInput = scope.querySelector(selettoreData).value;
   if (!dataInput) { toast('Indica prima la data fattura', 'err'); return; }
   scope.querySelector(selettoreScadenza).value = sommaGiorniISO(dataInput, giorni);
-}
-
-// Riporta un valore qualsiasi dentro la lista: così un metodo non previsto
-// diventa "altro" invece di sparire senza dire nulla.
-function metodoAmmesso(v) {
-  if (!v) return "";
-  return METODI.includes(v) ? v : "altro";
 }
 
 // ============================================================
@@ -101,6 +85,10 @@ export async function apriEditor(id, ctx, onSaved) {
     disegnaPagamentiENote();
   }
   if (id) disegnaPagamentiENote();
+
+  // Suggerisce i fornitori già usati mentre si scrive, per non ritrovarsi
+  // due grafie dello stesso soggetto (vedi collegaAutocompletamento).
+  collegaAutocompletamento(body.querySelector('#f-fornitore'), () => fatture.fornitoriNoti());
 
   // Scorciatoie "30gg"/"60gg": calcolano la scadenza a partire dalla data
   // fattura invece di doverla sommare a mano ogni volta.
@@ -332,16 +320,24 @@ function renderPagamenti(node, rec, ctx, onChange) {
         <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
       </div><button class="btn primary sm" id="p-save">Registra pagamento</button>`);
       formZone.appendChild(f);
+      // Il pulsante va disabilitato durante la scrittura come in tutti gli
+      // altri form del progetto: senza, un doppio click registrava due
+      // pagamenti identici sulla stessa fattura.
       f.querySelector('#p-save').addEventListener('click', async () => {
         const importo = parseEuro(f.querySelector('#p-importo').value);
         const data_pagamento = f.querySelector('#p-data').value;
         if (!importo || importo <= 0 || !data_pagamento) { toast('Inserisci data e importo validi', 'err'); return; }
         if (!await confermaSeSuperaResiduo(importo, rec._residuo)) return;
+        const btn = f.querySelector('#p-save'); const old = btn.innerHTML;
+        btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
         try {
           await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null }, ctx.user);
-          onChange(await fatture.get(rec.id));
           toast('Pagamento registrato', 'ok');
-        } catch (e) { toast('Errore: ' + e.message, 'err'); }
+          onChange(await fatture.get(rec.id));   // ridisegna tutto: il pulsante qui sopra non esiste più
+        } catch (e) {
+          toast('Errore: ' + e.message, 'err');
+          btn.disabled = false; btn.innerHTML = old;
+        }
       });
     });
   }
@@ -448,9 +444,13 @@ export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata) {
       }
       aggiornaRiepilogo();
     });
+    // Anche un valore vuoto o non valido va riportato nella mappa (come 0):
+    // ignorandolo, restava memorizzato l'importo precedente e il salvataggio
+    // usava una cifra DIVERSA da quella scritta a schermo, senza che il
+    // controllo "ogni fattura deve avere un importo valido" se ne accorgesse.
     importoInput.addEventListener('input', () => {
       const v = parseEuro(importoInput.value);
-      if (v && v > 0) selezionate.set(f.id, v);
+      selezionate.set(f.id, v && v > 0 ? v : 0);
       aggiornaRiepilogo();
     });
     return row;
@@ -620,6 +620,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
       </div>
     </div>`);
     zona.appendChild(box);
+    collegaAutocompletamento(box.querySelector('.i-fornitore'), () => fatture.fornitoriNoti());
 
     box.querySelector('.i-scad-30').addEventListener('click', () => impostaScadenzaOffset(box, '.i-data', '.i-scadenza', 30));
     box.querySelector('.i-scad-60').addEventListener('click', () => impostaScadenzaOffset(box, '.i-data', '.i-scadenza', 60));
@@ -683,18 +684,6 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
 //  prima il doppione veniva creato in silenzio e finiva nei totali due volte.
 //  Ritorna true se si può procedere.
 // ============================================================
-// Avviso non bloccante quando un pagamento supera il residuo indicato: un
-// errore di battitura (un importo con uno zero di troppo) altrimenti registra
-// un "sovrapagamento" che sparisce silenziosamente, perché _residuo resta
-// clampato a 0 (vedi withResiduo in data/store.js) invece di segnalare
-// l'anomalia. Esportata perché usata anche da proposte.js nella conferma.
-export async function confermaSeSuperaResiduo(importo, residuo) {
-  if (importo <= residuo) return true;
-  return confirmDialog(
-    `L'importo (${fmtEuro(importo)}) supera il residuo della fattura (${fmtEuro(residuo)}). Registrare comunque?`,
-    { danger: true, okLabel: 'Registra comunque' });
-}
-
 async function confermaSeDuplicato(payload, escludiId) {
   let doppia = null;
   try { doppia = await fatture.trovaDuplicato(payload, escludiId); }
@@ -718,6 +707,10 @@ async function confermaSeDuplicato(payload, escludiId) {
 //  effetto, perché veniva ricalcolata da capo ad ogni salvataggio.
 // ============================================================
 async function salvaFattura(payload, viaAI) {
+  // I nomi già usati sono in cache per tutta la sessione (vedi nomiNoti): un
+  // fornitore appena inserito deve comparire fra i suggerimenti della fattura
+  // successiva, non solo dopo aver ricaricato la pagina.
+  svuotaCacheNomi();
   if (payload.id) return fatture.save(payload);
   if (!payload.scadenza) payload.scadenza = await scadenzaDefault(payload.data_fattura);
   const id = nuovoIdFattura();
@@ -732,15 +725,6 @@ async function scadenzaDefault(dataFattura) {
     if (Number.isFinite(s?.giorni_scadenza_default)) giorni = s.giorni_scadenza_default;
   } catch { /* un intoppo nella lettura non deve impedire il salvataggio: si usa il default */ }
   return sommaGiorniISO(dataFattura, giorni);
-}
-
-function nuovoIdFattura() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  // Fallback per browser datati o contesti non sicuri (dove randomUUID manca).
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
 }
 
 // ============================================================
@@ -769,44 +753,3 @@ async function estraiCampiDaFile(file) {
   return { ...data.estratti, _viaAI: true };
 }
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-// ============================================================
-//  Anteprima del file caricato — solo lato client (URL.createObjectURL):
-//  il file non viene mai inviato altrove né conservato, serve solo per
-//  confrontare a colpo d'occhio il documento originale con i campi letti.
-//  Il chiamante è responsabile di revocare l'url (URL.revokeObjectURL)
-//  quando l'anteprima non serve più, per non trattenere il file in memoria.
-// ============================================================
-function renderAnteprimaFile(file) {
-  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-  const isImg = /^image\//.test(file.type);
-  if (isPdf || isImg) {
-    const url = URL.createObjectURL(file);
-    const node = isPdf
-      ? el(`<iframe class="fp-frame" src="${esc(url)}" title="Anteprima ${esc(file.name)}"></iframe>`)
-      : el(`<img class="fp-img" src="${esc(url)}" alt="Anteprima ${esc(file.name)}">`);
-    return { node, url };
-  }
-  return {
-    node: el(`<div class="fp-empty">📄 ${esc(file.name)}<br>Anteprima non disponibile per questo formato: verifica i campi qui a fianco.</div>`),
-    url: null,
-  };
-}
-
-// Errore di lettura (quota AI esaurita, formato non riconosciuto, ecc.):
-// un banner ben visibile invece di una riga di testo grigia, che passava
-// facilmente inosservata mescolata agli altri messaggi di stato.
-function bannerErroreLettura(messaggio) {
-  return el(`<div class="banner warn" style="margin:10px 0 0">
-    <div class="bi">⚠️</div>
-    <div><b>Lettura automatica non riuscita</b><div class="small">${esc(messaggio)} Compila i campi a mano, confrontando con l'anteprima.</div></div>
-  </div>`);
-}

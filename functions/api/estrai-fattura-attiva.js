@@ -8,9 +8,8 @@
 //  l'emittente: è l'unica differenza che conta per una fattura attiva.
 // ============================================================
 
-import { requireUser } from '../_lib/auth.js';
-
-const MODEL = 'gemini-3.6-flash';
+import { requireUser, ruoloUtente, RUOLI_ABILITATI } from '../_lib/auth.js';
+import { MODELLO_GEMINI } from '../_lib/gemini.mjs';
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -32,6 +31,13 @@ export async function onRequestPost(context) {
   const user = await requireUser(request, env);
   if (!user) return json({ error: 'Accesso non autorizzato: effettua il login.' }, 401);
 
+  // Vedi il commento gemello in estrai-fattura.js: un account non ancora
+  // abilitato ha un token valido e poteva esaurire la quota Gemini di tutti.
+  const ruolo = await ruoloUtente(request, env, user.id);
+  if (!RUOLI_ABILITATI.includes(ruolo)) {
+    return json({ error: 'Il tuo account non è ancora abilitato: chiedi a un amministratore.' }, 403);
+  }
+
   if (!env.GEMINI_API_KEY) return json({ error: 'Chiave Gemini non configurata (GEMINI_API_KEY).' }, 500);
 
   let body;
@@ -41,7 +47,7 @@ export async function onRequestPost(context) {
   if (!/^application\/pdf$|^image\//.test(mimeType)) return json({ error: 'Formato file non supportato (usa PDF o immagine).' }, 400);
   if (dataBase64.length > 20_000_000) return json({ error: 'File troppo grande.' }, 413);
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${env.GEMINI_API_KEY}`;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODELLO_GEMINI}:generateContent?key=${env.GEMINI_API_KEY}`;
   const payload = {
     contents: [{
       parts: [

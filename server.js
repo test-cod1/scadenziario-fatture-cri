@@ -38,6 +38,18 @@ if (!process.env.GEMINI_API_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
 // fossero, una violazione della CSP verrebbe scoperta solo dopo il deploy.
 let HEADER_SICUREZZA = {};
 
+// File e cartelle che non fanno parte del sito e non vanno mai serviti:
+// stesso elenco di .assetsignore (che svolge questo ruolo in produzione).
+const NON_SERVIBILI = [
+  '.dev.vars', '.env', '.git', '.wrangler', 'node_modules',
+  'supabase', 'functions', 'server.js', 'worker.js', 'wrangler.jsonc',
+  'package.json', 'package-lock.json', '.assetsignore', '.gitignore',
+];
+function nonServibile(relativo) {
+  const primoPezzo = relativo.split(path.sep)[0];
+  return NON_SERVIBILI.includes(primoPezzo) || primoPezzo.startsWith('.');
+}
+
 const TYPES = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
   '.mjs': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8',
@@ -55,7 +67,13 @@ const server = http.createServer(async (req, res) => {
   let p = decodeURIComponent(u.pathname);
   if (p === '/') p = '/index.html';
   const file = path.join(ROOT, p);
-  if (!file.startsWith(ROOT)) { res.writeHead(403); return res.end('Forbidden'); }
+  // path.sep in coda: senza, una cartella FRATELLA il cui nome inizia come
+  // ROOT (es. "…-backup") avrebbe superato il controllo.
+  if (!file.startsWith(ROOT + path.sep)) { res.writeHead(403); return res.end('Forbidden'); }
+  // Stessa lista di .assetsignore, che in produzione tiene questi file fuori
+  // dagli asset serviti dal Worker: in locale mancava, e `GET /.dev.vars`
+  // restituiva in chiaro la chiave Gemini e la service_role key di Supabase.
+  if (nonServibile(path.relative(ROOT, file))) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
   fs.readFile(file, (err, data) => {
     if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
     res.writeHead(200, Object.assign({
@@ -65,8 +83,12 @@ const server = http.createServer(async (req, res) => {
     res.end(data);
   });
 });
-import('./js/lib/securityHeaders.mjs').then(({ HEADER_SICUREZZA: h }) => {
+Promise.all([
+  import('./js/lib/securityHeaders.mjs'),
+  import('./functions/_lib/gemini.mjs'),
+]).then(([{ HEADER_SICUREZZA: h }, { MODELLO_GEMINI }]) => {
   HEADER_SICUREZZA = h;
+  MODEL = MODELLO_GEMINI;
   server.listen(PORT, () => console.log(`Server attivo su http://localhost:${PORT}  (GEMINI_API_KEY ${process.env.GEMINI_API_KEY ? 'presente' : 'ASSENTE — solo XML/manuale'}, SUPABASE_SERVICE_ROLE_KEY ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'presente' : 'ASSENTE — niente creazione utenti'})`));
 });
 
@@ -77,7 +99,10 @@ function sendJson(res, obj, status = 200) {
 
 // NOTA: in locale non verifichiamo il token Supabase (a differenza della
 // Cloudflare Pages Function in produzione) per semplicità di sviluppo.
-const MODEL = 'gemini-3.6-flash';
+// Il nome del modello arriva da functions/_lib/gemini.mjs (unica fonte, vedi
+// il commento lì): prima era una terza copia che poteva restare indietro
+// rispetto a quella usata in produzione.
+let MODEL;   // assegnato dall'import qui sopra, prima che il server accetti richieste
 const SCHEMA = {
   type: 'OBJECT',
   properties: {
@@ -216,7 +241,7 @@ function apiCreaUtente(req, res) {
       const aggRes = await fetch(`${SUPABASE_URL}/rest/v1/profili?id=eq.${creaData.id}`, {
         method: 'PATCH',
         headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify({ ruolo, nome: nome || null, deve_cambiare_password: true }),
+        body: JSON.stringify(nome ? { ruolo, nome, deve_cambiare_password: true } : { ruolo, deve_cambiare_password: true }),
       });
       if (!aggRes.ok) {
         return sendJson(res, { email, passwordProvvisoria, error: 'Utente creato ma il profilo (ruolo/nome) non è stato aggiornato: sistemalo a mano su Supabase.' }, 207);

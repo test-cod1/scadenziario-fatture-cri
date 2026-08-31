@@ -1,13 +1,10 @@
 import { fattureAttive, incassi, noteCreditoAttive } from '../data/storeAttive.js';
+import { svuotaCacheNomi } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaAttivaXml, METODI } from '../lib/xmlFattura.js';
+import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento } from '../lib/documenti.js';
 
 export { METODI };
-
-function metodoAmmesso(v) {
-  if (!v) return "";
-  return METODI.includes(v) ? v : "altro";
-}
 
 // ============================================================
 //  Editor di una singola fattura attiva (nuova o esistente)
@@ -55,6 +52,10 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
       </div>
     </div>
   </div>`);
+
+  // Suggerisce i clienti già usati mentre si scrive (vedi il commento
+  // gemello in fattura.js).
+  collegaAutocompletamento(body.querySelector('#f-cliente'), () => fattureAttive.clientiNoti());
 
   body.querySelector('#sollecito-oggi').addEventListener('click', () => {
     body.querySelector('#f-sollecito').value = todayISO();
@@ -257,16 +258,23 @@ function renderIncassi(node, rec, ctx, onChange) {
       <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
     </div><button class="btn primary sm" id="p-save">Registra incasso</button>`);
     formZone.appendChild(f);
+    // Vedi il commento gemello in fattura.js: senza disabilitare il pulsante,
+    // un doppio click registrava due incassi identici.
     f.querySelector('#p-save').addEventListener('click', async () => {
       const importo = parseEuro(f.querySelector('#p-importo').value);
       const data_incasso = f.querySelector('#p-data').value;
       if (!importo || importo <= 0 || !data_incasso) { toast('Inserisci data e importo validi', 'err'); return; }
       if (!await confermaSeSuperaResiduo(importo, rec._residuo)) return;
+      const btn = f.querySelector('#p-save'); const old = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
       try {
         await incassi.add(rec.id, { importo, data_incasso, metodo: f.querySelector('#p-metodo').value || null });
-        onChange(await fattureAttive.get(rec.id));
         toast('Incasso registrato', 'ok');
-      } catch (e) { toast('Errore: ' + e.message, 'err'); }
+        onChange(await fattureAttive.get(rec.id));   // ridisegna tutto: il pulsante qui sopra non esiste più
+      } catch (e) {
+        toast('Errore: ' + e.message, 'err');
+        btn.disabled = false; btn.innerHTML = old;
+      }
     });
   });
   node.appendChild(wrap);
@@ -361,9 +369,12 @@ export function apriNuovaNotaCreditoAttiva(ctx, onSaved, fatturaPreselezionata) 
       }
       aggiornaRiepilogo();
     });
+    // Vedi il commento gemello in fattura.js: anche un valore vuoto o non
+    // valido va riportato nella mappa (come 0), altrimenti resta memorizzato
+    // l'importo precedente e si salva una cifra diversa da quella a schermo.
     importoInput.addEventListener('input', () => {
       const v = parseEuro(importoInput.value);
-      if (v && v > 0) selezionate.set(f.id, v);
+      selezionate.set(f.id, v && v > 0 ? v : 0);
       aggiornaRiepilogo();
     });
     return row;
@@ -514,6 +525,7 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
       </div>
     </div>`);
     zona.appendChild(box);
+    collegaAutocompletamento(box.querySelector('.i-cliente'), () => fattureAttive.clientiNoti());
 
     const { node, url } = renderAnteprimaFile(file);
     if (url) previewUrls.push(url);
@@ -565,15 +577,6 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
 // ============================================================
 //  Controllo duplicati (stessa logica delle passive)
 // ============================================================
-// Vedi il commento gemello in fattura.js: avviso non bloccante quando un
-// incasso supera il residuo indicato.
-async function confermaSeSuperaResiduo(importo, residuo) {
-  if (importo <= residuo) return true;
-  return confirmDialog(
-    `L'importo (${fmtEuro(importo)}) supera il residuo della fattura (${fmtEuro(residuo)}). Registrare comunque?`,
-    { danger: true, okLabel: 'Registra comunque' });
-}
-
 async function confermaSeDuplicato(payload, escludiId) {
   let doppia = null;
   try { doppia = await fattureAttive.trovaDuplicato(payload, escludiId); }
@@ -589,17 +592,12 @@ async function confermaSeDuplicato(payload, escludiId) {
 //  Salvataggio di una fattura attiva
 // ============================================================
 async function salvaFatturaAttiva(payload, viaAI) {
+  // Vedi il commento gemello in fattura.js: un cliente appena inserito deve
+  // comparire fra i suggerimenti della fattura successiva.
+  svuotaCacheNomi();
   if (payload.id) return fattureAttive.save(payload);
   const id = nuovoIdFattura();
   return fattureAttive.save({ ...payload, id, estratta_da_ai: !!viaAI }, { nuovo: true });
-}
-
-function nuovoIdFattura() {
-  if (typeof crypto !== 'undefined' && crypto.randomUUID) return crypto.randomUUID();
-  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, c => {
-    const r = Math.random() * 16 | 0;
-    return (c === 'x' ? r : (r & 0x3 | 0x8)).toString(16);
-  });
 }
 
 // ============================================================
@@ -628,34 +626,3 @@ async function estraiCampiDaFile(file) {
   return { ...data.estratti, _viaAI: true };
 }
 
-function fileToBase64(file) {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(String(reader.result).split(',')[1] || '');
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
-}
-
-function renderAnteprimaFile(file) {
-  const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name);
-  const isImg = /^image\//.test(file.type);
-  if (isPdf || isImg) {
-    const url = URL.createObjectURL(file);
-    const node = isPdf
-      ? el(`<iframe class="fp-frame" src="${esc(url)}" title="Anteprima ${esc(file.name)}"></iframe>`)
-      : el(`<img class="fp-img" src="${esc(url)}" alt="Anteprima ${esc(file.name)}">`);
-    return { node, url };
-  }
-  return {
-    node: el(`<div class="fp-empty">📄 ${esc(file.name)}<br>Anteprima non disponibile per questo formato: verifica i campi qui a fianco.</div>`),
-    url: null,
-  };
-}
-
-function bannerErroreLettura(messaggio) {
-  return el(`<div class="banner warn" style="margin:10px 0 0">
-    <div class="bi">⚠️</div>
-    <div><b>Lettura automatica non riuscita</b><div class="small">${esc(messaggio)} Compila i campi a mano, confrontando con l'anteprima.</div></div>
-  </div>`);
-}

@@ -75,6 +75,27 @@ export const amministrazione = {
     if (!res.ok && !data.passwordProvvisoria) throw new Error(data.error || `Creazione utente non riuscita (${res.status}).`);
     return data; // { email, passwordProvvisoria, error? } — error solo se il profilo non è stato completato
   },
+
+  // Elenco dei profili: le RLS lo restituiscono per intero solo a un admin
+  // (policy prof_admin_read), a chiunque altro solo il proprio.
+  async listaUtenti() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('profili')
+      .select('id, email, nome, ruolo, deve_cambiare_password, created_at')
+      .order('ruolo', { ascending: true }).order('email', { ascending: true });
+    if (error) throw error;
+    return data;
+  },
+
+  // Cambia ruolo e/o nome di un altro utente. Scrive con il token dell'admin,
+  // non con la service key: è la policy prof_admin_update a consentirlo (e a
+  // impedire che un admin si tolga da solo il proprio ruolo).
+  async aggiornaUtente(id, campi) {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('profili').update(campi).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+  },
 };
 
 // ---------------------------------------------------------------
@@ -211,7 +232,47 @@ export const fatture = {
     const { error } = await sb.from("fatture").delete().eq("id", id);
     if (error) throw error;
   },
+  // Elenco dei fornitori già usati, per l'autocompletamento nell'editor.
+  // Il fornitore è un campo di testo libero (non c'è una tabella anagrafica):
+  // senza un suggerimento, "Enel SpA" e "ENEL S.p.A." finiscono per essere due
+  // soggetti distinti nel Report, e il totale per fornitore si spezza in due.
+  // Qui si scarica la sola colonna fornitore e si raggruppa in JavaScript
+  // ignorando maiuscole e spazi doppi, tenendo come etichetta la grafia più
+  // usata: è quella che l'utente si ritrova proposta la volta dopo.
+  async fornitoriNoti() { return nomiNoti('fatture', 'fornitore'); },
 };
+
+// Condivisa fra fatture (fornitore) e fatture attive (cliente): stessa query,
+// stessa normalizzazione. Il risultato resta in cache per tutta la sessione,
+// così aprire dieci editor di fila non fa dieci giri sul database.
+const _cacheNomi = new Map();
+export function svuotaCacheNomi() { _cacheNomi.clear(); }
+export async function nomiNoti(tabella, colonna) {
+  const chiave = `${tabella}.${colonna}`;
+  if (_cacheNomi.has(chiave)) return _cacheNomi.get(chiave);
+  const sb = await sbClient();
+  const BLOCCO = 1000;
+  const conteggi = new Map();   // chiave normalizzata -> Map(grafia -> quante volte)
+  for (let da = 0; ; da += BLOCCO) {
+    const { data, error } = await sb.from(tabella).select(`id, ${colonna}`)
+      .order('id', { ascending: true }).range(da, da + BLOCCO - 1);
+    if (error) throw error;
+    for (const riga of data) {
+      const grezzo = String(riga[colonna] || '').trim().replace(/\s+/g, ' ');
+      if (!grezzo) continue;
+      const norm = grezzo.toLowerCase();
+      if (!conteggi.has(norm)) conteggi.set(norm, new Map());
+      const grafie = conteggi.get(norm);
+      grafie.set(grezzo, (grafie.get(grezzo) || 0) + 1);
+    }
+    if (data.length < BLOCCO) break;
+  }
+  const nomi = [...conteggi.values()]
+    .map(grafie => [...grafie.entries()].sort((a, b) => b[1] - a[1])[0][0])   // la grafia più ricorrente
+    .sort((a, b) => a.localeCompare(b, 'it'));
+  _cacheNomi.set(chiave, nomi);
+  return nomi;
+}
 
 function withResiduo(f) {
   const pagato = (f.pagamenti || []).reduce((s, p) => s + Number(p.importo || 0), 0);
@@ -297,11 +358,25 @@ export const pagamenti = {
   // "Pagato questo mese/anno" della dashboard devono contare anche un
   // pagamento appena registrato su una fattura vecchia già chiusa, che non fa
   // più parte del sottoinsieme caricato di default.
+  //
+  //  Come list(), scorre a blocchi: PostgREST limita ogni risposta a 1000
+  //  righe, quindi superati i 1000 pagamenti nel periodo la somma risultava
+  //  più bassa del vero — in silenzio, senza alcun errore visibile. È lo
+  //  stesso difetto già corretto per l'elenco fatture.
   async sommaPeriodo(da, a) {
     const sb = await sbClient();
-    const { data, error } = await sb.from('pagamenti').select('importo').gte('data_pagamento', da).lte('data_pagamento', a);
-    if (error) throw error;
-    return data.reduce((s, p) => s + Number(p.importo || 0), 0);
+    const BLOCCO = 1000;
+    let totale = 0;
+    for (let inizio = 0; ; inizio += BLOCCO) {
+      const { data, error } = await sb.from('pagamenti').select('importo')
+        .gte('data_pagamento', da).lte('data_pagamento', a)
+        .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
+        .range(inizio, inizio + BLOCCO - 1);
+      if (error) throw error;
+      totale = data.reduce((s, p) => s + Number(p.importo || 0), totale);
+      if (data.length < BLOCCO) break;
+    }
+    return totale;
   },
 };
 
@@ -321,11 +396,19 @@ export const proposte = {
   // pagamento nel frattempo.
   async list() {
     const sb = await sbClient();
-    const { data, error } = await sb.from('proposte_pagamento')
-      .select('*, fatture(fornitore, numero_fattura, importo, scadenza, stato, pagamenti(*), note_credito_righe(*))')
-      .order('created_at', { ascending: false });
-    if (error) throw error;
-    return data.map(r => ({ ...r, fatture: r.fatture ? withResiduo(r.fatture) : r.fatture }));
+    const BLOCCO = 1000;
+    const tutte = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from('proposte_pagamento')
+        .select('*, fatture(fornitore, numero_fattura, importo, scadenza, stato, pagamenti(*), note_credito_righe(*))')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutte.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutte.map(r => ({ ...r, fatture: r.fatture ? withResiduo(r.fatture) : r.fatture }));
   },
   async create(fatturaId, rec, proponente) {
     const sb = await sbClient();
@@ -333,6 +416,28 @@ export const proposte = {
     const payload = { ...rec, fattura_id: fatturaId, proposta_da: u?.user?.id, proposta_da_nome: proponente?.nome || null, proposta_da_email: proponente?.email || null };
     const { data, error } = await sb.from('proposte_pagamento').insert(payload).select().single();
     if (error) throw error; return data;
+  },
+  // Mappa fattura_id -> n. proposte ancora in attesa, per i badge 📨 della
+  // dashboard. Volutamente NON usa list(): quella porta con sé l'embed di
+  // fatture(…, pagamenti(*), note_credito_righe(*)) ed era la query più
+  // pesante dell'app, rieseguita ad ogni caricamento e ad ogni ricarica solo
+  // per contare dei badge. Qui si scaricano due sole colonne delle sole
+  // proposte ancora aperte (e si pagina, perché anche questa risposta è
+  // soggetta al limite di 1000 righe di PostgREST).
+  async conteggioInAttesa() {
+    const sb = await sbClient();
+    const BLOCCO = 1000;
+    const mappa = new Map();
+    for (let inizio = 0; ; inizio += BLOCCO) {
+      const { data, error } = await sb.from('proposte_pagamento')
+        .select('id, fattura_id').eq('stato', 'proposta')
+        .order('id', { ascending: true })
+        .range(inizio, inizio + BLOCCO - 1);
+      if (error) throw error;
+      for (const r of data) mappa.set(r.fattura_id, (mappa.get(r.fattura_id) || 0) + 1);
+      if (data.length < BLOCCO) break;
+    }
+    return mappa;
   },
   // Quante proposte sono già in attesa per questa fattura: usato solo per
   // avvisare prima di inviarne una seconda (es. doppio click), non per

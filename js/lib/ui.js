@@ -36,7 +36,35 @@ export function fmtEuroCompatto(nv) {
   if (Math.abs(n) < 1000) return String(Math.round(n));
   return (n / 1000).toLocaleString('it-IT', { maximumFractionDigits: 1 }) + 'k';
 }
-export function todayISO() { return new Date().toISOString().slice(0, 10); }
+// Data di OGGI secondo l'orologio locale, non UTC: `toISOString()` converte
+// prima in UTC, quindi in Italia (UTC+1/+2) fra mezzanotte e le 2 restituiva
+// il giorno PRECEDENTE. Da qui dipendono la data precompilata di pagamenti,
+// incassi e solleciti, i confini di "questo mese/anno" e il calcolo di cosa è
+// scaduto o in scadenza: un giorno di scarto li sbagliava tutti insieme.
+export function todayISO() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+// Somma giorni a una data ISO (YYYY-MM-DD) restando sempre in UTC: costruire
+// una Date locale (new Date(iso + 'T00:00:00')) e poi leggerla con
+// toISOString() sbaglia di un giorno in qualunque fuso avanti rispetto a UTC
+// (Italia compresa, sia in ora solare che legale) perché la mezzanotte locale
+// del risultato, riconvertita in UTC, cade nel giorno precedente.
+export function sommaGiorniISO(iso, giorni) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + giorni)).toISOString().slice(0, 10);
+}
+
+// Ultimo giorno del mese a cui appartiene una data ISO: serve per far
+// coincidere il periodo di "Pagato/Incassato questo mese" con il mese intero
+// che l'etichetta della card dichiara (vedi dashboard.js), invece di
+// fermarsi a oggi ed escludere un pagamento datato più avanti nel mese.
+export function fineMeseISO(iso) {
+  const [y, m] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
+}
+
 export function giorniDa(iso) {
   if (!iso) return null;
   const d = new Date(iso + 'T00:00:00');

@@ -1,5 +1,5 @@
 import { impostazioni, amministrazione } from '../data/store.js';
-import { el, esc, toast, openModal } from '../lib/ui.js';
+import { el, esc, toast, openModal, confirmDialog } from '../lib/ui.js';
 import { renderRegistroModifiche } from './registroModifiche.js';
 
 export async function renderImpostazioni(view, ctx) {
@@ -38,6 +38,13 @@ export async function renderImpostazioni(view, ctx) {
       </div>
       <button class="btn primary" id="nu-crea" style="margin-top:6px">Crea utente</button>
       <div id="nu-err" style="color:var(--danger);font-size:13px;margin-top:10px"></div>
+    </div></div>
+
+    <div class="card" style="margin-top:22px"><div class="card-b">
+      <h3 style="margin:0 0 4px">Utenti</h3>
+      <p class="hint" style="margin:0 0 14px">Chi si registra da solo nasce <b>In attesa</b> e non vede alcun dato finché non lo abiliti qui.
+      Gli <b>operatori</b> inseriscono e modificano fatture e propongono pagamenti; gli <b>admin</b> vedono anche Impostazioni e registro modifiche, e registrano i pagamenti effettivi.</p>
+      <div class="tbl-wrap" id="utenti-zone"><div class="spinner" style="margin:20px auto"></div></div>
     </div></div>
 
     <details class="card" id="log-panel" style="margin-top:22px">
@@ -102,12 +109,81 @@ export async function renderImpostazioni(view, ctx) {
       wrap.querySelector('#nu-email').value = '';
       wrap.querySelector('#nu-nome').value = '';
       wrap.querySelector('#nu-ruolo').value = 'operatore';
+      disegnaUtenti();   // il nuovo utente deve comparire subito nell'elenco qui sotto
     } catch (e) {
       err.textContent = 'Errore: ' + e.message;
     } finally {
       btn.disabled = false; btn.innerHTML = old;
     }
   });
+
+  async function disegnaUtenti() {
+    const zona = wrap.querySelector('#utenti-zone');
+    zona.replaceChildren(el('<div class="spinner" style="margin:20px auto"></div>'));
+    try {
+      renderUtenti(zona, await amministrazione.listaUtenti(), ctx, disegnaUtenti);
+    } catch (e) {
+      zona.replaceChildren(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${esc(e.message)}</p></div>`));
+    }
+  }
+  disegnaUtenti();
+}
+
+const RUOLO_LABEL = { admin: 'Admin', operatore: 'Operatore', in_attesa: 'In attesa' };
+const RUOLO_CHIP = { admin: 'ok', operatore: '', in_attesa: 'warn' };
+
+// Elenco utenti con il ruolo modificabile da una tendina. Il proprio account
+// è mostrato ma non modificabile: la policy prof_admin_update rifiuterebbe
+// comunque un auto-declassamento, e vale la pena dirlo prima invece di far
+// scoprire il divieto da un errore del database.
+function renderUtenti(zona, utenti, ctx, ricarica) {
+  if (!utenti.length) { zona.replaceChildren(el('<div class="empty-state"><div class="big">👤</div><p>Nessun utente.</p></div>')); return; }
+  const table = el(`<table class="tbl"><thead><tr>
+    <th>Nome</th><th>Email</th><th>Ruolo</th><th>Stato</th><th></th>
+  </tr></thead><tbody></tbody></table>`);
+  const tbody = table.querySelector('tbody');
+  for (const u of utenti) {
+    const sonoIo = u.id === ctx.user.id;
+    const tr = el(`<tr>
+      <td>${esc(u.nome || '—')}</td>
+      <td>${esc(u.email || '—')}${sonoIo ? ' <span class="chip">tu</span>' : ''}</td>
+      <td>${sonoIo
+        ? `<span class="chip ${RUOLO_CHIP[u.ruolo] || ''}">${esc(RUOLO_LABEL[u.ruolo] || u.ruolo)}</span>`
+        : `<select data-ruolo style="min-width:130px">${Object.entries(RUOLO_LABEL).map(([v, t]) =>
+            `<option value="${v}" ${u.ruolo === v ? 'selected' : ''}>${t}</option>`).join('')}</select>`}</td>
+      <td>${u.deve_cambiare_password ? '<span class="chip warn">password provvisoria</span>' : '<span class="muted">attivo</span>'}</td>
+      <td style="text-align:right"><span class="muted" data-esito style="font-size:12.5px"></span></td>
+    </tr>`);
+    const select = tr.querySelector('[data-ruolo]');
+    if (select) {
+      const esito = tr.querySelector('[data-esito]');
+      let precedente = u.ruolo;
+      select.addEventListener('change', async () => {
+        const nuovo = select.value;
+        if (!await confirmDialog(
+          `Cambiare il ruolo di ${u.email} da "${RUOLO_LABEL[precedente]}" a "${RUOLO_LABEL[nuovo]}"?` +
+          (nuovo === 'in_attesa' ? ' Non vedrà più alcun dato finché non lo riabiliti.' : ''),
+          { okLabel: 'Cambia ruolo' })) {
+          select.value = precedente;   // annullato: la tendina torna com'era
+          return;
+        }
+        select.disabled = true; esito.textContent = 'salvataggio…';
+        try {
+          await amministrazione.aggiornaUtente(u.id, { ruolo: nuovo });
+          precedente = nuovo;
+          esito.textContent = '✅ salvato';
+          toast('Ruolo aggiornato', 'ok');
+          ricarica();
+        } catch (e) {
+          select.value = precedente;
+          esito.textContent = '';
+          toast('Errore: ' + e.message, 'err');
+        } finally { select.disabled = false; }
+      });
+    }
+    tbody.appendChild(tr);
+  }
+  zona.replaceChildren(table);
 }
 
 // La password provvisoria viene mostrata una sola volta: non viene salvata
