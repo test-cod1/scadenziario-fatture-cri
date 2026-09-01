@@ -50,7 +50,12 @@ export default {
     const url = new URL(request.url);
     const route = ROUTES[url.pathname];
     if (route && route[request.method]) {
-      return conSicurezza(await route[request.method]({ request, env, ctx }));
+      // `waitUntil` va passato anche in cima al contesto, non solo dentro
+      // `ctx`: le function sono scritte nel formato Pages, dove si chiama
+      // context.waitUntil(...) — /api/prezzo-italia lo usa per salvare la
+      // risposta nella cache edge, e senza andava in eccezione (error 1101).
+      const contesto = { request, env, ctx, waitUntil: (p) => ctx.waitUntil(p) };
+      return conSicurezza(await route[request.method](contesto));
     }
     return conSicurezza(await env.ASSETS.fetch(request));
   },

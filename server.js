@@ -135,7 +135,11 @@ async function apiFunction(req, res, pathname) {
   const request = new Request(`http://localhost:${PORT}${req.url}`, { method: req.method, headers, body: corpo });
 
   try {
-    const out = await handler({ request, env: process.env });
+    // `waitUntil` serve alle function che continuano un lavoro dopo aver
+    // risposto (in produzione: salvare in cache). Qui non c'è nulla da tenere
+    // in vita — il processo resta acceso comunque — ma la funzione deve
+    // esistere, altrimenti la chiamata va in errore.
+    const out = await handler({ request, env: process.env, waitUntil: (p) => Promise.resolve(p).catch(() => {}) });
     const buf = Buffer.from(await out.arrayBuffer());
     res.writeHead(out.status, Object.fromEntries(out.headers));
     res.end(buf);
