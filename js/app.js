@@ -1,6 +1,10 @@
 import { auth } from './data/store.js';
 import { el, clear, esc } from './lib/ui.js';
+import { SEZIONI, getSezione, ruoloIn } from './sezioni.js';
 import { renderLogin, renderResetPassword } from './views/auth.js';
+import { renderHome } from './views/home.js';
+import { renderSezioneVuota, renderSezioneEsterna } from './views/sezioneVuota.js';
+import { renderPortaleUtenti } from './views/portaleUtenti.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderReport } from './views/report.js';
 import { renderProposte } from './views/proposte.js';
@@ -34,19 +38,17 @@ async function boot() {
   await startApp();
 }
 
-const RUOLI_ABILITATI = ['admin', 'operatore'];
-
-// Un account che esiste su Supabase ma non è stato abilitato da un admin non
-// vede alcun dato (le policy RLS lo escludono): senza questo controllo si
-// troverebbe davanti a una dashboard vuota, indistinguibile da un errore.
+// Un account che esiste su Supabase ma che nessuno ha ancora abilitato non
+// vede niente (le policy RLS lo escludono): senza questo controllo si
+// troverebbe davanti a un portale vuoto, indistinguibile da un errore.
 function renderNonAbilitato() {
   clear(app);
   app.appendChild(el(`<div class="login-wrap"><div class="login">
-    <div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>CRI Genova</span></div></div>
+    <div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>CRI Genova</span></div></div>
     <div class="banner warn" style="margin:18px 0"><div class="bi">⏳</div><div>
       <b>Account non ancora abilitato</b>
-      <div class="small">L'accesso è riuscito, ma un amministratore deve autorizzare il tuo utente
-      (${esc(currentUser.email)}) prima che tu possa consultare le fatture.</div>
+      <div class="small">L'accesso è riuscito, ma un amministratore del portale deve autorizzare il tuo
+      utente (${esc(currentUser.email)}) prima che tu possa entrare in una sezione.</div>
     </div></div>
     <button class="btn" id="esci" style="width:100%;justify-content:center">Esci</button>
   </div></div>`));
@@ -57,28 +59,25 @@ function renderNonAbilitato() {
 
 let _routerBound = false;
 async function startApp() {
-  // Utenti creati da un admin con password provvisoria (vedi Impostazioni →
-  // Utenti): prima di mostrare qualunque pagina devono impostarne una propria.
+  // Utenti creati da un super admin con password provvisoria (vedi
+  // Impostazioni → Utenti e autorizzazioni): prima di mostrare qualunque
+  // pagina devono impostarne una propria.
   if (currentUser.deveCambiarePassword) {
     renderResetPassword(app, async () => { currentUser = await auth.current(); await startApp(); }, { obbligatorio: true });
     return;
   }
-  if (!RUOLI_ABILITATI.includes(currentUser.ruolo)) return renderNonAbilitato();
+  if (currentUser.ruoloPortale === 'in_attesa') return renderNonAbilitato();
   renderShell();
   if (!_routerBound) { window.addEventListener('hashchange', route); _routerBound = true; }
-  if (!location.hash) location.hash = '#/passive/fatture';
+  if (!location.hash) location.hash = '#/home';
   else route();
 }
 
-// Le due sezioni (fatture fornitori e fatture clienti) sono percorsi
-// indipendenti sotto #/passive/... e #/attive/...: un vecchio segnalibro
-// senza prefisso (es. #/log) resta valido e ricade sotto "passive" (vedi
-// route()), così non si rompe nulla per chi aveva già l'app aperta.
-const SEZIONI = ['passive', 'attive'];
-
-// Il Registro modifiche non ha più una voce di menu propria: è un'unica
-// pagina condivisa fra passive e attive, raggiungibile da Impostazioni
-// (vedi anche il redirect dei vecchi segnalibri "…/log" in route()).
+// ------------------------------------------------------------------
+//  MENU DELLO SCADENZIARIO
+//  È l'unica sezione con una struttura interna (fatture passive e attive,
+//  ognuna con le sue pagine); le altre, per ora, hanno una pagina sola.
+// ------------------------------------------------------------------
 function navItemsPassive() {
   return [
     { id: 'fatture', icon: '🧾', label: 'Fatture' },
@@ -97,50 +96,118 @@ function renderShell() {
   clear(app);
   const layout = el(`<div class="layout">
     <aside class="sidebar">
-      <div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>CRI Genova</span></div></div>
-      <div class="section-switch">
-        <button data-sezione="passive">🧾 Fatture Passive</button>
-        <button data-sezione="attive">💶 Fatture Attive</button>
-      </div>
-      <nav class="nav"></nav>
-      ${currentUser.ruolo === 'admin' ? '<nav class="nav nav-secondary"><a href="#/passive/impostazioni" data-nav-imp><span class="ic">⚙️</span><span class="txt">Impostazioni</span></a></nav>' : ''}
+      <div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>CRI Genova</span></div></div>
+      <nav class="nav nav-sezioni"></nav>
+      <div class="sez-corrente" id="subnav"></div>
+      <nav class="nav nav-secondary" id="nav-imp"></nav>
       <div class="foot">
         <div class="who">${esc(currentUser.nome || currentUser.email)}</div>
-        <div>${esc(currentUser.ruolo)}</div>
+        <div>${esc(currentUser.ruoloPortale === 'super_admin' ? 'amministratore portale' : 'utente')}</div>
         <button data-logout>Esci</button>
       </div>
     </aside>
     <main class="main" id="view"></main>
   </div>`);
-  layout.querySelectorAll('[data-sezione]').forEach(btn => {
-    btn.addEventListener('click', () => { location.hash = `#/${btn.dataset.sezione}/fatture`; });
-  });
   layout.querySelector('[data-logout]').addEventListener('click', async () => { await auth.signOut(); location.hash = ''; location.reload(); });
   app.appendChild(layout);
 
-  // Il pulsante vive fuori da #app (in fondo a <body>, posizione fissa) così
-  // resta identico e cliccabile a ogni cambio di pagina, invece di essere
-  // ridisegnato da ogni singola vista: lo si crea una sola volta qui, dove
-  // renderShell() gira una volta sola dopo il login.
+  // Elenco delle sezioni: ci sono tutte, anche quelle non autorizzate (che
+  // però non sono cliccabili), come nella home.
+  const nav = layout.querySelector('.nav-sezioni');
+  nav.appendChild(el(`<a href="#/home" data-nav-sezione="home"><span class="ic">🏠</span><span class="txt">Home</span></a>`));
+  for (const s of SEZIONI) {
+    if (!ruoloIn(currentUser, s.id)) {
+      nav.appendChild(el(`<span class="nav-bloccata" title="Non sei autorizzato ad accedere a ${esc(s.label)}"><span class="ic">🔒</span><span class="txt">${esc(s.label)}</span></span>`));
+    } else if (s.tipo === 'esterna') {
+      nav.appendChild(el(`<a href="${esc(s.url)}" target="_blank" rel="noopener noreferrer"><span class="ic">${s.emoji}</span><span class="txt">${esc(s.label)}</span></a>`));
+    } else {
+      nav.appendChild(el(`<a href="${esc(s.home)}" data-nav-sezione="${s.id}"><span class="ic">${s.emoji}</span><span class="txt">${esc(s.label)}</span></a>`));
+    }
+  }
+
+  // Il pulsante del tutorial vive fuori da #app (in fondo a <body>, posizione
+  // fissa) così resta identico e cliccabile a ogni cambio di pagina, invece di
+  // essere ridisegnato da ogni singola vista. Il tour racconta lo
+  // scadenziario, quindi compare solo lì (vedi disegnaNav).
   if (!document.querySelector('.tour-fab')) {
-    const fab = el(`<button class="tour-fab" type="button" title="Tutorial guidato" aria-label="Avvia il tutorial guidato">🎓</button>`);
-    fab.addEventListener('click', () => startTour({ user: currentUser }));
+    const fab = el(`<button class="tour-fab" type="button" title="Tutorial guidato" aria-label="Avvia il tutorial guidato" hidden>🎓</button>`);
+    fab.addEventListener('click', () => startTour({ user: { ...currentUser, ruolo: ruoloIn(currentUser, 'scadenziario') } }));
     document.body.appendChild(fab);
   }
 }
 
-function disegnaNav(sezione, sub) {
-  const nav = document.querySelector('.nav:not(.nav-secondary)');
-  if (!nav) return;
-  clear(nav);
-  const items = sezione === 'attive' ? navItemsAttive() : navItemsPassive();
-  for (const n of items) {
-    nav.appendChild(el(`<a href="#/${sezione}/${n.id}" data-nav="${n.id}"><span class="ic">${n.icon}</span><span class="txt">${n.label}</span></a>`));
+// Disegna il menu della sezione corrente (sotto l'elenco delle sezioni) e le
+// voci "Impostazioni". `sezioneId` è null in home e nelle pagine di portale.
+function disegnaNav(sezioneId, sottoSezione, sub) {
+  document.querySelectorAll('[data-nav-sezione]').forEach(a =>
+    a.classList.toggle('active', a.dataset.navSezione === (sezioneId || 'home')));
+  document.querySelector('.layout')?.classList.toggle('in-sezione', !!sezioneId);
+
+  const subnav = document.getElementById('subnav');
+  const navImp = document.getElementById('nav-imp');
+  clear(subnav); clear(navImp);
+
+  const fab = document.querySelector('.tour-fab');
+  if (fab) fab.hidden = sezioneId !== 'scadenziario';
+
+  if (sezioneId === 'scadenziario') {
+    const sw = el(`<div class="section-switch">
+      <button data-sotto="passive">🧾 Fatture Passive</button>
+      <button data-sotto="attive">💶 Fatture Attive</button>
+    </div>`);
+    sw.querySelectorAll('[data-sotto]').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.sotto === sottoSezione);
+      btn.addEventListener('click', () => { location.hash = `#/scadenziario/${btn.dataset.sotto}/fatture`; });
+    });
+    subnav.appendChild(sw);
+
+    const nav = el('<nav class="nav"></nav>');
+    // Su telefono la barra in basso mostra il menu della sezione al posto
+    // dell'elenco delle sezioni: senza questa voce non ci sarebbe più modo
+    // di tornare alla home.
+    nav.appendChild(el('<a href="#/home" class="solo-mobile"><span class="ic">🏠</span><span class="txt">Home</span></a>'));
+    for (const n of (sottoSezione === 'attive' ? navItemsAttive() : navItemsPassive())) {
+      const a = el(`<a href="#/scadenziario/${sottoSezione}/${n.id}" data-nav="${n.id}"><span class="ic">${n.icon}</span><span class="txt">${n.label}</span></a>`);
+      a.classList.toggle('active', n.id === sub);
+      nav.appendChild(a);
+    }
+    subnav.appendChild(nav);
+
+    if (ruoloIn(currentUser, 'scadenziario') === 'admin') {
+      const a = el('<a href="#/scadenziario/impostazioni"><span class="ic">⚙️</span><span class="txt">Impostazioni scadenziario</span></a>');
+      a.classList.toggle('active', sub === 'impostazioni');
+      navImp.appendChild(a);
+    }
+  } else if (sezioneId) {
+    const nav = el('<nav class="nav"></nav>');
+    nav.appendChild(el('<a href="#/home" class="solo-mobile"><span class="ic">🏠</span><span class="txt">Home</span></a>'));
+    subnav.appendChild(nav);
   }
-  nav.querySelectorAll('a').forEach(a => a.classList.toggle('active', a.dataset.nav === sub));
-  document.querySelectorAll('[data-sezione]').forEach(btn => btn.classList.toggle('active', btn.dataset.sezione === sezione));
-  const impLink = document.querySelector('[data-nav-imp]');
-  if (impLink) impLink.classList.toggle('active', sezione === 'passive' && sub === 'impostazioni');
+
+  if (currentUser.ruoloPortale === 'super_admin') {
+    const a = el('<a href="#/portale/utenti"><span class="ic">👥</span><span class="txt">Utenti e autorizzazioni</span></a>');
+    a.classList.toggle('active', sezioneId === null && sub === 'utenti');
+    navImp.appendChild(a);
+  }
+}
+
+// Vecchi segnalibri e vecchie schede aperte: prima del portale lo scadenziario
+// ERA l'applicazione, quindi le sue rotte non avevano il prefisso di sezione.
+// Qui si traducono, così nessun link salvato smette di funzionare.
+function normalizzaPercorso(parts) {
+  if (!parts.length) return ['home'];
+  if (parts[0] === 'passive' || parts[0] === 'attive') return ['scadenziario', ...parts];
+  if (['fatture', 'proposte', 'report', 'impostazioni'].includes(parts[0])) return ['scadenziario', 'passive', ...parts];
+  if (parts[0] === 'log') return ['scadenziario', 'impostazioni'];   // il registro è confluito nelle impostazioni
+  return parts;
+}
+
+function nonAutorizzato(view, sezione) {
+  view.appendChild(el(`<div class="empty-state"><div class="big">🔒</div>
+    <p><b>Accesso non consentito</b></p>
+    <p>Non sei autorizzato ad accedere a "${esc(sezione.label)}".<br>
+    Chiedi l'abilitazione a un amministratore del portale.</p>
+    <p style="margin-top:18px"><a class="btn" href="#/home">← Torna alla home</a></p></div>`));
 }
 
 let _routeSeq = 0;
@@ -148,33 +215,71 @@ async function route() {
   const view = document.getElementById('view');
   if (!view) return;
   const my = ++_routeSeq;
-  const hash = location.hash.replace(/^#\//, '') || 'passive/fatture';
-  let [section, sub] = hash.split('/');
-  if (!SEZIONI.includes(section)) { sub = section; section = 'passive'; }   // vecchi segnalibri senza prefisso di sezione
-  if (!sub) sub = 'fatture';
-  // Il Registro modifiche è confluito in un'unica pagina dentro Impostazioni
-  // (vedi navItemsPassive/navItemsAttive): un vecchio segnalibro su
-  // "…/log", di qualunque sezione, ci finisce comunque.
-  if (sub === 'log') { location.hash = '#/passive/impostazioni'; return; }
-  disegnaNav(section, sub);
+
+  const parts = normalizzaPercorso(location.hash.replace(/^#\/?/, '').split('/').filter(Boolean));
+  const [primo, ...resto] = parts;
+
+  // --- pagine di portale (fuori da ogni sezione) ---
+  if (primo === 'home' || primo === 'portale') {
+    const sub = primo === 'portale' ? (resto[0] || 'utenti') : 'home';
+    disegnaNav(null, null, sub);
+    clear(view);
+    const ctx = { user: currentUser, go: (h) => { location.hash = h; } };
+    try {
+      if (primo === 'portale') await renderPortaleUtenti(view, ctx);
+      else await renderHome(view, ctx);
+    } catch (e) { mostraErrore(view, e); }
+    return;
+  }
+
+  const sezione = getSezione(primo);
+  if (!sezione) { location.hash = '#/home'; return; }
+
+  const ruolo = ruoloIn(currentUser, sezione.id);
+  // Chi non ha accesso non deve nemmeno vedersi comparire il menu interno
+  // della sezione: resta con il menu del portale e un avviso in pagina.
+  if (!ruolo) {
+    disegnaNav(null, null, null);
+    clear(view);
+    return nonAutorizzato(view, sezione);
+  }
+
+  const sottoSezione = sezione.id === 'scadenziario' ? (['passive', 'attive'].includes(resto[0]) ? resto[0] : 'passive') : null;
+  const sub = sezione.id === 'scadenziario'
+    ? (resto[0] === 'impostazioni' ? 'impostazioni' : (resto[1] || 'fatture'))
+    : (resto[0] || null);
+  disegnaNav(sezione.id, sottoSezione, sub);
   clear(view);
+
+  // Le viste dello scadenziario (e quelle che verranno) leggono ctx.user.ruolo
+  // aspettandosi 'admin' o 'operatore': qui `ruolo` è già quello DELLA
+  // SEZIONE, non quello di portale, così non devono sapere nulla del resto.
+  const ctx = { user: { ...currentUser, ruolo }, ruoloSezione: ruolo, go: (h) => { location.hash = h; } };
+
   view.appendChild(el('<div class="spinner" style="margin-top:60px"></div>'));
-  const ctx = { user: currentUser, go: (h) => { location.hash = h; } };
   try {
     if (my !== _routeSeq) return;
     clear(view);
-    if (section === 'attive') {
+    if (sezione.tipo === 'esterna') { await renderSezioneEsterna(view, ctx, sezione); return; }
+    if (sezione.id !== 'scadenziario') { await renderSezioneVuota(view, ctx, sezione); return; }
+
+    if (sub === 'impostazioni') await renderImpostazioni(view, ctx);
+    else if (sottoSezione === 'attive') {
       if (sub === 'report') await renderReportAttive(view, ctx);
       else await renderDashboardAttive(view, ctx);
-    } else if (sub === 'report') await renderReport(view, ctx);
+    }
+    else if (sub === 'report') await renderReport(view, ctx);
     else if (sub === 'proposte') await renderProposte(view, ctx);
-    else if (sub === 'impostazioni') await renderImpostazioni(view, ctx);
     else await renderDashboard(view, ctx);
   } catch (e) {
-    clear(view);
-    view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${esc(e.message)}</p></div>`));
-    console.error(e);
+    mostraErrore(view, e);
   }
+}
+
+function mostraErrore(view, e) {
+  clear(view);
+  view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${esc(e.message)}</p></div>`));
+  console.error(e);
 }
 
 boot();

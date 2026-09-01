@@ -214,7 +214,7 @@ function renderClienti(node, gruppi, ricerca, ctx, sort, onSort) {
     </tr>`);
     rendiCliccabile(tr, () => {
       sessionStorage.setItem(FILTRO_CLIENTE_KEY, g.cliente === '—' ? '' : g.cliente);
-      ctx.go('#/attive/fatture');
+      ctx.go('#/scadenziario/attive/fatture');
     });
     tbody.appendChild(tr);
   }

@@ -8,7 +8,7 @@
 //  l'emittente: è l'unica differenza che conta per una fattura attiva.
 // ============================================================
 
-import { requireUser, ruoloUtente, RUOLI_ABILITATI } from '../_lib/auth.js';
+import { requireUser, ruoloSezione } from '../_lib/auth.js';
 import { MODELLO_GEMINI } from '../_lib/gemini.mjs';
 
 const SCHEMA = {
@@ -33,9 +33,9 @@ export async function onRequestPost(context) {
 
   // Vedi il commento gemello in estrai-fattura.js: un account non ancora
   // abilitato ha un token valido e poteva esaurire la quota Gemini di tutti.
-  const ruolo = await ruoloUtente(request, env, user.id);
-  if (!RUOLI_ABILITATI.includes(ruolo)) {
-    return json({ error: 'Il tuo account non è ancora abilitato: chiedi a un amministratore.' }, 403);
+  const ruolo = await ruoloSezione(request, env, 'scadenziario');
+  if (!ruolo) {
+    return json({ error: 'Non sei autorizzato ad accedere allo scadenziario: chiedi a un amministratore del portale.' }, 403);
   }
 
   if (!env.GEMINI_API_KEY) return json({ error: 'Chiave Gemini non configurata (GEMINI_API_KEY).' }, 500);

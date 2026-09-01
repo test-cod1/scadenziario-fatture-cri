@@ -1,8 +1,21 @@
-# Scadenziario Fatture — CRI Genova
+# Amministrazione CRI — Genova
 
-Gestionale online per lo scadenziario delle fatture: inserimento manuale o automatico (PDF via AI Gemini, XML fattura elettronica letto direttamente), pagamenti/acconti, alert scadenze, ricerca e filtri, export Excel/PDF, registro modifiche per gli admin.
+Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione** dalla home; ogni sezione è un gestionale a sé, con i suoi dati e i suoi permessi, e si entra solo dove si è autorizzati:
 
-L'app ha due sezioni completamente indipendenti, selezionabili come due schede dalla barra laterale:
+| Sezione | Stato |
+|---|---|
+| **Scadenziario** | attiva (è il contenuto storico di questo progetto, descritto qui sotto) |
+| **Formazione Esterna** | da sviluppare |
+| **Trasporti lunghi** | gestionale dedicato già online ([preventivo-trasporti](https://preventivo-trasporti.pages.dev)): la card lo apre in una scheda nuova |
+| **Assistenze sanitarie** | da sviluppare |
+
+I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
+
+## Sezione Scadenziario
+
+Inserimento manuale o automatico delle fatture (PDF via AI Gemini, XML fattura elettronica letto direttamente), pagamenti/acconti, alert scadenze, ricerca e filtri, export Excel/PDF, registro modifiche per gli admin.
+
+Si divide a sua volta in due parti indipendenti, selezionabili come due schede dalla barra laterale:
 - **Fatture Passive**: fatture ricevute dai fornitori (quando *noi* paghiamo).
 - **Fatture Attive**: fatture emesse ai clienti (quando *veniamo pagati*) — stesse funzionalità delle passive (inserimento manuale o da PDF/XML, incassi/acconti, note di credito, export, registro modifiche), più un campo per segnare la data dell'ultimo sollecito di pagamento inviato al cliente.
 
@@ -14,16 +27,16 @@ Le due sezioni hanno tabelle, dati e permessi separati: nulla di quanto inserito
 2. Apri **SQL Editor** → New query → copia tutto il contenuto di [`supabase/schema.sql`](supabase/schema.sql) → Run.
 3. Vai su **Authentication → Sign In / Providers** e imposta **"Allow new users to sign up" = OFF**: senza questa modifica chiunque conosca l'indirizzo del sito può crearsi un account.
 4. Crea il tuo account: **Authentication → Users → Add user**. I colleghi successivi puoi crearli direttamente dall'app (vedi sotto "Gestire gli utenti dall'app"), oppure allo stesso modo da qui.
-5. Promuoviti ad admin, in SQL Editor:
+5. Promuoviti a super admin del portale, in SQL Editor:
    ```sql
-   update public.profili set ruolo='admin' where email='tua@email.it';
+   update public.profili set ruolo='super_admin' where email='tua@email.it';
    ```
-   Questo è l'unico passaggio da fare in SQL: da qui in avanti i ruoli si gestiscono dall'app, in **Impostazioni → Utenti**. Ogni profilo nasce con ruolo `in_attesa`, che **non vede alcun dato** (e non può nemmeno usare la lettura AI), finché un admin non lo abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Gli `operatore` possono inserire/modificare/eliminare fatture ma non vedono il registro modifiche né le Impostazioni; gli `admin` vedono tutto.
+   Questo è l'unico passaggio da fare in SQL: da qui in avanti utenti e permessi si gestiscono dall'app, in **Utenti e autorizzazioni**. Ogni profilo nasce con ruolo `in_attesa`, che **non entra in nessuna sezione** (e non può nemmeno usare la lettura AI), finché non lo si abilita: è la rete di sicurezza nel caso in cui le iscrizioni pubbliche restino aperte. Dentro una sezione, l'`operatore` inserisce/modifica/elimina i dati mentre l'`admin` vede anche impostazioni e registro modifiche di quella sezione; il `super_admin` è admin ovunque.
 6. Vai su **Project Settings → API**: copia **Project URL**, **anon public key** e **service_role key** (quest'ultima serve solo per la creazione utenti dall'app, punto 3 sotto — è una chiave molto potente, mai da esporre lato client).
 
 > Se il database è stato creato prima del 01/09/2026, esegui anche i patch in `supabase/patch-*.sql` nell'ordine della data nel nome del file. Su un database nuovo non serve: `schema.sql` li include già tutti.
 >
-> **L'ultimo è [`patch-2026-08-31-revisione.sql`](supabase/patch-2026-08-31-revisione.sql)** e va eseguito anche su un database già in uso: corregge lo stato delle fatture pagate su cui è poi arrivata una nota di credito (erano marcate "stornata"), aggiunge il vincolo `importo > 0` sulle fatture, l'indice su `data_fattura` e la policy che permette a un admin di gestire i ruoli dall'app.
+> **L'ultimo è [`patch-2026-09-01-portale.sql`](supabase/patch-2026-09-01-portale.sql)** ed è obbligatorio su un database già in uso: trasforma lo scadenziario nel portale multi-sezione. Crea le tabelle `sezioni` e `autorizzazioni`, sposta lì i ruoli che stavano in `profili.ruolo` (chi era admin/operatore resta admin/operatore **dello scadenziario** e di nient'altro) e nomina il super admin — nel file c'è un `update` con l'email da controllare prima di eseguirlo.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -68,17 +81,25 @@ Passaggi:
 
 ## Gestire gli utenti dall'app
 
-Un admin può creare nuovi utenti da **Impostazioni → Aggiungi un utente** (email, nome opzionale, ruolo): l'app genera una password provvisoria mostrata una sola volta, da comunicare tu stesso al collega (telefono, di persona — non viene inviata via email). Al primo accesso l'app lo obbliga a impostarne una propria prima di poter usare il gestionale.
+Tutto avviene in **Utenti e autorizzazioni** (voce in fondo alla barra laterale, visibile solo al super admin).
 
-Sotto, in **Impostazioni → Utenti**, c'è l'elenco di tutti gli account con il ruolo modificabile da una tendina: è da qui che si abilita chi è rimasto `in_attesa` (per esempio chi si è registrato da solo), si promuove un operatore ad admin o si sospende un accesso riportandolo a `in_attesa`. L'unica cosa che non si può fare è togliere il ruolo admin a se stessi: serve a non chiudere fuori tutti dalle Impostazioni per errore, quando c'è un solo amministratore.
+Da **Aggiungi un utente** si crea l'account con email, nome opzionale e già le sezioni che gli competono: l'app genera una password provvisoria mostrata una sola volta, da comunicare tu stesso al collega (telefono, di persona — non viene inviata via email). Al primo accesso l'app lo obbliga a impostarne una propria prima di poter entrare.
+
+Sotto c'è la tabella di tutti gli account: una riga per utente, una colonna per sezione, e in ogni casella una tendina con **Nessuno / Operatore / Admin**. Assegnare la prima sezione a un utente `in_attesa` lo attiva automaticamente. Il pulsante **Sospendi** blocca del tutto un accesso senza cancellarne i permessi, così riattivarlo non costringe a riassegnarli uno per uno. Due cose non si possono fare dall'app, di proposito: sospendere se stessi e creare un altro super admin (quel ruolo si assegna solo dal database, altrimenti chi gestisce gli utenti potrebbe auto-promuoversi).
+
+Le **impostazioni di sezione** sono un'altra cosa: per lo scadenziario stanno in *Impostazioni scadenziario* (scadenza di default e registro modifiche) e le vede l'admin di quella sezione, non il super admin in quanto tale.
 
 ## Struttura del progetto
 
 ```
 index.html                   pagina unica (SPA)
 css/styles.css                stile
-js/app.js                     router e shell dell'applicazione (tab Passive/Attive)
+js/app.js                     router e shell del portale (home, sezioni, permessi)
+js/sezioni.js                  elenco delle sezioni (icone, colori, rotte) e regole di accesso
 js/config.js                   configurazione (URL/chiavi Supabase)
+js/views/home.js                home del portale: la griglia da cui si sceglie la sezione
+js/views/portaleUtenti.js       utenti e autorizzazioni di sezione (solo super admin)
+js/views/sezioneVuota.js        segnaposto delle sezioni non ancora sviluppate / esterne
 js/data/store.js               layer dati fatture PASSIVE: auth, fatture, pagamenti, log
 js/data/storeAttive.js          layer dati fatture ATTIVE: fatture, incassi, log (tabelle indipendenti)
 js/lib/                        helper: UI, client Supabase, parser XML (passive+attive), export
@@ -91,7 +112,7 @@ js/views/dashboardAttive.js     dashboard fatture attive
 js/views/fatturaAttiva.js       editor fattura attiva (incl. sollecito di pagamento)
 js/views/reportAttive.js        report/statistiche fatture attive (per cliente + andamento mensile)
 js/views/registroModifiche.js   registro modifiche unificato (passive+attive), dentro Impostazioni
-js/views/impostazioni.js        configurazione, gestione utenti e ruoli, registro modifiche (solo admin)
+js/views/impostazioni.js        impostazioni dello scadenziario e registro modifiche (admin di sezione)
 manifest.json                  manifest PWA (nome, icone, tema) — abilita "Aggiungi a schermata Home"
 sw.js                          service worker: cache di riserva se la rete cade, sempre network-first
 icons/                          icone PWA (192px, 512px)

@@ -225,7 +225,7 @@ function renderFornitori(node, gruppi, ricerca, ctx, sort, onSort) {
     </tr>`);
     rendiCliccabile(tr, () => {
       sessionStorage.setItem(FILTRO_FORNITORE_KEY, g.fornitore === '—' ? '' : g.fornitore);
-      ctx.go('#/passive/fatture');
+      ctx.go('#/scadenziario/passive/fatture');
     });
     tbody.appendChild(tr);
   }

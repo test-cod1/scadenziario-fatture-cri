@@ -18,14 +18,36 @@
 export const SUPABASE_URL = 'https://xmfqozojjplccnnttwxu.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_Cm8yAHlD3TZSjW0fW53_fw_OmfeWJT3';
 
-// Ruoli abilitati a usare gli endpoint dell'app: gli stessi che le RLS
-// lasciano leggere e scrivere. Un profilo 'in_attesa' non rientra.
-export const RUOLI_ABILITATI = ['admin', 'operatore'];
+// Ruolo dell'utente autenticato in una sezione del portale ('admin',
+// 'operatore' oppure null se non vi ha accesso). Si appoggia alla funzione
+// ruolo_sezione() del database — la stessa che governa le RLS — chiamata con
+// il token dell'utente: così la regola sta scritta in un posto solo e non può
+// divergere fra client, server e policy.
+export async function ruoloSezione(request, env, sezione) {
+  const url = (env && env.SUPABASE_URL) || SUPABASE_URL;
+  const anonKey = (env && env.SUPABASE_ANON_KEY) || SUPABASE_ANON_KEY;
+  try {
+    const res = await fetch(`${url}/rest/v1/rpc/ruolo_sezione`, {
+      method: 'POST',
+      headers: {
+        apikey: anonKey,
+        Authorization: request.headers.get('Authorization') || '',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ p_sezione: sezione }),
+    });
+    if (!res.ok) return null;
+    return (await res.json()) || null;
+  } catch {
+    return null;
+  }
+}
 
-// Ruolo dell'utente autenticato, letto rispettando le RLS (usa il suo stesso
-// token, non la service key): serve per verificare lato server che chi chiama
-// un endpoint sensibile (es. creazione utenti) sia davvero un admin, senza
-// fidarsi di un flag mandato dal client.
+// Ruolo DI PORTALE dell'utente autenticato ('super_admin' | 'utente' |
+// 'in_attesa'), letto rispettando le RLS (usa il suo stesso token, non la
+// service key): serve per verificare lato server che chi chiama un endpoint
+// sensibile (es. creazione utenti) sia davvero un super admin, senza fidarsi
+// di un flag mandato dal client.
 export async function ruoloUtente(request, env, userId) {
   const url = (env && env.SUPABASE_URL) || SUPABASE_URL;
   const anonKey = (env && env.SUPABASE_ANON_KEY) || SUPABASE_ANON_KEY;

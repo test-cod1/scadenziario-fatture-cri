@@ -10,7 +10,7 @@
 //  (chiave gratuita da https://aistudio.google.com/apikey)
 // ============================================================
 
-import { requireUser, ruoloUtente, RUOLI_ABILITATI } from '../_lib/auth.js';
+import { requireUser, ruoloSezione } from '../_lib/auth.js';
 import { MODELLO_GEMINI } from '../_lib/gemini.mjs';
 
 const SCHEMA = {
@@ -38,9 +38,9 @@ export async function onRequestPost(context) {
   // vede alcun dato per via delle RLS, ma il suo token resta valido: senza
   // questo controllo poteva comunque interrogare Gemini in loop ed esaurire
   // la quota gratuita giornaliera per tutti gli altri.
-  const ruolo = await ruoloUtente(request, env, user.id);
-  if (!RUOLI_ABILITATI.includes(ruolo)) {
-    return json({ error: 'Il tuo account non è ancora abilitato: chiedi a un amministratore.' }, 403);
+  const ruolo = await ruoloSezione(request, env, 'scadenziario');
+  if (!ruolo) {
+    return json({ error: 'Non sei autorizzato ad accedere allo scadenziario: chiedi a un amministratore del portale.' }, 403);
   }
 
   if (!env.GEMINI_API_KEY) return json({ error: 'Chiave Gemini non configurata (GEMINI_API_KEY).' }, 500);

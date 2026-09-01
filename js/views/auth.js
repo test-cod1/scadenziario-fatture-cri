@@ -1,7 +1,7 @@
 import { auth } from '../data/store.js';
 import { el, clear, esc, toast } from '../lib/ui.js';
 
-const BRAND = `<div class="brand"><div class="logo">✚</div><div><b>Scadenziario Fatture</b><span>CRI Genova</span></div></div>`;
+const BRAND = `<div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>CRI Genova</span></div></div>`;
 
 export function renderLogin(app, onDone) {
   clear(app);
@@ -93,7 +93,7 @@ export function renderResetPassword(app, onDone, { invite = false, obbligatorio 
     try {
       await auth.updatePassword(pw1);
       if (obbligatorio) await auth.confermaPasswordImpostata();
-      history.replaceState(null, '', location.pathname + '#/passive/fatture');
+      history.replaceState(null, '', location.pathname + '#/home');
       toast(invite || obbligatorio ? 'Password creata' : 'Password aggiornata', 'ok');
       onDone();
     } catch (e) {

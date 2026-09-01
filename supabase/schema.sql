@@ -9,10 +9,14 @@ create table if not exists public.profili (
   id uuid primary key references auth.users(id) on delete cascade,
   email text,
   nome text,
-  -- 'in_attesa' e' il ruolo di partenza di ogni profilo creato automaticamente:
-  -- non legge e non scrive nulla finche' un admin non lo abilita. Serve a evitare
-  -- che un'eventuale registrazione pubblica su Supabase dia accesso ai dati.
-  ruolo text not null default 'in_attesa' check (ruolo in ('admin','operatore','in_attesa')),
+  -- Ruolo DI PORTALE, da non confondere con il ruolo dentro una sezione (che
+  -- sta in public.autorizzazioni): 'super_admin' governa utenti e permessi di
+  -- tutto il portale, 'utente' accede solo alle sezioni che gli sono state
+  -- assegnate. 'in_attesa' e' il ruolo di partenza di ogni profilo creato
+  -- automaticamente: non legge e non scrive nulla finche' non viene abilitato,
+  -- cosi' un'eventuale registrazione pubblica su Supabase non da' accesso a
+  -- nulla.
+  ruolo text not null default 'in_attesa' check (ruolo in ('super_admin','utente','in_attesa')),
   -- true per gli utenti creati da un admin con password provvisoria: l'app li
   -- costringe a impostarne una propria al primo accesso, prima di mostrare
   -- qualunque altra pagina.
@@ -34,26 +38,81 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
-create or replace function public.puo_scrivere()
+-- ---------- SEZIONI DEL PORTALE ----------
+-- L'elenco sta a database (e non solo nel codice) perche' le autorizzazioni vi
+-- fanno riferimento con una chiave esterna: una sezione scritta male in un
+-- insert viene rifiutata, invece di creare un permesso che non porta da
+-- nessuna parte.
+create table if not exists public.sezioni (
+  id text primary key,
+  etichetta text not null,
+  ordine int not null default 0
+);
+
+insert into public.sezioni (id, etichetta, ordine) values
+  ('scadenziario', 'Scadenziario',          1),
+  ('formazione',   'Formazione Esterna',    2),
+  ('trasporti',    'Trasporti lunghi',      3),
+  ('assistenze',   'Assistenze sanitarie',  4)
+on conflict (id) do update set etichetta = excluded.etichetta, ordine = excluded.ordine;
+
+-- ---------- AUTORIZZAZIONI (utente x sezione x ruolo) ----------
+-- L'assenza di riga significa "nessun accesso": non serve un ruolo "nessuno",
+-- e revocare un permesso e' una delete, non un valore speciale da gestire
+-- ovunque.
+create table if not exists public.autorizzazioni (
+  utente_id uuid not null references auth.users(id) on delete cascade,
+  sezione   text not null references public.sezioni(id) on delete cascade,
+  ruolo     text not null default 'operatore' check (ruolo in ('operatore','admin')),
+  assegnata_da uuid references auth.users(id),
+  created_at   timestamptz not null default now(),
+  primary key (utente_id, sezione)
+);
+create index if not exists idx_autorizzazioni_utente on public.autorizzazioni(utente_id);
+
+-- ---------- CONTROLLO ACCESSI ----------
+create or replace function public.e_super_admin()
 returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.profili
-    where id = auth.uid() and ruolo in ('admin','operatore')
-  );
+  select exists (select 1 from public.profili where id = auth.uid() and ruolo = 'super_admin');
 $$;
 
--- Chi puo' LEGGERE i dati: solo utenti con un profilo e un ruolo abilitato.
+-- Ruolo dell'utente corrente nella sezione indicata: 'admin', 'operatore'
+-- oppure NULL se non vi ha accesso. Il super admin e' admin ovunque.
+create or replace function public.ruolo_sezione(p_sezione text)
+returns text language sql stable security definer set search_path = public as $$
+  select case
+    when exists (select 1 from public.profili where id = auth.uid() and ruolo = 'super_admin') then 'admin'
+    else (select a.ruolo from public.autorizzazioni a
+          where a.utente_id = auth.uid() and a.sezione = p_sezione)
+  end;
+$$;
+
+create or replace function public.accede_a(p_sezione text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.ruolo_sezione(p_sezione) is not null;
+$$;
+
+create or replace function public.e_admin_sezione(p_sezione text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.ruolo_sezione(p_sezione) = 'admin';
+$$;
+
+-- Le tre funzioni storiche sono sinonimi di "...nella sezione scadenziario":
+-- tutte le policy delle tabelle delle fatture le richiamano e non hanno
+-- bisogno di sapere che attorno e' nato un portale con altre sezioni.
+create or replace function public.puo_scrivere()
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.accede_a('scadenziario');
+$$;
+
 create or replace function public.puo_leggere()
 returns boolean language sql stable security definer set search_path = public as $$
-  select exists (
-    select 1 from public.profili
-    where id = auth.uid() and ruolo in ('admin','operatore')
-  );
+  select public.accede_a('scadenziario');
 $$;
 
 create or replace function public.e_admin()
 returns boolean language sql stable security definer set search_path = public as $$
-  select exists (select 1 from public.profili where id = auth.uid() and ruolo = 'admin');
+  select public.e_admin_sezione('scadenziario');
 $$;
 
 -- ---------- FATTURE ----------
@@ -370,6 +429,8 @@ create index if not exists idx_proposte_stato on public.proposte_pagamento(stato
 --  ROW LEVEL SECURITY
 -- ============================================================
 alter table public.profili           enable row level security;
+alter table public.sezioni           enable row level security;
+alter table public.autorizzazioni    enable row level security;
 alter table public.fatture           enable row level security;
 alter table public.pagamenti         enable row level security;
 alter table public.note_credito       enable row level security;
@@ -381,20 +442,37 @@ alter table public.impostazioni      enable row level security;
 drop policy if exists prof_self on public.profili;
 create policy prof_self on public.profili for select using (id = auth.uid());
 drop policy if exists prof_admin_read on public.profili;
-create policy prof_admin_read on public.profili for select using (public.e_admin());
+create policy prof_admin_read on public.profili for select using (public.e_super_admin());
 drop policy if exists prof_update_self on public.profili;
 create policy prof_update_self on public.profili for update
   using (id = auth.uid())
   with check (id = auth.uid() and ruolo = (select p.ruolo from public.profili p where p.id = auth.uid()));
--- Un admin gestisce i profili dei colleghi dall'app (Impostazioni > Utenti):
--- abilitare chi è rimasto 'in_attesa', cambiare un ruolo, correggere un nome.
--- Non può però togliere il ruolo admin a SE STESSO: senza questa rete di
--- sicurezza un clic distratto sull'ultimo amministratore chiudeva fuori tutti
--- dalle Impostazioni, e si tornava per forza all'SQL Editor di Supabase.
+-- Il super admin gestisce i profili dei colleghi dall'app (Impostazioni >
+-- Utenti e autorizzazioni): abilitare chi è rimasto 'in_attesa', correggere un
+-- nome. Non può però togliersi da solo il ruolo di super admin: senza questa
+-- rete di sicurezza un clic distratto sull'ultimo super admin chiudeva fuori
+-- tutti dalla gestione utenti, e si tornava per forza all'SQL Editor di
+-- Supabase.
 drop policy if exists prof_admin_update on public.profili;
 create policy prof_admin_update on public.profili for update
-  using (public.e_admin())
-  with check (public.e_admin() and (id <> auth.uid() or ruolo = 'admin'));
+  using (public.e_super_admin())
+  with check (public.e_super_admin() and (id <> auth.uid() or ruolo = 'super_admin'));
+
+-- Le sezioni non sono un dato riservato (sono gli stessi nomi che si leggono
+-- in home): l'elenco serve a chiunque abbia fatto il login per disegnare il
+-- menu, comprese le card bloccate.
+drop policy if exists sezioni_read on public.sezioni;
+create policy sezioni_read on public.sezioni for select to authenticated using (true);
+
+-- Ognuno legge i propri permessi (l'app li usa per capire cosa mostrare);
+-- il super admin li legge e li scrive tutti.
+drop policy if exists autor_self on public.autorizzazioni;
+create policy autor_self on public.autorizzazioni for select using (utente_id = auth.uid());
+drop policy if exists autor_sa_read on public.autorizzazioni;
+create policy autor_sa_read on public.autorizzazioni for select using (public.e_super_admin());
+drop policy if exists autor_sa_write on public.autorizzazioni;
+create policy autor_sa_write on public.autorizzazioni for all
+  using (public.e_super_admin()) with check (public.e_super_admin());
 
 drop policy if exists fatture_read on public.fatture;
 create policy fatture_read on public.fatture for select using (public.puo_leggere());
@@ -758,10 +836,15 @@ drop policy if exists log_attive_admin_read on public.log_modifiche_attive;
 create policy log_attive_admin_read on public.log_modifiche_attive for select using (public.e_admin());
 
 -- ============================================================
---  NOTA: dopo aver eseguito lo schema, promuovi il tuo utente ad admin:
---    update public.profili set ruolo='admin' where email='tua@email';
---  e abilita ogni collega (che nasce 'in_attesa') con:
---    update public.profili set ruolo='operatore' where email='collega@cri.it';
+--  NOTA: dopo aver eseguito lo schema, promuovi il tuo utente a super admin
+--  (e' l'unico ruolo che non si assegna dall'app):
+--    update public.profili set ruolo='super_admin' where email='tua@email';
+--  Da li' in poi utenti e permessi si gestiscono dal portale, in
+--  Impostazioni > Utenti e autorizzazioni. A mano si farebbe cosi':
+--    update public.profili set ruolo='utente' where email='collega@cri.it';
+--    insert into public.autorizzazioni (utente_id, sezione, ruolo)
+--      select id, 'scadenziario', 'operatore' from public.profili
+--      where email='collega@cri.it';
 --
 --  Ricorda inoltre di disattivare le iscrizioni pubbliche:
 --    Authentication > Sign In / Providers > Allow new users to sign up = OFF

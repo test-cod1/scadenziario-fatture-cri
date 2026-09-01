@@ -1,7 +1,7 @@
 {
-  "name": "Scadenziario Fatture — Croce Rossa Italiana Genova",
-  "short_name": "Scadenziario",
-  "description": "Gestione scadenze fatture fornitori e proposte di pagamento — CRI Genova",
+  "name": "Amministrazione CRI — Genova",
+  "short_name": "Amm. CRI",
+  "description": "Portale gestionale CRI Genova: scadenziario fatture, formazione esterna, trasporti lunghi e assistenze sanitarie",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -7,13 +7,30 @@ async function sbProfile(sb, userId) {
   return data;
 }
 
+// Permessi di sezione dell'utente, nella forma { scadenziario: 'admin', … }.
+// La policy autor_self lascia leggere a ciascuno le proprie righe, quindi
+// questa lettura funziona per chiunque abbia fatto il login.
+async function sbAutorizzazioni(sb, userId) {
+  const { data } = await sb.from('autorizzazioni').select('sezione, ruolo').eq('utente_id', userId);
+  const out = {};
+  for (const r of data || []) out[r.sezione] = r.ruolo;
+  return out;
+}
+
 // ---------------------------------------------------------------
 //  AUTH
 // ---------------------------------------------------------------
-function utenteDaProfilo(authUser, prof) {
+// `ruoloPortale` è il ruolo sull'intero portale ('super_admin' | 'utente' |
+// 'in_attesa'); il ruolo dentro una singola sezione sta in `sezioni` e si
+// legge con ruoloIn() di js/sezioni.js. Attenzione: le viste dello
+// scadenziario ricevono un ctx.user in cui `ruolo` è già il ruolo NELLA
+// SEZIONE (vedi app.js), non quello di portale.
+function utenteDaProfilo(authUser, prof, sezioni) {
   return {
     id: authUser.id, email: authUser.email,
-    nome: prof?.nome || authUser.email, ruolo: prof?.ruolo || 'in_attesa',
+    nome: prof?.nome || authUser.email,
+    ruoloPortale: prof?.ruolo || 'in_attesa',
+    sezioni: sezioni || {},
     deveCambiarePassword: !!prof?.deve_cambiare_password,
   };
 }
@@ -23,15 +40,21 @@ export const auth = {
     const sb = await sbClient();
     const { data } = await sb.auth.getUser();
     if (!data.user) return null;
-    const prof = await sbProfile(sb, data.user.id);
-    return utenteDaProfilo(data.user, prof);
+    const [prof, sezioni] = await Promise.all([
+      sbProfile(sb, data.user.id),
+      sbAutorizzazioni(sb, data.user.id),
+    ]);
+    return utenteDaProfilo(data.user, prof, sezioni);
   },
   async signIn(email, password) {
     const sb = await sbClient();
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
-    const prof = await sbProfile(sb, data.user.id);
-    return utenteDaProfilo(data.user, prof);
+    const [prof, sezioni] = await Promise.all([
+      sbProfile(sb, data.user.id),
+      sbAutorizzazioni(sb, data.user.id),
+    ]);
+    return utenteDaProfilo(data.user, prof, sezioni);
   },
   async signOut() {
     const sb = await sbClient(); await sb.auth.signOut();
@@ -58,10 +81,10 @@ export const auth = {
 };
 
 // ---------------------------------------------------------------
-//  AMMINISTRAZIONE (solo admin): creazione utenti con password provvisoria
+//  AMMINISTRAZIONE (solo super admin): utenti e autorizzazioni di sezione
 // ---------------------------------------------------------------
 export const amministrazione = {
-  async creaUtente({ email, nome, ruolo }) {
+  async creaUtente({ email, nome, autorizzazioni: perm }) {
     const { getAccessToken } = await import('../lib/supabase.js');
     const { CONFIG } = await import('../config.js');
     const token = await getAccessToken();
@@ -69,32 +92,57 @@ export const amministrazione = {
     const res = await fetch(CONFIG.api.creaUtente, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ email, nome, ruolo }),
+      body: JSON.stringify({ email, nome, autorizzazioni: perm || {} }),
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok && !data.passwordProvvisoria) throw new Error(data.error || `Creazione utente non riuscita (${res.status}).`);
     return data; // { email, passwordProvvisoria, error? } — error solo se il profilo non è stato completato
   },
 
-  // Elenco dei profili: le RLS lo restituiscono per intero solo a un admin
-  // (policy prof_admin_read), a chiunque altro solo il proprio.
+  // Elenco dei profili con i rispettivi permessi di sezione: le RLS lo
+  // restituiscono per intero solo al super admin (policy prof_admin_read e
+  // autor_sa_read), a chiunque altro solo il proprio.
   async listaUtenti() {
     const sb = await sbClient();
-    const { data, error } = await sb.from('profili')
-      .select('id, email, nome, ruolo, deve_cambiare_password, created_at')
-      .order('ruolo', { ascending: true }).order('email', { ascending: true });
-    if (error) throw error;
-    return data;
+    const [profili, perm] = await Promise.all([
+      sb.from('profili')
+        .select('id, email, nome, ruolo, deve_cambiare_password, created_at')
+        .order('ruolo', { ascending: true }).order('email', { ascending: true }),
+      sb.from('autorizzazioni').select('utente_id, sezione, ruolo'),
+    ]);
+    if (profili.error) throw profili.error;
+    if (perm.error) throw perm.error;
+    const perUtente = {};
+    for (const r of perm.data || []) (perUtente[r.utente_id] ||= {})[r.sezione] = r.ruolo;
+    return (profili.data || []).map(p => ({ ...p, sezioni: perUtente[p.id] || {} }));
   },
 
-  // Cambia ruolo e/o nome di un altro utente. Scrive con il token dell'admin,
-  // non con la service key: è la policy prof_admin_update a consentirlo (e a
-  // impedire che un admin si tolga da solo il proprio ruolo).
+  // Cambia nome e/o ruolo di portale di un altro utente. Scrive con il token
+  // del super admin, non con la service key: è la policy prof_admin_update a
+  // consentirlo (e a impedirgli di togliersi da solo il proprio ruolo).
   async aggiornaUtente(id, campi) {
     const sb = await sbClient();
     const { data, error } = await sb.from('profili').update(campi).eq('id', id).select().single();
     if (error) throw error;
     return data;
+  },
+
+  // Concede (o cambia di ruolo) l'accesso di un utente a una sezione.
+  async impostaAutorizzazione(utenteId, sezione, ruolo) {
+    const sb = await sbClient();
+    const { data: me } = await sb.auth.getUser();
+    const { error } = await sb.from('autorizzazioni')
+      .upsert({ utente_id: utenteId, sezione, ruolo, assegnata_da: me?.user?.id || null },
+              { onConflict: 'utente_id,sezione' });
+    if (error) throw error;
+  },
+
+  // Revoca l'accesso: la riga sparisce, non esiste un ruolo "nessuno".
+  async revocaAutorizzazione(utenteId, sezione) {
+    const sb = await sbClient();
+    const { error } = await sb.from('autorizzazioni').delete()
+      .eq('utente_id', utenteId).eq('sezione', sezione);
+    if (error) throw error;
   },
 };
 

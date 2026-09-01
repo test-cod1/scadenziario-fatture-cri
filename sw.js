@@ -16,7 +16,7 @@
 //  offline, invece di rispondere con dati vecchi silenziosamente).
 // ============================================================
 
-const CACHE_NAME = 'scadenziario-v1';
+const CACHE_NAME = 'amministrazione-cri-v2';
 const NO_CACHE_PATHS = ['/api/'];
 
 self.addEventListener('install', (event) => {
