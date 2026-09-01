@@ -6,7 +6,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 |---|---|
 | **Scadenziario** | attiva (è il contenuto storico di questo progetto, descritto qui sotto) |
 | **Formazione Esterna** | da sviluppare |
-| **Trasporti lunghi** | gestionale dedicato già online ([preventivo-trasporti](https://preventivo-trasporti.pages.dev)): la card lo apre in una scheda nuova |
+| **Trasporti lunghi** | attiva: preventivi per i trasporti sanitari fuori Genova (arrivata dal gestionale `preventivo-trasporti`, assorbita qui il 01/09/2026) |
 | **Assistenze sanitarie** | da sviluppare |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
@@ -20,6 +20,14 @@ Si divide a sua volta in due parti indipendenti, selezionabili come due schede d
 - **Fatture Attive**: fatture emesse ai clienti (quando *veniamo pagati*) — stesse funzionalità delle passive (inserimento manuale o da PDF/XML, incassi/acconti, note di credito, export, registro modifiche), più un campo per segnare la data dell'ultimo sollecito di pagamento inviato al cliente.
 
 Le due sezioni hanno tabelle, dati e permessi separati: nulla di quanto inserito in una compare nell'altra.
+
+## Sezione Trasporti lunghi
+
+Preventivi per i trasporti sanitari fuori Genova: si indica il mezzo, si scrivono le tappe (indirizzi cercati con OpenRouteService, che calcola anche i km del percorso reale) e l'app somma carburante, pedaggi esteri, pasti, pernottamenti e personale sanitario, confrontando la spesa viva con l'addebito al cliente. La stampa produce il preventivo da consegnare.
+
+I prezzi del carburante si aggiornano da soli: la media italiana dai dati del MISE ad ogni apertura della sezione, quelli europei su richiesta dal bollettino settimanale della Commissione (pulsante in Impostazioni). Le impostazioni della sezione (parco mezzi, tariffe, prezzi) le modifica chiunque vi abbia accesso, operatori compresi, come nel gestionale da cui arriva.
+
+Serve il secret `ORS_KEY` sul Worker (vedi il punto 5): senza, ricerca indirizzi e calcolo km rispondono con un errore chiaro e i km restano da inserire a mano.
 
 ## 1. Crea il progetto Supabase
 
@@ -37,6 +45,8 @@ Le due sezioni hanno tabelle, dati e permessi separati: nulla di quanto inserito
 > Se il database è stato creato prima del 01/09/2026, esegui anche i patch in `supabase/patch-*.sql` nell'ordine della data nel nome del file. Su un database nuovo non serve: `schema.sql` li include già tutti.
 >
 > **L'ultimo è [`patch-2026-09-01-portale.sql`](supabase/patch-2026-09-01-portale.sql)** ed è obbligatorio su un database già in uso: trasforma lo scadenziario nel portale multi-sezione. Crea le tabelle `sezioni` e `autorizzazioni`, sposta lì i ruoli che stavano in `profili.ruolo` (chi era admin/operatore resta admin/operatore **dello scadenziario** e di nient'altro) e nomina il super admin — nel file c'è un `update` con l'email da controllare prima di eseguirlo.
+>
+> **Per la sezione trasporti** servono in più [`patch-2026-09-01-trasporti.sql`](supabase/patch-2026-09-01-trasporti.sql) (crea `preventivi` e `impostazioni_trasferte`) e, per portarsi dietro i dati del vecchio gestionale, [`export-trasporti.sql`](supabase/export-trasporti.sql) — che però va lanciato sul **vecchio** progetto Supabase: stampa gli insert già pronti da incollare qui.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -60,15 +70,16 @@ Apri `http://localhost:4323`. Per testare anche la lettura AI dei PDF e la creaz
 ```
 GEMINI_API_KEY=la-tua-chiave
 SUPABASE_SERVICE_ROLE_KEY=la-tua-service-role-key
+ORS_KEY=la-tua-chiave-openrouteservice
 ```
 
-Senza queste chiavi l'app funziona lo stesso per il resto (inserimento manuale, lettura XML): mancano solo lettura AI e creazione utenti.
+Senza queste chiavi il resto dell'app funziona lo stesso: manca solo la funzione che dipende dalla chiave assente (lettura AI, creazione utenti, ricerca indirizzi e km dei preventivi).
 
 ## 5. Deploy su Cloudflare (Workers con Git integration)
 
 Il progetto Cloudflare collegato a questo repo è di tipo **Worker** (il nuovo flusso unificato "Workers & Pages": build command `npx wrangler deploy`), non la vecchia Pages classica. Per questo motivo il repo contiene già:
 - [`wrangler.jsonc`](wrangler.jsonc): configurazione del deploy (nome, asset statici, entry point)
-- [`worker.js`](worker.js): instrada `/api/estrai-fattura`, `/api/estrai-fattura-attiva` e `/api/crea-utente` alle function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
+- [`worker.js`](worker.js): instrada le `/api/*` (lettura AI delle fatture, creazione utenti, geocoding/percorsi e prezzi carburante dei preventivi) alle function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
 - [`.assetsignore`](.assetsignore): esclude dagli asset statici i file che non fanno parte del sito (node_modules, supabase/, ecc. — senza questo file il deploy falliva per un asset da 146MB)
 
 Passaggi:
@@ -76,6 +87,7 @@ Passaggi:
 2. Nel progetto Cloudflare (Workers & Pages) → **Settings → Variables and Secrets**, aggiungi come **Secret** (non testo in chiaro):
    - `GEMINI_API_KEY` = la tua chiave Gemini
    - `SUPABASE_SERVICE_ROLE_KEY` = la service_role key di Supabase (punto 1.6) — senza, la creazione utenti dall'app risponde con un errore chiaro invece di funzionare a metà
+   - `ORS_KEY` = la chiave OpenRouteService usata dalla sezione trasporti per cercare gli indirizzi e calcolare i km (è la stessa che aveva il progetto preventivo-trasporti)
    - (opzionale, se preferisci non hardcodarle nel codice) `SUPABASE_URL` e `SUPABASE_ANON_KEY`
 3. Da qui in avanti, **ogni `git push` sul branch collegato aggiorna automaticamente il sito** — nessun altro passaggio richiesto.
 
@@ -98,6 +110,9 @@ js/app.js                     router e shell del portale (home, sezioni, permess
 js/sezioni.js                  elenco delle sezioni (icone, colori, rotte) e regole di accesso
 js/config.js                   configurazione (URL/chiavi Supabase)
 js/views/home.js                home del portale: la griglia da cui si sceglie la sezione
+js/trasporti/                  sezione Trasporti lunghi: preventivi trasporti sanitari
+js/trasporti/calc.js            il calcolo del preventivo (spesa reale, addebito, margine)
+js/trasporti/sezione.js         ingresso della sezione: carica impostazioni e smista alle viste
 js/views/portaleUtenti.js       utenti e autorizzazioni di sezione (solo super admin)
 js/views/sezioneVuota.js        segnaposto delle sezioni non ancora sviluppate / esterne
 js/data/store.js               layer dati fatture PASSIVE: auth, fatture, pagamenti, log

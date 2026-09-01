@@ -181,6 +181,17 @@ function disegnaNav(sezioneId, sottoSezione, sub) {
   } else if (sezioneId) {
     const nav = el('<nav class="nav"></nav>');
     nav.appendChild(el('<a href="#/home" class="solo-mobile"><span class="ic">🏠</span><span class="txt">Home</span></a>'));
+    // Sezioni con un menu interno semplice (una voce = una pagina): lo
+    // dichiarano in js/sezioni.js. Quelle senza menu (per ora Formazione e
+    // Assistenze, ancora vuote) restano con la sola voce Home.
+    for (const n of (getSezione(sezioneId)?.menu || [])) {
+      const a = el(`<a href="#/${sezioneId}/${n.id}" data-nav="${n.id}"><span class="ic">${n.icon}</span><span class="txt">${esc(n.label)}</span></a>`);
+      // `attivoAnche` copre le pagine di dettaglio: aprendo un preventivo
+      // (#/trasporti/preventivo/<id>) deve restare evidenziata la voce
+      // "Preventivi", da cui ci si è arrivati.
+      a.classList.toggle('active', n.id === sub || (n.attivoAnche || []).includes(sub));
+      nav.appendChild(a);
+    }
     subnav.appendChild(nav);
   }
 
@@ -247,7 +258,10 @@ async function route() {
   const sottoSezione = sezione.id === 'scadenziario' ? (['passive', 'attive'].includes(resto[0]) ? resto[0] : 'passive') : null;
   const sub = sezione.id === 'scadenziario'
     ? (resto[0] === 'impostazioni' ? 'impostazioni' : (resto[1] || 'fatture'))
-    : (resto[0] || null);
+    : (resto[0] || sezione.menu?.[0]?.id || null);
+  // Terzo pezzo del percorso, quando c'è: per ora è l'id del preventivo in
+  // #/trasporti/preventivo/<id>.
+  const param = sezione.id === 'scadenziario' ? null : (resto[1] || null);
   disegnaNav(sezione.id, sottoSezione, sub);
   svuotaConRitorno(view, sezione);
 
@@ -261,6 +275,14 @@ async function route() {
     if (my !== _routeSeq) return;
     svuotaConRitorno(view, sezione);
     if (sezione.tipo === 'esterna') { await renderSezioneEsterna(view, ctx, sezione); return; }
+    // La sezione trasporti si carica solo quando la si apre: porta con sé il
+    // calcolo dei preventivi, la tabella dei prezzi carburante europei e la
+    // stampa, che non servono a chi entra solo nello scadenziario.
+    if (sezione.id === 'trasporti') {
+      const { renderTrasporti } = await import('./trasporti/sezione.js');
+      await renderTrasporti(view, ctx, sub, param);
+      return;
+    }
     if (sezione.id !== 'scadenziario') { await renderSezioneVuota(view, ctx, sezione); return; }
 
     if (sub === 'impostazioni') await renderImpostazioni(view, ctx);

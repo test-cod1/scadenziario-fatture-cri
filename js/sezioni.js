@@ -9,7 +9,9 @@
 //    'interna' → la sezione vive dentro questo portale, su #/<id>/...
 //    'esterna' → la card apre un altro gestionale già online (url); il
 //                permesso continua a essere gestito da qui, ma i dati stanno
-//                a casa loro. Per ora è il caso dei trasporti lunghi.
+//                a casa loro. Al momento nessuna sezione lo usa: i trasporti
+//                lunghi, che erano l'unico caso, sono stati assorbiti nel
+//                portale.
 // ============================================================
 
 // Icone delle card, disegnate a mano in SVG: alla dimensione della home le
@@ -60,8 +62,19 @@ export const SEZIONI = [
     emoji: '🚐',
     colore: '#6b7280',
     ombra: 'rgba(0,0,0,.15)',
-    tipo: 'esterna',
-    url: 'https://preventivo-trasporti.pages.dev',
+    tipo: 'interna',
+    home: '#/trasporti/preventivi',
+    // Menu interno della sezione (barra laterale, e barra in basso sul
+    // telefono). Le impostazioni sono qui e non fra le voci riservate agli
+    // admin perché sono i parametri di calcolo di tutti i giorni: nel
+    // gestionale da cui arriva questa sezione li modificava anche
+    // l'operatore, e cambiare la regola nel trasloco avrebbe tolto una
+    // funzione a chi la usava.
+    menu: [
+      { id: 'preventivi', icon: '📋', label: 'Preventivi', attivoAnche: ['preventivo'] },
+      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
+      { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
+    ],
     icona: ICONE.trasporti,
   },
   {

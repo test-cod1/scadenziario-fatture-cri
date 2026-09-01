@@ -836,6 +836,63 @@ drop policy if exists log_attive_admin_read on public.log_modifiche_attive;
 create policy log_attive_admin_read on public.log_modifiche_attive for select using (public.e_admin());
 
 -- ============================================================
+--  SEZIONE TRASPORTI (preventivi trasporti sanitari fuori Genova)
+--  Arrivata nel portale dal gestionale preventivo-trasporti, che aveva un
+--  progetto Supabase tutto suo. Vedi patch-2026-09-01-trasporti.sql (tabelle)
+--  ed export-trasporti.sql (travaso dei dati dal vecchio progetto).
+-- ============================================================
+create table if not exists public.preventivi (
+  id uuid primary key default gen_random_uuid(),
+  titolo text,
+  cliente text,
+  data_servizio date,
+  stato text not null default 'bozza' check (stato in ('bozza','inviato','confermato','annullato')),
+  note text,
+  tappe jsonb default '[]'::jsonb,        -- destinazioni [{label,lon,lat,iso2,iso3,paese}]
+  andata_ritorno boolean default true,
+  km_auto boolean default true,
+  km_totali numeric(10,1),
+  paese_dest text,                        -- ISO alpha-2 destinazione
+  paese_dest_nome text,
+  input jsonb,                            -- tutti i parametri di calcolo
+  risultato jsonb,                        -- spesaReale, addebito, margine, ...
+  created_by uuid references auth.users(id),
+  -- Autore dei preventivi importati dal vecchio gestionale: la' gli utenti
+  -- erano account di un ALTRO progetto Supabase e i loro id qui non esistono.
+  created_by_email text,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_prev_created on public.preventivi(created_at desc);
+create index if not exists idx_prev_stato on public.preventivi(stato);
+
+-- Parametri di calcolo, parco mezzi e prezzi carburante: una riga sola.
+create table if not exists public.impostazioni_trasferte (
+  id text primary key default 'default',
+  dati jsonb not null,
+  updated_at timestamptz default now()
+);
+
+-- Chi ha accesso alla sezione trasporti legge e scrive. Le impostazioni le
+-- modifica anche l'operatore (sono i parametri del preventivo di tutti i
+-- giorni, non una configurazione di sistema): era cosi' nel gestionale di
+-- provenienza ed e' rimasto cosi'.
+alter table public.preventivi             enable row level security;
+alter table public.impostazioni_trasferte enable row level security;
+
+drop policy if exists prev_read on public.preventivi;
+create policy prev_read on public.preventivi for select using (public.accede_a('trasporti'));
+drop policy if exists prev_write on public.preventivi;
+create policy prev_write on public.preventivi for all
+  using (public.accede_a('trasporti')) with check (public.accede_a('trasporti'));
+
+drop policy if exists imp_trasf_read on public.impostazioni_trasferte;
+create policy imp_trasf_read on public.impostazioni_trasferte for select using (public.accede_a('trasporti'));
+drop policy if exists imp_trasf_write on public.impostazioni_trasferte;
+create policy imp_trasf_write on public.impostazioni_trasferte for all
+  using (public.accede_a('trasporti')) with check (public.accede_a('trasporti'));
+
+-- ============================================================
 --  NOTA: dopo aver eseguito lo schema, promuovi il tuo utente a super admin
 --  (e' l'unico ruolo che non si assegna dall'app):
 --    update public.profili set ruolo='super_admin' where email='tua@email';

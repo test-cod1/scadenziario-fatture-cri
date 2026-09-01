@@ -1,36 +1,32 @@
 // ============================================================
-//  Server statico per lo sviluppo locale + proxy /api/estrai-fattura e
-//  /api/crea-utente
+//  Server statico per lo sviluppo locale + le /api/* del portale
 //  Avvio:  node server.js      (poi apri http://localhost:4323)
 //
-//  Per testare la lettura AI dei PDF anche in locale, imposta la chiave:
+//  Le chiavi si mettono in un file .dev.vars, una per riga:
+//    GEMINI_API_KEY=...             lettura AI delle fatture (PDF/immagini)
+//    SUPABASE_SERVICE_ROLE_KEY=...  creazione utenti (Supabase > Settings > API)
+//    ORS_KEY=...                    percorsi e indirizzi dei preventivi trasporti
+//  In alternativa si passano come variabili d'ambiente:
 //    Windows PowerShell:  $env:GEMINI_API_KEY="la-tua-chiave"; node server.js
 //    macOS/Linux:         GEMINI_API_KEY=la-tua-chiave node server.js
-//  Per testare la creazione utenti serve invece la service role key:
-//    SUPABASE_SERVICE_ROLE_KEY=... (Supabase → Project Settings → API)
-//  Entrambe si possono anche mettere in un file .dev.vars, una per riga:
-//    GEMINI_API_KEY=la-tua-chiave
-//    SUPABASE_SERVICE_ROLE_KEY=la-tua-chiave
-//  Senza chiavi l'app funziona lo stesso per il resto (inserimento manuale,
-//  lettura XML): mancano solo lettura AI e creazione utenti.
+//  Senza chiavi il resto dell'app funziona comunque: manca solo la funzione
+//  che dipende dalla chiave assente.
 // ============================================================
 const http = require('http');
 const fs = require('fs');
 const path = require('path');
-const crypto = require('crypto');
 
 const ROOT = __dirname;
 const PORT = process.env.PORT || 4323;
 
-if (!process.env.GEMINI_API_KEY || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-  try {
-    const dv = fs.readFileSync(path.join(ROOT, '.dev.vars'), 'utf8');
-    const mg = dv.match(/GEMINI_API_KEY\s*=\s*(.+)/);
-    if (mg && !process.env.GEMINI_API_KEY) process.env.GEMINI_API_KEY = mg[1].trim();
-    const ms = dv.match(/SUPABASE_SERVICE_ROLE_KEY\s*=\s*(.+)/);
-    if (ms && !process.env.SUPABASE_SERVICE_ROLE_KEY) process.env.SUPABASE_SERVICE_ROLE_KEY = ms[1].trim();
-  } catch {}
-}
+// Chiavi dal file .dev.vars (stesso formato dei secret di Cloudflare): quelle
+// già presenti nell'ambiente hanno la precedenza.
+try {
+  for (const riga of fs.readFileSync(path.join(ROOT, '.dev.vars'), 'utf8').split('\n')) {
+    const m = riga.match(/^\s*([A-Z0-9_]+)\s*=\s*(.+?)\s*$/);
+    if (m && !process.env[m[1]]) process.env[m[1]] = m[2];
+  }
+} catch {}
 
 // Le stesse intestazioni di sicurezza servite in produzione dal Worker (unica
 // fonte in js/lib/securityHeaders.mjs, un modulo ES caricato qui con un
@@ -60,9 +56,7 @@ const TYPES = {
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
 
-  if (u.pathname === '/api/estrai-fattura' && req.method === 'POST') return apiEstrai(req, res);
-  if (u.pathname === '/api/estrai-fattura-attiva' && req.method === 'POST') return apiEstraiAttiva(req, res);
-  if (u.pathname === '/api/crea-utente' && req.method === 'POST') return apiCreaUtente(req, res);
+  if (API[u.pathname]) return apiFunction(req, res, u.pathname);
 
   let p = decodeURIComponent(u.pathname);
   if (p === '/') p = '/index.html';
@@ -83,172 +77,72 @@ const server = http.createServer(async (req, res) => {
     res.end(data);
   });
 });
-Promise.all([
-  import('./js/lib/securityHeaders.mjs'),
-  import('./functions/_lib/gemini.mjs'),
-]).then(([{ HEADER_SICUREZZA: h }, { MODELLO_GEMINI }]) => {
+import('./js/lib/securityHeaders.mjs').then(({ HEADER_SICUREZZA: h }) => {
   HEADER_SICUREZZA = h;
-  MODEL = MODELLO_GEMINI;
-  server.listen(PORT, () => console.log(`Server attivo su http://localhost:${PORT}  (GEMINI_API_KEY ${process.env.GEMINI_API_KEY ? 'presente' : 'ASSENTE — solo XML/manuale'}, SUPABASE_SERVICE_ROLE_KEY ${process.env.SUPABASE_SERVICE_ROLE_KEY ? 'presente' : 'ASSENTE — niente creazione utenti'})`));
+  const stato = (n) => `${n} ${process.env[n] ? 'presente' : 'ASSENTE'}`;
+  server.listen(PORT, () => console.log(
+    `Server attivo su http://localhost:${PORT}  (${stato('GEMINI_API_KEY')}, ${stato('SUPABASE_SERVICE_ROLE_KEY')}, ${stato('ORS_KEY')})`));
 });
 
-function sendJson(res, obj, status = 200) {
-  res.writeHead(status, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
-  res.end(JSON.stringify(obj));
-}
-
-// NOTA: in locale non verifichiamo il token Supabase (a differenza della
-// Cloudflare Pages Function in produzione) per semplicità di sviluppo.
-// Il nome del modello arriva da functions/_lib/gemini.mjs (unica fonte, vedi
-// il commento lì): prima era una terza copia che poteva restare indietro
-// rispetto a quella usata in produzione.
-let MODEL;   // assegnato dall'import qui sopra, prima che il server accetti richieste
-const SCHEMA = {
-  type: 'OBJECT',
-  properties: {
-    fornitore: { type: 'STRING' }, numero_fattura: { type: 'STRING' },
-    data_fattura: { type: 'STRING' }, importo: { type: 'NUMBER' },
-    scadenza: { type: 'STRING' }, metodo_pagamento: { type: 'STRING' }, note: { type: 'STRING' },
-  },
-  required: ['fornitore', 'importo'],
-};
-const PROMPT = `Sei un assistente contabile. Analizza il documento allegato (fattura fornitore) ed estrai i campi richiesti secondo lo schema JSON fornito. Usa il formato data YYYY-MM-DD. Se un campo non è presente, omettilo: non inventare valori. Per l'importo usa il totale finale (IVA inclusa). Per metodo_pagamento restituisci SOLO una di queste parole, senza codici né altro testo: bonifico, RIBA, RID, contanti, altro.`;
-
-function apiEstrai(req, res) {
-  let raw = '';
-  req.on('data', c => raw += c);
-  req.on('end', async () => {
-    if (!process.env.GEMINI_API_KEY) return sendJson(res, { error: 'Chiave Gemini non configurata (GEMINI_API_KEY).' }, 500);
-    let body; try { body = JSON.parse(raw); } catch { return sendJson(res, { error: 'Body non valido.' }, 400); }
-    const { mimeType, dataBase64 } = body || {};
-    if (!dataBase64 || !mimeType) return sendJson(res, { error: 'File mancante.' }, 400);
-    try {
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-      const r = await fetch(apiUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: PROMPT }, { inline_data: { mime_type: mimeType, data: dataBase64 } }] }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA, temperature: 0 },
-        }),
-      });
-      if (!r.ok) {
-        if (r.status === 429) return sendJson(res, { error: 'Quota gratuita giornaliera di Gemini esaurita: riprova più tardi.' }, 429);
-        let m = `Estrazione non riuscita (${r.status}).`; try { const e = await r.json(); m = e?.error?.message || m; } catch {}
-        return sendJson(res, { error: m }, r.status);
-      }
-      const data = await r.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) return sendJson(res, { error: 'Risposta AI vuota.' }, 502);
-      return sendJson(res, { estratti: JSON.parse(text) });
-    } catch (e) { return sendJson(res, { error: 'Gemini non raggiungibile: ' + e.message }, 502); }
-  });
-}
-
-const SCHEMA_ATTIVA = {
-  type: 'OBJECT',
-  properties: {
-    cliente: { type: 'STRING' }, numero_fattura: { type: 'STRING' },
-    data_fattura: { type: 'STRING' }, importo: { type: 'NUMBER' },
-    metodo_pagamento: { type: 'STRING' }, note: { type: 'STRING' },
-  },
-  required: ['cliente', 'importo'],
-};
-const PROMPT_ATTIVA = `Sei un assistente contabile. Analizza il documento allegato (una fattura di vendita EMESSA da noi verso un cliente) ed estrai i campi richiesti secondo lo schema JSON fornito. Il campo "cliente" deve riportare il destinatario/acquirente del documento, MAI chi ha emesso la fattura. Usa il formato data YYYY-MM-DD. Se un campo non è presente, omettilo: non inventare valori. Per l'importo usa il totale finale (IVA inclusa). Per metodo_pagamento restituisci SOLO una di queste parole, senza codici né altro testo: bonifico, RIBA, RID, contanti, altro.`;
-
-function apiEstraiAttiva(req, res) {
-  let raw = '';
-  req.on('data', c => raw += c);
-  req.on('end', async () => {
-    if (!process.env.GEMINI_API_KEY) return sendJson(res, { error: 'Chiave Gemini non configurata (GEMINI_API_KEY).' }, 500);
-    let body; try { body = JSON.parse(raw); } catch { return sendJson(res, { error: 'Body non valido.' }, 400); }
-    const { mimeType, dataBase64 } = body || {};
-    if (!dataBase64 || !mimeType) return sendJson(res, { error: 'File mancante.' }, 400);
-    try {
-      const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODEL}:generateContent?key=${process.env.GEMINI_API_KEY}`;
-      const r = await fetch(apiUrl, {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: PROMPT_ATTIVA }, { inline_data: { mime_type: mimeType, data: dataBase64 } }] }],
-          generationConfig: { responseMimeType: 'application/json', responseSchema: SCHEMA_ATTIVA, temperature: 0 },
-        }),
-      });
-      if (!r.ok) {
-        if (r.status === 429) return sendJson(res, { error: 'Quota gratuita giornaliera di Gemini esaurita: riprova più tardi.' }, 429);
-        let m = `Estrazione non riuscita (${r.status}).`; try { const e = await r.json(); m = e?.error?.message || m; } catch {}
-        return sendJson(res, { error: m }, r.status);
-      }
-      const data = await r.json();
-      const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
-      if (!text) return sendJson(res, { error: 'Risposta AI vuota.' }, 502);
-      return sendJson(res, { estratti: JSON.parse(text) });
-    } catch (e) { return sendJson(res, { error: 'Gemini non raggiungibile: ' + e.message }, 502); }
-  });
-}
-
 // ============================================================
-//  /api/crea-utente — mirror locale della Cloudflare Function omonima
-//  (functions/api/crea-utente.js). A differenza di /api/estrai-fattura QUI
-//  il token e il ruolo si verificano anche in locale: crea utenti veri sul
-//  progetto Supabase condiviso, non su un database locale.
+//  /api/* — qui girano LE STESSE function che stanno in produzione
+//  (functions/api/*.js), non una loro copia riscritta per Node: prima erano
+//  duplicate a mano in questo file e le due versioni finivano per divergere
+//  (il controllo del ruolo in /api/crea-utente era rimasto indietro di una
+//  riscrittura). Le function sono scritte per l'ambiente Worker, che espone
+//  le stesse API standard del web disponibili in Node: si costruisce una
+//  Request, si chiama l'handler e si riversa la Response nella risposta HTTP.
 // ============================================================
-const SUPABASE_URL = 'https://xmfqozojjplccnnttwxu.supabase.co';
-const SUPABASE_ANON_KEY = 'sb_publishable_Cm8yAHlD3TZSjW0fW53_fw_OmfeWJT3';
-const ALFABETO_PASSWORD = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789';
+const API = {
+  '/api/estrai-fattura': './functions/api/estrai-fattura.js',
+  '/api/estrai-fattura-attiva': './functions/api/estrai-fattura-attiva.js',
+  '/api/crea-utente': './functions/api/crea-utente.js',
+  '/api/geocode': './functions/api/geocode.js',
+  '/api/route': './functions/api/route.js',
+  '/api/prezzo-italia': './functions/api/prezzo-italia.js',
+  '/api/prezzo-eu': './functions/api/prezzo-eu.js',
+};
 
-function generaPassword(lunghezza = 12) {
-  const bytes = crypto.randomBytes(lunghezza);
-  return Array.from(bytes, b => ALFABETO_PASSWORD[b % ALFABETO_PASSWORD.length]).join('');
+// La cache edge di Cloudflare (usata da /api/prezzo-italia per non riscaricare
+// l'elenco dei distributori ad ogni richiesta) in Node non esiste: qui si
+// finge una cache sempre vuota, così la function funziona lo stesso e in
+// locale i dati sono semplicemente sempre freschi.
+if (!globalThis.caches) {
+  globalThis.caches = { default: { match: async () => undefined, put: async () => {} } };
 }
 
-function apiCreaUtente(req, res) {
-  let raw = '';
-  req.on('data', c => raw += c);
-  req.on('end', async () => {
-    const auth = req.headers['authorization'] || '';
-    const token = auth.replace(/^Bearer\s+/i, '').trim();
-    if (!token) return sendJson(res, { error: 'Accesso non autorizzato: effettua il login.' }, 401);
-    if (!process.env.SUPABASE_SERVICE_ROLE_KEY) return sendJson(res, { error: 'Chiave amministrativa Supabase non configurata (SUPABASE_SERVICE_ROLE_KEY).' }, 500);
-
-    try {
-      const userRes = await fetch(`${SUPABASE_URL}/auth/v1/user`, { headers: { Authorization: auth, apikey: SUPABASE_ANON_KEY } });
-      if (!userRes.ok) return sendJson(res, { error: 'Accesso non autorizzato: effettua il login.' }, 401);
-      const utente = await userRes.json();
-
-      const profRes = await fetch(`${SUPABASE_URL}/rest/v1/profili?id=eq.${utente.id}&select=ruolo`, { headers: { Authorization: auth, apikey: SUPABASE_ANON_KEY } });
-      const profData = await profRes.json().catch(() => []);
-      if (profData?.[0]?.ruolo !== 'admin') return sendJson(res, { error: 'Solo gli amministratori possono creare utenti.' }, 403);
-
-      let body; try { body = JSON.parse(raw); } catch { return sendJson(res, { error: 'Body non valido.' }, 400); }
-      const email = String(body?.email || '').trim().toLowerCase();
-      const nome = String(body?.nome || '').trim();
-      const ruolo = body?.ruolo === 'admin' ? 'admin' : 'operatore';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return sendJson(res, { error: 'Email non valida.' }, 400);
-
-      const serviceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-      const passwordProvvisoria = generaPassword();
-      const creaRes = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
-        method: 'POST',
-        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email, password: passwordProvvisoria, email_confirm: true }),
-      });
-      const creaData = await creaRes.json().catch(() => ({}));
-      if (!creaRes.ok) {
-        const msg = creaData?.msg || creaData?.message || creaData?.error_description || 'Creazione utente non riuscita.';
-        const giaEsistente = /already.*registered|already exists|duplicate/i.test(msg);
-        return sendJson(res, { error: giaEsistente ? 'Esiste già un utente con questa email.' : msg }, creaRes.status);
-      }
-
-      const aggRes = await fetch(`${SUPABASE_URL}/rest/v1/profili?id=eq.${creaData.id}`, {
-        method: 'PATCH',
-        headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}`, 'Content-Type': 'application/json', Prefer: 'return=minimal' },
-        body: JSON.stringify(nome ? { ruolo, nome, deve_cambiare_password: true } : { ruolo, deve_cambiare_password: true }),
-      });
-      if (!aggRes.ok) {
-        return sendJson(res, { email, passwordProvvisoria, error: 'Utente creato ma il profilo (ruolo/nome) non è stato aggiornato: sistemalo a mano su Supabase.' }, 207);
-      }
-      return sendJson(res, { email, passwordProvvisoria });
-    } catch (e) {
-      return sendJson(res, { error: 'Supabase non raggiungibile: ' + e.message }, 502);
-    }
+function leggiCorpo(req) {
+  return new Promise((res) => {
+    const pezzi = [];
+    req.on('data', (c) => pezzi.push(c));
+    req.on('end', () => res(Buffer.concat(pezzi)));
   });
 }
+
+async function apiFunction(req, res, pathname) {
+  const mod = await import(API[pathname]);
+  const handler = req.method === 'POST' ? mod.onRequestPost
+    : req.method === 'GET' ? mod.onRequestGet : null;
+  if (!handler) {
+    res.writeHead(405, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'Metodo non ammesso.' }));
+  }
+  const corpo = ['GET', 'HEAD'].includes(req.method) ? undefined : await leggiCorpo(req);
+  // Le intestazioni di Node possono avere valori multipli (array): la Request
+  // standard vuole stringhe.
+  const headers = {};
+  for (const [k, v] of Object.entries(req.headers)) headers[k] = Array.isArray(v) ? v.join(', ') : v;
+  const request = new Request(`http://localhost:${PORT}${req.url}`, { method: req.method, headers, body: corpo });
+
+  try {
+    const out = await handler({ request, env: process.env });
+    const buf = Buffer.from(await out.arrayBuffer());
+    res.writeHead(out.status, Object.fromEntries(out.headers));
+    res.end(buf);
+  } catch (e) {
+    console.error(`[api] ${pathname}:`, e);
+    res.writeHead(500, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify({ error: 'Errore interno: ' + e.message }));
+  }
+}
+
