@@ -129,7 +129,12 @@ export function startTour(passi) {
     }
     target = null;
     if (passo.selettore) {
-      target = await attendiElemento(passo.selettore);
+      // L'attesa lunga serve solo quando si è appena cambiato pagina e i dati
+      // stanno ancora arrivando da Supabase. Su un passo che resta nella
+      // stessa pagina, l'elemento o c'è già o non c'è: aspettarlo sei secondi
+      // faceva sembrare il tour bloccato ogni volta che un passo andava
+      // saltato (es. la tabella dei preventivi quando l'archivio è vuoto).
+      target = await attendiElemento(passo.selettore, passo.hash ? 6000 : 1200);
       if (!tourAttivo) return; // chiuso mentre si attendeva l'elemento
       if (!target) return goToStep(i + 1); // pagina/ruolo senza quell'elemento: salta al passo dopo
       target.scrollIntoView({ block: 'center', behavior: 'auto' });
