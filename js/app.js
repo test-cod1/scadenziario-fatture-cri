@@ -96,7 +96,7 @@ function renderShell() {
   clear(app);
   const layout = el(`<div class="layout">
     <aside class="sidebar">
-      <div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>CRI Genova</span></div></div>
+      <a class="brand brand-link" href="#/home" title="Torna alla scelta delle sezioni"><div class="logo">✚</div><div><b>Amministrazione</b><span>CRI Genova</span></div></a>
       <nav class="nav nav-sezioni"></nav>
       <div class="sez-corrente" id="subnav"></div>
       <nav class="nav nav-secondary" id="nav-imp"></nav>
@@ -249,7 +249,7 @@ async function route() {
     ? (resto[0] === 'impostazioni' ? 'impostazioni' : (resto[1] || 'fatture'))
     : (resto[0] || null);
   disegnaNav(sezione.id, sottoSezione, sub);
-  clear(view);
+  svuotaConRitorno(view, sezione);
 
   // Le viste dello scadenziario (e quelle che verranno) leggono ctx.user.ruolo
   // aspettandosi 'admin' o 'operatore': qui `ruolo` è già quello DELLA
@@ -259,7 +259,7 @@ async function route() {
   view.appendChild(el('<div class="spinner" style="margin-top:60px"></div>'));
   try {
     if (my !== _routeSeq) return;
-    clear(view);
+    svuotaConRitorno(view, sezione);
     if (sezione.tipo === 'esterna') { await renderSezioneEsterna(view, ctx, sezione); return; }
     if (sezione.id !== 'scadenziario') { await renderSezioneVuota(view, ctx, sezione); return; }
 
@@ -274,6 +274,20 @@ async function route() {
   } catch (e) {
     mostraErrore(view, e);
   }
+}
+
+// Svuota la pagina e vi rimette in cima la riga con il ritorno alla home:
+// dentro una sezione, la voce "Home" nel menu laterale non basta a far
+// capire che si può tornare alla scelta delle sezioni (e sul telefono quel
+// menu è pure sostituito da quello della sezione), così il modo per uscire
+// sta dove si sta guardando.
+function svuotaConRitorno(view, sezione) {
+  clear(view);
+  view.appendChild(el(`<div class="sez-crumb">
+    <a href="#/home">← Tutte le sezioni</a>
+    <span class="sep">/</span>
+    <b>${esc(sezione.label)}</b>
+  </div>`));
 }
 
 function mostraErrore(view, e) {
