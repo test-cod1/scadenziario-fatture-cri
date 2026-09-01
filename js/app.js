@@ -21,6 +21,10 @@ if ('serviceWorker' in navigator) {
 
 const app = document.getElementById('app');
 let currentUser = null;
+// Sezione in cui ci si trova adesso (null in home e nelle pagine di portale):
+// la aggiorna disegnaNav e serve al pulsante del tour, che deve avviare il
+// tour di QUESTA sezione.
+let sezioneCorrente = null;
 
 async function boot() {
   const match = location.hash.match(/type=(recovery|invite|signup)/);
@@ -127,11 +131,16 @@ function renderShell() {
 
   // Il pulsante del tutorial vive fuori da #app (in fondo a <body>, posizione
   // fissa) così resta identico e cliccabile a ogni cambio di pagina, invece di
-  // essere ridisegnato da ogni singola vista. Il tour racconta lo
-  // scadenziario, quindi compare solo lì (vedi disegnaNav).
+  // essere ridisegnato da ogni singola vista. Ogni sezione ha il suo tour (o
+  // nessuno): compare solo dove ce n'è uno, e racconta quella sezione lì.
   if (!document.querySelector('.tour-fab')) {
     const fab = el(`<button class="tour-fab" type="button" title="Tutorial guidato" aria-label="Avvia il tutorial guidato" hidden>🎓</button>`);
-    fab.addEventListener('click', () => startTour({ user: { ...currentUser, ruolo: ruoloIn(currentUser, 'scadenziario') } }));
+    fab.addEventListener('click', async () => {
+      const sezione = getSezione(sezioneCorrente);
+      if (!sezione?.tour) return;
+      const { passi } = await sezione.tour();
+      startTour(passi({ user: { ...currentUser, ruolo: ruoloIn(currentUser, sezione.id) } }));
+    });
     document.body.appendChild(fab);
   }
 }
@@ -147,8 +156,9 @@ function disegnaNav(sezioneId, sottoSezione, sub) {
   const navImp = document.getElementById('nav-imp');
   clear(subnav); clear(navImp);
 
+  sezioneCorrente = sezioneId;
   const fab = document.querySelector('.tour-fab');
-  if (fab) fab.hidden = sezioneId !== 'scadenziario';
+  if (fab) fab.hidden = !getSezione(sezioneId)?.tour;
 
   if (sezioneId === 'scadenziario') {
     const sw = el(`<div class="section-switch">

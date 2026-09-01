@@ -42,6 +42,9 @@ export const SEZIONI = [
     // Rotta di ingresso: lo scadenziario ha due sotto-sezioni (passive/attive)
     // e parte dalle passive, come faceva quando era l'intera applicazione.
     home: '#/scadenziario/passive/fatture',
+    // Copione del tour guidato (js/tour/): il pulsante 🎓 compare solo nelle
+    // sezioni che ne dichiarano uno, e il file si carica al primo clic.
+    tour: () => import('./tour/scadenziario.js'),
     icona: ICONE.scadenziario,
   },
   {
@@ -64,6 +67,7 @@ export const SEZIONI = [
     ombra: 'rgba(0,0,0,.15)',
     tipo: 'interna',
     home: '#/trasporti/preventivi',
+    tour: () => import('./tour/trasporti.js'),
     // Menu interno della sezione (barra laterale, e barra in basso sul
     // telefono). Le impostazioni sono qui e non fra le voci riservate agli
     // admin perché sono i parametri di calcolo di tutti i giorni: nel
