@@ -381,6 +381,11 @@ input.fuel-price{width:110px;padding:6px 8px}
 
 /* ---------- Editor preventivo ---------- */
 .editor{display:grid;grid-template-columns:1fr 380px;gap:22px;align-items:start}
+/* Senza questo, le due colonne non scendono sotto la larghezza del loro
+   contenuto (è il min-width:auto predefinito degli elementi di una griglia):
+   con molte voci attive la tabella del calendario allargava la colonna e
+   usciva dalla scheda, invece di scorrere dentro il suo .tbl-wrap. */
+.editor>*{min-width:0}
 .editor .col-main{display:flex;flex-direction:column;gap:18px}
 .section-t{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);margin:0 0 12px}
 
