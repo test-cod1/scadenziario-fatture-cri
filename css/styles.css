@@ -477,3 +477,38 @@ input.fuel-price{width:110px;padding:6px 8px}
 .cal-tbl td{vertical-align:middle}
 .cal-tbl input{padding:6px 8px;font-size:13.5px}
 .cal-tbl .ore{white-space:nowrap;font-weight:600}
+
+/* ---------- Selettore di orario a orologio (js/lib/orologio.js) ---------- */
+.campo-ora{cursor:pointer;background:#fff;text-align:center;font-variant-numeric:tabular-nums}
+.orologio-sfondo{position:fixed;inset:0;z-index:70;background:rgba(15,20,25,.25)}
+.orologio{position:fixed;width:268px;background:#fff;border:1px solid var(--line);border-radius:16px;
+  box-shadow:0 12px 32px rgba(20,30,40,.28);padding:14px 18px 10px}
+.oro-testa{display:flex;align-items:center;justify-content:center;gap:2px;position:relative}
+.oro-parte{border:none;background:none;font:inherit;font-size:30px;font-weight:800;letter-spacing:-.02em;
+  color:var(--ink-soft);cursor:pointer;padding:0 4px;border-radius:8px;font-variant-numeric:tabular-nums}
+.oro-parte.attiva{color:var(--cri-red)}
+.oro-parte:hover{background:var(--bg)}
+.oro-sep{font-size:28px;font-weight:800;color:var(--ink-soft)}
+.oro-passo{position:absolute;bottom:-14px;left:0;right:0;text-align:center;font-size:11.5px;color:var(--ink-soft)}
+.oro-quadrante{position:relative;width:232px;height:232px;margin:20px auto 4px;border-radius:50%;background:var(--bg)}
+.oro-centro{position:absolute;left:50%;top:50%;width:7px;height:7px;margin:-3.5px 0 0 -3.5px;border-radius:50%;background:var(--cri-red)}
+/* La lancetta parte dal centro e si allunga verso il numero scelto: l'anello
+   interno delle ore (13-00) è più vicino, quindi la lancetta è più corta. */
+.oro-lancetta{position:absolute;left:50%;bottom:50%;width:2px;background:var(--cri-red);transform-origin:bottom center;display:none}
+.oro-num{position:absolute;width:34px;height:34px;border-radius:50%;border:none;background:none;
+  font:inherit;font-size:14px;color:var(--ink);cursor:pointer;display:grid;place-items:center}
+.oro-num:hover{background:var(--cri-red-soft)}
+.oro-num.sel{background:var(--cri-red);color:#fff;font-weight:700}
+.oro-piede{display:flex;justify-content:space-between;gap:8px;margin-top:6px}
+
+/* ---------- Calendario assistenze: azioni sotto la tabella ---------- */
+.cal-azioni{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-top:12px}
+.cal-azioni input[type=date]{padding:6px 8px;font-size:13.5px}
+@media(max-width:820px){
+  .orologio{left:50%!important;top:50%!important;transform:translate(-50%,-50%)}
+}
+.hint.avviso{color:var(--warn);font-weight:600}
+/* Anello interno delle ore (13-23 e 00): numeri leggermente più piccoli, così
+   non toccano quelli dell'anello esterno. */
+.oro-num.interno{width:30px;height:30px;font-size:12.5px;color:var(--ink-soft)}
+.oro-num.interno.sel{color:#fff}

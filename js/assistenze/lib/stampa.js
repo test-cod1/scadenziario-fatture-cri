@@ -132,13 +132,26 @@ ${blocchi.map(bloccoHtml).join('\n')}
 </body></html>`;
 }
 
-export async function stampaPreventivo(prev, imp) {
+// Anteprima: lo stesso documento, aperto in una scheda senza far partire la
+// stampa. Serve per rileggere un preventivo prima di mandarlo, senza dover
+// passare dalla finestra di stampa o scaricare il Word.
+export async function anteprimaPreventivo(prev, imp) {
   const html = await htmlPreventivo(prev, imp);
+  apriFinestra(html);
+}
+
+function apriFinestra(html) {
   const finestra = window.open('', '_blank');
-  if (!finestra) throw new Error('Il browser ha bloccato la finestra di stampa: consenti i popup per questo sito.');
+  if (!finestra) throw new Error('Il browser ha bloccato la finestra: consenti i popup per questo sito.');
   finestra.document.open();
   finestra.document.write(html);
   finestra.document.close();
+  return finestra;
+}
+
+export async function stampaPreventivo(prev, imp) {
+  const html = await htmlPreventivo(prev, imp);
+  const finestra = apriFinestra(html);
 
   // La stampa si lancia da qui e non con uno <script> dentro la pagina
   // generata: la finestra eredita la CSP del portale, che gli script inline

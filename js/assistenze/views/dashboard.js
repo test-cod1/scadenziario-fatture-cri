@@ -4,9 +4,20 @@ import { el, clear, esc, toast, confirmDialog, fmtEuro } from '../../lib/ui.js';
 
 // ============================================================
 //  ELENCO DEI PREVENTIVI DI ASSISTENZA
+//  Mostra la data dell'assistenza, non quella del documento: quando si cerca
+//  un preventivo si ha in mente "quello di sabato", non il giorno in cui è
+//  stato scritto. Da qui si duplica un preventivo e si cambia stato senza
+//  aprirlo.
 // ============================================================
 
+const STATI = ['bozza', 'inviato', 'confermato', 'annullato'];
 const STATO_CHIP = { bozza: '', inviato: 'info', confermato: 'ok', annullato: 'danger' };
+
+// Prima giornata dell'assistenza: è la data che identifica il servizio.
+function primaData(p) {
+  const date = (p.calendario || []).map(r => r.data).filter(Boolean).sort();
+  return date[0] || null;
+}
 
 export async function renderDashboard(view, ctx) {
   const list = await preventivi.list();
@@ -17,8 +28,10 @@ export async function renderDashboard(view, ctx) {
   </div>`));
 
   const confermati = list.filter(p => p.stato === 'confermato');
+  const bozze = list.filter(p => p.stato === 'bozza');
   view.appendChild(el(`<div class="grid stats" style="margin-bottom:22px">
-    <div class="stat accent"><div class="k">Preventivi</div><div class="v">${list.length}</div><div class="s">in archivio</div></div>
+    <div class="stat accent"><div class="k">Preventivi</div><div class="v">${list.length}</div>
+      <div class="s">${bozze.length} ${bozze.length === 1 ? 'bozza' : 'bozze'}</div></div>
     <div class="stat"><div class="k">Confermati</div><div class="v">${confermati.length}</div>
       <div class="s">${fmtEuro(confermati.reduce((s, p) => s + Number(p.totale || 0), 0))}</div></div>
     <div class="stat"><div class="k">Valore totale</div><div class="v">${fmtEuro(list.reduce((s, p) => s + Number(p.totale || 0), 0))}</div></div>
@@ -33,42 +46,90 @@ export async function renderDashboard(view, ctx) {
   const toolbar = el(`<div class="toolbar">
     <div class="search"><span class="search-icon" aria-hidden="true">🔍</span>
       <input type="text" id="q" placeholder="Cerca per cliente, evento o luogo…"></div>
+    <select id="f-stato">
+      <option value="">Tutti gli stati</option>
+      ${STATI.map(s => `<option value="${s}">${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}
+    </select>
   </div>`);
   view.appendChild(toolbar);
 
   const card = el(`<div class="card"><div class="tbl-wrap"><table class="tbl">
-    <thead><tr><th>Cliente</th><th>Evento</th><th>Data</th><th>Turni</th><th>Totale</th><th>Stato</th><th></th></tr></thead>
+    <thead><tr><th>Cliente</th><th>Evento</th><th>Assistenza</th><th>Turni</th><th>Totale</th><th>Stato</th><th></th></tr></thead>
     <tbody></tbody></table></div></div>`);
   view.appendChild(card);
   const tbody = card.querySelector('tbody');
 
   function draw() {
     const q = toolbar.querySelector('#q').value.toLowerCase().trim();
+    const stato = toolbar.querySelector('#f-stato').value;
     clear(tbody);
-    const filtrati = list.filter(p => !q ||
-      [p.cliente, p.oggetto, p.luogo].join(' ').toLowerCase().includes(q));
+    const filtrati = list.filter(p =>
+      (!q || [p.cliente, p.oggetto, p.luogo].join(' ').toLowerCase().includes(q)) &&
+      (!stato || p.stato === stato));
     if (!filtrati.length) {
       tbody.appendChild(el('<tr><td colspan="7" class="muted" style="text-align:center;padding:26px">Nessun risultato</td></tr>'));
       return;
     }
     for (const p of filtrati) {
+      const giorno = primaData(p);
       const tr = el(`<tr>
         <td><b>${esc(p.cliente || '—')}</b></td>
         <td>${esc(p.oggetto || '—')}</td>
-        <td>${fmtData(p.data_documento)}</td>
+        <td>${giorno ? fmtData(giorno) : '<span class="muted">da definire</span>'}</td>
         <td>${(p.calendario || []).length}</td>
         <td class="money">${fmtEuro(p.totale)}</td>
-        <td><span class="chip ${STATO_CHIP[p.stato] || ''}">${esc(p.stato || 'bozza')}</span></td>
+        <td><select data-stato style="min-width:118px">${STATI.map(s =>
+          `<option value="${s}" ${p.stato === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select></td>
         <td style="white-space:nowrap;text-align:right">
+          <button class="btn ghost sm" data-copia title="Duplica">⧉</button>
           <button class="btn ghost sm" data-word title="Scarica in Word">📄</button>
           <button class="btn ghost sm" data-pdf title="Stampa / PDF">🖨️</button>
           <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
         </td>
       </tr>`);
       tr.addEventListener('click', (e) => {
-        if (e.target.closest('button')) return;
+        if (e.target.closest('button') || e.target.closest('select')) return;
         ctx.go(`#/assistenze/preventivo/${p.id}`);
       });
+
+      // Stato modificabile dall'elenco: cambiarlo è la modifica più frequente
+      // dopo aver mandato il preventivo, e non vale la pena aprirlo per questo.
+      const selStato = tr.querySelector('[data-stato]');
+      selStato.addEventListener('click', (e) => e.stopPropagation());
+      selStato.addEventListener('change', async () => {
+        const precedente = p.stato;
+        try {
+          await preventivi.save({ ...p, stato: selStato.value });
+          p.stato = selStato.value;
+          toast('Stato aggiornato', 'ok');
+        } catch (e) {
+          selStato.value = precedente;
+          toast('Errore: ' + e.message, 'err');
+        }
+      });
+
+      tr.querySelector('[data-copia]').addEventListener('click', async () => {
+        const btn = tr.querySelector('[data-copia]');
+        btn.disabled = true;
+        try {
+          // Il duplicato nasce come bozza, con la data di oggi e l'oggetto
+          // marcato: le assistenze si ripetono (stessa manifestazione l'anno
+          // dopo), e ricopiare venti campi a mano non ha senso.
+          const { id, created_at, updated_at, created_by, ...resto } = p;
+          const copia = await preventivi.save({
+            ...resto,
+            oggetto: (p.oggetto || '') + ' (copia)',
+            stato: 'bozza',
+            data_documento: new Date().toISOString().slice(0, 10),
+          });
+          toast('Preventivo duplicato', 'ok');
+          ctx.go(`#/assistenze/preventivo/${copia.id}`);
+        } catch (e) {
+          toast('Duplicazione non riuscita: ' + e.message, 'err');
+          btn.disabled = false;
+        }
+      });
+
       tr.querySelector('[data-pdf]').addEventListener('click', async () => {
         try {
           const { stampaPreventivo } = await import('../lib/stampa.js');
@@ -93,5 +154,6 @@ export async function renderDashboard(view, ctx) {
     }
   }
   toolbar.querySelector('#q').addEventListener('input', draw);
+  toolbar.querySelector('#f-stato').addEventListener('change', draw);
   draw();
 }

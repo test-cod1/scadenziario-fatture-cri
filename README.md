@@ -35,6 +35,8 @@ Generatore di preventivi per le assistenze a manifestazioni ed eventi. Si compil
 
 Il **tariffario** si configura in Impostazioni: ogni voce è *a ore* (€/ora, moltiplicata per la durata del turno) oppure *a prezzo fisso* (€ per turno, per cose come il gazebo che non si pagano a tempo). Dentro il singolo preventivo i prezzi restano modificabili, e la modifica vale solo per quel preventivo: un preventivo già inviato continua a mostrare i prezzi con cui è stato fatto anche se il tariffario cambia. Sempre in Impostazioni stanno i testi fissi del documento (premessa, riferimenti bancari, clausole sui mezzi e sul trattamento dei dati, saluti) e la firma.
 
+Nell'elenco si vede la data dell'assistenza (non quella del documento), si filtra per stato, si cambia stato con un clic e si **duplica** un preventivo esistente: le assistenze si ripetono, e ricopiare venti campi a mano non ha senso. Nell'editor il calendario si compila anche per **intervallo di date** (un turno per giornata, con gli stessi orari), le giornate si riordinano da sole, gli orari si scelgono su un **quadrante** — prima l'ora, poi i minuti a passi di dieci — e uscendo con modifiche non salvate l'app avvisa. Il pulsante **Anteprima** mostra il documento senza far partire la stampa.
+
 Si possono applicare due **sconti**, anche insieme: uno in percentuale sul totale e uno in valore assoluto, che si toglie da quanto resta dopo la percentuale. Nel documento compaiono il totale pieno, una riga per ogni sconto applicato e il totale da corrispondere; la somma degli sconti non supera mai l'importo del servizio. Quello che viene salvato come totale del preventivo è sempre il netto, cioè quanto il cliente paga davvero.
 
 Il preventivo esce in due formati, con lo stesso contenuto:
