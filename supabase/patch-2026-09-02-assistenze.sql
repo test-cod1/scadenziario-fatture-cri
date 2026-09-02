@@ -36,9 +36,11 @@ create table if not exists public.preventivi_assistenze (
   -- ciascuna voce. [{data, dalle, alle, qta: {voceId: n}, note}]
   calendario jsonb not null default '[]'::jsonb,
 
-  -- Sconto: percentuale sul totale oppure importo fisso da togliere. La
-  -- colonna 'totale' resta quanto il cliente paga davvero (al netto).
-  sconto_tipo text check (sconto_tipo in ('percentuale','valore')),
+  -- Sconti: due campi indipendenti, utilizzabili anche insieme. La
+  -- percentuale si calcola sul totale, l'importo fisso si toglie da quello
+  -- che resta. La colonna 'totale' e' sempre il netto, cioe' quanto il
+  -- cliente paga davvero.
+  sconto_percentuale numeric(5,2) check (sconto_percentuale >= 0 and sconto_percentuale <= 100),
   sconto_valore numeric(12,2) check (sconto_valore >= 0),
   note text,
   totale numeric(12,2),

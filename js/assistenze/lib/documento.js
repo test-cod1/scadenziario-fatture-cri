@@ -73,13 +73,15 @@ export function costruisciBlocchi(prev, imp) {
       v.tipo === 'fissa' ? `${euro(v.prezzo)} cad.` : `${euro(v.prezzo)}/ora`,
       euro(v.importo),
     ]),
-    // Con uno sconto il piede diventa di tre righe: quanto vale il servizio,
-    // quanto si sconta e quanto resta da pagare. Senza sconto resta una riga
-    // sola, come prima.
+    // Con uno sconto il piede si allunga: il totale pieno, una riga per ogni
+    // sconto applicato (percentuale e/o importo fisso) e quanto resta da
+    // pagare. Senza sconti resta una riga sola.
     piede: r.sconto > 0
       ? [
           { celle: ['Totale', '', '', euro(r.totaleLordo)] },
-          { celle: [descrizioneSconto(prev), '', '', '− ' + euro(r.sconto)] },
+          ...r.sconti.map(s => ({
+            celle: [etichettaSconto(s), '', '', '− ' + euro(s.importo)],
+          })),
           { celle: ['Totale da corrispondere', '', '', euro(r.totale)], forte: true },
         ]
       : [{ celle: ['Totale', '', '', euro(r.totale)], forte: true }],
@@ -139,14 +141,11 @@ export function costruisciBlocchi(prev, imp) {
   return { blocchi, calcolo: r };
 }
 
-// Come si legge lo sconto nel documento: la percentuale va scritta, altrimenti
-// il cliente vede solo un importo sottratto senza sapere su cosa.
-function descrizioneSconto(prev) {
-  if (prev.sconto_tipo === 'percentuale') {
-    const perc = Math.min(Number(prev.sconto_valore) || 0, 100);
-    return `Sconto ${num(perc, perc % 1 ? 1 : 0)}%`;
-  }
-  return 'Sconto';
+// Come si legge uno sconto nel documento: la percentuale va scritta,
+// altrimenti il cliente vede un importo sottratto senza sapere su cosa.
+export function etichettaSconto(s) {
+  if (s.tipo !== 'percentuale') return 'Sconto';
+  return `Sconto ${num(s.percentuale, s.percentuale % 1 ? 1 : 0)}%`;
 }
 
 // Nome del file (PDF o Word) proposto al salvataggio.

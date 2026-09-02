@@ -1,19 +1,40 @@
 -- ============================================================
---  PATCH — Sconto sui preventivi delle assistenze sanitarie
+--  PATCH — Sconti sui preventivi delle assistenze sanitarie
 --  Da eseguire dopo patch-2026-09-02-assistenze.sql.
 --
---  Lo sconto si esprime in percentuale sul totale oppure come importo fisso
---  da togliere. La colonna `totale` continua a contenere quanto il cliente
---  deve davvero pagare (al netto): è il numero che conta nell'elenco e nelle
---  statistiche, e non deve dipendere da come è stato scritto lo sconto.
+--  Due campi indipendenti, utilizzabili anche insieme: una percentuale sul
+--  totale e un importo fisso. La colonna `totale` continua a contenere
+--  quanto il cliente deve davvero pagare (al netto degli sconti): è il
+--  numero che conta nell'elenco e nelle statistiche, e non deve dipendere
+--  da come lo sconto è stato scritto.
+--
+--  Se hai già eseguito la primissima versione di questa patch (quella con
+--  `sconto_tipo`), gli `alter` qui sotto la portano alla forma nuova senza
+--  perdere nulla: chi aveva uno sconto in percentuale se lo ritrova nella
+--  colonna giusta.
 -- ============================================================
 
 alter table public.preventivi_assistenze
-  add column if not exists sconto_tipo text
-    check (sconto_tipo in ('percentuale','valore')),
+  add column if not exists sconto_percentuale numeric(5,2)
+    check (sconto_percentuale >= 0 and sconto_percentuale <= 100),
   add column if not exists sconto_valore numeric(12,2) check (sconto_valore >= 0);
 
-comment on column public.preventivi_assistenze.sconto_tipo is
-  'percentuale | valore — nullo quando non c''è sconto';
+-- Migrazione dalla versione precedente (campo unico + tipo), se presente.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'preventivi_assistenze'
+      and column_name = 'sconto_tipo'
+  ) then
+    update public.preventivi_assistenze
+      set sconto_percentuale = sconto_valore, sconto_valore = null
+      where sconto_tipo = 'percentuale';
+    alter table public.preventivi_assistenze drop column sconto_tipo;
+  end if;
+end $$;
+
+comment on column public.preventivi_assistenze.sconto_percentuale is
+  'sconto in percentuale sul totale (0-100), nullo se non applicato';
 comment on column public.preventivi_assistenze.sconto_valore is
-  'la percentuale (0-100) o l''importo in euro, secondo sconto_tipo';
+  'sconto in euro, tolto da quanto resta dopo la percentuale; nullo se non applicato';

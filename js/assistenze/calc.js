@@ -105,24 +105,40 @@ export function calcola(prev) {
 
   const riepilogo = [...perVoce.values()].filter(v => v.importo > 0 || v.quantita > 0);
   const totaleLordo = centesimi(righe.reduce((s, r) => s + r.importo, 0));
-  const sconto = calcolaSconto(prev, totaleLordo);
-  return { righe, riepilogo, totaleLordo, sconto, totale: centesimi(totaleLordo - sconto) };
+  const sconti = calcolaSconti(prev, totaleLordo);
+  const sconto = centesimi(sconti.reduce((s, x) => s + x.importo, 0));
+  return { righe, riepilogo, totaleLordo, sconti, sconto, totale: centesimi(totaleLordo - sconto) };
 }
 
 // Arrotonda ai centesimi: senza, la somma di più turni può lasciare code di
 // virgola (0,30000000000000004) che poi si vedono nel documento.
 function centesimi(n) { return Math.round((Number(n) || 0) * 100) / 100; }
 
-// Sconto in percentuale o in valore assoluto. In entrambi i casi non può
-// superare il totale: uno sconto più grande dell'importo darebbe un preventivo
-// negativo, che non vuol dire niente.
-export function calcolaSconto(prev, totaleLordo) {
-  const valore = Number(prev?.sconto_valore) || 0;
-  if (valore <= 0 || totaleLordo <= 0) return 0;
-  const sconto = prev?.sconto_tipo === 'percentuale'
-    ? totaleLordo * Math.min(valore, 100) / 100
-    : valore;
-  return centesimi(Math.min(sconto, totaleLordo));
+// Gli sconti applicati, uno per riga: la percentuale sul totale e/o un
+// importo fisso. I due campi sono indipendenti e si possono usare insieme —
+// in quel caso la percentuale si calcola sul totale pieno e l'importo fisso
+// si toglie da quello che resta, che è l'ordine con cui si scrivono in un
+// preventivo ("meno il 10%, e in più 50 € di sconto").
+//
+// La somma degli sconti non supera mai il totale: un preventivo negativo non
+// vuol dire niente, e l'importo fisso viene semplicemente limitato al residuo.
+export function calcolaSconti(prev, totaleLordo) {
+  if (totaleLordo <= 0) return [];
+  const sconti = [];
+  let residuo = totaleLordo;
+
+  const perc = Math.min(Math.max(Number(prev?.sconto_percentuale) || 0, 0), 100);
+  if (perc > 0) {
+    const importo = centesimi(totaleLordo * perc / 100);
+    sconti.push({ tipo: 'percentuale', percentuale: perc, importo });
+    residuo = centesimi(residuo - importo);
+  }
+
+  const valore = Math.max(Number(prev?.sconto_valore) || 0, 0);
+  if (valore > 0 && residuo > 0) {
+    sconti.push({ tipo: 'valore', importo: centesimi(Math.min(valore, residuo)) });
+  }
+  return sconti;
 }
 
 // ---------------------------------------------------------------
