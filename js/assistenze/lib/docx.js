@@ -72,24 +72,38 @@ function bloccoXml(b) {
     });
   }
   if (b.t === 'firma') {
-    const [ente, ruolo, nome] = [b.righe[0] || '', b.righe[1] || '', b.righe[2] || ''];
+    const [ruolo, nome] = [b.righe[0] || '', b.righe[1] || ''];
+    // Rientro invece di allineamento a destra: le due righe restano
+    // allineate fra loro (com'è nella versione rivista del documento),
+    // mentre "a destra" le avrebbe fatte finire a bandiera.
     return paragrafo('', {}) +
-      paragrafo(ente, { allineamento: 'right', dimensione: 20 }) +
-      paragrafo(ruolo, { allineamento: 'right', spazioPrima: 240 }) +
-      paragrafo(nome, { allineamento: 'right', grassetto: true });
+      paragrafo(ruolo, { rientro: 5664, spazioDopo: 0, spazioPrima: 240 }) +
+      paragrafo(nome, { rientro: 5664, spazioDopo: 0, grassetto: true });
   }
   if (b.t === 'tabella') return tabellaXml(b);
   return '';
 }
 
-// dimensione in mezzi punti (22 = 11pt), spazi in ventesimi di punto.
-function paragrafo(t, { grassetto, dimensione = 22, allineamento, colore, spazioPrima = 0, spazioDopo = 120, maiuscoletto } = {}) {
+// Un font solo per tutto il documento, lo stesso della carta intestata
+// (intestazione e piè di pagina del modello sono in Arial): dichiararlo su
+// ogni testo evita che il corpo prenda il font predefinito del tema — un
+// secondo carattere in una pagina che ne usa già uno.
+const FONT = 'Arial';
+
+// dimensione in mezzi punti (22 = 11pt), spazi e rientri in ventesimi di
+// punto (1440 = 2,54 cm).
+function paragrafo(t, { grassetto, dimensione = 22, allineamento, colore, spazioPrima = 0, spazioDopo = 120, maiuscoletto, rientro } = {}) {
+  // L'ordine degli elementi dentro <w:pPr> non è libero: lo schema OOXML
+  // prescrive spacing, poi ind, poi jc. Word perdona, ma altri programmi che
+  // leggono .docx (e i validatori) no.
   const pPr = `<w:pPr>` +
-    (allineamento ? `<w:jc w:val="${allineamento}"/>` : '') +
     `<w:spacing w:before="${spazioPrima}" w:after="${spazioDopo}" w:line="259" w:lineRule="auto"/>` +
+    (rientro ? `<w:ind w:left="${rientro}"/>` : '') +
+    (allineamento ? `<w:jc w:val="${allineamento}"/>` : '') +
     `</w:pPr>`;
   if (!t) return `<w:p>${pPr}</w:p>`;
   const rPr = `<w:rPr>` +
+    `<w:rFonts w:ascii="${FONT}" w:hAnsi="${FONT}" w:cs="${FONT}"/>` +
     (grassetto ? '<w:b/>' : '') +
     (maiuscoletto ? '<w:caps/>' : '') +
     (colore ? `<w:color w:val="${colore}"/>` : '') +
@@ -122,9 +136,9 @@ function tabellaXml(b) {
   const intestazione = `<w:tr><w:trPr><w:tblHeader/></w:trPr>` +
     b.intestazioni.map((h, i) => cella(h, i, { intestazione: true })).join('') + `</w:tr>`;
   const righe = b.righe.map(r => `<w:tr>${r.map((c, i) => cella(c, i)).join('')}</w:tr>`).join('');
-  const totale = b.totale
-    ? `<w:tr>${b.totale.map((c, i) => cella(c, i, { grassetto: true })).join('')}</w:tr>`
-    : '';
+  // Piede: una riga sola col totale, oppure tre quando c'è uno sconto.
+  const piede = (b.piede || []).map(p =>
+    `<w:tr>${p.celle.map((c, i) => cella(c, i, { grassetto: p.forte })).join('')}</w:tr>`).join('');
 
-  return `<w:tbl>${tblPr}${grid}${intestazione}${righe}${totale}</w:tbl>`;
+  return `<w:tbl>${tblPr}${grid}${intestazione}${righe}${piede}</w:tbl>`;
 }

@@ -35,11 +35,13 @@ Generatore di preventivi per le assistenze a manifestazioni ed eventi. Si compil
 
 Il **tariffario** si configura in Impostazioni: ogni voce è *a ore* (€/ora, moltiplicata per la durata del turno) oppure *a prezzo fisso* (€ per turno, per cose come il gazebo che non si pagano a tempo). Dentro il singolo preventivo i prezzi restano modificabili, e la modifica vale solo per quel preventivo: un preventivo già inviato continua a mostrare i prezzi con cui è stato fatto anche se il tariffario cambia. Sempre in Impostazioni stanno i testi fissi del documento (premessa, riferimenti bancari, clausole sui mezzi e sul trattamento dei dati, saluti) e la firma.
 
+Si può applicare uno **sconto**, in percentuale sul totale o come importo fisso: nel documento compaiono il totale pieno, lo sconto e il totale da corrispondere, e non può mai superare l'importo del servizio. Quello che viene salvato come totale del preventivo è sempre il netto, cioè quanto il cliente paga davvero.
+
 Il preventivo esce in due formati, con lo stesso contenuto:
 - **PDF**, tramite la stampa del browser, con la carta intestata ricostruita in HTML;
 - **Word (.docx)**, generato a partire da [`assets/carta-intestata.dotx`](assets/carta-intestata.dotx) — il modello ufficiale del Comitato: il file resta quello, cambia solo il corpo, quindi il risultato è modificabile in Word come un documento scritto a mano.
 
-Sostituendo quel .dotx cambiano insieme sia il Word sia il PDF: logo, indirizzo e dati del piè di pagina vengono letti da lì, non copiati nel codice.
+Sostituendo quel .dotx cambiano insieme sia il Word sia il PDF: logo, indirizzo e dati del piè di pagina vengono letti da lì, non copiati nel codice. Tutto il documento usa un solo carattere, **Arial**, che è quello della carta intestata.
 
 ## 1. Crea il progetto Supabase
 
@@ -58,7 +60,7 @@ Sostituendo quel .dotx cambiano insieme sia il Word sia il PDF: logo, indirizzo 
 >
 > **L'ultimo è [`patch-2026-09-01-portale.sql`](supabase/patch-2026-09-01-portale.sql)** ed è obbligatorio su un database già in uso: trasforma lo scadenziario nel portale multi-sezione. Crea le tabelle `sezioni` e `autorizzazioni`, sposta lì i ruoli che stavano in `profili.ruolo` (chi era admin/operatore resta admin/operatore **dello scadenziario** e di nient'altro) e nomina il super admin — nel file c'è un `update` con l'email da controllare prima di eseguirlo.
 >
-> **Per la sezione assistenze sanitarie** serve [`patch-2026-09-02-assistenze.sql`](supabase/patch-2026-09-02-assistenze.sql) (crea `preventivi_assistenze` e `impostazioni_assistenze`).
+> **Per la sezione assistenze sanitarie** servono [`patch-2026-09-02-assistenze.sql`](supabase/patch-2026-09-02-assistenze.sql) (crea `preventivi_assistenze` e `impostazioni_assistenze`) e [`patch-2026-09-02-assistenze-sconto.sql`](supabase/patch-2026-09-02-assistenze-sconto.sql) (le due colonne dello sconto).
 >
 > **Per la sezione trasporti** servono in più [`patch-2026-09-01-trasporti.sql`](supabase/patch-2026-09-01-trasporti.sql) (crea `preventivi` e `impostazioni_trasferte`) e, per portarsi dietro i dati del vecchio gestionale, [`export-trasporti.sql`](supabase/export-trasporti.sql) — che però va lanciato sul **vecchio** progetto Supabase: stampa gli insert già pronti da incollare qui.
 

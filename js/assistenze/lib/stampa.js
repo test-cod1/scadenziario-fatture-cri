@@ -28,7 +28,10 @@ export async function htmlPreventivo(prev, imp) {
      sul tema scuro lo mostra a fondo nero (e chi annulla la stampa si trova
      davanti una pagina illeggibile). */
   html { color-scheme: light; background: #fff; }
-  body { margin:0; background:#fff; font-family: Calibri, Carlito, "Segoe UI", Arial, sans-serif; font-size: 11pt; line-height: 1.45; color: #000; }
+  /* Un font solo per tutto il documento, ed è quello della carta intestata
+     (l'intestazione e il piè di pagina del modello Word sono in Arial): così
+     PDF e Word si somigliano e la pagina non mescola due caratteri. */
+  body { margin:0; background:#fff; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.45; color: #000; }
 
   /* Ripetuti su ogni pagina: stanno fuori dal flusso e occupano il margine
      lasciato libero da @page. */
@@ -51,14 +54,15 @@ export async function htmlPreventivo(prev, imp) {
   th { background: #f0f2f4; font-weight: 700; text-align: left; }
   td.dx, th.dx { text-align: right; white-space: nowrap; }
   td.centro, th.centro { text-align: center; }
-  tr.totale td { font-weight: 700; background: #f7f8f9; }
+  tr.totale td { background: #f7f8f9; }
+  tr.totale.forte td { font-weight: 700; }
   /* Una tabella lunga si spezza fra le pagine ripetendo l'intestazione. */
   thead { display: table-header-group; }
   tr { break-inside: avoid; }
 
-  .firma { margin-top: 12mm; text-align: right; line-height: 1.5; }
-  .firma .ente { font-size: 10pt; }
-  .firma .ruolo { margin-top: 6mm; }
+  /* Blocco firma rientrato a destra ma con le righe allineate a sinistra fra
+     loro, come nella versione rivista del documento. */
+  .firma { margin: 12mm 0 0 100mm; line-height: 1.5; }
   .firma .nome { font-weight: 700; }
 
   /* A schermo (chi annulla la stampa, o vuole solo rileggere il documento)
@@ -110,17 +114,17 @@ function bloccoHtml(b) {
     return `<p${classi ? ` class="${classi}"` : ''}>${b.grassetto ? `<b>${testo}</b>` : testo}</p>`;
   }
   if (b.t === 'firma') {
-    const [ente, ruolo, nome] = [b.righe[0] || '', b.righe[1] || '', b.righe[2] || ''];
-    return `<div class="firma"><div class="ente">${esc(ente)}</div>
-      <div class="ruolo">${esc(ruolo)}</div><div class="nome">${esc(nome)}</div></div>`;
+    const [ruolo, nome] = [b.righe[0] || '', b.righe[1] || ''];
+    return `<div class="firma"><div>${esc(ruolo)}</div><div class="nome">${esc(nome)}</div></div>`;
   }
   if (b.t === 'tabella') {
     const cl = (i) => b.allineamenti?.[i] === 'dx' ? ' class="dx"' : b.allineamenti?.[i] === 'centro' ? ' class="centro"' : '';
     const larg = (i) => b.larghezze?.[i] ? ` style="width:${b.larghezze[i]}%"` : '';
     const thead = `<thead><tr>${b.intestazioni.map((h, i) => `<th${cl(i)}${larg(i)}>${esc(h)}</th>`).join('')}</tr></thead>`;
     const righe = b.righe.map(r => `<tr>${r.map((c, i) => `<td${cl(i)}>${esc(c)}</td>`).join('')}</tr>`).join('');
-    const tot = b.totale ? `<tr class="totale">${b.totale.map((c, i) => `<td${cl(i)}>${esc(c)}</td>`).join('')}</tr>` : '';
-    return `<table>${thead}<tbody>${righe}${tot}</tbody></table>`;
+    const piede = (b.piede || []).map(p =>
+      `<tr class="totale${p.forte ? ' forte' : ''}">${p.celle.map((c, i) => `<td${cl(i)}>${esc(c)}</td>`).join('')}</tr>`).join('');
+    return `<table>${thead}<tbody>${righe}${piede}</tbody></table>`;
   }
   return '';
 }

@@ -15,7 +15,7 @@ export const DEFAULT_IMPOSTAZIONI = {
     { id: 'ambulanza', nome: 'Ambulanza con equipaggio', tipo: 'oraria', prezzo: 0 },
     { id: 'medico',    nome: 'Medico',                    tipo: 'oraria', prezzo: 0 },
     { id: 'sap',       nome: 'Squadra a piedi (SAP)',     tipo: 'oraria', prezzo: 0 },
-    { id: 'gazebo',    nome: 'Gazebo / punto medico avanzato', tipo: 'fissa', prezzo: 0 },
+    { id: 'gazebo',    nome: 'Gazebo',                     tipo: 'fissa', prezzo: 0 },
   ],
 
   // Testi fissi del documento: stanno nelle impostazioni e non nel codice
@@ -24,14 +24,13 @@ export const DEFAULT_IMPOSTAZIONI = {
   testi: {
     premessa: 'A seguito della Vs richiesta indichiamo il preventivo di spesa per l\'esecuzione del servizio di assistenza sanitaria:',
     iva: 'OPERAZIONI FUORI CAMPO IVA ART. 4 DPR 633/72.',
-    banca: 'Vi forniamo di seguito i nostri riferimenti bancari: BANCA CREDIT AGRICOLE, IBAN IT93Z0623001495000030454359 intestato a CROCE ROSSA ITALIANA COMITATO DI GENOVA.',
+    banca: 'Vi forniamo di seguito i nostri riferimenti bancari:\nBANCA CREDIT AGRICOLE\nIBAN: IT93Z0623001495000030454359\nintestato a CROCE ROSSA ITALIANA COMITATO DI GENOVA',
     mezzi: 'Lo scrivente Comitato mette a disposizione mezzi e personale in possesso dei requisiti previsti dalla normativa vigente in materia di trasporto sanitario di emergenza/urgenza, con le dotazioni e le specifiche indicate nella relativa documentazione, disponibile su richiesta.',
     privacy: 'Si precisa altresì che gli operatori C.R.I. che seguiranno il servizio di cui sopra sono istruiti:\n– a trattare i dati personali esclusivamente per lo svolgimento del servizio in oggetto;\n– a non comunicare e/o diffondere dati personali a soggetti terzi;\n– a effettuare tale trattamento secondo i principi di correttezza, liceità e trasparenza, in modo da tutelare la riservatezza e i diritti degli interessati;\n– a comunicare senza indugio ogni violazione, o presunta tale, dei dati personali e delle misure di sicurezza;\n– a provvedere al trattamento esclusivamente per la durata del rapporto contrattuale: al termine permangono i divieti di duplicazione, comunicazione a terzi e diffusione.',
     chiusura: 'Restando a disposizione per ogni ulteriore chiarimento, si porgono cordiali e distinti saluti.',
   },
 
   firma: {
-    ente: 'Croce Rossa Italiana — Comitato di Genova',
     ruolo: 'La Presidente',
     nome: 'Federica Bonelli',
   },
@@ -105,8 +104,25 @@ export function calcola(prev) {
   });
 
   const riepilogo = [...perVoce.values()].filter(v => v.importo > 0 || v.quantita > 0);
-  const totale = righe.reduce((s, r) => s + r.importo, 0);
-  return { righe, riepilogo, totale };
+  const totaleLordo = centesimi(righe.reduce((s, r) => s + r.importo, 0));
+  const sconto = calcolaSconto(prev, totaleLordo);
+  return { righe, riepilogo, totaleLordo, sconto, totale: centesimi(totaleLordo - sconto) };
+}
+
+// Arrotonda ai centesimi: senza, la somma di più turni può lasciare code di
+// virgola (0,30000000000000004) che poi si vedono nel documento.
+function centesimi(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+
+// Sconto in percentuale o in valore assoluto. In entrambi i casi non può
+// superare il totale: uno sconto più grande dell'importo darebbe un preventivo
+// negativo, che non vuol dire niente.
+export function calcolaSconto(prev, totaleLordo) {
+  const valore = Number(prev?.sconto_valore) || 0;
+  if (valore <= 0 || totaleLordo <= 0) return 0;
+  const sconto = prev?.sconto_tipo === 'percentuale'
+    ? totaleLordo * Math.min(valore, 100) / 100
+    : valore;
+  return centesimi(Math.min(sconto, totaleLordo));
 }
 
 // ---------------------------------------------------------------

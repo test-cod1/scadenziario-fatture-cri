@@ -73,7 +73,16 @@ export function costruisciBlocchi(prev, imp) {
       v.tipo === 'fissa' ? `${euro(v.prezzo)} cad.` : `${euro(v.prezzo)}/ora`,
       euro(v.importo),
     ]),
-    totale: ['Totale', '', '', euro(r.totale)],
+    // Con uno sconto il piede diventa di tre righe: quanto vale il servizio,
+    // quanto si sconta e quanto resta da pagare. Senza sconto resta una riga
+    // sola, come prima.
+    piede: r.sconto > 0
+      ? [
+          { celle: ['Totale', '', '', euro(r.totaleLordo)] },
+          { celle: [descrizioneSconto(prev), '', '', '− ' + euro(r.sconto)] },
+          { celle: ['Totale da corrispondere', '', '', euro(r.totale)], forte: true },
+        ]
+      : [{ celle: ['Totale', '', '', euro(r.totale)], forte: true }],
   });
   blocchi.push({ t: 'p', testo: `Importo complessivo: ${euro(r.totale)} (euro ${inLettere(r.totale)}).`, grassetto: true });
   if (testi.iva) blocchi.push({ t: 'p', testo: testi.iva });
@@ -124,10 +133,20 @@ export function costruisciBlocchi(prev, imp) {
   // ---- firma ----
   blocchi.push({
     t: 'firma',
-    righe: [firma.ente, firma.ruolo, firma.nome].filter(Boolean),
+    righe: [firma.ruolo, firma.nome].filter(Boolean),
   });
 
   return { blocchi, calcolo: r };
+}
+
+// Come si legge lo sconto nel documento: la percentuale va scritta, altrimenti
+// il cliente vede solo un importo sottratto senza sapere su cosa.
+function descrizioneSconto(prev) {
+  if (prev.sconto_tipo === 'percentuale') {
+    const perc = Math.min(Number(prev.sconto_valore) || 0, 100);
+    return `Sconto ${num(perc, perc % 1 ? 1 : 0)}%`;
+  }
+  return 'Sconto';
 }
 
 // Nome del file (PDF o Word) proposto al salvataggio.

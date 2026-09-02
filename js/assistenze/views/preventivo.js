@@ -80,6 +80,20 @@ export async function renderPreventivo(view, id, ctx) {
     <button class="btn sm" id="add-turno" type="button" style="margin-top:12px">➕ Aggiungi turno</button>`);
   main.appendChild(cCal);
 
+  // ---------- sconto ----------
+  main.appendChild(card('Sconto', `
+    <p class="hint" style="margin:0 0 12px">Facoltativo. Nel documento compaiono il totale pieno, lo sconto e il totale da corrispondere: il cliente vede quanto gli è stato riconosciuto.</p>
+    <div class="form-row">
+      <div class="field"><label>Tipo</label><select id="sconto_tipo">
+        <option value="">Nessuno sconto</option>
+        <option value="percentuale" ${prev.sconto_tipo === 'percentuale' ? 'selected' : ''}>Percentuale (%)</option>
+        <option value="valore" ${prev.sconto_tipo === 'valore' ? 'selected' : ''}>Importo fisso (€)</option>
+      </select></div>
+      <div class="field"><label>Valore</label>
+        <input type="number" min="0" step="0.5" id="sconto_valore" value="${prev.sconto_valore ?? ''}" ${prev.sconto_tipo ? '' : 'disabled'}>
+        <div class="hint" id="sconto-hint"></div></div>
+    </div>`));
+
   // ---------- note ----------
   main.appendChild(card('Note', `<textarea id="note" rows="3" placeholder="Testo libero, compare nel preventivo prima dei saluti…">${esc(prev.note || '')}</textarea>`));
 
@@ -93,6 +107,21 @@ export async function renderPreventivo(view, id, ctx) {
     input.addEventListener('change', () => { prev[campo] = input.value; aggiorna(); });
   }
   prev.data_documento = prev.data_documento || todayISO();
+
+  const scontoTipo = view.querySelector('#sconto_tipo');
+  const scontoValore = view.querySelector('#sconto_valore');
+  scontoTipo.addEventListener('change', () => {
+    prev.sconto_tipo = scontoTipo.value || null;
+    // Senza tipo non c'è sconto: si azzera anche il valore, altrimenti
+    // resterebbe scritto un numero che non viene applicato.
+    scontoValore.disabled = !prev.sconto_tipo;
+    if (!prev.sconto_tipo) { prev.sconto_valore = null; scontoValore.value = ''; }
+    aggiorna();
+  });
+  scontoValore.addEventListener('input', () => {
+    prev.sconto_valore = scontoValore.value === '' ? null : Number(scontoValore.value) || 0;
+    aggiorna();
+  });
 
   function disegnaVoci() {
     const zona = cVoci.querySelector('#voci');
@@ -187,12 +216,20 @@ export async function renderPreventivo(view, id, ctx) {
   function aggiorna() {
     const r = calcola(prev);
     prev.totale = r.totale;
+    const hint = view.querySelector('#sconto-hint');
+    if (hint) {
+      hint.textContent = r.sconto > 0
+        ? `Sconto applicato: ${fmtEuro(r.sconto)} su ${fmtEuro(r.totaleLordo)}`
+        : (prev.sconto_tipo === 'percentuale' ? 'Percentuale sul totale, da 0 a 100.' : prev.sconto_tipo ? 'Importo da togliere al totale.' : '');
+    }
     clear(summary);
     const box = el(`<div class="tot-box">
       <div class="card-b breakdown">
         ${r.riepilogo.length
           ? r.riepilogo.map(v => `<div class="b-row"><span class="lbl">${esc(v.nome)}${v.tipo === 'fissa' ? ` × ${v.quantita}` : ` · ${fmtOre(v.ore)}`}</span><span class="money">${fmtEuro(v.importo)}</span></div>`).join('')
           : '<div class="b-row"><span class="lbl">Nessuna voce attiva</span><span class="money">—</span></div>'}
+        ${r.sconto > 0 ? `<div class="b-row strong"><span class="lbl">Totale</span><span class="money">${fmtEuro(r.totaleLordo)}</span></div>
+          <div class="b-row"><span class="lbl">Sconto${prev.sconto_tipo === 'percentuale' ? ` ${Math.min(Number(prev.sconto_valore) || 0, 100)}%` : ''}</span><span class="money">− ${fmtEuro(r.sconto)}</span></div>` : ''}
       </div>
       <div class="row addebito">
         <div><div class="k">Totale preventivo</div><div class="mini">${r.totale ? 'euro ' + inLettere(r.totale) : 'da compilare'}</div></div>
@@ -220,6 +257,7 @@ export async function renderPreventivo(view, id, ctx) {
         referente: prev.referente, referente_email: prev.referente_email, referente_telefono: prev.referente_telefono,
         oggetto: prev.oggetto, luogo: prev.luogo, data_documento: prev.data_documento || null,
         stato: prev.stato || 'bozza', voci: prev.voci, calendario: prev.calendario,
+        sconto_tipo: prev.sconto_tipo || null, sconto_valore: prev.sconto_valore ?? null,
         note: prev.note, totale: prev.totale,
       });
       toast('Preventivo salvato', 'ok');
@@ -269,7 +307,7 @@ function nuovoPreventivo(imp) {
     // Si parte con le voci a ore del tariffario già attive: sono quelle che
     // servono quasi sempre, e toglierle è un clic.
     voci: imp.tariffe.filter(t => t.tipo !== 'fissa' && t.id === 'ambulanza').map(t => ({ ...t })),
-    calendario: [], note: '',
+    calendario: [], sconto_tipo: null, sconto_valore: null, note: '',
   };
 }
 
