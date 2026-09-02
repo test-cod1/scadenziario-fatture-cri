@@ -124,11 +124,15 @@ function tabellaXml(b) {
     `<w:tblLayout w:type="fixed"/></w:tblPr>`;
   const grid = `<w:tblGrid>${larghezze.map(w => `<w:gridCol w:w="${Math.round(w * 1.86)}"/>`).join('')}</w:tblGrid>`;
 
+  // Tabella con molte colonne (il calendario quando le voci sono parecchie):
+  // corpo più piccolo, come nella stampa, altrimenti le colonne strette
+  // spezzano date e orari su due righe.
+  const dimensione = b.compatta ? 17 : 20;
   const cella = (contenuto, i, { intestazione, grassetto } = {}) => {
     const jc = b.allineamenti?.[i] === 'dx' ? 'right' : b.allineamenti?.[i] === 'centro' ? 'center' : 'left';
     const sfondo = intestazione ? '<w:shd w:val="clear" w:color="auto" w:fill="F0F2F4"/>' : '';
     return `<w:tc><w:tcPr><w:tcW w:w="${larghezze[i]}" w:type="pct"/>${sfondo}</w:tcPr>` +
-      paragrafo(contenuto, { grassetto: intestazione || grassetto, dimensione: 20, allineamento: jc, spazioDopo: 20 }) +
+      paragrafo(contenuto, { grassetto: intestazione || grassetto, dimensione, allineamento: jc, spazioDopo: 20 }) +
       `</w:tc>`;
   };
 

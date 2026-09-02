@@ -4,8 +4,10 @@
 //  (ricostruita in HTML dalle immagini e dai testi del .dotx) e lancia la
 //  stampa: da lì si salva in PDF o si stampa su carta.
 //
-//  Intestazione e piè di pagina sono in position:fixed, così il browser li
-//  ripete su ogni pagina; i margini di @page lasciano loro lo spazio.
+//  Intestazione e piè di pagina si ripetono su ogni foglio perché il
+//  documento è dentro un'unica tabella e stanno nel suo thead/tfoot: è
+//  l'unico modo che i browser rispettano davvero in stampa (vedi il commento
+//  nel CSS).
 // ============================================================
 import { costruisciBlocchi, nomeFile } from './documento.js';
 import { caricaCarta } from './carta.js';
@@ -22,7 +24,7 @@ export async function htmlPreventivo(prev, imp) {
   return `<!doctype html><html lang="it"><head><meta charset="utf-8">
 <title>${esc(nomeFile(prev, 'pdf').replace(/\.pdf$/, ''))}</title>
 <style>
-  @page { size: A4; margin: 42mm 18mm 32mm; }
+  @page { size: A4; margin: 12mm 16mm 10mm; }
   * { box-sizing: border-box; }
   /* Il documento è su carta bianca: senza dichiararlo, un browser impostato
      sul tema scuro lo mostra a fondo nero (e chi annulla la stampa si trova
@@ -33,13 +35,26 @@ export async function htmlPreventivo(prev, imp) {
      PDF e Word si somigliano e la pagina non mescola due caratteri. */
   body { margin:0; background:#fff; font-family: Arial, Helvetica, sans-serif; font-size: 11pt; line-height: 1.45; color: #000; }
 
-  /* Ripetuti su ogni pagina: stanno fuori dal flusso e occupano il margine
-     lasciato libero da @page. */
-  .intestazione { position: fixed; top: -34mm; left: 0; right: 0; display: flex; align-items: flex-start; gap: 10mm; }
-  .intestazione img { height: 26mm; }
-  .intestazione .uff { margin-left: auto; text-align: right; font-size: 9pt; color: #444; padding-top: 4mm; }
-  .piede { position: fixed; bottom: -26mm; left: 0; right: 0; border-top: 1px solid #c9ced3;
-           padding-top: 2mm; display: flex; align-items: flex-end; gap: 6mm; font-size: 7.5pt; color: #555; }
+  /* Carta intestata ripetuta su ogni pagina.
+     Prima intestazione e piè erano in position:fixed dentro i margini di
+     @page: a schermo si vedevano, in stampa il browser li tagliava — il PDF
+     usciva senza carta intestata. La via che i browser rispettano davvero è
+     l'intestazione di tabella: il contenuto sta in un'unica tabella che
+     occupa la pagina, e thead/tfoot vengono ripetuti in cima e in fondo a
+     ogni foglio, riservandosi anche lo spazio (cosa che un elemento fixed
+     non fa, e per questo si sovrapponeva al testo). */
+  table.foglio { width: 100%; border-collapse: collapse; }
+  table.foglio > thead { display: table-header-group; }
+  table.foglio > tfoot { display: table-footer-group; }
+  table.foglio > thead > tr > td,
+  table.foglio > tbody > tr > td,
+  table.foglio > tfoot > tr > td { border: 0; padding: 0; }
+
+  .intestazione { display: flex; align-items: flex-start; gap: 10mm; padding-bottom: 7mm; }
+  .intestazione img { height: 24mm; }
+  .intestazione .uff { margin-left: auto; text-align: right; font-size: 9pt; color: #444; padding-top: 3mm; }
+  .piede { border-top: 1px solid #c9ced3; margin-top: 8mm; padding-top: 2mm;
+           display: flex; align-items: flex-end; gap: 6mm; font-size: 7.5pt; color: #555; }
   .piede .righe { flex: 1; }
   .piede img { height: 9mm; }
 
@@ -49,42 +64,60 @@ export async function htmlPreventivo(prev, imp) {
   .spazio { height: 4mm; }
   h2 { font-size: 11pt; margin: 6mm 0 2.5mm; text-transform: uppercase; letter-spacing: .03em; color: #a4161a; }
 
-  table { width: 100%; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 10pt; }
-  th, td { border: 1px solid #b9c0c6; padding: 1.6mm 2.2mm; vertical-align: top; }
-  th { background: #f0f2f4; font-weight: 700; text-align: left; }
-  td.dx, th.dx { text-align: right; white-space: nowrap; }
-  td.centro, th.centro { text-align: center; }
-  tr.totale td { background: #f7f8f9; }
-  tr.totale.forte td { font-weight: 700; }
+  /* table-layout:fixed è la ragione per cui adesso il calendario non esce
+     più dal foglio: con la disposizione automatica, nove colonne (una per
+     voce del tariffario) chiedevano più larghezza della pagina e in stampa
+     venivano semplicemente tagliate, perché sulla carta non c'è nessuno
+     scorrimento orizzontale. Così invece le colonne si comprimono e il testo
+     va a capo. */
+  table.dati { width: 100%; table-layout: fixed; border-collapse: collapse; margin: 2mm 0 4mm; font-size: 10pt; }
+  table.dati th, table.dati td { border: 1px solid #b9c0c6; padding: 1.6mm 2.2mm; vertical-align: top; overflow-wrap: break-word; }
+  /* Con quattro o più voci il calendario ha molte colonne: rimpicciolire il
+     corpo costa meno che vedere "16/11/20 26" spezzato in due righe. */
+  table.dati.compatta { font-size: 8.5pt; }
+  table.dati.compatta th, table.dati.compatta td { padding: 1.2mm 1.4mm; }
+  /* Le intestazioni sono i testi più lunghi della tabella (i nomi delle voci):
+     un corpo più piccolo solo per loro evita che vengano spezzate a metà
+     parola, senza toccare la leggibilità dei dati. */
+  table.dati.compatta th { font-size: 7.5pt; }
+  table.dati th { background: #f0f2f4; font-weight: 700; text-align: left; }
+  table.dati td.dx, table.dati th.dx { text-align: right; }
+  table.dati td.centro, table.dati th.centro { text-align: center; }
+  table.dati tr.totale td { background: #f7f8f9; }
+  table.dati tr.totale.forte td { font-weight: 700; }
   /* Una tabella lunga si spezza fra le pagine ripetendo l'intestazione. */
-  thead { display: table-header-group; }
-  tr { break-inside: avoid; }
+  table.dati thead { display: table-header-group; }
+  table.dati tr { break-inside: avoid; }
+  /* Gli sfondi delle intestazioni di tabella si stampano solo se lo si
+     chiede: per impostazione predefinita il browser li omette. */
+  html { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
 
   /* Blocco firma rientrato a destra ma con le righe allineate a sinistra fra
      loro, come nella versione rivista del documento. */
   .firma { margin: 12mm 0 0 100mm; line-height: 1.5; }
   .firma .nome { font-weight: 700; }
 
-  /* A schermo (chi annulla la stampa, o vuole solo rileggere il documento)
-     intestazione e piè di pagina tornano nel flusso; in stampa restano nei
-     margini, ripetuti su ogni pagina. Queste regole vanno DOPO quelle sopra:
-     hanno la stessa specificità, quindi vince l'ultima scritta. */
+  /* A schermo (chi annulla la stampa, o vuole solo rileggere il documento) la
+     pagina si comporta come un foglio A4 centrato. */
   @media screen {
-    body { max-width: 210mm; margin: 0 auto; padding: 10mm 14mm 14mm; }
-    .intestazione, .piede { position: static; }
-    .intestazione { margin-bottom: 8mm; }
-    .piede { margin-top: 12mm; }
+    body { max-width: 210mm; margin: 0 auto; padding: 12mm 16mm; }
   }
 </style></head><body>
-<div class="intestazione">
-  <img src="${carta.logo}" alt="Croce Rossa Italiana — Comitato di Genova">
-  <div class="uff">Uffici amministrativi<br>${esc(carta.piede.find(r => r.includes('crigenova')) || '')}</div>
-</div>
+<table class="foglio"><thead><tr><td>
+  <div class="intestazione">
+    <img src="${carta.logo}" alt="Croce Rossa Italiana — Comitato di Genova">
+    <div class="uff">Uffici amministrativi<br>${esc(carta.piede.find(r => r.includes('crigenova')) || '')}</div>
+  </div>
+</td></tr></thead>
+<tfoot><tr><td>
+  <div class="piede">
+    <div class="righe">${carta.piede.filter(r => !/^www\./i.test(r)).map(esc).join('<br>')}</div>
+    ${carta.logoPiede ? `<img src="${carta.logoPiede}" alt="Un'Italia che aiuta">` : ''}
+  </div>
+</td></tr></tfoot>
+<tbody><tr><td>
 ${blocchi.map(bloccoHtml).join('\n')}
-<div class="piede">
-  <div class="righe">${carta.piede.filter(r => !/^www\./i.test(r)).map(esc).join('<br>')}</div>
-  ${carta.logoPiede ? `<img src="${carta.logoPiede}" alt="Un'Italia che aiuta">` : ''}
-</div>
+</td></tr></tbody></table>
 </body></html>`;
 }
 
@@ -124,7 +157,7 @@ function bloccoHtml(b) {
     const righe = b.righe.map(r => `<tr>${r.map((c, i) => `<td${cl(i)}>${esc(c)}</td>`).join('')}</tr>`).join('');
     const piede = (b.piede || []).map(p =>
       `<tr class="totale${p.forte ? ' forte' : ''}">${p.celle.map((c, i) => `<td${cl(i)}>${esc(c)}</td>`).join('')}</tr>`).join('');
-    return `<table>${thead}<tbody>${righe}${piede}</tbody></table>`;
+    return `<table class="dati${b.compatta ? ' compatta' : ''}">${thead}<tbody>${righe}${piede}</tbody></table>`;
   }
   return '';
 }

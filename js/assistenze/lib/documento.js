@@ -93,10 +93,17 @@ export function costruisciBlocchi(prev, imp) {
   if (r.righe.length) {
     blocchi.push({ t: 'titolo', testo: 'Calendario dell\'assistenza' });
     const vociUsate = r.riepilogo;
+    // Larghezze esplicite: le colonne fisse prendono lo stretto necessario e
+    // quello che resta si divide fra le voci, così il calendario sta nella
+    // pagina anche con tutto il tariffario attivo. Con molte voci il corpo si
+    // rimpicciolisce, altrimenti date e orari finirebbero spezzati a metà.
+    const quotaVoci = Math.max(6, Math.round(46 / Math.max(vociUsate.length, 1)));
     blocchi.push({
       t: 'tabella',
       intestazioni: ['Data', 'Dalle', 'Alle', 'Durata', ...vociUsate.map(v => v.nome), 'Note'],
       allineamenti: ['sx', 'centro', 'centro', 'dx', ...vociUsate.map(() => 'centro'), 'sx'],
+      larghezze: [15, 8, 8, 9, ...vociUsate.map(() => quotaVoci), Math.max(10, 60 - quotaVoci * vociUsate.length)],
+      compatta: vociUsate.length >= 3,
       righe: r.righe.map(riga => [
         fmtData(riga.data),
         riga.dalle || '',
