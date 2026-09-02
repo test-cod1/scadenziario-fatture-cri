@@ -229,6 +229,11 @@ tr.scaduta:hover td{background:#fbdcdd}
 
 /* ---------- Tour guidato ---------- */
 .tour-fab{position:fixed;right:20px;bottom:20px;z-index:60;width:52px;height:52px;border-radius:50%;background:var(--cri-red);color:#fff;border:none;box-shadow:var(--shadow);font-size:22px;cursor:pointer;display:grid;place-items:center}
+/* Serve esplicitamente: "display:grid" qui sopra è una regola dell'autore e
+   vince sul display:none che il browser darebbe da solo a un elemento con
+   l'attributo hidden. Senza, il pulsante del tour restava visibile anche in
+   home e nelle sezioni che un tour non ce l'hanno. */
+.tour-fab[hidden]{display:none}
 .tour-fab:hover{background:var(--cri-red-dark)}
 .tour-fab:focus-visible{outline:2px solid var(--ink);outline-offset:2px}
 /* Il "buco" luminoso è lo stesso elemento .tour-ring: il suo box-shadow con
