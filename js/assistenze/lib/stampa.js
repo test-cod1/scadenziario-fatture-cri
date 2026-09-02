@@ -24,7 +24,10 @@ export async function htmlPreventivo(prev, imp) {
   return `<!doctype html><html lang="it"><head><meta charset="utf-8">
 <title>${esc(nomeFile(prev, 'pdf').replace(/\.pdf$/, ''))}</title>
 <style>
-  @page { size: A4; margin: 12mm 16mm 10mm; }
+  /* Margini della carta ufficiale: intestazione e piè arrivano più vicini al
+     bordo (8 mm) di quanto faccia il testo, che rientra di altri 7 mm — così
+     il logo e i dati dell'ente stanno dove stanno sulla carta stampata. */
+  @page { size: A4; margin: 6mm 8mm 8mm; }
   * { box-sizing: border-box; }
   /* Il documento è su carta bianca: senza dichiararlo, un browser impostato
      sul tema scuro lo mostra a fondo nero (e chi annulla la stampa si trova
@@ -49,14 +52,19 @@ export async function htmlPreventivo(prev, imp) {
   table.foglio > thead > tr > td,
   table.foglio > tbody > tr > td,
   table.foglio > tfoot > tr > td { border: 0; padding: 0; }
+  table.foglio > tbody > tr > td { padding: 0 7mm; }
 
-  .intestazione { display: flex; align-items: flex-start; gap: 10mm; padding-bottom: 7mm; }
-  .intestazione img { height: 24mm; }
-  .intestazione .uff { margin-left: auto; text-align: right; font-size: 9pt; color: #444; padding-top: 3mm; }
-  .piede { border-top: 1px solid #c9ced3; margin-top: 8mm; padding-top: 2mm;
-           display: flex; align-items: flex-end; gap: 6mm; font-size: 7.5pt; color: #555; }
-  .piede .righe { flex: 1; }
-  .piede img { height: 9mm; }
+  /* Disposizione presa dalla carta intestata ufficiale del Comitato: in alto
+     a destra il nome in grassetto con il logo alla sua destra; in basso a
+     sinistra l'indirizzo del sito e il logo "Un'Italia che aiuta", a destra i
+     dati dell'ente allineati a destra. */
+  .intestazione { display: flex; align-items: center; justify-content: flex-end; gap: 4mm; padding-bottom: 9mm; }
+  .intestazione .ente { text-align: right; font-weight: 700; font-size: 12pt; line-height: 1.3; }
+  .intestazione img { height: 43mm; }
+  .piede { margin-top: 10mm; display: flex; align-items: flex-end; gap: 8mm; font-size: 9pt; }
+  .piede .sito { color: #cc0000; font-weight: 700; margin-bottom: 2mm; }
+  .piede img { height: 9.5mm; display: block; }
+  .piede .righe { flex: 1; text-align: right; line-height: 1.35; }
 
   p { margin: 0 0 3.2mm; }
   p.piccolo { font-size: 9.5pt; }
@@ -100,19 +108,22 @@ export async function htmlPreventivo(prev, imp) {
   /* A schermo (chi annulla la stampa, o vuole solo rileggere il documento) la
      pagina si comporta come un foglio A4 centrato. */
   @media screen {
-    body { max-width: 210mm; margin: 0 auto; padding: 12mm 16mm; }
+    body { max-width: 210mm; margin: 0 auto; padding: 6mm 8mm 8mm; }
   }
 </style></head><body>
 <table class="foglio"><thead><tr><td>
   <div class="intestazione">
+    <div class="ente">${carta.intestazione.map(esc).join('<br>')}</div>
     <img src="${carta.logo}" alt="Croce Rossa Italiana — Comitato di Genova">
-    <div class="uff">Uffici amministrativi<br>${esc(carta.piede.find(r => r.includes('crigenova')) || '')}</div>
   </div>
 </td></tr></thead>
 <tfoot><tr><td>
   <div class="piede">
-    <div class="righe">${carta.piede.filter(r => !/^www\./i.test(r)).map(esc).join('<br>')}</div>
-    ${carta.logoPiede ? `<img src="${carta.logoPiede}" alt="Un'Italia che aiuta">` : ''}
+    <div class="sinistra">
+      <div class="sito">${esc(carta.sito)}</div>
+      ${carta.logoPiede ? `<img src="${carta.logoPiede}" alt="Un'Italia che aiuta">` : ''}
+    </div>
+    <div class="righe">${carta.piede.map(esc).join('<br>')}</div>
   </div>
 </td></tr></tfoot>
 <tbody><tr><td>

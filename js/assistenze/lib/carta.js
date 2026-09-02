@@ -20,10 +20,17 @@ export async function caricaCarta() {
   if (!res.ok) throw new Error(`Carta intestata non trovata (${res.status}).`);
   const file = await leggiZip(await res.arrayBuffer());
 
+  const righePiede = righeTesto(file, 'word/footer1.xml');
   _carta = {
     file,
+    // Intestazione: le due righe del nome dell'ente (il logo le ripete in
+    // rosso al suo interno, ma la carta ufficiale le ha entrambe).
     intestazione: righeTesto(file, 'word/header1.xml'),
-    piede: righeTesto(file, 'word/footer1.xml'),
+    // Piè di pagina: i dati dell'ente vanno a destra, l'indirizzo del sito a
+    // sinistra sopra il logo — come nella carta ufficiale, dove il sito è
+    // l'unica riga che sta da quel lato.
+    piede: righePiede.filter(r => !/^www\./i.test(r)),
+    sito: righePiede.find(r => /crigenova/i.test(r)) || 'www.crigenova.it',
     logo: dataUri(file['word/media/image2.jpg'], 'image/jpeg'),
     logoPiede: dataUri(file['word/media/image3.png'], 'image/png'),
   };
