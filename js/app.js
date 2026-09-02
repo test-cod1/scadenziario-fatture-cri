@@ -302,6 +302,11 @@ async function route() {
       await renderTrasporti(view, ctx, sub, param);
       return;
     }
+    if (sezione.id === 'assistenze') {
+      const { renderAssistenze } = await import('./assistenze/sezione.js');
+      await renderAssistenze(view, ctx, sub, param);
+      return;
+    }
     if (sezione.id !== 'scadenziario') { await renderSezioneVuota(view, ctx, sezione); return; }
 
     if (sub === 'impostazioni') await renderImpostazioni(view, ctx);

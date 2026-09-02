@@ -89,7 +89,12 @@ export const SEZIONI = [
     colore: '#374151',
     ombra: 'rgba(0,0,0,.18)',
     tipo: 'interna',
-    home: '#/assistenze',
+    home: '#/assistenze/preventivi',
+    menu: [
+      { id: 'preventivi', icon: '📋', label: 'Preventivi', attivoAnche: ['preventivo'] },
+      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
+      { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
+    ],
     icona: ICONE.assistenze,
   },
 ];

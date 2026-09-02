@@ -906,3 +906,57 @@ create policy imp_trasf_write on public.impostazioni_trasferte for all
 --  Ricorda inoltre di disattivare le iscrizioni pubbliche:
 --    Authentication > Sign In / Providers > Allow new users to sign up = OFF
 -- ============================================================
+
+-- ============================================================
+--  SEZIONE ASSISTENZE SANITARIE (generatore di preventivi)
+--  Vedi patch-2026-09-02-assistenze.sql.
+-- ============================================================
+create table if not exists public.preventivi_assistenze (
+  id uuid primary key default gen_random_uuid(),
+  cliente text,
+  cliente_indirizzo text,
+  cliente_cf text,
+  referente text,
+  referente_email text,
+  referente_telefono text,
+  oggetto text,
+  luogo text,
+  data_documento date,
+  stato text not null default 'bozza' check (stato in ('bozza','inviato','confermato','annullato')),
+  -- Voci del tariffario usate in QUESTO preventivo, col prezzo del momento:
+  -- [{id, nome, tipo: 'oraria'|'fissa', prezzo}]. Sono una copia, non un
+  -- riferimento: un preventivo gia' inviato deve continuare a mostrare i
+  -- prezzi con cui e' stato fatto anche se il tariffario cambia.
+  voci jsonb not null default '[]'::jsonb,
+  -- Calendario: una riga per turno. [{data, dalle, alle, qta: {voceId: n}, note}]
+  calendario jsonb not null default '[]'::jsonb,
+  note text,
+  totale numeric(12,2),
+  created_by uuid references auth.users(id),
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_prev_ass_created on public.preventivi_assistenze(created_at desc);
+create index if not exists idx_prev_ass_stato on public.preventivi_assistenze(stato);
+
+-- Tariffario e testi fissi del documento: una riga sola.
+create table if not exists public.impostazioni_assistenze (
+  id text primary key default 'default',
+  dati jsonb not null,
+  updated_at timestamptz default now()
+);
+
+alter table public.preventivi_assistenze   enable row level security;
+alter table public.impostazioni_assistenze enable row level security;
+
+drop policy if exists prev_ass_read on public.preventivi_assistenze;
+create policy prev_ass_read on public.preventivi_assistenze for select using (public.accede_a('assistenze'));
+drop policy if exists prev_ass_write on public.preventivi_assistenze;
+create policy prev_ass_write on public.preventivi_assistenze for all
+  using (public.accede_a('assistenze')) with check (public.accede_a('assistenze'));
+
+drop policy if exists imp_ass_read on public.impostazioni_assistenze;
+create policy imp_ass_read on public.impostazioni_assistenze for select using (public.accede_a('assistenze'));
+drop policy if exists imp_ass_write on public.impostazioni_assistenze;
+create policy imp_ass_write on public.impostazioni_assistenze for all
+  using (public.accede_a('assistenze')) with check (public.accede_a('assistenze'));

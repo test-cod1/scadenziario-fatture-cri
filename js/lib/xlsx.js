@@ -7,80 +7,12 @@
 // qui il tipo di ogni cella in modo esplicito (testo/numero/data) il problema
 // sparisce alla radice, senza bisogno che l'utente sistemi nulla a mano.
 //
-// Un .xlsx è uno zip contenente pochi file XML: qui lo zip viene composto a
-// mano con voci "stored" (senza compressione) per evitare di dover
+// Un .xlsx è uno zip contenente pochi file XML: lo compone js/lib/zip.js, che
+// scrive voci "stored" (senza compressione) per evitare di dover
 // reimplementare deflate — per poche centinaia di righe di fatture il file
 // risultante resta comunque piccolo.
 
-function tabellaCrc32() {
-  const t = new Uint32Array(256);
-  for (let n = 0; n < 256; n++) {
-    let c = n;
-    for (let k = 0; k < 8; k++) c = (c & 1) ? (0xEDB88320 ^ (c >>> 1)) : (c >>> 1);
-    t[n] = c >>> 0;
-  }
-  return t;
-}
-const CRC_TABELLA = tabellaCrc32();
-function crc32(bytes) {
-  let c = 0xFFFFFFFF;
-  for (let i = 0; i < bytes.length; i++) c = CRC_TABELLA[(c ^ bytes[i]) & 0xFF] ^ (c >>> 8);
-  return (c ^ 0xFFFFFFFF) >>> 0;
-}
-
-const u8 = s => new TextEncoder().encode(s);
-function scriviU16(arr, v) { arr.push(v & 0xFF, (v >>> 8) & 0xFF); }
-function scriviU32(arr, v) { arr.push(v & 0xFF, (v >>> 8) & 0xFF, (v >>> 16) & 0xFF, (v >>> 24) & 0xFF); }
-
-function creaZip(file) {
-  const locali = [], centrali = [];
-  let offset = 0;
-  for (const { nome, dati } of file) {
-    const nomeBytes = u8(nome);
-    const crc = crc32(dati);
-    const header = [];
-    scriviU32(header, 0x04034b50);
-    scriviU16(header, 20); scriviU16(header, 0); scriviU16(header, 0); // versione, flag, metodo (0=stored)
-    scriviU16(header, 0); scriviU16(header, 0x21);                    // ora/data modifica (1/1/1980, valore fisso)
-    scriviU32(header, crc);
-    scriviU32(header, dati.length); scriviU32(header, dati.length);
-    scriviU16(header, nomeBytes.length); scriviU16(header, 0);
-    const locale = new Uint8Array(header.length + nomeBytes.length + dati.length);
-    locale.set(header, 0); locale.set(nomeBytes, header.length); locale.set(dati, header.length + nomeBytes.length);
-    locali.push(locale);
-
-    const cd = [];
-    scriviU32(cd, 0x02014b50);
-    scriviU16(cd, 20); scriviU16(cd, 20); scriviU16(cd, 0); scriviU16(cd, 0);
-    scriviU16(cd, 0); scriviU16(cd, 0x21);
-    scriviU32(cd, crc);
-    scriviU32(cd, dati.length); scriviU32(cd, dati.length);
-    scriviU16(cd, nomeBytes.length); scriviU16(cd, 0); scriviU16(cd, 0);
-    scriviU16(cd, 0); scriviU16(cd, 0);
-    scriviU32(cd, 0);
-    scriviU32(cd, offset);
-    const centrale = new Uint8Array(cd.length + nomeBytes.length);
-    centrale.set(cd, 0); centrale.set(nomeBytes, cd.length);
-    centrali.push(centrale);
-
-    offset += locale.length;
-  }
-  const dimCentrale = centrali.reduce((s, b) => s + b.length, 0);
-  const fine = [];
-  scriviU32(fine, 0x06054b50);
-  scriviU16(fine, 0); scriviU16(fine, 0);
-  scriviU16(fine, file.length); scriviU16(fine, file.length);
-  scriviU32(fine, dimCentrale);
-  scriviU32(fine, offset);
-  scriviU16(fine, 0);
-
-  const out = new Uint8Array(offset + dimCentrale + fine.length);
-  let p = 0;
-  for (const b of locali) { out.set(b, p); p += b.length; }
-  for (const b of centrali) { out.set(b, p); p += b.length; }
-  out.set(new Uint8Array(fine), p);
-  return out;
-}
+import { creaZip } from './zip.js';
 
 function escXml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 

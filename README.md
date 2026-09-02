@@ -7,7 +7,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Scadenziario** | attiva (è il contenuto storico di questo progetto, descritto qui sotto) |
 | **Formazione Esterna** | da sviluppare |
 | **Trasporti lunghi** | attiva: preventivi per i trasporti sanitari fuori Genova (arrivata dal gestionale `preventivo-trasporti`, assorbita qui il 01/09/2026) |
-| **Assistenze sanitarie** | da sviluppare |
+| **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 
@@ -29,6 +29,18 @@ I prezzi del carburante si aggiornano da soli: la media italiana dai dati del MI
 
 Serve il secret `ORS_KEY` sul Worker (vedi il punto 5): senza, ricerca indirizzi e calcolo km rispondono con un errore chiaro e i km restano da inserire a mano.
 
+## Sezione Assistenze sanitarie
+
+Generatore di preventivi per le assistenze a manifestazioni ed eventi. Si compila il destinatario, si scelgono le voci del servizio e si inserisce il **calendario dell'assistenza**: una riga per turno, con data, orari e quante ambulanze, medici o altre voci servono in quel turno. Il totale esce da lì (ore × tariffa × quantità) e il calendario viene riportato nel documento consegnato al cliente.
+
+Il **tariffario** si configura in Impostazioni: ogni voce è *a ore* (€/ora, moltiplicata per la durata del turno) oppure *a prezzo fisso* (€ per turno, per cose come il gazebo che non si pagano a tempo). Dentro il singolo preventivo i prezzi restano modificabili, e la modifica vale solo per quel preventivo: un preventivo già inviato continua a mostrare i prezzi con cui è stato fatto anche se il tariffario cambia. Sempre in Impostazioni stanno i testi fissi del documento (premessa, riferimenti bancari, clausole sui mezzi e sul trattamento dei dati, saluti) e la firma.
+
+Il preventivo esce in due formati, con lo stesso contenuto:
+- **PDF**, tramite la stampa del browser, con la carta intestata ricostruita in HTML;
+- **Word (.docx)**, generato a partire da [`assets/carta-intestata.dotx`](assets/carta-intestata.dotx) — il modello ufficiale del Comitato: il file resta quello, cambia solo il corpo, quindi il risultato è modificabile in Word come un documento scritto a mano.
+
+Sostituendo quel .dotx cambiano insieme sia il Word sia il PDF: logo, indirizzo e dati del piè di pagina vengono letti da lì, non copiati nel codice.
+
 ## 1. Crea il progetto Supabase
 
 1. Vai su [supabase.com](https://supabase.com) → New project (regione **EU**, es. Frankfurt).
@@ -45,6 +57,8 @@ Serve il secret `ORS_KEY` sul Worker (vedi il punto 5): senza, ricerca indirizzi
 > Se il database è stato creato prima del 01/09/2026, esegui anche i patch in `supabase/patch-*.sql` nell'ordine della data nel nome del file. Su un database nuovo non serve: `schema.sql` li include già tutti.
 >
 > **L'ultimo è [`patch-2026-09-01-portale.sql`](supabase/patch-2026-09-01-portale.sql)** ed è obbligatorio su un database già in uso: trasforma lo scadenziario nel portale multi-sezione. Crea le tabelle `sezioni` e `autorizzazioni`, sposta lì i ruoli che stavano in `profili.ruolo` (chi era admin/operatore resta admin/operatore **dello scadenziario** e di nient'altro) e nomina il super admin — nel file c'è un `update` con l'email da controllare prima di eseguirlo.
+>
+> **Per la sezione assistenze sanitarie** serve [`patch-2026-09-02-assistenze.sql`](supabase/patch-2026-09-02-assistenze.sql) (crea `preventivi_assistenze` e `impostazioni_assistenze`).
 >
 > **Per la sezione trasporti** servono in più [`patch-2026-09-01-trasporti.sql`](supabase/patch-2026-09-01-trasporti.sql) (crea `preventivi` e `impostazioni_trasferte`) e, per portarsi dietro i dati del vecchio gestionale, [`export-trasporti.sql`](supabase/export-trasporti.sql) — che però va lanciato sul **vecchio** progetto Supabase: stampa gli insert già pronti da incollare qui.
 
@@ -110,6 +124,13 @@ js/app.js                     router e shell del portale (home, sezioni, permess
 js/sezioni.js                  elenco delle sezioni (icone, colori, rotte) e regole di accesso
 js/config.js                   configurazione (URL/chiavi Supabase)
 js/views/home.js                home del portale: la griglia da cui si sceglie la sezione
+js/assistenze/                 sezione Assistenze sanitarie: preventivi per eventi
+js/assistenze/calc.js           tariffario, calcolo dei turni e importo in lettere
+js/assistenze/lib/documento.js  il preventivo come blocchi, da cui derivano PDF e Word
+js/assistenze/lib/carta.js      legge la carta intestata .dotx (immagini e testi)
+js/assistenze/lib/docx.js       genera il .docx sostituendo il corpo del modello
+js/lib/zip.js                   zip minimale (scrittura e lettura): serve a .xlsx e .docx
+assets/carta-intestata.dotx    modello Word ufficiale del Comitato
 js/trasporti/                  sezione Trasporti lunghi: preventivi trasporti sanitari
 js/trasporti/calc.js            il calcolo del preventivo (spesa reale, addebito, margine)
 js/trasporti/sezione.js         ingresso della sezione: carica impostazioni e smista alle viste
