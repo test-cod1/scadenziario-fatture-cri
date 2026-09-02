@@ -157,8 +157,17 @@ function disegnaNav(sezioneId, sottoSezione, sub) {
   clear(subnav); clear(navImp);
 
   sezioneCorrente = sezioneId;
+  const sezione = getSezione(sezioneId);
   const fab = document.querySelector('.tour-fab');
-  if (fab) fab.hidden = !getSezione(sezioneId)?.tour;
+  if (fab) fab.hidden = !sezione?.tour;
+
+  // Dentro una sezione l'elenco delle altre sezioni sparisce (lo nasconde il
+  // CSS, vedi .layout.in-sezione): resta la sola voce Home. Al suo posto, in
+  // cima al menu della sezione, si scrive dove si è — altrimenti la barra
+  // laterale non lo direbbe più da nessuna parte.
+  if (sezione) {
+    subnav.appendChild(el(`<div class="sez-titolo"><span class="ic">${sezione.emoji}</span>${esc(sezione.label)}</div>`));
+  }
 
   if (sezioneId === 'scadenziario') {
     const sw = el(`<div class="section-switch">

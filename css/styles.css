@@ -448,3 +448,14 @@ input.fuel-price{width:110px;padding:6px 8px}
 @media(max-width:820px){
   input.fuel-price{width:84px;padding:6px}
 }
+
+/* Dentro una sezione non si salta da una sezione all'altra: il menu laterale
+   tiene solo il ritorno alla home e le pagine della sezione corrente. Le
+   altre sezioni si scelgono dalla home, dove si vede anche quali sono
+   accessibili e quali no. */
+.layout.in-sezione .nav-sezioni > *:not([data-nav-sezione="home"]){display:none}
+.sez-titolo{display:flex;align-items:center;gap:11px;padding:2px 12px 10px;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft)}
+.sez-titolo .ic{width:20px;text-align:center;font-size:15px}
+/* Sul telefono la barra in basso non ha spazio per un'intestazione: lì la
+   sezione è già scritta nella riga di ritorno in cima alla pagina. */
+@media(max-width:820px){.sez-titolo{display:none}}
