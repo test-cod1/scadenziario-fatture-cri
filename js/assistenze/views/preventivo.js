@@ -3,6 +3,7 @@ import { calcola, inLettere, oreTurno } from '../calc.js';
 import { fmtOre, etichettaSconto } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO, sommaGiorniISO } from '../../lib/ui.js';
 import { collegaOrologio } from '../../lib/orologio.js';
+import { INIZIO_ANNO, dataAmmessa, MSG_DATA } from '../date.js';
 
 // ============================================================
 //  EDITOR DEL PREVENTIVO DI ASSISTENZA
@@ -10,6 +11,8 @@ import { collegaOrologio } from '../../lib/orologio.js';
 //  usano, e il calendario dei turni — che è anche il calcolo, perché il
 //  totale esce da lì. A destra il riepilogo si aggiorna a ogni modifica.
 // ============================================================
+
+const avvisaData = () => toast(MSG_DATA, 'err');
 
 export async function renderPreventivo(view, id, ctx) {
   const imp = ctx.imp;
@@ -68,7 +71,7 @@ export async function renderPreventivo(view, id, ctx) {
       <div class="hint">Finisce nella riga «Oggetto:» del documento, dopo la formula fissa.</div></div>
     <div class="field"><label>Luogo</label><input type="text" id="luogo" placeholder="es. Palasport di Genova, via …" value="${esc(prev.luogo || '')}"></div>
     <div class="form-row">
-      <div class="field"><label>Data del documento</label><input type="date" id="data_documento" value="${esc(prev.data_documento || todayISO())}"></div>
+      <div class="field"><label>Data del documento</label><input type="date" id="data_documento" min="${INIZIO_ANNO}" value="${esc(prev.data_documento || todayISO())}"></div>
       <div class="field"><label>Stato</label><select id="stato">
         ${['bozza', 'inviato', 'confermato', 'annullato'].map(s => `<option value="${s}" ${prev.stato === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}
       </select></div>
@@ -87,9 +90,9 @@ export async function renderPreventivo(view, id, ctx) {
     <div class="cal-azioni">
       <button class="btn sm" id="add-turno" type="button">➕ Aggiungi turno</button>
       <span class="mini">oppure tutti i giorni</span>
-      <input type="date" id="da-data" aria-label="dal giorno">
+      <input type="date" id="da-data" min="${INIZIO_ANNO}" aria-label="dal giorno">
       <span class="mini">→</span>
-      <input type="date" id="a-data" aria-label="al giorno">
+      <input type="date" id="a-data" min="${INIZIO_ANNO}" aria-label="al giorno">
       <button class="btn sm" id="add-intervallo" type="button">Aggiungi</button>
     </div>
     <div class="hint" id="cal-avvisi"></div>`);
@@ -113,12 +116,22 @@ export async function renderPreventivo(view, id, ctx) {
   //  Aggancio dei campi semplici: scrivono direttamente sull'oggetto
   // ------------------------------------------------------------------
   for (const campo of ['cliente', 'cliente_cf', 'cliente_indirizzo', 'referente', 'referente_email',
-    'referente_telefono', 'oggetto', 'luogo', 'data_documento', 'stato', 'note']) {
+    'referente_telefono', 'oggetto', 'luogo', 'stato', 'note']) {
     const input = view.querySelector('#' + campo);
     input.addEventListener('input', () => { prev[campo] = input.value; aggiorna(); });
     input.addEventListener('change', () => { prev[campo] = input.value; aggiorna(); });
   }
   prev.data_documento = prev.data_documento || todayISO();
+
+  // La data del documento sta fuori dal ciclo qui sopra perché una data
+  // troppo indietro va rifiutata: il campo torna al valore di prima invece di
+  // registrare l'anno sbagliato.
+  const campoData = view.querySelector('#data_documento');
+  campoData.addEventListener('change', () => {
+    if (!dataAmmessa(campoData.value)) { avvisaData(); campoData.value = prev.data_documento || ''; return; }
+    prev.data_documento = campoData.value;
+    aggiorna();
+  });
 
   // I due sconti sono campi numerici indipendenti: vuoto significa "nessuno
   // sconto di questo tipo", e si salva come null invece che come zero.
@@ -201,7 +214,7 @@ export async function renderPreventivo(view, id, ctx) {
 
     prev.calendario.forEach((r, i) => {
       const tr = el(`<tr>
-        <td><input type="date" value="${esc(r.data || '')}"></td>
+        <td><input type="date" min="${INIZIO_ANNO}" value="${esc(r.data || '')}"></td>
         <td><input type="text" class="ora" value="${esc(r.dalle || '')}" style="width:86px" aria-label="dalle"></td>
         <td><input type="text" class="ora" value="${esc(r.alle || '')}" style="width:86px" aria-label="alle"></td>
         <td class="ore money">${fmtOre(oreTurno(r))}</td>
@@ -212,6 +225,7 @@ export async function renderPreventivo(view, id, ctx) {
 
       const data = tr.querySelector('input[type=date]');
       data.addEventListener('change', () => {
+        if (!dataAmmessa(data.value)) { avvisaData(); data.value = r.data || ''; return; }
         r.data = data.value;
         // Riordina solo quando la data è stata scelta: farlo mentre si scrive
         // sposterebbe la riga sotto le dita.
@@ -291,6 +305,7 @@ export async function renderPreventivo(view, id, ctx) {
     const a = cCal.querySelector('#a-data').value || da;
     if (!da) { toast('Indica almeno il primo giorno', 'err'); return; }
     if (a < da) { toast('Il secondo giorno viene prima del primo', 'err'); return; }
+    if (!dataAmmessa(da) || !dataAmmessa(a)) { avvisaData(); return; }
     // Le date si scorrono con sommaGiorniISO (che lavora in UTC su una data
     // già "senza ora"): passando da new Date(...).toISOString() il fuso
     // italiano riportava indietro di un giorno, e chiedendo dal 16 al 18 si

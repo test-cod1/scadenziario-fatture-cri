@@ -1,6 +1,7 @@
 import { preventivi } from '../data/store.js';
 import { fmtData } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro } from '../../lib/ui.js';
+import { dataAmmessa } from '../date.js';
 
 // ============================================================
 //  ELENCO DEI PREVENTIVI DI ASSISTENZA
@@ -116,13 +117,21 @@ export async function renderDashboard(view, ctx) {
           // marcato: le assistenze si ripetono (stessa manifestazione l'anno
           // dopo), e ricopiare venti campi a mano non ha senso.
           const { id, created_at, updated_at, created_by, ...resto } = p;
+          // Le giornate di un'assistenza dell'anno scorso non valgono per il
+          // servizio nuovo: le date scadute si svuotano (orari e quantità
+          // restano, sono la parte che si riusa davvero), perché nella
+          // sezione una data precedente all'anno in corso non è ammessa.
+          const calendario = (p.calendario || []).map(r =>
+            dataAmmessa(r.data) ? { ...r } : { ...r, data: '' });
+          const dateScadute = calendario.filter(r => !r.data).length !== (p.calendario || []).filter(r => !r.data).length;
           const copia = await preventivi.save({
             ...resto,
+            calendario,
             oggetto: (p.oggetto || '') + ' (copia)',
             stato: 'bozza',
             data_documento: new Date().toISOString().slice(0, 10),
           });
-          toast('Preventivo duplicato', 'ok');
+          toast(dateScadute ? 'Preventivo duplicato: indica le nuove giornate' : 'Preventivo duplicato', 'ok');
           ctx.go(`#/assistenze/preventivo/${copia.id}`);
         } catch (e) {
           toast('Duplicazione non riuscita: ' + e.message, 'err');
