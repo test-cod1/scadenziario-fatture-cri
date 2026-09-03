@@ -72,13 +72,12 @@ function bloccoXml(b) {
     });
   }
   if (b.t === 'firma') {
-    const [ruolo, nome] = [b.righe[0] || '', b.righe[1] || ''];
     // Rientro invece di allineamento a destra: le due righe restano
     // allineate fra loro (com'è nella versione rivista del documento),
     // mentre "a destra" le avrebbe fatte finire a bandiera.
     return paragrafo('', {}) +
-      paragrafo(ruolo, { rientro: 5664, spazioDopo: 0, spazioPrima: 240 }) +
-      paragrafo(nome, { rientro: 5664, spazioDopo: 0, grassetto: true });
+      (b.ruolo ? paragrafo(b.ruolo, { rientro: 5664, spazioDopo: 0, spazioPrima: 240 }) : '') +
+      (b.nome ? paragrafo(b.nome, { rientro: 5664, spazioDopo: 0, spazioPrima: b.ruolo ? 0 : 240, grassetto: true }) : '');
   }
   if (b.t === 'tabella') return tabellaXml(b);
   return '';

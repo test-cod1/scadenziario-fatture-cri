@@ -45,7 +45,11 @@ export function mergeImpostazioni(dati) {
   return {
     ...base,
     ...dati,
-    tariffe: Array.isArray(dati.tariffe) && dati.tariffe.length ? dati.tariffe : base.tariffe,
+    // Un tariffario vuoto è una scelta (si sta rifacendo da capo), non un
+    // dato mancante: le voci di default valgono solo quando la chiave non
+    // c'è proprio, cioè alla primissima apertura. Prima svuotare il
+    // tariffario e salvare faceva ricomparire le quattro voci iniziali.
+    tariffe: Array.isArray(dati.tariffe) ? dati.tariffe : base.tariffe,
     testi: { ...base.testi, ...(dati.testi || {}) },
     // Solo le due righe che il documento stampa davvero. Il form ha avuto per
     // un po' un campo "Ente" che nel preventivo non compariva da nessuna
@@ -140,7 +144,11 @@ export function calcolaSconti(prev, totaleLordo) {
 
   const valore = Math.max(Number(prev?.sconto_valore) || 0, 0);
   if (valore > 0 && residuo > 0) {
-    sconti.push({ tipo: 'valore', importo: centesimi(Math.min(valore, residuo)) });
+    // `ridotto` dice che lo sconto scritto era più grande di quello che
+    // restava da scontare: l'editor lo segnala, altrimenti il documento
+    // stampa una cifra diversa da quella digitata senza dire perché.
+    const importo = centesimi(Math.min(valore, residuo));
+    sconti.push({ tipo: 'valore', importo, ridotto: importo < centesimi(valore), richiesto: centesimi(valore) });
   }
   return sconti;
 }
@@ -172,17 +180,27 @@ function sottoMille(n) {
   return (resto.startsWith('o') ? centinaia.slice(0, -1) : centinaia) + resto;
 }
 
+// Sotto il milione. Oltre ci pensa inLettere, che spezza in milioni e resto:
+// senza, un milione diventava "diecicentomila", perché le migliaia venivano
+// passate a sottoMille anche quando erano quattro cifre.
+function sottoMilione(n) {
+  if (n < 1000) return sottoMille(n);
+  const migliaia = Math.floor(n / 1000), resto = n % 1000;
+  const testa = migliaia === 1 ? 'mille' : sottoMille(migliaia) + 'mila';
+  return testa + (resto ? sottoMille(resto) : '');
+}
+
 export function inLettere(importo) {
   const n = Math.max(0, Math.round((Number(importo) || 0) * 100));
   const euro = Math.floor(n / 100);
   const cent = n % 100;
   let parole;
   if (euro === 0) parole = 'zero';
-  else if (euro < 1000) parole = sottoMille(euro);
+  else if (euro < 1e6) parole = sottoMilione(euro);
   else {
-    const migliaia = Math.floor(euro / 1000), resto = euro % 1000;
-    const testa = migliaia === 1 ? 'mille' : sottoMille(migliaia) + 'mila';
-    parole = testa + (resto ? sottoMille(resto) : '');
+    const milioni = Math.floor(euro / 1e6), resto = euro % 1e6;
+    const testa = milioni === 1 ? 'unmilione' : sottoMilione(milioni) + 'milioni';
+    parole = testa + (resto ? sottoMilione(resto) : '');
   }
   return `${parole}/${String(cent).padStart(2, '0')}`;
 }

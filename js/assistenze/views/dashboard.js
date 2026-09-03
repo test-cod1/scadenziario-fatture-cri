@@ -12,7 +12,6 @@ import { dataAmmessa } from '../date.js';
 // ============================================================
 
 const STATI = ['bozza', 'inviato', 'confermato', 'annullato'];
-const STATO_CHIP = { bozza: '', inviato: 'info', confermato: 'ok', annullato: 'danger' };
 
 // Prima giornata dell'assistenza: è la data che identifica il servizio.
 function primaData(p) {
@@ -22,6 +21,10 @@ function primaData(p) {
 
 export async function renderDashboard(view, ctx) {
   const list = await preventivi.list();
+  // Eliminare un preventivo è irreversibile e tocca il lavoro di tutti:
+  // resta agli admin della sezione, come la policy di cancellazione lato
+  // database. All'operatore restano duplica, Word e stampa.
+  const admin = ctx.user?.ruolo === 'admin';
 
   view.appendChild(el(`<div class="page-head">
     <div><h1>Preventivi</h1><p>Assistenze sanitarie a manifestazioni ed eventi</p></div>
@@ -85,7 +88,7 @@ export async function renderDashboard(view, ctx) {
           <button class="btn ghost sm" data-copia title="Duplica">⧉</button>
           <button class="btn ghost sm" data-word title="Scarica in Word">📄</button>
           <button class="btn ghost sm" data-pdf title="Stampa / PDF">🖨️</button>
-          <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
+          ${admin ? '<button class="btn ghost sm" data-del title="Elimina">🗑️</button>' : ''}
         </td>
       </tr>`);
       tr.addEventListener('click', (e) => {
@@ -100,12 +103,17 @@ export async function renderDashboard(view, ctx) {
       selStato.addEventListener('change', async () => {
         const precedente = p.stato;
         try {
-          await preventivi.save({ ...p, stato: selStato.value });
+          const salvato = await preventivi.save({ ...p, stato: selStato.value });
           p.stato = selStato.value;
+          // Senza aggiornare la versione, un secondo cambio di stato sulla
+          // stessa riga verrebbe scambiato per una modifica altrui.
+          p.updated_at = salvato.updated_at;
           toast('Stato aggiornato', 'ok');
         } catch (e) {
           selStato.value = precedente;
-          toast('Errore: ' + e.message, 'err');
+          toast(e.conflitto
+            ? 'Preventivo modificato da un altro utente: ricarica la pagina.'
+            : 'Errore: ' + e.message, 'err');
         }
       });
 
@@ -151,7 +159,7 @@ export async function renderDashboard(view, ctx) {
           await scaricaDocx(p, ctx.imp);
         } catch (e) { toast('Generazione Word non riuscita: ' + e.message, 'err'); }
       });
-      tr.querySelector('[data-del]').addEventListener('click', async () => {
+      tr.querySelector('[data-del]')?.addEventListener('click', async () => {
         if (!await confirmDialog(`Eliminare il preventivo per "${p.cliente || 'senza cliente'}"?`,
           { danger: true, okLabel: 'Elimina' })) return;
         await preventivi.remove(p.id);

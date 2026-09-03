@@ -1,5 +1,5 @@
 import { auth } from './data/store.js';
-import { el, clear, esc } from './lib/ui.js';
+import { el, clear, esc, confirmDialog } from './lib/ui.js';
 import { SEZIONI, getSezione, ruoloIn } from './sezioni.js';
 import { renderLogin, renderResetPassword } from './views/auth.js';
 import { renderHome } from './views/home.js';
@@ -12,6 +12,7 @@ import { renderImpostazioni } from './views/impostazioni.js';
 import { renderDashboardAttive } from './views/dashboardAttive.js';
 import { renderReportAttive } from './views/reportAttive.js';
 import { startTour } from './lib/tour.js';
+import { ciSonoModificheNonSalvate } from './lib/uscita.js';
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
@@ -138,6 +139,13 @@ function renderShell() {
     fab.addEventListener('click', async () => {
       const sezione = getSezione(sezioneCorrente);
       if (!sezione?.tour) return;
+      // Il tour cambia pagina da solo: partendo da un editor con modifiche
+      // non salvate se le porterebbe via senza che nessuno lo chieda (la
+      // sorveglianza intercetta i clic sui link, non le navigazioni fatte dal
+      // codice).
+      if (ciSonoModificheNonSalvate() && !await confirmDialog(
+        'Il tutorial cambia pagina: le modifiche non salvate andranno perse. Vuoi avviarlo lo stesso?',
+        { danger: true, okLabel: 'Avvia il tutorial' })) return;
       const { passi } = await sezione.tour();
       startTour(passi({ user: { ...currentUser, ruolo: ruoloIn(currentUser, sezione.id) } }));
     });

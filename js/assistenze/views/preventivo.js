@@ -3,6 +3,7 @@ import { calcola, inLettere, oreTurno } from '../calc.js';
 import { fmtOre, etichettaSconto } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO, sommaGiorniISO } from '../../lib/ui.js';
 import { collegaOrologio } from '../../lib/orologio.js';
+import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 import { INIZIO_ANNO, dataAmmessa, MSG_DATA } from '../date.js';
 
 // ============================================================
@@ -44,7 +45,7 @@ export async function renderPreventivo(view, id, ctx) {
   // Diventa true alla prima modifica e torna false quando si salva: da qui
   // dipende l'avviso in uscita.
   let sporco = false;
-  const modificato = () => { sporco = true; };
+  const modificato = () => { sporco = true; armaGuardiaIndietro(); };
 
   const editor = el(`<div class="editor"><div class="col-main"></div><div class="summary"></div></div>`);
   view.appendChild(editor);
@@ -166,7 +167,7 @@ export async function renderPreventivo(view, id, ctx) {
       chk.addEventListener('change', () => {
         if (chk.checked) prev.voci.push({ ...t, prezzo: Number(prezzo.value) || 0 });
         else prev.voci = prev.voci.filter(v => v.id !== t.id);
-        disegnaVoci(); disegnaCalendario(); aggiorna({ dallUtente: false });
+        disegnaVoci(); disegnaCalendario(); aggiorna();
       });
       prezzo.addEventListener('input', () => {
         const v = prev.voci.find(x => x.id === t.id);
@@ -200,6 +201,13 @@ export async function renderPreventivo(view, id, ctx) {
     intestazione.querySelectorAll('[data-tutti]').forEach(campo => {
       campo.addEventListener('input', () => {
         if (campo.value === '') return;   // campo svuotato: non si tocca nulla
+        // Senza turni non c'è niente da riempire: dirlo, invece di lasciar
+        // scrivere un numero che non finisce da nessuna parte.
+        if (!prev.calendario.length) {
+          campo.value = '';
+          toast('Aggiungi prima un turno: il numero si applica ai turni in calendario', 'warn');
+          return;
+        }
         const idVoce = campo.dataset.tutti;
         const q = Math.max(0, Number(campo.value) || 0);
         for (const r of prev.calendario) { r.qta = r.qta || {}; r.qta[idVoce] = q; }
@@ -346,10 +354,13 @@ export async function renderPreventivo(view, id, ctx) {
     prev.totale = r.totale;
     const hint = view.querySelector('#sconto-hint');
     if (hint) {
+      const limitato = r.sconti.find(s => s.ridotto);
       hint.textContent = r.sconto > 0
         ? `Sconto totale: ${fmtEuro(r.sconto)} su ${fmtEuro(r.totaleLordo)}` +
-          (r.sconti.length > 1 ? ` (${r.sconti.map(s => fmtEuro(s.importo)).join(' + ')})` : '')
+          (r.sconti.length > 1 ? ` (${r.sconti.map(s => fmtEuro(s.importo)).join(' + ')})` : '') +
+          (limitato ? ` — ⚠️ lo sconto di ${fmtEuro(limitato.richiesto)} supera quello che resta da scontare: nel documento vale ${fmtEuro(limitato.importo)}.` : '')
         : '';
+      hint.classList.toggle('avviso', !!limitato);
     }
     // Un turno senza data o di durata zero finirebbe nel documento così com'è:
     // meglio dirlo mentre si compila che scoprirlo dal cliente.
@@ -386,7 +397,10 @@ export async function renderPreventivo(view, id, ctx) {
     }
   }
 
-  disegnaVoci(); disegnaCalendario(); aggiorna();
+  // Il primo disegno non è una modifica dell utente: senza dallUtente:false
+  // il preventivo nasceva già sporco e chiedeva conferma in uscita anche a chi
+  // lo aveva soltanto aperto.
+  disegnaVoci(); disegnaCalendario(); aggiorna({ dallUtente: false });
 
   // ------------------------------------------------------------------
   //  Azioni
@@ -403,12 +417,28 @@ export async function renderPreventivo(view, id, ctx) {
         stato: prev.stato || 'bozza', voci: prev.voci, calendario: prev.calendario,
         sconto_percentuale: prev.sconto_percentuale ?? null, sconto_valore: prev.sconto_valore ?? null,
         note: prev.note, totale: prev.totale,
+        // Versione da cui si è partiti: se nel frattempo qualcun altro ha
+        // salvato lo stesso preventivo, il salvataggio si ferma invece di
+        // cancellargli il lavoro (vedi store.js).
+        updated_at: prev.updated_at,
       });
       toast('Preventivo salvato', 'ok');
       sporco = false;
+      prev.updated_at = salvato.updated_at;
       if (!prev.id) { prev.id = salvato.id; ctx.go(`#/assistenze/preventivo/${salvato.id}`); }
       return salvato;
     } catch (e) {
+      if (e.conflitto) {
+        const ricarica = await confirmDialog(
+          'Qualcun altro ha modificato questo preventivo mentre lo stavi aprendo. ' +
+          'Puoi ricaricare la versione aggiornata (perdendo le tue modifiche) oppure restare qui e ricopiartele.',
+          { danger: true, okLabel: 'Ricarica la versione aggiornata' });
+        // Si ricarica la pagina invece di ridisegnare la vista qui dentro:
+        // riparte tutto dalla versione nel database, senza rischiare di
+        // tenersi in memoria pezzi di quella vecchia.
+        if (ricarica) { sporco = false; location.reload(); }
+        return null;
+      }
       toast('Errore nel salvataggio: ' + e.message, 'err');
       return null;
     } finally { btn.disabled = false; btn.innerHTML = old; }
@@ -440,50 +470,9 @@ export async function renderPreventivo(view, id, ctx) {
     } catch (e) { toast('Anteprima non riuscita: ' + e.message, 'err'); }
   });
 
-  sorvegliaUscita(view, () => sporco);
-}
-
-// ------------------------------------------------------------------
-//  MODIFICHE NON SALVATE
-//  Prima l'avviso c'era solo su un preventivo mai salvato e solo cliccando
-//  "← Elenco": aprire un preventivo esistente, sistemare il calendario e
-//  uscire dal menu laterale perdeva tutto in silenzio. Ora si intercetta
-//  qualunque link interno e anche la chiusura della scheda.
-// ------------------------------------------------------------------
-let statoSorveglianza = null;
-
-function sorvegliaUscita(view, cSporco) {
-  statoSorveglianza = { view, cSporco };
-
-  if (!sorvegliaUscita._installata) {
-    sorvegliaUscita._installata = true;
-
-    // Chiusura o ricaricamento della scheda: il browser mostra il suo avviso
-    // (il testo non è personalizzabile, lo decide lui).
-    window.addEventListener('beforeunload', (e) => {
-      if (attivo() && statoSorveglianza.cSporco()) { e.preventDefault(); e.returnValue = ''; }
-    });
-
-    // Qualunque link interno: si ferma la navigazione e si chiede.
-    document.addEventListener('click', (e) => {
-      if (!attivo() || !statoSorveglianza.cSporco()) return;
-      const a = e.target.closest('a[href^="#/"]');
-      if (!a) return;
-      const destinazione = a.getAttribute('href');
-      if (destinazione === location.hash) return;
-      e.preventDefault();
-      e.stopPropagation();
-      confirmDialog('Ci sono modifiche non salvate: uscendo si perdono. Vuoi uscire lo stesso?',
-        { danger: true, okLabel: 'Esci senza salvare' })
-        .then(ok => { if (ok) { statoSorveglianza = null; location.hash = destinazione; } });
-    }, true);
-  }
-}
-
-// La sorveglianza vale solo per l'editor ancora in pagina: quando il router
-// disegna un'altra vista, il vecchio nodo non è più attaccato al documento.
-function attivo() {
-  return !!statoSorveglianza && statoSorveglianza.view.isConnected;
+  // Si sorveglia il nodo dell'editor, non il contenitore della pagina: uscito
+  // di qui, la sorveglianza si spegne da sola.
+  sorvegliaUscita(editor, () => sporco);
 }
 
 function nuovoPreventivo(imp) {

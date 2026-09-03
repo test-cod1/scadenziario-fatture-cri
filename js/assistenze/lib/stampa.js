@@ -171,8 +171,10 @@ function bloccoHtml(b) {
     return `<p${classi ? ` class="${classi}"` : ''}>${b.grassetto ? `<b>${testo}</b>` : testo}</p>`;
   }
   if (b.t === 'firma') {
-    const [ruolo, nome] = [b.righe[0] || '', b.righe[1] || ''];
-    return `<div class="firma"><div>${esc(ruolo)}</div><div class="nome">${esc(nome)}</div></div>`;
+    return '<div class="firma">' +
+      (b.ruolo ? `<div>${esc(b.ruolo)}</div>` : '') +
+      (b.nome ? `<div class="nome">${esc(b.nome)}</div>` : '') +
+      '</div>';
   }
   if (b.t === 'tabella') {
     const cl = (i) => b.allineamenti?.[i] === 'dx' ? ' class="dx"' : b.allineamenti?.[i] === 'centro' ? ' class="centro"' : '';

@@ -140,10 +140,10 @@ export function costruisciBlocchi(prev, imp) {
   }
 
   // ---- firma ----
-  blocchi.push({
-    t: 'firma',
-    righe: [firma.ruolo, firma.nome].filter(Boolean),
-  });
+  // Ruolo e nome come campi distinti e non come array di righe: con il
+  // .filter(Boolean) di prima un ruolo vuoto faceva scalare il nome al suo
+  // posto, e il nome finiva senza grassetto sulla riga sbagliata.
+  blocchi.push({ t: 'firma', ruolo: firma.ruolo || '', nome: firma.nome || '' });
 
   return { blocchi, calcolo: r };
 }
