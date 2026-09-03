@@ -74,6 +74,45 @@ export const preventivi = {
   },
 };
 
+// ------------------------------------------------------------------
+//  ANAGRAFICA DEI CLIENTI
+//  Non è una tabella: sono i destinatari dei preventivi già fatti. Le
+//  manifestazioni si ripetono e i clienti sono quasi sempre gli stessi, così
+//  il secondo preventivo per lo stesso ente non si ricompila a mano — e non
+//  c'è un'anagrafica in più da tenere aggiornata, che è il modo tipico in cui
+//  questi elenchi invecchiano.
+// ------------------------------------------------------------------
+export const clienti = {
+  async elenco() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('preventivi_assistenze')
+      .select('cliente,cliente_cf,cliente_indirizzo,referente,referente_email,referente_telefono,data_documento')
+      .not('cliente', 'is', null)
+      .order('data_documento', { ascending: false, nullsFirst: false })
+      .limit(1000);
+    if (error) throw error;
+
+    // Un cliente per nome, con i dati del preventivo più recente: se
+    // l'indirizzo è cambiato, quello vecchio non deve tornare a galla.
+    const visti = new Map();
+    for (const r of data) {
+      const nome = (r.cliente || '').trim();
+      if (!nome) continue;
+      const chiave = nome.toLowerCase();
+      if (visti.has(chiave)) continue;
+      visti.set(chiave, {
+        cliente: nome,
+        cliente_cf: r.cliente_cf || '',
+        cliente_indirizzo: r.cliente_indirizzo || '',
+        referente: r.referente || '',
+        referente_email: r.referente_email || '',
+        referente_telefono: r.referente_telefono || '',
+      });
+    }
+    return [...visti.values()];
+  },
+};
+
 export const impostazioni = {
   async get() {
     const sb = await sbClient();

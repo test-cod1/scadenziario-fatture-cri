@@ -51,7 +51,7 @@ export function passi() {
     {
       selettore: '#cliente',
       titolo: 'A chi va il preventivo',
-      testo: 'Cliente, codice fiscale o partita IVA e indirizzo finiscono nell\'intestazione del documento; il referente con email e telefono serve a te per sapere chi chiamare.',
+      testo: 'Scrivi il nome e l\'app propone i clienti che hai già servito e gli enti pubblici dell\'elenco ufficiale (Comuni, scuole): scegliendone uno, codice fiscale e indirizzo si compilano da soli. Il referente con email e telefono serve a te, per sapere chi chiamare.',
     },
     {
       selettore: '#oggetto',
