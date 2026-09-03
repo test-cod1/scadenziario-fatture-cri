@@ -1,6 +1,6 @@
 import { auth } from './data/store.js';
 import { el, clear, esc, confirmDialog } from './lib/ui.js';
-import { SEZIONI, getSezione, ruoloIn } from './sezioni.js';
+import { SEZIONI, getSezione, ruoloIn, paginaIniziale } from './sezioni.js';
 import { renderLogin, renderResetPassword } from './views/auth.js';
 import { renderHome } from './views/home.js';
 import { renderSezioneVuota, renderSezioneEsterna } from './views/sezioneVuota.js';
@@ -285,7 +285,7 @@ async function route() {
   const sottoSezione = sezione.id === 'scadenziario' ? (['passive', 'attive'].includes(resto[0]) ? resto[0] : 'passive') : null;
   const sub = sezione.id === 'scadenziario'
     ? (resto[0] === 'impostazioni' ? 'impostazioni' : (resto[1] || 'fatture'))
-    : (resto[0] || sezione.menu?.[0]?.id || null);
+    : (resto[0] || paginaIniziale(sezione) || sezione.menu?.[0]?.id || null);
   // Terzo pezzo del percorso, quando c'è: per ora è l'id del preventivo in
   // #/trasporti/preventivo/<id>.
   const param = sezione.id === 'scadenziario' ? null : (resto[1] || null);

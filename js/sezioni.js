@@ -66,7 +66,7 @@ export const SEZIONI = [
     colore: '#6b7280',
     ombra: 'rgba(0,0,0,.15)',
     tipo: 'interna',
-    home: '#/trasporti/preventivi',
+    home: '#/trasporti/nuovo',
     tour: () => import('./tour/trasporti.js'),
     // Menu interno della sezione (barra laterale, e barra in basso sul
     // telefono). Le impostazioni sono qui e non fra le voci riservate agli
@@ -89,7 +89,7 @@ export const SEZIONI = [
     colore: '#374151',
     ombra: 'rgba(0,0,0,.18)',
     tipo: 'interna',
-    home: '#/assistenze/preventivi',
+    home: '#/assistenze/nuovo',
     menu: [
       { id: 'preventivi', icon: '📋', label: 'Preventivi', attivoAnche: ['preventivo'] },
       { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
@@ -102,6 +102,15 @@ export const SEZIONI = [
 
 export function getSezione(id) {
   return SEZIONI.find(s => s.id === id) || null;
+}
+
+// Pagina d'ingresso di una sezione, ricavata dalla sua `home`: la usa il
+// router quando l'indirizzo non dice quale pagina aprire (#/assistenze senza
+// altro). Ricavarla invece di scriverla due volte evita che la card della
+// home e l'indirizzo abbreviato finiscano su pagine diverse — è quello che
+// sarebbe successo spostando l'ingresso sul preventivo nuovo.
+export function paginaIniziale(sezione) {
+  return (sezione?.home || '').replace(/^#\//, '').split('/')[1] || null;
 }
 
 // Ruolo dell'utente in una sezione: 'admin', 'operatore' o null se non vi ha
