@@ -69,13 +69,13 @@ export async function renderImpostazioni(view, ctx) {
   // ---------- firma ----------
   view.appendChild(el(`<div class="card" style="margin-bottom:18px">
     <div class="card-h">Firma</div><div class="card-b">
-      <div class="form-row three">
-        <div class="field"><label>Ente</label><input type="text" id="f-ente" value="${esc(imp.firma.ente || '')}"></div>
+      <p class="hint" style="margin:0 0 14px">Le due righe in fondo al preventivo, sopra lo spazio per la firma.</p>
+      <div class="form-row">
         <div class="field"><label>Ruolo</label><input type="text" id="f-ruolo" value="${esc(imp.firma.ruolo || '')}"></div>
         <div class="field"><label>Nome</label><input type="text" id="f-nome" value="${esc(imp.firma.nome || '')}"></div>
       </div>
     </div></div>`));
-  for (const [campo, chiave] of [['f-ente', 'ente'], ['f-ruolo', 'ruolo'], ['f-nome', 'nome']]) {
+  for (const [campo, chiave] of [['f-ruolo', 'ruolo'], ['f-nome', 'nome']]) {
     view.querySelector('#' + campo).addEventListener('input', (e) => { imp.firma[chiave] = e.target.value; });
   }
 

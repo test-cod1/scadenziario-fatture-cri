@@ -47,7 +47,11 @@ export function mergeImpostazioni(dati) {
     ...dati,
     tariffe: Array.isArray(dati.tariffe) && dati.tariffe.length ? dati.tariffe : base.tariffe,
     testi: { ...base.testi, ...(dati.testi || {}) },
-    firma: { ...base.firma, ...(dati.firma || {}) },
+    // Solo le due righe che il documento stampa davvero. Il form ha avuto per
+    // un po' un campo "Ente" che nel preventivo non compariva da nessuna
+    // parte: si compilava credendo di cambiare la firma, e non cambiava
+    // nulla. Elencare le chiavi qui fa sparire anche il valore già salvato.
+    firma: { ruolo: dati.firma?.ruolo ?? base.firma.ruolo, nome: dati.firma?.nome ?? base.firma.nome },
   };
 }
 

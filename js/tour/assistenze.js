@@ -100,9 +100,9 @@ export function passi() {
       testo: 'Qui vivono le voci che si possono mettere in un preventivo. Una voce «a ore» si moltiplica per la durata del turno; una «a prezzo fisso» vale una volta per turno, comunque duri — è il caso del gazebo.',
     },
     {
-      selettore: '#f-ente',
+      selettore: '#f-ruolo',
       titolo: 'La firma',
-      testo: 'Ente, ruolo e nome di chi firma: compaiono in fondo a ogni preventivo, così non vanno riscritti ogni volta.',
+      testo: 'Ruolo e nome di chi firma: sono le due righe in fondo a ogni preventivo, così non vanno riscritte ogni volta.',
     },
     {
       selettore: '#testi textarea',
