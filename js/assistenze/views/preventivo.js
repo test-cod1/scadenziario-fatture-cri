@@ -155,13 +155,19 @@ export async function renderPreventivo(view, id, ctx) {
     for (const t of [...imp.tariffe, ...fuoriTariffario]) {
       const orfana = fuoriTariffario.includes(t);
       const attiva = prev.voci.find(v => v.id === t.id);
-      const riga = el(`<div class="voce-row">
+      // La voce attiva a prezzo zero si segnala anche qui, accanto al campo da
+      // correggere: il banner nel riepilogo dice che il problema c'è, questo
+      // dice dove mettere le mani.
+      const aZero = !!attiva && !Number(attiva.prezzo);
+      const riga = el(`<div class="voce-row${aZero ? ' senza-prezzo' : ''}">
         <label class="chk"><input type="checkbox" ${attiva ? 'checked' : ''}> <b>${esc(t.nome)}</b></label>
         <span class="mini">${t.tipo === 'fissa' ? 'prezzo fisso' : 'a ore'}${orfana ? ' · non più in tariffario' : ''}</span>
         <div class="field" style="margin:0;max-width:150px">
-          <input type="number" min="0" step="0.5" value="${attiva ? attiva.prezzo : t.prezzo}" ${attiva ? '' : 'disabled'}>
+          <input type="number" min="0" step="0.5" value="${attiva ? attiva.prezzo : t.prezzo}" ${attiva ? '' : 'disabled'}
+            title="${aZero ? 'Questa voce è a 0 €: non incide sul totale' : ''}">
         </div>
         <span class="mini">${t.tipo === 'fissa' ? '€ cad.' : '€/ora'}</span>
+        <span class="mini avviso-zero" ${aZero ? '' : 'hidden'}>manca il prezzo</span>
       </div>`);
       const [chk, prezzo] = [riga.querySelector('input[type=checkbox]'), riga.querySelector('input[type=number]')];
       chk.addEventListener('change', () => {
@@ -171,7 +177,14 @@ export async function renderPreventivo(view, id, ctx) {
       });
       prezzo.addEventListener('input', () => {
         const v = prev.voci.find(x => x.id === t.id);
-        if (v) { v.prezzo = Number(prezzo.value) || 0; aggiorna(); }
+        if (!v) return;
+        v.prezzo = Number(prezzo.value) || 0;
+        // Si aggiorna il segno sulla riga senza ridisegnarla: mentre si
+        // scrive il prezzo, il campo deve restare sotto le dita.
+        const manca = !v.prezzo;
+        riga.classList.toggle('senza-prezzo', manca);
+        riga.querySelector('.avviso-zero').hidden = !manca;
+        aggiorna();
       });
       zona.appendChild(riga);
     }
@@ -392,8 +405,18 @@ export async function renderPreventivo(view, id, ctx) {
       </div>
     </div>`);
     summary.appendChild(box);
-    if (imp.tariffe.some(t => !t.prezzo) && prev.voci.some(v => !v.prezzo)) {
-      summary.appendChild(el('<div class="banner warn" style="margin-top:12px"><div class="bi">⚠️</div><div><b>Prezzi a zero</b><div class="small">Alcune voci hanno tariffa 0: impostala qui sopra o nel tariffario.</div></div></div>'));
+    // Basta UNA voce attiva senza prezzo per far uscire un preventivo che
+    // regala qualcosa. Prima l'avviso arrivava solo se anche il tariffario
+    // era tutto a zero — cioè quasi mai, mentre il caso vero è la voce
+    // aggiunta di fretta e lasciata a zero fra altre con il prezzo giusto.
+    const senzaPrezzo = prev.voci.filter(v => !Number(v.prezzo));
+    if (senzaPrezzo.length) {
+      const una = senzaPrezzo.length === 1;
+      summary.appendChild(el(`<div class="banner warn" style="margin-top:12px"><div class="bi">⚠️</div><div>
+        <b>${una ? 'Una voce senza prezzo' : `${senzaPrezzo.length} voci senza prezzo`}</b>
+        <div class="small">${esc(senzaPrezzo.map(v => v.nome).join(', '))}: ${una ? 'è a 0 € e non incide' : 'sono a 0 € e non incidono'}
+        sul totale. Correggi il prezzo fra le voci del preventivo, oppure nel tariffario (Impostazioni) se vale per tutti.</div>
+      </div></div>`));
     }
   }
 

@@ -477,6 +477,10 @@ input.fuel-price{width:110px;padding:6px 8px}
 .voce-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 0;border-bottom:1px dashed var(--line)}
 .voce-row:last-child{border-bottom:none}
 .voce-row .chk{flex:1;min-width:190px;padding:0}
+/* Voce scelta ma lasciata a 0 €: non incide sul totale, e il preventivo
+   uscirebbe regalando quella voce. */
+.voce-row.senza-prezzo input[type=number]{border-color:var(--warn);background:#fffdf5}
+.voce-row .avviso-zero{color:var(--warn);font-weight:600}
 .cal-tbl td{vertical-align:middle}
 .cal-tbl input{padding:6px 8px;font-size:13.5px}
 .cal-tbl .ore{white-space:nowrap;font-weight:600}
