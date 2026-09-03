@@ -82,7 +82,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   // ---------- calendario ----------
   const cCal = card('Calendario dell\'assistenza', `
-    <p class="hint" style="margin:0 0 12px">Una riga per turno. Le ore si calcolano dagli orari (un turno che scavalca la mezzanotte è gestito), e il totale è ore × tariffa × quantità. Il calendario viene riportato anche nel preventivo.</p>
+    <p class="hint" style="margin:0 0 12px">Una riga per turno. Le ore si calcolano dagli orari (un turno che scavalca la mezzanotte è gestito), e il totale è ore × tariffa × quantità. Il calendario viene riportato anche nel preventivo.<br>Il campo sotto al nome di ogni voce riempie quella colonna su <b>tutti</b> i turni in una volta sola.</p>
     <div class="tbl-wrap"><table class="tbl cal-tbl"><thead></thead><tbody></tbody></table></div>
     <div class="cal-azioni">
       <button class="btn sm" id="add-turno" type="button">➕ Aggiungi turno</button>
@@ -170,11 +170,34 @@ export async function renderPreventivo(view, id, ctx) {
     const thead = cCal.querySelector('thead');
     const tbody = cCal.querySelector('tbody');
     clear(thead); clear(tbody);
-    thead.appendChild(el(`<tr>
+    const intestazione = el(`<tr>
       <th style="min-width:140px">Data</th><th>Dalle</th><th>Alle</th><th>Ore</th>
-      ${prev.voci.map(v => `<th style="text-align:center">${esc(v.nome)}</th>`).join('')}
+      ${prev.voci.map(v => `<th style="text-align:center">${esc(v.nome)}
+        <div class="tutti-turni"><input type="number" min="0" step="1" data-tutti="${esc(v.id)}"
+          value="${valoreComune(v.id)}" placeholder="tutti"
+          aria-label="Quantità di ${esc(v.nome)} su tutti i turni"
+          title="Applica questa quantità a tutti i turni"></div></th>`).join('')}
       <th>Note</th><th></th>
-    </tr>`));
+    </tr>`);
+    thead.appendChild(intestazione);
+
+    // Riempimento in blocco della colonna: una manifestazione ha quasi sempre
+    // la stessa dotazione in ogni turno (un'ambulanza, due soccorritori), e
+    // ribatterla riga per riga era il lavoro più noioso di questa pagina.
+    intestazione.querySelectorAll('[data-tutti]').forEach(campo => {
+      campo.addEventListener('input', () => {
+        if (campo.value === '') return;   // campo svuotato: non si tocca nulla
+        const idVoce = campo.dataset.tutti;
+        const q = Math.max(0, Number(campo.value) || 0);
+        for (const r of prev.calendario) { r.qta = r.qta || {}; r.qta[idVoce] = q; }
+        // Si riscrivono le celle già in pagina invece di ridisegnare la
+        // tabella: ridisegnandola il campo perderebbe il fuoco a ogni cifra.
+        tbody.querySelectorAll('[data-voce]').forEach(cella => {
+          if (cella.dataset.voce === idVoce) cella.value = q;
+        });
+        aggiorna();
+      });
+    });
 
     prev.calendario.forEach((r, i) => {
       const tr = el(`<tr>
@@ -235,6 +258,14 @@ export async function renderPreventivo(view, id, ctx) {
       tbody.appendChild(el(`<tr><td colspan="${5 + prev.voci.length}" class="muted" style="text-align:center;padding:22px">
         Nessun turno: aggiungine uno per calcolare il preventivo.</td></tr>`));
     }
+  }
+
+  // Quantità mostrata nel campo «tutti»: solo se ogni turno ha già lo stesso
+  // valore, altrimenti resta vuoto per non far credere che valga ovunque.
+  function valoreComune(idVoce) {
+    if (!prev.calendario.length) return '';
+    const primo = prev.calendario[0].qta?.[idVoce] ?? '';
+    return prev.calendario.every(r => (r.qta?.[idVoce] ?? '') === primo) ? primo : '';
   }
 
   // Il turno nuovo eredita orari e quantità dal precedente: un servizio su

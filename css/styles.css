@@ -326,7 +326,10 @@ tr.scaduta:hover td{background:#fbdcdd}
 .hc-badge{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:999px}
 .hc-badge.lock{background:none;font-size:14px;padding:0}
 .hc-line{height:1px;background:rgba(255,255,255,.3);margin-bottom:12px}
-.hc-title{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.2}
+/* Il titolo occupa sempre lo spazio di due righe, anche quando ne serve una
+   sola: così il filetto e la prima riga del nome stanno alla stessa altezza in
+   tutte le card, invece di alzarsi solo su quelle dal nome lungo. */
+.hc-title{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.2;min-height:2.4em}
 .hc-ext{font-weight:600;opacity:.75}
 /* Sezione non autorizzata: resta visibile (così si sa che esiste e a cosa
    chiedere l'accesso) ma si vede a colpo d'occhio che è spenta. */
@@ -477,6 +480,11 @@ input.fuel-price{width:110px;padding:6px 8px}
 .cal-tbl td{vertical-align:middle}
 .cal-tbl input{padding:6px 8px;font-size:13.5px}
 .cal-tbl .ore{white-space:nowrap;font-weight:600}
+/* Campo di riempimento in blocco, sotto al nome della voce in intestazione. */
+.cal-tbl .tutti-turni{margin-top:5px;font-weight:400}
+.cal-tbl .tutti-turni input{width:72px;text-align:center;padding:4px 6px;font-size:12.5px;
+  border-style:dashed;background:#fff}
+.cal-tbl .tutti-turni input::placeholder{font-size:11.5px;letter-spacing:.02em}
 
 /* ---------- Selettore di orario a orologio (js/lib/orologio.js) ---------- */
 .campo-ora{cursor:pointer;background:#fff;text-align:center;font-variant-numeric:tabular-nums}
