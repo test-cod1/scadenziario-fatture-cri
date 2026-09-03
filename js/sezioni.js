@@ -95,6 +95,7 @@ export const SEZIONI = [
       { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
       { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
     ],
+    tour: () => import('./tour/assistenze.js'),
     icona: ICONE.assistenze,
   },
 ];

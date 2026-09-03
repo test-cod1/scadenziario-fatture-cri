@@ -80,7 +80,7 @@ export async function renderImpostazioni(view, ctx) {
   }
 
   // ---------- testi ----------
-  const cTesti = el(`<div class="card"><div class="card-h">Testi fissi del documento</div><div class="card-b"></div></div>`);
+  const cTesti = el(`<div class="card" id="testi"><div class="card-h">Testi fissi del documento</div><div class="card-b"></div></div>`);
   view.appendChild(cTesti);
   const corpo = cTesti.querySelector('.card-b');
   for (const [chiave, [etichetta, aiuto]] of Object.entries(ETICHETTE_TESTI)) {
