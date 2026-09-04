@@ -74,6 +74,8 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
   body.querySelector('#file-in').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // Vedi il commento gemello in fattura.js.
+    e.target.value = '';
     mostraAnteprima(file);
     const hint = body.querySelector('#upload-hint');
     const status = body.querySelector('#upload-status');
@@ -456,7 +458,9 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
-  input.addEventListener('change', () => handleFiles(input.files));
+  // Vedi il commento gemello in fattura.js: il campo si svuota dopo aver preso
+  // i file, altrimenti riselezionare lo stesso file non fa scattare "change".
+  input.addEventListener('change', () => { handleFiles(input.files); input.value = ''; });
 
   const coda = [];
   let totale = 0;

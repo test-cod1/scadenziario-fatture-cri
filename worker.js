@@ -49,6 +49,16 @@ export default {
   async fetch(request, env, ctx) {
     const url = new URL(request.url);
     const route = ROUTES[url.pathname];
+    // Metodo sbagliato su una route esistente: senza questo ramo la richiesta
+    // proseguiva verso gli asset statici, che per /api/... rispondevano con la
+    // pagina "non trovato" — un errore fuorviante (sembra un endpoint
+    // inesistente) al posto di quello vero.
+    if (route && !route[request.method]) {
+      return conSicurezza(new Response(
+        JSON.stringify({ error: 'Metodo non ammesso.' }),
+        { status: 405, headers: { 'Content-Type': 'application/json', Allow: Object.keys(route).join(', ') } },
+      ));
+    }
     if (route && route[request.method]) {
       // `waitUntil` va passato anche in cima al contesto, non solo dentro
       // `ctx`: le function sono scritte nel formato Pages, dove si chiama

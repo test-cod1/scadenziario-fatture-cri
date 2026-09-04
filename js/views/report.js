@@ -1,5 +1,5 @@
 import { fatture } from '../data/store.js';
-import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile } from '../lib/ui.js';
+import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile, cellaCsv } from '../lib/ui.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const FILTRO_FORNITORE_KEY = 'report:filtroFornitore';
@@ -308,7 +308,7 @@ function esportaFornitoriCSV(gruppi) {
   const lines = ['Fornitore;N. Fatture;Fatturato;Pagato;Stornato;Residuo;Giorni medi pagamento'];
   for (const g of gruppi) {
     lines.push([g.fornitore, g.n, g.fatturato.toFixed(2).replace('.', ','), g.pagato.toFixed(2).replace('.', ','), g.stornato.toFixed(2).replace('.', ','), g.residuo.toFixed(2).replace('.', ','), g.giorniMedi !== null ? Math.round(g.giorniMedi) : '']
-      .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';'));
+      .map(cellaCsv).join(';'));
   }
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);

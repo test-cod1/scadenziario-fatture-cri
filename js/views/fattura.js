@@ -98,6 +98,10 @@ export async function apriEditor(id, ctx, onSaved) {
   body.querySelector('#file-in').addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // Il campo si svuota subito (il File resta in mano nostra): senza,
+    // riscegliere lo stesso documento per rileggerlo dopo un errore non faceva
+    // scattare "change".
+    e.target.value = '';
     mostraAnteprima(file);
     const hint = body.querySelector('#upload-hint');
     const status = body.querySelector('#upload-status');
@@ -545,7 +549,10 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
   dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('drag'); });
   dz.addEventListener('dragleave', () => dz.classList.remove('drag'));
   dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('drag'); handleFiles(e.dataTransfer.files); });
-  input.addEventListener('change', () => handleFiles(input.files));
+  // Il campo si svuota dopo aver preso i file: senza, riselezionare lo STESSO
+  // file (tipico dopo un errore di lettura, per riprovare) non faceva scattare
+  // "change" e sembrava che il pulsante non funzionasse.
+  input.addEventListener('change', () => { handleFiles(input.files); input.value = ''; });
 
   const coda = [];
   let totale = 0;       // file arrivati in totale in questa sessione

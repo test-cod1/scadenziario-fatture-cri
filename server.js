@@ -38,7 +38,7 @@ let HEADER_SICUREZZA = {};
 // stesso elenco di .assetsignore (che svolge questo ruolo in produzione).
 const NON_SERVIBILI = [
   '.dev.vars', '.env', '.git', '.wrangler', 'node_modules',
-  'supabase', 'functions', 'server.js', 'worker.js', 'wrangler.jsonc',
+  'supabase', 'functions', 'tools', 'server.js', 'worker.js', 'wrangler.jsonc',
   'package.json', 'package-lock.json', '.assetsignore', '.gitignore',
 ];
 function nonServibile(relativo) {

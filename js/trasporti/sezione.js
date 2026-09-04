@@ -37,7 +37,12 @@ export async function renderTrasporti(view, ctx, sub, param) {
     user: ctx.user,
     imp: _imp,
     go: ctx.go,
-    reloadImp: async () => { _imp = await impostazioni.get(); ctxT.imp = _imp; },
+    // Si rilegge passando da caricaImpostazioni() e non da impostazioni.get():
+    // quest'ultima restituisce solo ciò che sta su Supabase, quindi dopo un
+    // salvataggio delle impostazioni il prezzo italiano tornava al valore
+    // salvato, perdendo la media MISE del giorno applicata all'ingresso nella
+    // sezione (e con essa la data di aggiornamento).
+    reloadImp: async () => { _imp = await caricaImpostazioni(); ctxT.imp = _imp; },
   };
 
   if (sub === 'nuovo') return renderPreventivo(view, null, ctxT);

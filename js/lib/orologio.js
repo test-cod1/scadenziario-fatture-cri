@@ -41,7 +41,13 @@ export function apriOrologio(valoreIniziale = '', ancora = null) {
   return new Promise((risolvi) => {
     const m = /^(\d{1,2}):(\d{2})$/.exec(String(valoreIniziale || '').trim());
     let ore = m ? Math.min(23, Number(m[1])) : null;
-    let minuti = m ? Math.round(Number(m[2]) / PASSO_MINUTI) * PASSO_MINUTI % 60 : null;
+    let minuti = m ? Math.round(Number(m[2]) / PASSO_MINUTI) * PASSO_MINUTI : null;
+    // L'arrotondamento al passo può portare i minuti a 60: in quel caso si
+    // passa all'ora successiva. Riportarli solo a :00 lasciando l'ora com'era
+    // (`% 60` da solo) spostava l'orario INDIETRO di quasi un'ora — riaprendo
+    // un 22:55 arrivato da un import o da un preventivo duplicato, il campo
+    // proponeva 22:00.
+    if (minuti === 60) { minuti = 0; ore = ((ore ?? 0) + 1) % 24; }
     let passo = 'ore';
 
     const sfondo = el('<div class="orologio-sfondo"></div>');

@@ -1,5 +1,5 @@
 import { fattureAttive } from '../data/storeAttive.js';
-import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile } from '../lib/ui.js';
+import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile, cellaCsv } from '../lib/ui.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const FILTRO_CLIENTE_KEY = 'reportAttive:filtroCliente';
@@ -291,7 +291,7 @@ function esportaClientiCSV(gruppi) {
   const lines = ['Cliente;N. Fatture;Fatturato;Incassato;Stornato;Residuo;Giorni medi incasso'];
   for (const g of gruppi) {
     lines.push([g.cliente, g.n, g.fatturato.toFixed(2).replace('.', ','), g.incassato.toFixed(2).replace('.', ','), g.stornato.toFixed(2).replace('.', ','), g.residuo.toFixed(2).replace('.', ','), g.giorniMedi !== null ? Math.round(g.giorniMedi) : '']
-      .map(v => '"' + String(v).replace(/"/g, '""') + '"').join(';'));
+      .map(cellaCsv).join(';'));
   }
   const blob = new Blob(['﻿' + lines.join('\r\n')], { type: 'text/csv;charset=utf-8' });
   const url = URL.createObjectURL(blob);

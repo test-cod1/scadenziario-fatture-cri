@@ -192,6 +192,21 @@ export function debounce(fn, ms = 300) {
   return (...a) => { clearTimeout(t); t = setTimeout(() => fn(...a), ms); };
 }
 
+// ---------- CSV ----------
+// Una cella di CSV pronta per Excel. Oltre alle virgolette raddoppiate si
+// neutralizzano i valori che Excel interpreterebbe come FORMULA e non come
+// testo: un fornitore registrato come "=QUALCOSA()" veniva valutato
+// all'apertura del file, e nel migliore dei casi al posto della ragione
+// sociale compariva un errore. L'apostrofo iniziale dice a Excel "questa
+// cella è testo" e non viene stampato.
+// I numeri veri restano numeri, negativi compresi (i giorni medi di pagamento
+// possono esserlo): il controllo scatta solo su ciò che numero non è.
+export function cellaCsv(valore) {
+  let s = String(valore ?? '');
+  if (/^[=+\-@\t\r]/.test(s) && !Number.isFinite(Number(s))) s = "'" + s;
+  return '"' + s.replace(/"/g, '""') + '"';
+}
+
 // ---------- parsing importi in stile italiano ("1.234,56" -> 1234.56) ----------
 // La versione precedente toglieva i punti solo se seguiti da tre cifre e da una
 // virgola: su "1.234.567,89" ne sopravviveva uno e il risultato era 1.234567.

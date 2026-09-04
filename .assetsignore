@@ -10,6 +10,10 @@ wrangler.jsonc
 worker.js
 functions/
 supabase/
+# Script di manutenzione lanciati a mano da chi sviluppa (la rigenerazione
+# dell'elenco enti IndicePA): non fanno parte del sito e non hanno motivo di
+# essere scaricabili dal dominio pubblico.
+tools/
 server.js
 package.json
 package-lock.json
