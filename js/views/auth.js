@@ -91,10 +91,14 @@ export function renderResetPassword(app, onDone, { invite = false, obbligatorio 
     const btn = wrap.querySelector('#save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
     try {
-      // Il flag "password provvisoria" si spegne da solo lato database
-      // (trigger on_auth_password_changed): qui non c'è più niente da
-      // confermare, e il profilo riletto da onDone() lo trova già a posto.
       await auth.updatePassword(pw1);
+      // Il flag "password provvisoria" lo spegne il trigger del database
+      // (on_auth_password_changed), che guarda l'hash della password vera.
+      // Questa chiamata è solo la rete di sicurezza per un database su cui il
+      // patch non è ancora stato eseguito: senza, lì l'app richiederebbe di
+      // impostare la password ad ogni accesso. Non fallisce mai in modo
+      // rumoroso — vedi auth.confermaPasswordImpostata().
+      if (obbligatorio) await auth.confermaPasswordImpostata();
       history.replaceState(null, '', location.pathname + '#/home');
       toast(invite || obbligatorio ? 'Password creata' : 'Password aggiornata', 'ok');
       onDone();

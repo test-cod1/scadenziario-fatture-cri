@@ -68,7 +68,7 @@ Sostituendo quel .dotx cambiano insieme sia il Word sia il PDF: logo, indirizzo 
 >
 > **Per la sezione trasporti** servono in più [`patch-2026-09-01-trasporti.sql`](supabase/patch-2026-09-01-trasporti.sql) (crea `preventivi` e `impostazioni_trasferte`) e, per portarsi dietro i dati del vecchio gestionale, [`export-trasporti.sql`](supabase/export-trasporti.sql) — che però va lanciato sul **vecchio** progetto Supabase: stampa gli insert già pronti da incollare qui.
 >
-> **[`patch-2026-09-04-permessi-profili.sql`](supabase/patch-2026-09-04-permessi-profili.sql)** chiude due falle nei permessi sulla tabella `profili` ed è consigliato su qualunque database già in uso: l'obbligo di cambiare la password provvisoria era aggirabile dal client (adesso il flag lo spegne un trigger che guarda la password vera), e un super admin poteva nominarne un altro nonostante quanto scritto qui sotto.
+> **[`patch-2026-09-04-permessi-profili.sql`](supabase/patch-2026-09-04-permessi-profili.sql)** chiude due falle nei permessi sulla tabella `profili` e va eseguito su qualunque database già in uso: l'obbligo di cambiare la password provvisoria era aggirabile dal client (adesso il flag lo spegne un trigger che guarda la password vera), e un super admin poteva nominarne un altro nonostante quanto scritto qui sotto. Il sito funziona anche senza — l'app ha una rete di sicurezza per non chiedere la password ad ogni accesso su un database non aggiornato — ma finché non lo esegui quelle due strade restano aperte.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 

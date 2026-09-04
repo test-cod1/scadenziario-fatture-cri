@@ -69,11 +69,24 @@ export const auth = {
     const { error } = await sb.auth.updateUser({ password: nuovaPassword });
     if (error) throw error;
   },
-  // Nessun confermaPasswordImpostata(): il flag "password provvisoria" lo
-  // spegne un trigger del database quando l'hash della password cambia
-  // davvero (on_auth_password_changed). Azzerarlo da qui significava
-  // lasciarlo scrivere al client, e quindi permettere di saltare l'obbligo
-  // con una PATCH senza mai cambiare password — vedi schema.sql.
+  // Il flag "password provvisoria" lo spegne un trigger del database quando
+  // l'hash della password cambia davvero (on_auth_password_changed): lasciarlo
+  // scrivere al client permetteva di saltare l'obbligo con una PATCH, senza
+  // mai cambiare password — vedi schema.sql.
+  //
+  // Questo tentativo resta però come rete di sicurezza per un database su cui
+  // il patch non è ancora stato eseguito: lì il trigger non c'è, e senza
+  // qualcuno che spenga il flag l'app richiederebbe di impostare la password
+  // ad ogni accesso, all'infinito. Dove il patch c'è, la policy rifiuta questa
+  // scrittura e l'errore si ignora: il lavoro l'ha già fatto il trigger.
+  async confermaPasswordImpostata() {
+    try {
+      const sb = await sbClient();
+      const { data: u } = await sb.auth.getUser();
+      if (!u?.user) return;
+      await sb.from('profili').update({ deve_cambiare_password: false }).eq('id', u.user.id);
+    } catch { /* database aggiornato: ci ha già pensato il trigger */ }
+  },
 };
 
 // ---------------------------------------------------------------
