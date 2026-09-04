@@ -2,7 +2,7 @@ import { fattureAttive, incassi, noteCreditoAttive } from '../data/storeAttive.j
 import { svuotaCacheNomi } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaAttivaXml, METODI } from '../lib/xmlFattura.js';
-import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento } from '../lib/documenti.js';
+import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento, aggiornaDopo } from '../lib/documenti.js';
 
 export { METODI };
 
@@ -10,10 +10,18 @@ export { METODI };
 //  Editor di una singola fattura attiva (nuova o esistente)
 // ============================================================
 export async function apriEditorAttiva(id, ctx, onSaved) {
-  let rec = id ? await fattureAttive.get(id) : {
-    cliente: '', numero_fattura: '', data_fattura: todayISO(), importo: '',
-    stato: 'da_incassare', metodo_incasso: '', note: '', data_sollecito: '', estratta_da_ai: false,
-  };
+  // Vedi il commento gemello in fattura.js: senza questo try, un errore nel
+  // caricamento lasciava il clic sulla riga senza alcun effetto visibile.
+  let rec;
+  try {
+    rec = id ? await fattureAttive.get(id) : {
+      cliente: '', numero_fattura: '', data_fattura: todayISO(), importo: '',
+      stato: 'da_incassare', metodo_incasso: '', note: '', data_sollecito: '', estratta_da_ai: false,
+    };
+  } catch (e) {
+    toast('Impossibile aprire la fattura: ' + e.message, 'err');
+    return;
+  }
   let viaAI = false;
   let datiModificati = false;
   let previewUrl = null;
@@ -309,7 +317,7 @@ function renderNoteCreditoAttive(node, rec, ctx, onChange) {
   }
   if (!righe.length) list.appendChild(el('<div class="muted" style="font-size:13px">Nessuna nota di credito registrata.</div>'));
 
-  wrap.querySelector('#add-nc').addEventListener('click', () => apriNuovaNotaCreditoAttiva(ctx, async () => onChange(await fattureAttive.get(rec.id)), rec));
+  wrap.querySelector('#add-nc').addEventListener('click', () => apriNuovaNotaCreditoAttiva(ctx, aggiornaDopo(() => fattureAttive.get(rec.id), onChange), rec));
   node.appendChild(wrap);
 }
 

@@ -16,11 +16,19 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
   const r = calcola(prev.input || {}, imp);
   const inp = prev.input || {};
 
+  // andata_ritorno è una colonna di `prev`, non un campo di `prev.input`: la
+  // riga "Km totali" lo leggeva da `inp`, dove è sempre undefined, e il
+  // documento consegnato al cliente diceva "(a/r)" anche per una sola andata
+  // — mentre l'itinerario, che lo legge dal posto giusto, non riportava il
+  // rientro. Si ricava una volta sola qui, così le due parti non possono più
+  // raccontare cose diverse.
+  const andataRitorno = prev.andata_ritorno !== false;
+
   // Itinerario completo: partenza -> tappe -> (rientro se a/r)
   const part = prev.partenza || (prev.input && prev.input.partenza) || CONFIG.partenza;
   const dest = (prev.tappe || []).filter(t => t && t.label);
   const itinerario = [{ label: part.label }, ...dest];
-  if (prev.andata_ritorno !== false) itinerario.push({ label: part.label + ' (rientro)' });
+  if (andataRitorno) itinerario.push({ label: part.label + ' (rientro)' });
 
   const righeTappe = itinerario.map((t, i) =>
     `<tr><td>${i === 0 ? 'Partenza' : (i === itinerario.length - 1 ? 'Arrivo' : 'Tappa ' + i)}</td><td>${esc(t.label)}</td></tr>`
@@ -77,12 +85,7 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
     <div>
       <h2>Dati servizio</h2>
       <table>
-        <!-- andata_ritorno sta su prev (è una colonna sua), non dentro
-             prev.input: leggendolo da inp era sempre undefined e il documento
-             consegnato al cliente diceva "(a/r)" anche per una sola andata,
-             mentre l'itinerario qui accanto — che lo legge dal posto giusto —
-             non riportava il rientro. -->
-        <tr><td class="muted">Km totali</td><td>${num(inp.kmTotali)} km${prev.andata_ritorno === false ? ' (sola andata)' : ' (a/r)'}</td></tr>
+        <tr><td class="muted">Km totali</td><td>${num(inp.kmTotali)} km${andataRitorno ? ' (a/r)' : ' (sola andata)'}</td></tr>
         <tr><td class="muted">Mezzo</td><td>${esc(mezzoNome(inp, imp))} · ${num(r.consumo, 1)} km/l · ${esc(inp.alimentazione || '')}</td></tr>
         <tr><td class="muted">Equipaggio</td><td>${num(inp.persone)} persone</td></tr>
         ${inp.notti ? `<tr><td class="muted">Pernottamento</td><td>${num(inp.notti)} notti</td></tr>` : ''}

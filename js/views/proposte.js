@@ -27,9 +27,17 @@ export async function renderProposte(view, ctx) {
   </div>`);
   view.appendChild(wrap);
 
+  // Come nelle dashboard: `ricarica` viene chiamata dai gestori dei click
+  // senza che nessuno ne aspetti la promise, quindi un errore di rete qui
+  // diventerebbe un rifiuto non gestito — nessun messaggio, e l'elenco fermo
+  // a prima della conferma, come se l'operazione non fosse andata a buon fine.
   async function ricarica() {
-    righe = await proposte.list();
-    disegna();
+    try {
+      righe = await proposte.list();
+      disegna();
+    } catch (e) {
+      toast('Aggiornamento non riuscito: ' + e.message + ' — ricarica la pagina.', 'err');
+    }
   }
 
   function disegna() {

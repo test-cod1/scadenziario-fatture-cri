@@ -993,11 +993,34 @@ create table if not exists public.impostazioni_assistenze (
 alter table public.preventivi_assistenze   enable row level security;
 alter table public.impostazioni_assistenze enable row level security;
 
+-- Leggere, inserire e modificare sono il lavoro di tutti i giorni e li fa
+-- chiunque abbia accesso alla sezione; CANCELLARE no, resta agli admin: di un
+-- preventivo eliminato non resta niente, e un operatore poteva buttare via
+-- quello preparato da un collega. Il cestino nascosto nell'app è solo cortesia
+-- verso l'utente, la regola che conta è questa.
+--
+-- Questo blocco era rimasto indietro rispetto a
+-- patch-2026-09-03-assistenze-cancellazione.sql, che aveva già sostituito
+-- l'unica policy "for all" con le tre separate: un database creato da zero con
+-- questo file nasceva quindi SENZA la restrizione, e rieseguire schema.sql su
+-- un database aggiornato la riapriva (le policy permissive si sommano, quindi
+-- un "for all" rimesso qui avrebbe ridato il permesso di cancellare anche
+-- accanto a prev_ass_delete).
 drop policy if exists prev_ass_read on public.preventivi_assistenze;
 create policy prev_ass_read on public.preventivi_assistenze for select using (public.accede_a('assistenze'));
+-- La vecchia policy unica: si toglie sempre, anche su un database nuovo dove
+-- non è mai esistita, così un file eseguito due volte non lascia in giro un
+-- permesso più largo di quello voluto.
 drop policy if exists prev_ass_write on public.preventivi_assistenze;
-create policy prev_ass_write on public.preventivi_assistenze for all
+drop policy if exists prev_ass_insert on public.preventivi_assistenze;
+create policy prev_ass_insert on public.preventivi_assistenze for insert
+  with check (public.accede_a('assistenze'));
+drop policy if exists prev_ass_update on public.preventivi_assistenze;
+create policy prev_ass_update on public.preventivi_assistenze for update
   using (public.accede_a('assistenze')) with check (public.accede_a('assistenze'));
+drop policy if exists prev_ass_delete on public.preventivi_assistenze;
+create policy prev_ass_delete on public.preventivi_assistenze for delete
+  using (public.e_admin_sezione('assistenze'));
 
 -- Tariffario e testi del documento li modifica chiunque abbia accesso alla
 -- sezione, operatori compresi: sono i parametri con cui si fanno i preventivi

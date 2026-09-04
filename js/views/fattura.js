@@ -1,7 +1,7 @@
 import { fatture, pagamenti, noteCredito, impostazioni, proposte, svuotaCacheNomi } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, sommaGiorniISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml, METODI } from '../lib/xmlFattura.js';
-import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento } from '../lib/documenti.js';
+import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento, aggiornaDopo } from '../lib/documenti.js';
 
 export { METODI };
 
@@ -20,10 +20,21 @@ function impostaScadenzaOffset(scope, selettoreData, selettoreScadenza, giorni) 
 //  Editor di una singola fattura (nuova o esistente)
 // ============================================================
 export async function apriEditor(id, ctx, onSaved) {
-  let rec = id ? await fatture.get(id) : {
-    fornitore: '', numero_fattura: '', data_fattura: todayISO(), importo: '', scadenza: '',
-    stato: 'da_pagare', metodo_pagamento: '', note: '', estratta_da_ai: false,
-  };
+  // La lettura va protetta qui: l'editor viene aperto da un gestore di click
+  // che non aspetta questa promise, quindi se il caricamento falliva (rete
+  // giù, sessione scaduta) non succedeva NIENTE — niente finestra, niente
+  // messaggio, solo un errore in console che l'utente non vede. Cliccare una
+  // riga sembrava semplicemente non funzionare.
+  let rec;
+  try {
+    rec = id ? await fatture.get(id) : {
+      fornitore: '', numero_fattura: '', data_fattura: todayISO(), importo: '', scadenza: '',
+      stato: 'da_pagare', metodo_pagamento: '', note: '', estratta_da_ai: false,
+    };
+  } catch (e) {
+    toast('Impossibile aprire la fattura: ' + e.message, 'err');
+    return;
+  }
   let viaAI = false; // il file non viene conservato: serve solo a sapere se i campi vengono dall'AI
   // I pagamenti vengono scritti sul database subito, non al "Salva": se non
   // segnassimo la cosa, chiudendo con Annulla/✕ la dashboard resterebbe ferma
@@ -346,7 +357,7 @@ function renderPagamenti(node, rec, ctx, onChange) {
     });
   }
   const btnProponi = wrap.querySelector('#proponi-pag');
-  if (btnProponi) btnProponi.addEventListener('click', () => apriProponiPagamento(rec, ctx, async () => onChange(await fatture.get(rec.id))));
+  if (btnProponi) btnProponi.addEventListener('click', () => apriProponiPagamento(rec, ctx, aggiornaDopo(() => fatture.get(rec.id), onChange)));
   node.appendChild(wrap);
 }
 
@@ -377,7 +388,7 @@ function renderNoteCredito(node, rec, ctx, onChange) {
   }
   if (!righe.length) list.appendChild(el('<div class="muted" style="font-size:13px">Nessuna nota di credito registrata.</div>'));
 
-  wrap.querySelector('#add-nc').addEventListener('click', () => apriNuovaNotaCredito(ctx, async () => onChange(await fatture.get(rec.id)), rec));
+  wrap.querySelector('#add-nc').addEventListener('click', () => apriNuovaNotaCredito(ctx, aggiornaDopo(() => fatture.get(rec.id), onChange), rec));
   node.appendChild(wrap);
 }
 

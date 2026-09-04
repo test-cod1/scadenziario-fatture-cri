@@ -6,8 +6,20 @@
 //  dei due lasciava l'altra sezione col difetto (è già successo con
 //  l'anteprima e con l'avviso di sovrapagamento). Qui c'è un'unica copia.
 // ============================================================
-import { el, esc, confirmDialog, fmtEuro } from './ui.js';
+import { el, esc, confirmDialog, fmtEuro, toast } from './ui.js';
 import { METODI } from './xmlFattura.js';
+
+// Callback "ricarica il record e ridisegna", da passare come `onSaved` a una
+// finestra modale. Il catch non è un di più: quelle callback vengono invocate
+// senza che nessuno ne aspetti la promise, quindi un intoppo di rete diventava
+// un rifiuto non gestito — nessun messaggio, e pagamenti o note di credito
+// fermi a prima dell'operazione, come se non fosse stata registrata.
+export function aggiornaDopo(carica, onChange) {
+  return async () => {
+    try { onChange(await carica()); }
+    catch (e) { toast('Aggiornamento non riuscito: ' + e.message + ' — riapri la fattura.', 'err'); }
+  };
+}
 
 // Riporta un valore qualsiasi dentro la lista dei metodi ammessi: così un
 // metodo non previsto diventa "altro" invece di sparire senza dire nulla.
