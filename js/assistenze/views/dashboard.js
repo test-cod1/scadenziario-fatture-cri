@@ -31,21 +31,28 @@ export async function renderDashboard(view, ctx) {
     <a class="btn primary" href="#/assistenze/nuovo">➕ Nuovo preventivo</a>
   </div>`));
 
-  const confermati = list.filter(p => p.stato === 'confermato');
-  const bozze = list.filter(p => p.stato === 'bozza');
-  view.appendChild(el(`<div class="grid stats" style="margin-bottom:22px">
-    <div class="stat accent"><div class="k">Preventivi</div><div class="v">${list.length}</div>
-      <div class="s">${bozze.length} ${bozze.length === 1 ? 'bozza' : 'bozze'}</div></div>
-    <div class="stat"><div class="k">Confermati</div><div class="v">${confermati.length}</div>
-      <div class="s">${fmtEuro(confermati.reduce((s, p) => s + Number(p.totale || 0), 0))}</div></div>
-    <div class="stat"><div class="k">Valore totale</div><div class="v">${fmtEuro(list.reduce((s, p) => s + Number(p.totale || 0), 0))}</div></div>
-  </div>`));
-
-  if (!list.length) {
-    view.appendChild(el(`<div class="empty-state"><div class="big">⛑️</div>
-      <p>Nessun preventivo ancora.<br>Creane uno con "Nuovo preventivo".</p></div>`));
-    return;
+  // Statistiche e stato "nessun preventivo" si ridisegnano sul posto. Prima
+  // il pulsante 🗑️ faceva clear(view) e richiamava renderDashboard(): quel
+  // clear portava via anche la riga "← Tutte le sezioni" messa dal router, e
+  // dopo un'eliminazione la pagina restava senza via d'uscita verso la home.
+  const stats = el('<div class="grid stats" style="margin-bottom:22px"></div>');
+  view.appendChild(stats);
+  function disegnaStats() {
+    const confermati = list.filter(p => p.stato === 'confermato');
+    const bozze = list.filter(p => p.stato === 'bozza');
+    clear(stats);
+    stats.append(
+      el(`<div class="stat accent"><div class="k">Preventivi</div><div class="v">${list.length}</div>
+        <div class="s">${bozze.length} ${bozze.length === 1 ? 'bozza' : 'bozze'}</div></div>`),
+      el(`<div class="stat"><div class="k">Confermati</div><div class="v">${confermati.length}</div>
+        <div class="s">${fmtEuro(confermati.reduce((s, p) => s + Number(p.totale || 0), 0))}</div></div>`),
+      el(`<div class="stat"><div class="k">Valore totale</div><div class="v">${fmtEuro(list.reduce((s, p) => s + Number(p.totale || 0), 0))}</div></div>`),
+    );
   }
+
+  const vuoto = el(`<div class="empty-state" hidden><div class="big">⛑️</div>
+    <p>Nessun preventivo ancora.<br>Creane uno con "Nuovo preventivo".</p></div>`);
+  view.appendChild(vuoto);
 
   const toolbar = el(`<div class="toolbar">
     <div class="search"><span class="search-icon" aria-hidden="true">🔍</span>
@@ -64,6 +71,13 @@ export async function renderDashboard(view, ctx) {
   const tbody = card.querySelector('tbody');
 
   function draw() {
+    disegnaStats();
+    // Archivio vuoto (o svuotato eliminando l'ultimo preventivo): al posto di
+    // filtri e tabella si mostra l'invito a crearne uno.
+    vuoto.hidden = list.length > 0;
+    toolbar.hidden = card.hidden = list.length === 0;
+    if (!list.length) return;
+
     const q = toolbar.querySelector('#q').value.toLowerCase().trim();
     const stato = toolbar.querySelector('#f-stato').value;
     clear(tbody);
@@ -108,6 +122,9 @@ export async function renderDashboard(view, ctx) {
           // Senza aggiornare la versione, un secondo cambio di stato sulla
           // stessa riga verrebbe scambiato per una modifica altrui.
           p.updated_at = salvato.updated_at;
+          // Le card in testata contano bozze e confermati: senza ridisegnarle
+          // restavano ferme ai numeri di prima del cambio di stato.
+          disegnaStats();
           toast('Stato aggiornato', 'ok');
         } catch (e) {
           selStato.value = precedente;
@@ -162,10 +179,15 @@ export async function renderDashboard(view, ctx) {
       tr.querySelector('[data-del]')?.addEventListener('click', async () => {
         if (!await confirmDialog(`Eliminare il preventivo per "${p.cliente || 'senza cliente'}"?`,
           { danger: true, okLabel: 'Elimina' })) return;
-        await preventivi.remove(p.id);
+        try {
+          await preventivi.remove(p.id);
+        } catch (e) { toast('Eliminazione non riuscita: ' + e.message, 'err'); return; }
+        // Si toglie la riga dall'elenco già in memoria e si ridisegna, invece
+        // di svuotare la pagina e rifarla (vedi disegnaStats).
+        const i = list.indexOf(p);
+        if (i >= 0) list.splice(i, 1);
         toast('Preventivo eliminato', 'ok');
-        clear(view);
-        renderDashboard(view, ctx);
+        draw();
       });
       tbody.appendChild(tr);
     }

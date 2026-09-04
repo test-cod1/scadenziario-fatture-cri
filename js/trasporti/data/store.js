@@ -16,10 +16,25 @@ async function sbClient() { const { getSupabase } = await import('../../lib/supa
 //  PREVENTIVI
 // ---------------------------------------------------------------
 export const preventivi = {
+  // Vedi il commento gemello in js/data/store.js: PostgREST tronca ogni
+  // risposta a 1000 righe. Senza paginazione, superato quel numero l'elenco
+  // mostrava in silenzio solo i primi 1000 preventivi e le statistiche in
+  // testata (valore totale, margine stimato) risultavano più basse del vero
+  // senza alcun errore visibile.
   async list() {
     const sb = await sbClient();
-    const { data, error } = await sb.from('preventivi').select('*').order('created_at', { ascending: false });
-    if (error) throw error; return data;
+    const BLOCCO = 1000;
+    const tutti = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from('preventivi').select('*')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutti.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutti;
   },
   async get(id) {
     const sb = await sbClient();

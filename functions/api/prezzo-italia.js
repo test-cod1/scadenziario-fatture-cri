@@ -10,11 +10,23 @@
 //  parte di ogni operatore.
 // ============================================================
 
+import { requireUser, ruoloSezione } from '../_lib/auth.js';
+
 const SOURCE_URL = 'https://www.mimit.gov.it/images/exportCSV/prezzo_alle_8.csv';
 const CACHE_TTL_SECONDS = 6 * 60 * 60; // il file MISE è comunque aggiornato ~1 volta al giorno
 
 export async function onRequestGet(context) {
-  const { request } = context;
+  const { request, env } = context;
+  // Era l'unico endpoint senza controllo, mentre gli altri sei lo hanno tutti:
+  // chiunque conoscesse l'URL poteva far scaricare al Worker un CSV da 4 MB e
+  // riparsarlo. Il prezzo serve alla sola sezione trasporti, quindi si chiede
+  // lo stesso permesso di geocode/route/prezzo-eu.
+  const user = await requireUser(request, env);
+  if (!user) return json({ error: 'Accesso non autorizzato: effettua il login.' }, 401);
+  if (!await ruoloSezione(request, env, 'trasporti')) {
+    return json({ error: 'Non sei autorizzato ad accedere ai trasporti lunghi: chiedi a un amministratore del portale.' }, 403);
+  }
+
   const cache = caches.default;
   const cacheKey = new Request(new URL(request.url).origin + '/api/prezzo-italia');
 
@@ -30,13 +42,13 @@ export async function onRequestGet(context) {
   if (!res.ok) return json({ error: `Fonte MISE non disponibile (${res.status}).` }, 502);
 
   const text = await res.text();
-  const { diesel, benzina, campione } = mediaPrezzi(text);
+  const { diesel, benzina, campione, modalita } = mediaPrezzi(text);
   if (diesel == null || benzina == null) return json({ error: 'Dati MISE non interpretabili.' }, 502);
 
   const payload = {
     diesel: round3(diesel),
     benzina: round3(benzina),
-    fonte: 'MISE — Osservatorio Prezzi Carburanti',
+    fonte: `MISE — Osservatorio Prezzi Carburanti (${modalita})`,
     campione,
     aggiornatoAl: new Date().toISOString().slice(0, 10),
   };
@@ -51,13 +63,23 @@ export async function onRequestGet(context) {
 // righe con descCarburante ESATTAMENTE "Benzina" o "Gasolio", che sono i
 // carburanti standard usati dal parco mezzi CRI.
 //
+// Si contano SOLO le erogazioni self (quarta colonna, isSelf=1). Il file
+// elenca due righe per impianto, self e servito, con differenze grosse — a
+// campione: Benzina 2,159 self contro 2,519 servito. Mescolandole veniva
+// fuori una media che non corrisponde a nessun dato pubblicato dal Ministero
+// e che sovrastimava sistematicamente il costo del carburante nei preventivi,
+// visto che i mezzi CRI fanno rifornimento self. Se per un carburante non
+// risultasse nessuna riga self si ripiega sul campione completo, per non
+// restituire un errore al posto di un prezzo approssimato.
+//
 // Scansione manuale con indexOf invece di split('\n') + split('|') per riga:
 // il file ha ~90.000 righe (~4MB) e la versione con split() impiega circa
 // 50ms, oltre il limite di CPU time delle Function sul piano gratuito
 // Cloudflare (10ms). Questa versione, senza allocare un array per ogni riga,
 // gira in ~10ms.
 function mediaPrezzi(text) {
-  let sumD = 0, nD = 0, sumB = 0, nB = 0;
+  let sumD = 0, nD = 0, sumB = 0, nB = 0;          // solo self
+  let sumDx = 0, nDx = 0, sumBx = 0, nBx = 0;      // tutte le righe (ripiego)
   let pos = 0;
   const len = text.length;
   while (pos < len) {
@@ -73,16 +95,25 @@ function mediaPrezzi(text) {
     if (tipo === 'Gasolio' || tipo === 'Benzina') {
       const prezzo = parseFloat(text.slice(p2 + 1, p3));
       if (prezzo > 0) {
-        if (tipo === 'Gasolio') { sumD += prezzo; nD++; }
-        else { sumB += prezzo; nB++; }
+        const p4 = text.indexOf('|', p3 + 1);
+        const self = p4 !== -1 && p4 <= nl && text.slice(p3 + 1, p4).trim() === '1';
+        if (tipo === 'Gasolio') {
+          sumDx += prezzo; nDx++;
+          if (self) { sumD += prezzo; nD++; }
+        } else {
+          sumBx += prezzo; nBx++;
+          if (self) { sumB += prezzo; nB++; }
+        }
       }
     }
     pos = nl + 1;
   }
+  const soloSelf = nD > 0 && nB > 0;
   return {
-    diesel: nD > 0 ? sumD / nD : null,
-    benzina: nB > 0 ? sumB / nB : null,
-    campione: nD + nB,
+    diesel: soloSelf ? sumD / nD : (nDx > 0 ? sumDx / nDx : null),
+    benzina: soloSelf ? sumB / nB : (nBx > 0 ? sumBx / nBx : null),
+    campione: soloSelf ? nD + nB : nDx + nBx,
+    modalita: soloSelf ? 'self' : 'self e servito',
   };
 }
 

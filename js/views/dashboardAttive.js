@@ -228,22 +228,29 @@ export async function renderDashboardAttive(view, ctx) {
 
   // Vedi il commento gemello in dashboard.js: si ricaricano sempre sia il
   // sottoinsieme attivo sia, se il pannello è già aperto, l'archivio.
+  // Vedi il commento gemello in dashboard.js: un errore qui arriverebbe da
+  // `onClose` di un modale, dove nessuno aspetta la promise — senza catch
+  // restava un rifiuto non gestito e la tabella ferma ai dati vecchi.
   async function ricarica() {
-    const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
-    // Niente `let contaArchivio` qui: dichiararlo di nuovo mascherava quello
-    // esterno, che restava fermo al valore del primo caricamento.
-    [tutte, incassatoMese, incassatoAnno, contaArchivio] = await Promise.all([
-      fattureAttive.listAperte(),
-      incassi.sommaPeriodo(inizioMese, fineMese),
-      incassi.sommaPeriodo(inizioAnno, fineAnno),
-      fattureAttive.contaArchivio(),
-    ]);
-    // L'archivio va riletto se era già stato scaricato, non solo se il
-    // pannello è aperto: ricerca ed export lo usano anche a pannello chiuso.
-    if (archivioCaricato) { archivioCaricato = false; await caricaArchivio(); }
-    renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraIncassatoMese, incassatoMese, incassatoAnno);
-    renderAlertAttive(wrap.querySelector('#alert-zone'), tutte, giorniAllerta);
-    refreshTable();
+    try {
+      const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
+      // Niente `let contaArchivio` qui: dichiararlo di nuovo mascherava quello
+      // esterno, che restava fermo al valore del primo caricamento.
+      [tutte, incassatoMese, incassatoAnno, contaArchivio] = await Promise.all([
+        fattureAttive.listAperte(),
+        incassi.sommaPeriodo(inizioMese, fineMese),
+        incassi.sommaPeriodo(inizioAnno, fineAnno),
+        fattureAttive.contaArchivio(),
+      ]);
+      // L'archivio va riletto se era già stato scaricato, non solo se il
+      // pannello è aperto: ricerca ed export lo usano anche a pannello chiuso.
+      if (archivioCaricato) { archivioCaricato = false; await caricaArchivio(); }
+      renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraIncassatoMese, incassatoMese, incassatoAnno);
+      renderAlertAttive(wrap.querySelector('#alert-zone'), tutte, giorniAllerta);
+      refreshTable();
+    } catch (e) {
+      toast('Aggiornamento non riuscito: ' + e.message + ' — ricarica la pagina.', 'err');
+    }
   }
 
   // Un tocco manuale a un qualsiasi altro filtro esce dalle viste impostate

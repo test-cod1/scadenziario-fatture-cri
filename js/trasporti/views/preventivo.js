@@ -5,6 +5,7 @@ import { geocode, route, RoutingError } from '../lib/routing.js';
 import { prezzoRiferimento, paeseDaIso } from '../data/fuel-prices.js';
 import { stampaPreventivo } from '../lib/pdf.js';
 import { el, clear, esc, fmtEuro, fmtNum, fmtKm, fmtDate, toast, debounce, confirmDialog } from '../lib/ui.js';
+import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 
 export async function renderPreventivo(view, id, ctx) {
   const imp = ctx.imp;
@@ -74,6 +75,17 @@ export async function renderPreventivo(view, id, ctx) {
     <div class="summary"></div>
   </div>`);
   view.appendChild(editor);
+
+  // Il preventivo vive in memoria fino al clic su "Salva": uscendo prima si
+  // perde tutto. La sorveglianza c'era già nell'editor delle assistenze e
+  // nelle impostazioni, ma non qui — dove c'è da perdere di più (itinerario,
+  // km calcolati, voci). Un solo ascoltatore delegato sull'editor copre campi,
+  // tendine, interruttori e caselle: quello che sta fuori (i pulsanti in
+  // testata) non cambia dati.
+  let sporco = false;
+  const modificato = () => { sporco = true; armaGuardiaIndietro(); };
+  editor.addEventListener('input', modificato);
+  editor.addEventListener('change', modificato);
   const main = editor.querySelector('.col-main');
   const summaryCol = editor.querySelector('.summary');
 
@@ -258,6 +270,9 @@ export async function renderPreventivo(view, id, ctx) {
   initMedico();
   initSezioni();
   recalc();
+  // Dopo il primo disegno: queste chiamate scrivono nei campi da codice, che
+  // non fa scattare "input", quindi il preventivo non nasce già sporco.
+  sorvegliaUscita(editor, () => sporco);
 
   // ================================================================
   //  ITINERARIO
@@ -510,7 +525,9 @@ export async function renderPreventivo(view, id, ctx) {
     try {
       const saved = await preventivi.save(rec);
       toast('Preventivo salvato', 'ok');
+      sporco = false;   // salvato: uscendo non c'è più niente da perdere
       prev.id = saved.id;
+      prev.created_at = saved.created_at;
       ctx.go(`#/trasporti/preventivo/${saved.id}`);
     } catch (e) {
       toast('Errore nel salvataggio: ' + (e.message || e), 'err');

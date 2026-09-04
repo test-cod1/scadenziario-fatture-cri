@@ -252,24 +252,33 @@ export async function renderDashboard(view, ctx) {
   // rientrare fra le "aperte"): per questo si ricaricano sempre entrambi il
   // sottoinsieme attivo E, se il pannello è già aperto, l'archivio — non solo
   // quello da cui è partita la modifica.
+  // Un errore qui non va lasciato cadere: `ricarica` viene invocata dalla
+  // chiusura dei modali (`onClose`), dove nessuno aspetta la promise. Se la
+  // rete cadeva proprio in quel momento si aveva un rifiuto non gestito,
+  // nessun messaggio e la tabella ferma ai dati vecchi — che è esattamente
+  // l'aria di "il salvataggio non è andato a buon fine".
   async function ricarica() {
-    const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
-    // Niente `let contaArchivio` qui: dichiararlo di nuovo mascherava quello
-    // esterno, che restava fermo al valore del primo caricamento.
-    [tutte, pagatoMese, pagatoAnno, contaArchivio] = await Promise.all([
-      fatture.listAperte(),
-      pagamenti.sommaPeriodo(inizioMese, fineMese),
-      pagamenti.sommaPeriodo(inizioAnno, fineAnno),
-      fatture.contaArchivio(),
-    ]);
-    proposteInAttesa = await caricaProposteInAttesa();
-    // L'archivio va riletto se era già stato scaricato, non solo se il
-    // pannello è aperto: da quando ricerca ed export lo usano, può essere in
-    // memoria anche a pannello chiuso.
-    if (archivioCaricato) { archivioCaricato = false; await caricaArchivio(); }
-    renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraScadute, filtraInScadenza7, pagatoMese, pagatoAnno);
-    renderAlert(wrap.querySelector('#alert-zone'), tutte);
-    refreshTable();
+    try {
+      const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
+      // Niente `let contaArchivio` qui: dichiararlo di nuovo mascherava quello
+      // esterno, che restava fermo al valore del primo caricamento.
+      [tutte, pagatoMese, pagatoAnno, contaArchivio] = await Promise.all([
+        fatture.listAperte(),
+        pagamenti.sommaPeriodo(inizioMese, fineMese),
+        pagamenti.sommaPeriodo(inizioAnno, fineAnno),
+        fatture.contaArchivio(),
+      ]);
+      proposteInAttesa = await caricaProposteInAttesa();
+      // L'archivio va riletto se era già stato scaricato, non solo se il
+      // pannello è aperto: da quando ricerca ed export lo usano, può essere in
+      // memoria anche a pannello chiuso.
+      if (archivioCaricato) { archivioCaricato = false; await caricaArchivio(); }
+      renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraScadute, filtraInScadenza7, pagatoMese, pagatoAnno);
+      renderAlert(wrap.querySelector('#alert-zone'), tutte);
+      refreshTable();
+    } catch (e) {
+      toast('Aggiornamento non riuscito: ' + e.message + ' — ricarica la pagina.', 'err');
+    }
   }
 
   // Un tocco manuale a un qualsiasi altro filtro esce dalla vista "solo

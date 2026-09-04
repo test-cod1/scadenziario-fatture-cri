@@ -31,7 +31,10 @@ const ROUTES = {
   '/api/prezzo-eu': { GET: prezzoEuGet },
 };
 
-function conSicurezza(res) {
+// `cache` dice come regolare la memorizzazione della risposta:
+//   'asset' → si impone "no-cache" (vedi sotto)
+//   'api'   → si lascia quello che la function ha già deciso
+function conSicurezza(res, cache = 'asset') {
   const out = new Response(res.body, res);
   for (const [k, v] of Object.entries(HEADER_SICUREZZA)) out.headers.set(k, v);
   // Niente cache "silenziosa" su HTML/CSS/JS: senza questo, chi aveva già
@@ -41,7 +44,13 @@ function conSicurezza(res) {
   // aver controllato con una richiesta condizionale (ETag) se è ancora quello
   // giusto — quindi un deploy nuovo si vede subito, senza perdere la velocità
   // della cache quando il file non è cambiato.
-  out.headers.set('Cache-Control', 'no-cache');
+  //
+  // Le risposte delle /api/* sono l'eccezione, e prima non lo erano: le
+  // function dichiarano "no-store" apposta, e sovrascriverlo qui rendeva
+  // memorizzabile su disco anche la risposta di /api/crea-utente, che contiene
+  // la password provvisoria in chiaro. Chi invece vuole essere messo in cache
+  // (i prezzi carburante, col loro max-age) continua a dirlo da sé.
+  if (cache === 'asset') out.headers.set('Cache-Control', 'no-cache');
   return out;
 }
 
@@ -56,8 +65,8 @@ export default {
     if (route && !route[request.method]) {
       return conSicurezza(new Response(
         JSON.stringify({ error: 'Metodo non ammesso.' }),
-        { status: 405, headers: { 'Content-Type': 'application/json', Allow: Object.keys(route).join(', ') } },
-      ));
+        { status: 405, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store', Allow: Object.keys(route).join(', ') } },
+      ), 'api');
     }
     if (route && route[request.method]) {
       // `waitUntil` va passato anche in cima al contesto, non solo dentro
@@ -65,7 +74,7 @@ export default {
       // context.waitUntil(...) — /api/prezzo-italia lo usa per salvare la
       // risposta nella cache edge, e senza andava in eccezione (error 1101).
       const contesto = { request, env, ctx, waitUntil: (p) => ctx.waitUntil(p) };
-      return conSicurezza(await route[request.method](contesto));
+      return conSicurezza(await route[request.method](contesto), 'api');
     }
     return conSicurezza(await env.ASSETS.fetch(request));
   },

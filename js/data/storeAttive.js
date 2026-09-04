@@ -116,7 +116,10 @@ export const fattureAttive = {
     const { data, error } = await sb.from("fatture_attive")
       .select("id, cliente, numero_fattura, data_fattura, importo")
       .ilike("numero_fattura", numero_fattura.trim().replace(/[%_]/g, m => '\\' + m))
-      .limit(20);
+      // Vedi il commento gemello in store.js: con .limit(20) il duplicato vero
+      // poteva restare fuori dalle righe scaricate e l'avviso non compariva.
+      .order("id", { ascending: true })
+      .limit(1000);
     if (error) throw error;
     const cercato = norm(cliente);
     return (data || []).find(f => f.id !== escludiId && norm(f.numero_fattura) === norm(numero_fattura) && norm(f.cliente) === cercato) || null;

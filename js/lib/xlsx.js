@@ -14,6 +14,16 @@
 
 import { creaZip } from './zip.js';
 
+// Testo -> byte, che è la forma in cui creaZip vuole il contenuto dei file.
+// Questo helper è rimasto indietro quando lo zip è stato spostato in zip.js:
+// là dentro `u8` c'è ma è privato del modulo (non esportato), e qui le sei
+// chiamate in buildXlsxBlob continuavano a usarlo come se fosse ancora in
+// questo file. Risultato: "u8 is not defined" alla prima riga di
+// buildXlsxBlob, cioè l'export Excel non produceva NIENTE — né per le fatture
+// passive né per le attive — e la dashboard mostrava soltanto un messaggio di
+// errore tecnico. Come in docx.js, l'helper resta locale al file che lo usa.
+const u8 = (s) => new TextEncoder().encode(s);
+
 function escXml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
 
 function letteraColonna(i) {

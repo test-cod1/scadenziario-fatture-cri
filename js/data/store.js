@@ -69,15 +69,11 @@ export const auth = {
     const { error } = await sb.auth.updateUser({ password: nuovaPassword });
     if (error) throw error;
   },
-  // Azzera il flag "password provvisoria" sul proprio profilo: la policy
-  // prof_update_self lo consente perché non tocca il ruolo.
-  async confermaPasswordImpostata() {
-    const sb = await sbClient();
-    const { data: u } = await sb.auth.getUser();
-    if (!u?.user) return;
-    const { error } = await sb.from('profili').update({ deve_cambiare_password: false }).eq('id', u.user.id);
-    if (error) throw error;
-  },
+  // Nessun confermaPasswordImpostata(): il flag "password provvisoria" lo
+  // spegne un trigger del database quando l'hash della password cambia
+  // davvero (on_auth_password_changed). Azzerarlo da qui significava
+  // lasciarlo scrivere al client, e quindi permettere di saltare l'obbligo
+  // con una PATCH senza mai cambiare password — vedi schema.sql.
 };
 
 // ---------------------------------------------------------------
@@ -270,7 +266,13 @@ export const fatture = {
     const { data, error } = await sb.from("fatture")
       .select("id, fornitore, numero_fattura, data_fattura, importo")
       .ilike("numero_fattura", numero_fattura.trim().replace(/[%_]/g, m => '\\' + m))
-      .limit(20);
+      // Il limite era 20, e su una numerazione ordinaria non bastava: i
+      // fornitori piccoli numerano le fatture 1, 2, 3…, quindi le righe con
+      // lo stesso numero sono facilmente decine e il duplicato vero poteva
+      // restare fuori dalle prime 20 (che oltretutto non erano ordinate).
+      // L'avviso non compariva proprio nei casi in cui serve di più.
+      .order("id", { ascending: true })
+      .limit(1000);
     if (error) throw error;
     const cercato = norm(fornitore);
     return (data || []).find(f => f.id !== escludiId && norm(f.numero_fattura) === norm(numero_fattura) && norm(f.fornitore) === cercato) || null;
@@ -386,14 +388,24 @@ export const pagamenti = {
     const { data, error } = await sb.from('pagamenti').insert(payload).select().single();
     if (error) throw error;
     // Un pagamento registrato direttamente (fuori dal flusso "conferma
-    // proposta", es. dal pagamento rapido) chiude comunque ogni proposta
-    // ancora in attesa per la stessa fattura: senza questo, resterebbero
-    // bloccate e riconfermabili in seguito, con un secondo pagamento
-    // duplicato come conseguenza.
-    await sb.from('proposte_pagamento')
-      .update({ stato: 'confermata', pagamento_id: data.id, decisa_da: u?.user?.id, decisa_da_nome: decisore?.nome || null, decisa_il: new Date().toISOString() })
-      .eq('fattura_id', fatturaId)
-      .eq('stato', 'proposta');
+    // proposta", es. dal pagamento rapido) chiude la proposta ancora in attesa
+    // per quella fattura: senza, resterebbe bloccata e riconfermabile in
+    // seguito, con un secondo pagamento duplicato come conseguenza.
+    //
+    // Ma solo se ce n'è UNA. L'app permette di proposito più proposte
+    // pendenti sulla stessa fattura (due acconti proposti separatamente: vedi
+    // contaInAttesaPerFattura, che avvisa senza bloccare), e chiuderle tutte
+    // insieme faceva sparire il secondo acconto come se fosse stato pagato.
+    // Con più proposte aperte non si può indovinare quale sia stata pagata:
+    // restano dove sono, e l'admin decide dalla pagina "Proposte".
+    const { data: pendenti } = await sb.from('proposte_pagamento')
+      .select('id').eq('fattura_id', fatturaId).eq('stato', 'proposta');
+    if (pendenti?.length === 1) {
+      await sb.from('proposte_pagamento')
+        .update({ stato: 'confermata', pagamento_id: data.id, decisa_da: u?.user?.id, decisa_da_nome: decisore?.nome || null, decisa_il: new Date().toISOString() })
+        .eq('id', pendenti[0].id)
+        .eq('stato', 'proposta');
+    }
     return data;
   },
   async remove(id) {

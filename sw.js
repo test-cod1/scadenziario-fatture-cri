@@ -42,8 +42,18 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     fetch(request)
       .then((response) => {
-        const copy = response.clone();
-        caches.open(CACHE_NAME).then((cache) => cache.put(request, copy));
+        // Si mette in cache SOLO una risposta buona. Prima ci finiva
+        // qualunque cosa: un 404 o un 500 passeggero veniva salvato e poi
+        // riproposto come "versione offline" per sempre, cioè la pagina
+        // rotta invece di quella giusta. Anche cache.put andava in errore
+        // sulle risposte parziali (206), e il rifiuto non era gestito da
+        // nessuno.
+        if (response.ok && response.status === 200 && response.type === 'basic') {
+          const copy = response.clone();
+          caches.open(CACHE_NAME)
+            .then((cache) => cache.put(request, copy))
+            .catch(() => { /* quota piena o risposta non memorizzabile: pazienza */ });
+        }
         return response;
       })
       .catch(async () => {

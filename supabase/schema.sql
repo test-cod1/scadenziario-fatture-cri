@@ -38,6 +38,26 @@ create trigger on_auth_user_created
   after insert on auth.users
   for each row execute procedure public.handle_new_user();
 
+-- Il flag "deve cambiare password" si spegne QUI, guardando la password vera,
+-- e non su richiesta del client: prima lo azzerava l'app subito dopo il
+-- cambio, ma la policy prof_update_self lasciava scrivere quella colonna a
+-- chiunque sulla propria riga — bastava una PATCH per saltare l'obbligo
+-- continuando a usare la password provvisoria comunicata dall'admin. Con il
+-- trigger il flag cade solo quando l'hash della password cambia davvero.
+create or replace function public.handle_password_changed()
+returns trigger language plpgsql security definer as $$
+begin
+  if new.encrypted_password is distinct from old.encrypted_password then
+    update public.profili set deve_cambiare_password = false where id = new.id;
+  end if;
+  return new;
+end; $$;
+
+drop trigger if exists on_auth_password_changed on auth.users;
+create trigger on_auth_password_changed
+  after update of encrypted_password on auth.users
+  for each row execute procedure public.handle_password_changed();
+
 -- ---------- SEZIONI DEL PORTALE ----------
 -- L'elenco sta a database (e non solo nel codice) perche' le autorizzazioni vi
 -- fanno riferimento con una chiave esterna: una sezione scritta male in un
@@ -443,20 +463,38 @@ drop policy if exists prof_self on public.profili;
 create policy prof_self on public.profili for select using (id = auth.uid());
 drop policy if exists prof_admin_read on public.profili;
 create policy prof_admin_read on public.profili for select using (public.e_super_admin());
+-- Ciascuno corregge il proprio nome, ma non si tocca né il ruolo di portale né
+-- il flag della password provvisoria: quest'ultimo lo spegne il trigger
+-- on_auth_password_changed quando la password cambia sul serio (vedi sopra),
+-- perché lasciarlo scrivere al client rendeva l'obbligo aggirabile con una
+-- semplice PATCH.
 drop policy if exists prof_update_self on public.profili;
 create policy prof_update_self on public.profili for update
   using (id = auth.uid())
-  with check (id = auth.uid() and ruolo = (select p.ruolo from public.profili p where p.id = auth.uid()));
+  with check (id = auth.uid() and (ruolo, deve_cambiare_password) = (
+    select p.ruolo, p.deve_cambiare_password from public.profili p where p.id = auth.uid()));
 -- Il super admin gestisce i profili dei colleghi dall'app (Impostazioni >
 -- Utenti e autorizzazioni): abilitare chi è rimasto 'in_attesa', correggere un
 -- nome. Non può però togliersi da solo il ruolo di super admin: senza questa
 -- rete di sicurezza un clic distratto sull'ultimo super admin chiudeva fuori
 -- tutti dalla gestione utenti, e si tornava per forza all'SQL Editor di
 -- Supabase.
+-- ...e non può nemmeno NOMINARE un altro super admin: il README lo dava già
+-- per scontato ("quel ruolo si assegna solo dal database, altrimenti chi
+-- gestisce gli utenti potrebbe auto-promuoversi"), ma la policy controllava
+-- solo il caso dell'auto-declassamento — bastava una chiamata REST per
+-- promuovere un complice, o sé stessi passando per un secondo account.
+-- Conseguenza voluta: sulla riga di un altro super admin questa policy non
+-- lascia passare alcun update, nemmeno del nome. Va bene: l'app non ne
+-- propone (quelle righe non hanno né tendine né pulsante Sospendi) e un
+-- ruolo che si assegna solo dall'SQL Editor si corregge nello stesso posto.
 drop policy if exists prof_admin_update on public.profili;
 create policy prof_admin_update on public.profili for update
   using (public.e_super_admin())
-  with check (public.e_super_admin() and (id <> auth.uid() or ruolo = 'super_admin'));
+  with check (public.e_super_admin() and case
+    when id = auth.uid() then ruolo = 'super_admin'   -- non ci si declassa da soli
+    else ruolo <> 'super_admin'                        -- non si promuove nessuno
+  end);
 
 -- Le sezioni non sono un dato riservato (sono gli stessi nomi che si leggono
 -- in home): l'elenco serve a chiunque abbia fatto il login per disegnare il
@@ -961,6 +999,15 @@ drop policy if exists prev_ass_write on public.preventivi_assistenze;
 create policy prev_ass_write on public.preventivi_assistenze for all
   using (public.accede_a('assistenze')) with check (public.accede_a('assistenze'));
 
+-- Tariffario e testi del documento li modifica chiunque abbia accesso alla
+-- sezione, operatori compresi: sono i parametri con cui si fanno i preventivi
+-- tutti i giorni, non una configurazione di sistema — stessa scelta fatta per
+-- le impostazioni dei trasporti, e diversa da quelle dello SCADENZIARIO (dove
+-- servono i permessi di admin). E' voluto, ma non era scritto da nessuna
+-- parte: se un domani il tariffario deve diventare materia da soli admin,
+-- basta sostituire accede_a('assistenze') con e_admin_sezione('assistenze')
+-- nella policy di scrittura qui sotto e aggiungere il controllo del ruolo in
+-- js/assistenze/views/impostazioni.js.
 drop policy if exists imp_ass_read on public.impostazioni_assistenze;
 create policy imp_ass_read on public.impostazioni_assistenze for select using (public.accede_a('assistenze'));
 drop policy if exists imp_ass_write on public.impostazioni_assistenze;

@@ -261,12 +261,17 @@ async function route() {
   if (primo === 'home' || primo === 'portale') {
     const sub = primo === 'portale' ? (resto[0] || 'utenti') : 'home';
     disegnaNav(null, null, sub);
+    // Stesso motivo delle sezioni (vedi più sotto): la vista disegna in un
+    // contenitore suo, così se nel frattempo si passa altrove il suo lavoro
+    // finisce in un nodo ormai staccato invece che sopra la pagina nuova.
     clear(view);
+    const zona = el('<div class="vista"></div>');
+    view.appendChild(zona);
     const ctx = { user: currentUser, go: (h) => { location.hash = h; } };
     try {
-      if (primo === 'portale') await renderPortaleUtenti(view, ctx);
-      else await renderHome(view, ctx);
-    } catch (e) { mostraErrore(view, e); }
+      if (primo === 'portale') await renderPortaleUtenti(zona, ctx);
+      else await renderHome(zona, ctx);
+    } catch (e) { if (my === _routeSeq) mostraErrore(zona, e); }
     return;
   }
 
@@ -290,51 +295,66 @@ async function route() {
   // #/trasporti/preventivo/<id>.
   const param = sezione.id === 'scadenziario' ? null : (resto[1] || null);
   disegnaNav(sezione.id, sottoSezione, sub);
-  svuotaConRitorno(view, sezione);
 
   // Le viste dello scadenziario (e quelle che verranno) leggono ctx.user.ruolo
   // aspettandosi 'admin' o 'operatore': qui `ruolo` è già quello DELLA
   // SEZIONE, non quello di portale, così non devono sapere nulla del resto.
   const ctx = { user: { ...currentUser, ruolo }, ruoloSezione: ruolo, go: (h) => { location.hash = h; } };
 
-  view.appendChild(el('<div class="spinner" style="margin-top:60px"></div>'));
+  // Ogni rotta disegna dentro un contenitore TUTTO SUO, creato adesso da
+  // svuotaConRitorno. Prima le viste scrivevano direttamente in #view, che il
+  // router riempie e svuota ma non sostituisce mai: cambiando sezione mentre
+  // una vista lenta stava ancora caricando i suoi dati, quella finiva per
+  // attaccare il proprio contenuto sotto la pagina già disegnata da quella
+  // nuova, e in pagina si vedevano due sezioni mescolate. Adesso la rotta
+  // successiva svuota #view, e con esso stacca il contenitore della
+  // precedente: quello che la vista superata disegna finisce in un nodo che
+  // non è più nel documento, e non si vede.
+  let zona = svuotaConRitorno(view, sezione);
+  zona.appendChild(el('<div class="spinner" style="margin-top:60px"></div>'));
+  const sorpassata = () => my !== _routeSeq;
+  const disegna = async (fn) => {
+    if (sorpassata()) return;
+    zona = svuotaConRitorno(view, sezione);
+    await fn(zona);
+  };
   try {
-    if (my !== _routeSeq) return;
-    svuotaConRitorno(view, sezione);
-    if (sezione.tipo === 'esterna') { await renderSezioneEsterna(view, ctx, sezione); return; }
+    if (sezione.tipo === 'esterna') return await disegna(z => renderSezioneEsterna(z, ctx, sezione));
     // La sezione trasporti si carica solo quando la si apre: porta con sé il
     // calcolo dei preventivi, la tabella dei prezzi carburante europei e la
     // stampa, che non servono a chi entra solo nello scadenziario.
     if (sezione.id === 'trasporti') {
       const { renderTrasporti } = await import('./trasporti/sezione.js');
-      await renderTrasporti(view, ctx, sub, param);
-      return;
+      return await disegna(z => renderTrasporti(z, ctx, sub, param));
     }
     if (sezione.id === 'assistenze') {
       const { renderAssistenze } = await import('./assistenze/sezione.js');
-      await renderAssistenze(view, ctx, sub, param);
-      return;
+      return await disegna(z => renderAssistenze(z, ctx, sub, param));
     }
-    if (sezione.id !== 'scadenziario') { await renderSezioneVuota(view, ctx, sezione); return; }
+    if (sezione.id !== 'scadenziario') return await disegna(z => renderSezioneVuota(z, ctx, sezione));
 
-    if (sub === 'impostazioni') await renderImpostazioni(view, ctx);
+    if (sub === 'impostazioni') await disegna(z => renderImpostazioni(z, ctx));
     else if (sottoSezione === 'attive') {
-      if (sub === 'report') await renderReportAttive(view, ctx);
-      else await renderDashboardAttive(view, ctx);
+      if (sub === 'report') await disegna(z => renderReportAttive(z, ctx));
+      else await disegna(z => renderDashboardAttive(z, ctx));
     }
-    else if (sub === 'report') await renderReport(view, ctx);
-    else if (sub === 'proposte') await renderProposte(view, ctx);
-    else await renderDashboard(view, ctx);
+    else if (sub === 'report') await disegna(z => renderReport(z, ctx));
+    else if (sub === 'proposte') await disegna(z => renderProposte(z, ctx));
+    else await disegna(z => renderDashboard(z, ctx));
   } catch (e) {
-    mostraErrore(view, e);
+    // L'errore di una rotta ormai superata non deve cancellare la pagina che
+    // l'utente sta già guardando.
+    if (!sorpassata()) mostraErrore(zona, e);
   }
 }
 
-// Svuota la pagina e vi rimette in cima la riga con il ritorno alla home:
-// dentro una sezione, la voce "Home" nel menu laterale non basta a far
-// capire che si può tornare alla scelta delle sezioni (e sul telefono quel
-// menu è pure sostituito da quello della sezione), così il modo per uscire
-// sta dove si sta guardando.
+// Svuota la pagina, vi rimette in cima la riga con il ritorno alla home e
+// restituisce il contenitore in cui la vista deve disegnare. Dentro una
+// sezione, la voce "Home" nel menu laterale non basta a far capire che si può
+// tornare alla scelta delle sezioni (e sul telefono quel menu è pure
+// sostituito da quello della sezione), così il modo per uscire sta dove si sta
+// guardando — e va tenuto fuori dal contenitore della vista, altrimenti una
+// vista che si ridisegna svuotandosi se lo porterebbe via.
 function svuotaConRitorno(view, sezione) {
   clear(view);
   view.appendChild(el(`<div class="sez-crumb">
@@ -342,6 +362,9 @@ function svuotaConRitorno(view, sezione) {
     <span class="sep">/</span>
     <b>${esc(sezione.label)}</b>
   </div>`));
+  const zona = el('<div class="vista"></div>');
+  view.appendChild(zona);
+  return zona;
 }
 
 function mostraErrore(view, e) {

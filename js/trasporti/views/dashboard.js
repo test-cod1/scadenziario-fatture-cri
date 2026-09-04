@@ -13,21 +13,28 @@ export async function renderDashboard(view, ctx) {
   </div>`);
   view.appendChild(head);
 
-  // stats
-  const totAddebito = list.reduce((s, p) => s + (p.risultato?.addebito || 0), 0);
-  const totMargine = list.reduce((s, p) => s + (p.risultato?.margine || 0), 0);
-  const stats = el(`<div class="grid stats" style="margin-bottom:22px">
-    <div class="stat accent"><div class="k">Preventivi</div><div class="v">${list.length}</div><div class="s">in archivio</div></div>
-    <div class="stat"><div class="k">Valore totale (addebito)</div><div class="v">${fmtEuro(totAddebito)}</div></div>
-    <div class="stat"><div class="k">Margine stimato totale</div><div class="v">${fmtEuro(totMargine)}</div></div>
-  </div>`);
+  // Statistiche e stato "nessun preventivo" si ridisegnano: dopo
+  // un'eliminazione la pagina si aggiorna sul posto invece di essere rifatta
+  // da capo. Prima il pulsante 🗑️ richiamava renderDashboard() sullo stesso
+  // contenitore, che però non fa clear(view) (lo svuota il router): il
+  // risultato era intestazione, statistiche, ricerca e tabella disegnate DUE
+  // volte una sotto l'altra.
+  const stats = el('<div class="grid stats" style="margin-bottom:22px"></div>');
   view.appendChild(stats);
-
-  if (!list.length) {
-    view.appendChild(el(`<div class="empty-state"><div class="big">📋</div>
-      <p>Nessun preventivo ancora.<br>Creane uno con "Nuovo preventivo".</p></div>`));
-    return;
+  function disegnaStats() {
+    const totAddebito = list.reduce((s, p) => s + (p.risultato?.addebito || 0), 0);
+    const totMargine = list.reduce((s, p) => s + (p.risultato?.margine || 0), 0);
+    clear(stats);
+    stats.append(
+      el(`<div class="stat accent"><div class="k">Preventivi</div><div class="v">${list.length}</div><div class="s">in archivio</div></div>`),
+      el(`<div class="stat"><div class="k">Valore totale (addebito)</div><div class="v">${fmtEuro(totAddebito)}</div></div>`),
+      el(`<div class="stat"><div class="k">Margine stimato totale</div><div class="v">${fmtEuro(totMargine)}</div></div>`),
+    );
   }
+
+  const vuoto = el(`<div class="empty-state" hidden><div class="big">📋</div>
+    <p>Nessun preventivo ancora.<br>Creane uno con "Nuovo preventivo".</p></div>`);
+  view.appendChild(vuoto);
 
   // toolbar
   const toolbar = el(`<div class="toolbar">
@@ -45,6 +52,13 @@ export async function renderDashboard(view, ctx) {
   const tbody = card.querySelector('tbody');
 
   function draw() {
+    disegnaStats();
+    // Con l'archivio vuoto (o svuotato eliminando l'ultimo preventivo) si
+    // mostra l'invito a crearne uno al posto di ricerca e tabella.
+    vuoto.hidden = list.length > 0;
+    toolbar.hidden = card.hidden = list.length === 0;
+    if (!list.length) return;
+
     const q = toolbar.querySelector('#q').value.toLowerCase().trim();
     clear(tbody);
     const filtered = list.filter(p => {
@@ -75,11 +89,16 @@ export async function renderDashboard(view, ctx) {
       });
       tr.querySelector('[data-pdf]').addEventListener('click', () => stampaPreventivo(p, ctx.imp));
       tr.querySelector('[data-del]').addEventListener('click', async () => {
-        if (await confirmDialog(`Eliminare il preventivo "${p.titolo || 'senza titolo'}"?`, { danger: true, okLabel: 'Elimina' })) {
+        if (!await confirmDialog(`Eliminare il preventivo "${p.titolo || 'senza titolo'}"?`, { danger: true, okLabel: 'Elimina' })) return;
+        try {
           await preventivi.remove(p.id);
-          toast('Preventivo eliminato', 'ok');
-          renderDashboard(view, ctx);
-        }
+        } catch (e) { toast('Eliminazione non riuscita: ' + e.message, 'err'); return; }
+        // Si toglie la riga dall'elenco già in memoria e si ridisegna: senza
+        // rifare la pagina, e quindi senza duplicarla (vedi disegnaStats).
+        const i = list.indexOf(p);
+        if (i >= 0) list.splice(i, 1);
+        toast('Preventivo eliminato', 'ok');
+        draw();
       });
       tbody.appendChild(tr);
     }

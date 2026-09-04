@@ -83,7 +83,14 @@ export function paeseDaIso(paese, tabella = FUEL_PRICES) {
 // silenzio e restano i valori di riferimento correnti.
 export async function fetchPrezzoItaliaLive() {
   try {
-    const res = await fetch(CONFIG.api.prezzoItalia);
+    // L'endpoint ora chiede di essere autenticati e autorizzati ai trasporti,
+    // come gli altri /api/* della sezione: senza il token risponderebbe 401 e
+    // resterebbero i prezzi di riferimento salvati.
+    const { getAccessToken } = await import('../../lib/supabase.js');
+    const token = await getAccessToken();
+    const res = await fetch(CONFIG.api.prezzoItalia, {
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
     if (!res.ok) return null;
     const data = await res.json();
     if (!Number.isFinite(data.diesel) || !Number.isFinite(data.benzina)) return null;

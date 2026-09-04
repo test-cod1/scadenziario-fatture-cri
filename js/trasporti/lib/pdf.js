@@ -77,7 +77,12 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
     <div>
       <h2>Dati servizio</h2>
       <table>
-        <tr><td class="muted">Km totali</td><td>${num(inp.kmTotali)} km${inp.andata_ritorno === false ? ' (sola andata)' : ' (a/r)'}</td></tr>
+        <!-- andata_ritorno sta su prev (è una colonna sua), non dentro
+             prev.input: leggendolo da inp era sempre undefined e il documento
+             consegnato al cliente diceva "(a/r)" anche per una sola andata,
+             mentre l'itinerario qui accanto — che lo legge dal posto giusto —
+             non riportava il rientro. -->
+        <tr><td class="muted">Km totali</td><td>${num(inp.kmTotali)} km${prev.andata_ritorno === false ? ' (sola andata)' : ' (a/r)'}</td></tr>
         <tr><td class="muted">Mezzo</td><td>${esc(mezzoNome(inp, imp))} · ${num(r.consumo, 1)} km/l · ${esc(inp.alimentazione || '')}</td></tr>
         <tr><td class="muted">Equipaggio</td><td>${num(inp.persone)} persone</td></tr>
         ${inp.notti ? `<tr><td class="muted">Pernottamento</td><td>${num(inp.notti)} notti</td></tr>` : ''}
@@ -117,7 +122,6 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
     Preventivo indicativo. I prezzi del carburante sono medie nazionali di riferimento e possono variare.
     Documento generato il ${new Date().toLocaleString('it-IT')}.
   </div>
-  <script>window.onload = () => { window.print(); };</script>
 </body></html>`;
 
   const w = window.open('', '_blank');
@@ -125,6 +129,16 @@ export function stampaPreventivo(prev, imp, { intestazione } = {}) {
   w.document.open();
   w.document.write(html);
   w.document.close();
+  // La stampa si lancia da qui e NON da uno <script> dentro la pagina
+  // generata: la finestra aperta con window.open('') eredita la Content
+  // Security Policy del portale, che non esegue script inline — quel
+  // `<script>window.onload = () => window.print()</script>` veniva bloccato in
+  // silenzio e la finestra di stampa non si apriva mai. È lo stesso
+  // accorgimento già preso in js/lib/export.js e nella stampa delle
+  // assistenze; qui era rimasto indietro.
+  const avvia = () => { try { w.focus(); w.print(); } catch { /* finestra chiusa dall'utente */ } };
+  if (w.document.readyState === 'complete') setTimeout(avvia, 300);
+  else w.addEventListener('load', () => setTimeout(avvia, 300));
 }
 
 function mezzoNome(inp, imp) {

@@ -23,11 +23,24 @@ const nowISO = () => new Date().toISOString();
 async function sbClient() { const { getSupabase } = await import('../../lib/supabase.js'); return getSupabase(); }
 
 export const preventivi = {
+  // Vedi il commento gemello in js/data/store.js: PostgREST tronca ogni
+  // risposta a 1000 righe, e senza paginazione l'elenco mostrava in silenzio
+  // solo i primi 1000 preventivi, con le statistiche in testata (confermati,
+  // valore totale) più basse del vero e nessun errore a segnalarlo.
   async list() {
     const sb = await sbClient();
-    const { data, error } = await sb.from('preventivi_assistenze').select('*').order('created_at', { ascending: false });
-    if (error) throw error;
-    return data;
+    const BLOCCO = 1000;
+    const tutti = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from('preventivi_assistenze').select('*')
+        .order('created_at', { ascending: false })
+        .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutti.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutti;
   },
   async get(id) {
     const sb = await sbClient();
@@ -85,17 +98,28 @@ export const preventivi = {
 export const clienti = {
   async elenco() {
     const sb = await sbClient();
-    const { data, error } = await sb.from('preventivi_assistenze')
-      .select('cliente,cliente_cf,cliente_indirizzo,referente,referente_email,referente_telefono,data_documento')
-      .not('cliente', 'is', null)
-      .order('data_documento', { ascending: false, nullsFirst: false })
-      .limit(1000);
-    if (error) throw error;
+    // Si scorre a blocchi come le altre letture del portale: il vecchio
+    // .limit(1000) tagliava fuori i clienti più datati appena l'archivio
+    // superava quella soglia, e il completamento smetteva di proporli senza
+    // che si potesse capire perché.
+    const BLOCCO = 1000;
+    const righe = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from('preventivi_assistenze')
+        .select('cliente,cliente_cf,cliente_indirizzo,referente,referente_email,referente_telefono,data_documento')
+        .not('cliente', 'is', null)
+        .order('data_documento', { ascending: false, nullsFirst: false })
+        .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      righe.push(...data);
+      if (data.length < BLOCCO) break;
+    }
 
     // Un cliente per nome, con i dati del preventivo più recente: se
     // l'indirizzo è cambiato, quello vecchio non deve tornare a galla.
     const visti = new Map();
-    for (const r of data) {
+    for (const r of righe) {
       const nome = (r.cliente || '').trim();
       if (!nome) continue;
       const chiave = nome.toLowerCase();

@@ -3,6 +3,7 @@ import { DEFAULT_IMPOSTAZIONI } from '../calc.js';
 import { FUEL_PRICES, FUEL_DATA_DATE } from '../data/fuel-prices.js';
 import { getAccessToken } from '../../lib/supabase.js';
 import { el, clear, esc, toast, fmtNum, fmtDate } from '../lib/ui.js';
+import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 
 // Paesi UE coperti da /api/prezzo-eu (Weekly Oil Bulletin): gli altri restano
 // modificabili solo a mano, non esiste una fonte gratuita equivalente.
@@ -17,14 +18,37 @@ export async function renderImpostazioni(view, ctx) {
   const imp = structuredClone(ctx.imp);
   const prezzi = structuredClone(imp.prezziCustom || FUEL_PRICES);
 
-  view.appendChild(el(`<div class="page-head">
+  // Tutta la pagina dentro un contenitore suo, come nelle impostazioni delle
+  // assistenze: serve alla sorveglianza dell'uscita qui sotto, che riconosce
+  // l'editor ancora in pagina dal fatto che il SUO nodo è ancora attaccato al
+  // documento (il contenitore del router non lo sarebbe mai).
+  const pagina = el('<div></div>');
+  view.appendChild(pagina);
+
+  // Anche qui si lavora su una copia in memoria (structuredClone) fino al clic
+  // su "Salva": senza sorveglianza, cambiare il parco mezzi, le tariffe o i
+  // prezzi carburante e passare a un preventivo buttava via tutto in silenzio.
+  // Un solo ascoltatore delegato copre campi, tendine e tabella dei prezzi.
+  let sporco = false;
+  const modificato = (e) => {
+    // Il filtro "Paese" della tabella prezzi non è un dato da salvare: senza
+    // questa eccezione, scriverci dentro faceva chiedere conferma all'uscita
+    // di una pagina in cui non si era cambiato nulla.
+    if (e?.target?.id === 'qfuel') return;
+    sporco = true;
+    armaGuardiaIndietro();
+  };
+  pagina.addEventListener('input', modificato);
+  pagina.addEventListener('change', modificato);
+
+  pagina.appendChild(el(`<div class="page-head">
     <div><h1>Impostazioni</h1><p>Parametri di calcolo, parco mezzi e prezzi carburante di riferimento</p></div>
     <button class="btn primary" id="save">💾 Salva impostazioni</button>
   </div>`));
 
   // ---------- Parco mezzi ----------
   const cMezzi = card('Parco mezzi e consumi', '<div id="mezzi"></div><button class="btn sm" id="add-mezzo" type="button">➕ Aggiungi mezzo</button>');
-  view.appendChild(cMezzi);
+  pagina.appendChild(cMezzi);
   const mezziBox = cMezzi.querySelector('#mezzi');
   // Campi etichettati su .form-row.three invece di una griglia a colonne fisse
   // in pixel: su schermi stretti (telefono) si impila automaticamente con la
@@ -75,7 +99,7 @@ export async function renderImpostazioni(view, ctx) {
       <div class="field"><label>Infermiere: tariffa oraria (€/h)</label><input type="number" step="0.5" id="infermiereTariffaOraria" value="${imp.infermiereTariffaOraria}">
         <div class="hint">Stesso principio del medico: totale = ore stimate × tariffa, sempre modificabile.</div></div>
     </div>`);
-  view.appendChild(cPar);
+  pagina.appendChild(cPar);
   cPar.querySelector('#pastoCosto').addEventListener('input', e => imp.pastoCosto = Number(e.target.value) || 0);
   cPar.querySelector('#tariffaKm').addEventListener('input', e => imp.tariffaKm = Number(e.target.value) || 0);
   cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = Number(e.target.value) || 0);
@@ -90,7 +114,7 @@ export async function renderImpostazioni(view, ctx) {
     </div><button class="btn sm" id="update-eu" type="button" style="flex:none;align-self:center">🇪🇺 Aggiorna prezzi UE</button></div>
     <div class="toolbar"><div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="qfuel" placeholder="Filtra Paese…"></div></div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Paese</th><th>Gasolio €/l</th><th>Benzina €/l</th></tr></thead><tbody id="fuel-body"></tbody></table></div>`);
-  view.appendChild(cFuel);
+  pagina.appendChild(cFuel);
   const fuelBody = cFuel.querySelector('#fuel-body');
   function drawFuel() {
     const q = cFuel.querySelector('#qfuel').value.toLowerCase().trim();
@@ -145,18 +169,21 @@ export async function renderImpostazioni(view, ctx) {
   });
 
   // ---------- salvataggio ----------
-  view.querySelector('#save').addEventListener('click', async () => {
-    const btn = view.querySelector('#save'); const old = btn.innerHTML;
+  pagina.querySelector('#save').addEventListener('click', async () => {
+    const btn = pagina.querySelector('#save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvo…';
     try {
       imp.prezziCustom = prezzi;
       await impostazioni.save(imp);
       await ctx.reloadImp();
+      sporco = false;
       toast('Impostazioni salvate', 'ok');
     } catch (e) {
       toast('Errore: ' + (e.message || e), 'err'); console.error(e);
     } finally { btn.disabled = false; btn.innerHTML = old; }
   });
+
+  sorvegliaUscita(pagina, () => sporco);
 
   function card(title, bodyHtml) {
     return el(`<div class="card" style="margin-bottom:18px"><div class="card-h">${esc(title)}</div><div class="card-b">${bodyHtml}</div></div>`);
