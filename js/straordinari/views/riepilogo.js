@@ -63,7 +63,7 @@ export async function renderRiepilogo(view, ctx) {
       <div class="stat"><div class="k">Recuperi</div><div class="v">${esc(fmtOre(t.recuperi))}</div>
         <div class="s">ore restituite</div></div>
       <div class="stat accent"><div class="k">Saldo del mese</div><div class="v">${esc(fmtOre(t.saldo, { segno: true }))}</div>
-        <div class="s">da riconoscere agli dipendenti</div></div>
+        <div class="s">da riconoscere ai dipendenti</div></div>
       <div class="stat"><div class="k">Media per dipendente</div>
         <div class="v">${esc(fmtOre(conOre.length ? t.saldo / conOre.length : 0))}</div>
         <div class="s">fra chi ha fatto ore</div></div>
@@ -114,7 +114,7 @@ export async function renderRiepilogo(view, ctx) {
 
     zona.appendChild(el(`<p class="muted small" style="margin-top:12px">
       Le ore sono il saldo della giornata: i recuperi sono in rosso, con il segno meno.
-      Gli dipendenti senza ore restano in elenco apposta — vedere gli zeri è il modo per accorgersi
+      I dipendenti senza ore restano in elenco apposta — vedere gli zeri è il modo per accorgersi
       di chi si sta caricando di straordinari e chi no.</p>`));
 
     head.querySelector('[data-xls]').onclick = () => exportXLSX(righe, mese);

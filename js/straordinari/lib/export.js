@@ -42,7 +42,7 @@ function scarica(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-// Griglia mensile stampabile: gli dipendenti in riga, i giorni in colonna, le
+// Griglia mensile stampabile: i dipendenti in riga, i giorni in colonna, le
 // ore nelle celle. In fondo il totale di giornata, a destra il saldo del
 // mese; i sabati e le domeniche hanno lo sfondo grigio, come si è abituati a
 // leggerli sul tabellone dei turni.

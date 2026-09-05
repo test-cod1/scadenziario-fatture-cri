@@ -1,6 +1,6 @@
 // ============================================================
 //  SEZIONE STRAORDINARI — punto di ingresso.
-//  Carica una volta sola l'anagrafica degli dipendenti e le impostazioni
+//  Carica una volta sola l'anagrafica dei dipendenti e le impostazioni
 //  (causali, soglie) e smista alla vista giusta, come fanno trasporti e
 //  assistenze.
 // ============================================================

@@ -1,5 +1,5 @@
 // ============================================================
-//  ANAGRAFICA DEGLI DIPENDENTI
+//  ANAGRAFICA DEI DIPENDENTI
 //  L'elenco da cui si sceglie chi ha fatto lo straordinario, con le ore
 //  settimanali di contratto. Nel foglio di carta erano l'intestazione delle
 //  colonne (il "38" accanto al cognome): qui sono un dato, e servono a

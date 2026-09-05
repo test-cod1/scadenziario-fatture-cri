@@ -104,7 +104,7 @@ export const SEZIONI = [
   {
     id: 'straordinari',
     label: 'Straordinari',
-    descrizione: 'Ore in più richieste agli dipendenti dalla centrale operativa.',
+    descrizione: 'Ore in più richieste ai dipendenti dalla centrale operativa.',
     emoji: '🕒',
     colore: '#0f766e',
     ombra: 'rgba(15,118,110,.22)',

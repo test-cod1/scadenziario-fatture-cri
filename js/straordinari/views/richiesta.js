@@ -272,7 +272,7 @@ export async function renderRichiesta(view, id, ctx) {
 
   async function salva({ poiNuova } = {}) {
     const da = raccogli();
-    if (!da.dipendente_id) { toast('Scegli l’dipendente', 'err'); campi.dipendente.focus(); return; }
+    if (!da.dipendente_id) { toast('Scegli il dipendente', 'err'); campi.dipendente.focus(); return; }
     if (!da.data) { toast('Indica il giorno', 'err'); campi.data.focus(); return; }
     if (!da.ore || da.ore <= 0) { toast('Indica quante ore', 'err'); campi.ore.focus(); return; }
     if (da.ore > 24) { toast('Le ore di una singola riga non possono superare 24', 'err'); campi.ore.focus(); return; }

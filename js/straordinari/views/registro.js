@@ -18,7 +18,7 @@ export async function renderRegistro(view, ctx) {
   const head = el(`<div class="page-head">
     <div>
       <h1>Registro straordinari</h1>
-      <p>${esc(etichettaMese(mese))} · ore richieste agli dipendenti dalla centrale operativa</p>
+      <p>${esc(etichettaMese(mese))} · ore richieste ai dipendenti dalla centrale operativa</p>
     </div>
     <div class="actions">
       <button class="btn" data-xls title="Scarica le righe filtrate in Excel">⬇️ Excel</button>
@@ -39,7 +39,7 @@ export async function renderRegistro(view, ctx) {
   const toolbar = el(`<div class="toolbar">
     <div class="search"><span class="search-icon" aria-hidden="true">🔍</span>
       <input type="text" id="q" placeholder="Cerca per dipendente, causale, servizio o note…"></div>
-    <select id="f-dipendente" aria-label="Filtra per dipendente"><option value="">Tutti gli dipendenti</option></select>
+    <select id="f-dipendente" aria-label="Filtra per dipendente"><option value="">Tutti i dipendenti</option></select>
     <select id="f-tipo" aria-label="Filtra per tipo"><option value="">Tutti i tipi</option>
       ${TIPI.map(t => `<option value="${t.id}">${t.emoji} ${esc(t.label)}</option>`).join('')}</select>
     <select id="f-stato" aria-label="Filtra per stato"><option value="">Tutti gli stati</option>
@@ -49,7 +49,7 @@ export async function renderRegistro(view, ctx) {
   view.appendChild(toolbar);
 
   const selDipendente = toolbar.querySelector('#f-dipendente');
-  // Nell'elenco ci sono gli dipendenti attivi più chiunque abbia righe in questo
+  // Nell'elenco ci sono i dipendenti attivi più chiunque abbia righe in questo
   // mese: un dipendente disattivato a metà mese deve restare filtrabile, o le
   // sue ore diventerebbero irraggiungibili proprio nel mese da liquidare.
   const idsInMese = new Set(righe.map(r => r.dipendente_id));
@@ -78,7 +78,7 @@ export async function renderRegistro(view, ctx) {
 
   const senzaDipendenti = el(`<div class="banner warn" hidden><div class="bi">👤</div><div>
     <b>Nessun dipendente in anagrafica</b>
-    <div class="small">Prima di registrare straordinari serve l'elenco degli dipendenti, con le ore
+    <div class="small">Prima di registrare straordinari serve l'elenco dei dipendenti, con le ore
     settimanali di contratto: <a href="#/straordinari/dipendenti">aprilo e compilalo</a>.</div>
   </div>`);
   view.insertBefore(senzaDipendenti, stats);
@@ -104,7 +104,7 @@ export async function renderRegistro(view, ctx) {
       el(`<div class="stat"><div class="k">Ore richieste</div><div class="v">${esc(fmtOre(t.positive))}</div>
         <div class="s">straordinari, cambi turno e reperibilità</div></div>`),
       el(`<div class="stat"><div class="k">Recuperi</div><div class="v">${esc(fmtOre(t.recuperi))}</div>
-        <div class="s">ore restituite agli dipendenti</div></div>`),
+        <div class="s">ore restituite ai dipendenti</div></div>`),
       el(`<div class="stat accent"><div class="k">Saldo del mese</div><div class="v">${esc(fmtOre(t.saldo, { segno: true }))}</div>
         <div class="s">${t.righe} righe${sopraSoglia.length ? ` · ${sopraSoglia.length} sopra la soglia` : ''}</div></div>`),
     );

@@ -82,7 +82,7 @@ export const dipendenti = {
     const sb = await sbClient();
     const { error } = await sb.from('dipendenti_straordinari').delete().eq('id', id);
     if (error) {
-      // on delete restrict: l'dipendente ha straordinari registrati. Cancellarlo
+      // on delete restrict: il dipendente ha straordinari registrati. Cancellarlo
       // svuoterebbe il registro dei mesi passati, quindi si disattiva.
       if (error.code === '23503') {
         throw new Error('Questo dipendente ha straordinari registrati e non può essere eliminato: disattivalo, così sparisce dagli elenchi ma lo storico resta.');
@@ -155,7 +155,7 @@ export const straordinari = {
       note: (rec.note || '').trim() || null,
       updated_at: nowISO(),
     };
-    if (!riga.dipendente_id) throw new Error('Scegli l’dipendente.');
+    if (!riga.dipendente_id) throw new Error('Scegli il dipendente.');
     if (!riga.data) throw new Error('Indica la data dello straordinario.');
     if (!Number.isFinite(riga.ore) || riga.ore <= 0) throw new Error('Le ore devono essere un numero maggiore di zero.');
 

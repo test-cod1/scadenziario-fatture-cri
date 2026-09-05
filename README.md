@@ -8,7 +8,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Formazione Esterna** | da sviluppare |
 | **Trasporti lunghi** | attiva: preventivi per i trasporti sanitari fuori Genova (arrivata dal gestionale `preventivo-trasporti`, assorbita qui il 01/09/2026) |
 | **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
-| **Straordinari** | attiva: registro delle ore in più richieste agli dipendenti dalla centrale operativa |
+| **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 
@@ -50,19 +50,19 @@ Sostituendo quel .dotx cambiano insieme sia il Word sia il PDF: logo, indirizzo 
 
 ## Sezione Straordinari
 
-Registro delle ore in più richieste agli dipendenti dalla centrale operativa. Sostituisce il foglio mensile *ELENCO DIPENDENTI-ORARI MESE*, dove lo straordinario era una riga "EXTRA" dentro il tabellone dei turni: scritta a mano, senza chi l'avesse chiesta né perché, con i recuperi come numeri negativi in mezzo agli altri e i totali da sommare a occhio.
+Registro delle ore in più richieste ai dipendenti dalla centrale operativa. Sostituisce il foglio mensile *ELENCO DIPENDENTI-ORARI MESE*, dove lo straordinario era una riga "EXTRA" dentro il tabellone dei turni: scritta a mano, senza chi l'avesse chiesta né perché, con i recuperi come numeri negativi in mezzo agli altri e i totali da sommare a occhio.
 
 Qui ogni straordinario è una riga con **dipendente, giorno, orari, ore, tipo, causale, chi l'ha chiesto e stato**. Il tipo (straordinario, cambio turno, reperibilità, recupero) decide il segno: le ore si scrivono sempre positive e il saldo — straordinari meno recuperi — lo calcola l'app. Lo stato segue la vita della richiesta: `richiesto` → `confermato` (svolto e verificato) → `liquidato` (in busta paga o già recuperato); `annullato` resta nel registro ma non conta in nessun totale.
 
 Le pagine della sezione:
 
 - **Registro** — un mese alla volta, con in testa ore richieste, recuperi, saldo e quante righe restano da confermare (la card è anche il filtro). Le righe sono raggruppate per giornata; lo stato si fa avanzare cliccando il chip, senza aprire nulla. Export **Excel** (una riga per straordinario, con le ore come numeri sommabili) e **stampa** dell'elenco filtrato.
-- **Nuova richiesta** — scheda corta: dipendente, giorno e ore bastano. Gli orari si scelgono sul quadrante e le ore si calcolano da soli (restano correggibili: un rientro arrotondato, una frazione concordata a voce). Avvisa se per quell'dipendente c'è già una riga in quel giorno, e chiede conferma sopra la soglia per singola richiesta. `Salva e nuova` tiene giorno, tipo e richiedente per registrare in fila la stessa serata.
-- **Riepilogo mensile** — la griglia dipendenti × giorni, cioè la forma del vecchio foglio, ma con i totali calcolati, le celle che si aprono sul dettaglio della giornata e chi supera la soglia mensile evidenziato. Gli dipendenti senza ore restano in elenco apposta: vedere gli zeri è il modo per accorgersi di come sono distribuite le ore. Da qui si stampa la griglia (A4 orizzontale, con le righe per le firme) e, per gli admin di sezione, si **chiude il mese**: tutte le righe confermate passano a liquidate, quelle ancora da confermare non si toccano.
+- **Nuova richiesta** — scheda corta: dipendente, giorno e ore bastano. Gli orari si scelgono sul quadrante e le ore si calcolano da soli (restano correggibili: un rientro arrotondato, una frazione concordata a voce). Avvisa se per quel dipendente c'è già una riga in quel giorno, e chiede conferma sopra la soglia per singola richiesta. `Salva e nuova` tiene giorno, tipo e richiedente per registrare in fila la stessa serata.
+- **Riepilogo mensile** — la griglia dipendenti × giorni, cioè la forma del vecchio foglio, ma con i totali calcolati, le celle che si aprono sul dettaglio della giornata e chi supera la soglia mensile evidenziato. I dipendenti senza ore restano in elenco apposta: vedere gli zeri è il modo per accorgersi di come sono distribuite le ore. Da qui si stampa la griglia (A4 orizzontale, con le righe per le firme) e, per gli admin di sezione, si **chiude il mese**: tutte le righe confermate passano a liquidate, quelle ancora da confermare non si toccano.
 - **Dipendenti** — anagrafica con le ore settimanali di contratto (38, 35, 30, 24…) e il saldo del mese in corso accanto a ogni nome. Chi va via si disattiva, non si cancella: lo storico è suo.
 - **Impostazioni** — causali proposte e le due soglie di attenzione (ore al mese per dipendente, ore in una singola richiesta). Le modifica l'admin di sezione; gli altri le vedono in sola lettura.
 
-Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di menu della sezione).
+Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di menu della sezione) e, subito dopo, `supabase/patch-2026-09-05-dipendenti.sql`, che rinomina l'anagrafica da *autisti* a *dipendenti* — il registro serve per tutto il personale, non solo per chi guida — e carica l'elenco delle 19 persone in servizio al 05/09/2026. Le ore di contratto non erano nell'elenco di partenza: si compilano dalla scheda di ciascuno.
 
 ## 1. Crea il progetto Supabase
 
@@ -89,6 +89,8 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 
 >
 > **[`patch-2026-09-05-elimina-utente.sql`](supabase/patch-2026-09-05-elimina-utente.sql)** serve al pulsante *Elimina* in Utenti e autorizzazioni. Le colonne `created_by` (e simili) puntano ad `auth.users` senza regola di cancellazione: finché non la esegui, eliminare una persona che ha inserito anche una sola riga fallisce con un errore di chiave esterna. La patch le porta a `on delete set null` — nessun dato viene cancellato, perdono solo l'indicazione dell'autore. Senza, il resto dell'app funziona normalmente e l'app mostra un errore che rimanda a questo file.
+>
+> **[`patch-2026-09-05-dipendenti.sql`](supabase/patch-2026-09-05-dipendenti.sql)** riguarda la sola sezione Straordinari: rinomina l'anagrafica da `autisti_straordinari` a `dipendenti_straordinari` (con le colonne `autista_id`/`autista_nome`) e carica l'elenco del personale. Va eseguita **insieme al deploy**: fra i due passaggi la sezione Straordinari dà errore, perché l'app cerca i nomi nuovi. Le altre sezioni non ne risentono.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -175,7 +177,7 @@ assets/carta-intestata.dotx    modello Word ufficiale del Comitato
 js/trasporti/                  sezione Trasporti lunghi: preventivi trasporti sanitari
 js/trasporti/calc.js            il calcolo del preventivo (spesa reale, addebito, margine)
 js/trasporti/sezione.js         ingresso della sezione: carica impostazioni e smista alle viste
-js/straordinari/               sezione Straordinari: registro delle ore chieste agli dipendenti
+js/straordinari/               sezione Straordinari: registro delle ore chieste ai dipendenti
 js/straordinari/calc.js         tipi, stati, calcolo delle ore e riepiloghi mensili
 js/straordinari/views/registro.js   elenco del mese, filtri e cambio di stato
 js/straordinari/views/riepilogo.js  griglia dipendenti × giorni, con chiusura del mese

@@ -14,7 +14,7 @@ export const TIPI = [
   { id: 'reperibilita', label: 'Reperibilità', emoji: '📞', segno: +1,
     descrizione: 'Chiamata in reperibilità: ore effettivamente prestate.' },
   { id: 'recupero', label: 'Recupero', emoji: '➖', segno: -1,
-    descrizione: 'Ore restituite all’dipendente, che scalano dal saldo.' },
+    descrizione: 'Ore restituite alil dipendente, che scalano dal saldo.' },
 ];
 
 export const STATI = [
@@ -218,7 +218,7 @@ export const IMPOSTAZIONI_DEFAULT = {
     'Assistenza / manifestazione',
     'Formazione',
   ],
-  // Oltre questa soglia il riepilogo evidenzia l'dipendente: non è un divieto,
+  // Oltre questa soglia il riepilogo evidenzia il dipendente: non è un divieto,
   // è il promemoria che sul foglio non c'era e che faceva scoprire a fine
   // anno che le ore erano sempre sulle stesse due persone.
   sogliaMensile: 20,

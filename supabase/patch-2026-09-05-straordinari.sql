@@ -1,5 +1,5 @@
 -- ============================================================
---  PATCH — Sezione STRAORDINARI (registro degli straordinari degli dipendenti)
+--  PATCH — Sezione STRAORDINARI (registro degli straordinari dei dipendenti)
 --  Da eseguire nell'SQL Editor di Supabase del portale, dopo
 --  patch-2026-09-01-portale.sql.
 --
@@ -10,11 +10,11 @@
 --  chi, quando, quante ore, per quale motivo, chiesto da chi e a che punto è
 --  (richiesto → confermato → liquidato/recuperato).
 --
---  Tre tabelle: gli dipendenti, le righe di straordinario, e la solita riga
+--  Tre tabelle: i dipendenti, le righe di straordinario, e la solita riga
 --  unica di impostazioni (causali e soglie di avviso).
 -- ============================================================
 
--- ---------- ANAGRAFICA DEGLI DIPENDENTI ----------
+-- ---------- ANAGRAFICA DEI DIPENDENTI ----------
 -- Sono i dipendenti del foglio mensile, con le ore settimanali di contratto
 -- (38 / 35 / 30 / 24) che lì comparivano accanto al cognome. Non è una copia
 -- del personale dell'ente: serve a scegliere un nome da un elenco invece di
@@ -141,7 +141,7 @@ insert into public.sezioni (id, etichetta, ordine) values
 on conflict (id) do update set etichetta = excluded.etichetta, ordine = excluded.ordine;
 
 comment on table public.straordinari is
-  'Registro degli straordinari richiesti agli dipendenti dalla centrale operativa';
+  'Registro degli straordinari richiesti ai dipendenti dalla centrale operativa';
 comment on table public.dipendenti_straordinari is
   'Dipendenti a cui si possono richiedere straordinari, con le ore settimanali di contratto';
 
@@ -150,8 +150,12 @@ comment on table public.dipendenti_straordinari is
 --   1. Dal portale, "Utenti e autorizzazioni": dai la sezione "Straordinari"
 --      al responsabile della centrale operativa (ruolo admin se deve anche
 --      modificare causali e soglie, operatore se solo registrare).
---   2. Nella sezione, "Dipendenti": inserisci l'elenco con le ore di contratto.
---      Quelli del foglio di agosto 2026 sono, con le ore settimanali:
+--   2. Esegui subito dopo patch-2026-09-05-dipendenti.sql: rinomina questa
+--      anagrafica da "autisti" a "dipendenti" (il registro serve per tutto
+--      il personale, non solo per chi guida) e carica l'elenco delle 19
+--      persone in servizio. Le ore settimanali di contratto restano da
+--      compilare a mano nella scheda di ciascuno: quelle del foglio di
+--      agosto 2026 erano
 --        DE BARBIERI 38, DJEFFAL 38, MUÑOZ 38, PAZZANO 38, PELLEGRINI 38,
 --        SORDELLI 38, BASTIA 35, CANEPA 35, GARIBALDI 35, PORTORICO 35,
 --        GRIMALDI 30, AIELLO 30, BISIGNANI 30, PASCU 24, PICOLLO.
