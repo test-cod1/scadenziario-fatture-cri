@@ -93,6 +93,7 @@ export const SEZIONI = [
     menu: [
       { id: 'preventivi', icon: '📋', label: 'Preventivi', attivoAnche: ['preventivo'] },
       { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
+      { id: 'rubrica', icon: '📇', label: 'Rubrica clienti' },
       { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
     ],
     tour: () => import('./tour/assistenze.js'),

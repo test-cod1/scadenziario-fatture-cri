@@ -7,6 +7,7 @@ import { impostazioni } from './data/store.js';
 import { renderDashboard } from './views/dashboard.js';
 import { renderPreventivo } from './views/preventivo.js';
 import { renderImpostazioni } from './views/impostazioni.js';
+import { renderRubrica } from './views/rubrica.js';
 
 // Il tariffario si tiene in memoria per non richiederlo a ogni cambio di
 // pagina, ma non per sempre: restava quello letto all'ingresso nella sezione,
@@ -33,6 +34,7 @@ export async function renderAssistenze(view, ctx, sub, param) {
 
   if (sub === 'nuovo') return renderPreventivo(view, null, ctxA);
   if (sub === 'preventivo' && param) return renderPreventivo(view, param, ctxA);
+  if (sub === 'rubrica') return renderRubrica(view, ctxA);
   if (sub === 'impostazioni') return renderImpostazioni(view, ctxA);
   return renderDashboard(view, ctxA);
 }

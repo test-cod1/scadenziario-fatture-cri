@@ -88,52 +88,63 @@ export const preventivi = {
 };
 
 // ------------------------------------------------------------------
-//  ANAGRAFICA DEI CLIENTI
-//  Non è una tabella: sono i destinatari dei preventivi già fatti. Le
-//  manifestazioni si ripetono e i clienti sono quasi sempre gli stessi, così
-//  il secondo preventivo per lo stesso ente non si ricompila a mano — e non
-//  c'è un'anagrafica in più da tenere aggiornata, che è il modo tipico in cui
-//  questi elenchi invecchiano.
+//  RUBRICA DEI CLIENTI
+//  Una scheda per cliente, scritta quando si fa il preventivo e riusata da
+//  quello dopo. I dati del cliente restano comunque COPIATI dentro ogni
+//  preventivo — come i prezzi delle voci: correggere un indirizzo in rubrica
+//  non deve cambiare un documento già mandato.
 // ------------------------------------------------------------------
 export const clienti = {
-  async elenco() {
+  async list() {
     const sb = await sbClient();
-    // Si scorre a blocchi come le altre letture del portale: il vecchio
-    // .limit(1000) tagliava fuori i clienti più datati appena l'archivio
-    // superava quella soglia, e il completamento smetteva di proporli senza
-    // che si potesse capire perché.
     const BLOCCO = 1000;
-    const righe = [];
+    const tutti = [];
     for (let da = 0; ; da += BLOCCO) {
-      const { data, error } = await sb.from('preventivi_assistenze')
-        .select('cliente,cliente_cf,cliente_indirizzo,referente,referente_email,referente_telefono,data_documento')
-        .not('cliente', 'is', null)
-        .order('data_documento', { ascending: false, nullsFirst: false })
-        .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
+      const { data, error } = await sb.from('clienti_assistenze').select('*')
+        .order('nome', { ascending: true })
+        .order('id', { ascending: true })   // ordine stabile fra un blocco e l'altro
         .range(da, da + BLOCCO - 1);
       if (error) throw error;
-      righe.push(...data);
+      tutti.push(...data);
       if (data.length < BLOCCO) break;
     }
+    return tutti;
+  },
 
-    // Un cliente per nome, con i dati del preventivo più recente: se
-    // l'indirizzo è cambiato, quello vecchio non deve tornare a galla.
-    const visti = new Map();
-    for (const r of righe) {
-      const nome = (r.cliente || '').trim();
-      if (!nome) continue;
-      const chiave = nome.toLowerCase();
-      if (visti.has(chiave)) continue;
-      visti.set(chiave, {
-        cliente: nome,
-        cliente_cf: r.cliente_cf || '',
-        cliente_indirizzo: r.cliente_indirizzo || '',
-        referente: r.referente || '',
-        referente_email: r.referente_email || '',
-        referente_telefono: r.referente_telefono || '',
-      });
+  async save(rec) {
+    const sb = await sbClient();
+    const nome = (rec.nome || '').trim();
+    if (!nome) throw new Error('Il nome del cliente è obbligatorio.');
+    const riga = {
+      id: rec.id || uid(),
+      nome,
+      cf: rec.cf || null,
+      indirizzo: rec.indirizzo || null,
+      referente: rec.referente || null,
+      referente_email: rec.referente_email || null,
+      referente_telefono: rec.referente_telefono || null,
+      note: rec.note || null,
+      updated_at: nowISO(),
+    };
+    if (!rec.id) {
+      const { data: u } = await sb.auth.getUser();
+      if (u?.user) riga.created_by = u.user.id;
     }
-    return [...visti.values()];
+    const { data, error } = await sb.from('clienti_assistenze').upsert(riga).select().single();
+    // L'indice unico sul nome fa fallire il secondo inserimento dello stesso
+    // cliente: è la difesa vera contro i doppioni, ma il messaggio di
+    // Postgres non direbbe nulla a chi sta compilando.
+    if (error) {
+      if (error.code === '23505') throw new Error(`"${nome}" è già in rubrica.`);
+      throw error;
+    }
+    return data;
+  },
+
+  async remove(id) {
+    const sb = await sbClient();
+    const { error } = await sb.from('clienti_assistenze').delete().eq('id', id);
+    if (error) throw error;
   },
 };
 

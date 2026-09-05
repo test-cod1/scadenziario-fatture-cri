@@ -1,10 +1,9 @@
-import { preventivi, clienti } from '../data/store.js';
+import { preventivi } from '../data/store.js';
 import { calcola, inLettere, oreTurno } from '../calc.js';
 import { fmtOre, etichettaSconto } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO, sommaGiorniISO } from '../../lib/ui.js';
 import { collegaOrologio } from '../../lib/orologio.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
-import { collegaCompletamento } from '../../lib/completamento.js';
 import { INIZIO_ANNO, dataAmmessa, MSG_DATA } from '../date.js';
 
 // ============================================================
@@ -54,11 +53,15 @@ export async function renderPreventivo(view, id, ctx) {
   const summary = editor.querySelector('.summary');
 
   // ---------- destinatario ----------
-  main.appendChild(card('Destinatario', `
+  const cDest = card('Destinatario', `
+    <div class="rubrica-azioni">
+      <button class="btn sm" id="btn-rubrica" type="button">📇 Scegli dalla rubrica</button>
+      <button class="btn sm" id="btn-salva-cliente" type="button">➕ Salva in rubrica</button>
+      <span class="mini">i clienti si riusano da un preventivo all'altro</span>
+    </div>
     <div class="form-row">
       <div class="field"><label>Cliente / ente</label>
-        <input type="text" id="cliente" placeholder="scrivi il nome: ti propongo i clienti già serviti e gli enti pubblici" value="${esc(prev.cliente || '')}">
-        <div class="hint">Scegliendo un suggerimento si compilano da soli codice fiscale e indirizzo.</div></div>
+        <input type="text" id="cliente" value="${esc(prev.cliente || '')}"></div>
       <div class="field"><label>Codice fiscale / P.IVA</label><input type="text" id="cliente_cf" value="${esc(prev.cliente_cf || '')}"></div>
     </div>
     <div class="field"><label>Indirizzo</label><input type="text" id="cliente_indirizzo" value="${esc(prev.cliente_indirizzo || '')}"></div>
@@ -66,7 +69,8 @@ export async function renderPreventivo(view, id, ctx) {
       <div class="field"><label>Referente</label><input type="text" id="referente" value="${esc(prev.referente || '')}"></div>
       <div class="field"><label>Email</label><input type="text" id="referente_email" value="${esc(prev.referente_email || '')}"></div>
       <div class="field"><label>Telefono</label><input type="text" id="referente_telefono" value="${esc(prev.referente_telefono || '')}"></div>
-    </div>`));
+    </div>`);
+  main.appendChild(cDest);
 
   // ---------- evento ----------
   main.appendChild(card('Servizio', `
@@ -128,16 +132,12 @@ export async function renderPreventivo(view, id, ctx) {
   prev.data_documento = prev.data_documento || todayISO();
 
   // ------------------------------------------------------------------
-  //  COMPLETAMENTO DEL DESTINATARIO
-  //  Due fonti nello stesso elenco: i clienti dei preventivi già fatti (che
-  //  sono la maggioranza dei casi, perché le manifestazioni si ripetono) e
-  //  l'elenco ufficiale delle pubbliche amministrazioni, da cui arrivano
-  //  denominazione esatta, codice fiscale e sede di Comuni, scuole e ASL.
+  //  RUBRICA
+  //  Scegliere un cliente riempie il destinatario; "Salva in rubrica" fa il
+  //  contrario, e mette in rubrica quello che si è appena scritto. I dati
+  //  restano comunque copiati dentro il preventivo: correggere una scheda in
+  //  rubrica non tocca i documenti già mandati.
   // ------------------------------------------------------------------
-  const campoCliente = view.querySelector('#cliente');
-  let elencoClienti = null;      // caricato alla prima ricerca
-  let ambitoEnti = 'liguria';    // diventa 'italia' se lo si chiede
-
   function scrivi(campo, valore) {
     const input = view.querySelector('#' + campo);
     if (!input) return;
@@ -145,78 +145,37 @@ export async function renderPreventivo(view, id, ctx) {
     prev[campo] = input.value;
   }
 
-  collegaCompletamento(campoCliente, {
-    minimo: 3,
-    // L'elenco degli enti è dato pubblico di AgID con licenza CC BY: va
-    // citato, e citarlo qui dice anche all'utente da dove arriva il dato
-    // che sta per copiare nel preventivo.
-    aiuto: 'Frecce per scegliere, Invio per confermare · enti pubblici: IndicePA (AgID), CC BY 4.0',
-    cerca: async (testo) => {
-      const voci = [];
+  cDest.querySelector('#btn-rubrica').addEventListener('click', async () => {
+    const { scegliCliente } = await import('./sceltaCliente.js');
+    const c = await scegliCliente();
+    if (!c) return;
+    scrivi('cliente', c.nome);
+    scrivi('cliente_cf', c.cf);
+    scrivi('cliente_indirizzo', c.indirizzo);
+    // Il referente è la persona di contatto per QUESTO evento: si prende
+    // dalla rubrica solo se non l'hai già scritto tu.
+    if (!prev.referente) {
+      scrivi('referente', c.referente);
+      scrivi('referente_email', c.referente_email);
+      scrivi('referente_telefono', c.referente_telefono);
+    }
+    aggiorna();
+    toast(`Destinatario compilato da «${c.nome}»`, 'ok');
+  });
 
-      // --- clienti già serviti ---
-      if (!elencoClienti) {
-        try { elencoClienti = await clienti.elenco(); }
-        catch { elencoClienti = []; }   // l'archivio non risponde: restano gli enti
-      }
-      const q = testo.toLowerCase();
-      for (const c of elencoClienti.filter(c => c.cliente.toLowerCase().includes(q)).slice(0, 5)) {
-        voci.push({
-          gruppo: 'Già nei tuoi preventivi',
-          titolo: c.cliente,
-          dettaglio: [c.cliente_cf, c.cliente_indirizzo].filter(Boolean).join(' · '),
-          dati: { tipo: 'cliente', c },
-        });
-      }
-
-      // --- pubbliche amministrazioni ---
-      try {
-        const { cercaEnti, indirizzoCompleto } = await import('../data/entiPa.js');
-        const enti = await cercaEnti(testo, { ambito: ambitoEnti, max: voci.length ? 6 : 8 });
-        for (const e of enti) {
-          voci.push({
-            gruppo: ambitoEnti === 'liguria' ? 'Enti pubblici in Liguria' : 'Enti pubblici in Italia',
-            titolo: e.nome,
-            dettaglio: `${e.cf} · ${indirizzoCompleto(e)}`,
-            dati: { tipo: 'ente', e, indirizzo: indirizzoCompleto(e) },
-          });
-        }
-        // Fuori regione capita (una federazione, un ente di un'altra
-        // provincia): l'elenco nazionale è 40 volte più grande, quindi si
-        // scarica solo quando serve davvero.
-        if (ambitoEnti === 'liguria') {
-          voci.push({
-            titolo: enti.length ? 'Cerca anche fuori dalla Liguria' : 'Nessun ente ligure: cerca in tutta Italia',
-            dettaglio: 'scarica l\'elenco nazionale',
-            azione: () => { ambitoEnti = 'italia'; },
-          });
-        }
-      } catch { /* elenco enti non disponibile: restano i clienti in archivio */ }
-
-      return voci;
-    },
-    onScelta: (dati) => {
-      if (dati.tipo === 'cliente') {
-        const c = dati.c;
-        scrivi('cliente', c.cliente);
-        scrivi('cliente_cf', c.cliente_cf);
-        scrivi('cliente_indirizzo', c.cliente_indirizzo);
-        // Il referente è la persona di contatto per QUESTO evento: si
-        // completa solo se non l'hai già scritto tu.
-        if (!prev.referente) {
-          scrivi('referente', c.referente);
-          scrivi('referente_email', c.referente_email);
-          scrivi('referente_telefono', c.referente_telefono);
-        }
-        toast('Dati del cliente ripresi dal preventivo più recente', 'ok');
-      } else {
-        scrivi('cliente', dati.e.nome);
-        scrivi('cliente_cf', dati.e.cf);
-        scrivi('cliente_indirizzo', dati.indirizzo);
-        toast('Dati presi da IndicePA (AgID)', 'ok');
-      }
-      aggiorna();
-    },
+  cDest.querySelector('#btn-salva-cliente').addEventListener('click', async () => {
+    if (!prev.cliente) { toast('Scrivi prima il nome del cliente', 'err'); return; }
+    const { schedaCliente } = await import('./rubrica.js');
+    // La scheda si apre già compilata con quello che c'è nel preventivo: si
+    // controlla, si aggiunge quello che manca e si salva.
+    schedaCliente({
+      nome: prev.cliente,
+      cf: prev.cliente_cf,
+      indirizzo: prev.cliente_indirizzo,
+      referente: prev.referente,
+      referente_email: prev.referente_email,
+      referente_telefono: prev.referente_telefono,
+    });
   });
 
   // La data del documento sta fuori dal ciclo qui sopra perché una data

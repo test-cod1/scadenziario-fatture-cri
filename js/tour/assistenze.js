@@ -51,7 +51,7 @@ export function passi() {
     {
       selettore: '#cliente',
       titolo: 'A chi va il preventivo',
-      testo: 'Scrivi il nome e l\'app propone i clienti che hai già servito e gli enti pubblici dell\'elenco ufficiale (Comuni, scuole): scegliendone uno, codice fiscale e indirizzo si compilano da soli. Il referente con email e telefono serve a te, per sapere chi chiamare.',
+      testo: 'Cliente, codice fiscale o partita IVA e indirizzo finiscono nell\'intestazione del documento. Con «Scegli dalla rubrica» li compili tutti insieme prendendoli da un cliente già registrato; con «Salva in rubrica» ci metti quello che hai appena scritto, pronto per il prossimo preventivo. Il referente serve a te, per sapere chi chiamare.',
     },
     {
       selettore: '#oggetto',
@@ -92,6 +92,12 @@ export function passi() {
       selettore: '#btn-word',
       titolo: 'Il documento da consegnare',
       testo: 'Word per un file modificabile, «Stampa / PDF» per la versione da firmare e mandare, «Anteprima» per controllare prima come viene. Il documento riporta la carta intestata, il calendario delle giornate e i testi fissi.',
+    },
+    {
+      hash: '#/assistenze/rubrica',
+      selettore: '.toolbar',
+      titolo: 'La rubrica dei clienti',
+      testo: 'Tutti i clienti registrati, con codice fiscale, indirizzo e referente. Si riempie da sé mentre prepari i preventivi, e qui si sistemano le schede: correggere un indirizzo qui non tocca i preventivi già fatti, che portano con sé la copia dei dati con cui sono stati scritti.',
     },
     {
       hash: '#/assistenze/impostazioni',

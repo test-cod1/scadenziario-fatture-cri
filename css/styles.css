@@ -24,7 +24,7 @@
    `display:none` a specificità zero, che qualunque nostra regola di classe
    batte: su .toolbar (display:flex) impostare `.hidden = true` non aveva
    alcun effetto, e finora la cosa si aggirava con una regola dedicata per
-   ogni componente (.tour-fab[hidden], .suggerimenti[hidden]). Una regola
+   ogni componente (.tour-fab[hidden] e simili). Una regola
    sola vale per tutti. */
 [hidden]{display:none!important}
 /* Se un elemento qualsiasi finisce anche di poco più largo dello schermo
@@ -482,21 +482,17 @@ input.fuel-price{width:110px;padding:6px 8px}
 /* ---------- Assistenze sanitarie: voci del preventivo e calendario ---------- */
 .voce-row{display:flex;align-items:center;gap:12px;flex-wrap:wrap;padding:9px 0;border-bottom:1px dashed var(--line)}
 .voce-row:last-child{border-bottom:none}
-/* ---------- Campo con suggerimenti (js/lib/completamento.js) ---------- */
-.con-suggerimenti{position:relative}
-.suggerimenti{position:absolute;z-index:40;left:0;right:0;top:calc(100% - 16px);background:#fff;
-  border:1px solid var(--line);border-radius:12px;box-shadow:0 12px 28px rgba(20,30,40,.18);
-  max-height:320px;overflow-y:auto;padding:5px}
-.sg-gruppo{font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;
-  color:var(--ink-soft);padding:9px 10px 5px}
-.sg-voce{padding:8px 10px;border-radius:8px;cursor:pointer;display:flex;flex-direction:column;gap:2px}
-.sg-voce.sel,.sg-voce:hover{background:#f1f3f5}
-.sg-titolo{font-size:14px;font-weight:600;color:var(--ink)}
-.sg-dettaglio{font-size:12px;color:var(--ink-soft);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-/* Riga che non è un dato ma un comando ("cerca in tutta Italia"). */
-.sg-voce.azione .sg-titolo{color:var(--cri-red)}
-.sg-piede{font-size:11.5px;color:var(--ink-soft);padding:7px 10px 4px;border-top:1px dashed var(--line);margin-top:4px}
-
+/* ---------- Rubrica clienti (js/assistenze/views/rubrica.js) ---------- */
+.rubrica-azioni{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:14px;
+  padding-bottom:12px;border-bottom:1px dashed var(--line)}
+/* Elenco dentro il riquadro "Scegli dalla rubrica": righe cliccabili, non
+   una tabella — qui si sceglie e basta. */
+.rubrica-elenco{max-height:340px;overflow-y:auto;display:flex;flex-direction:column;gap:4px}
+.rb-voce{display:flex;flex-direction:column;gap:2px;text-align:left;width:100%;cursor:pointer;
+  border:1px solid transparent;border-radius:10px;background:none;padding:9px 11px;font:inherit}
+.rb-voce:hover,.rb-voce:focus-visible{background:#f1f3f5;border-color:var(--line);outline:none}
+.rb-nome{font-size:14px;font-weight:600;color:var(--ink)}
+.rb-dati{font-size:12px;color:var(--ink-soft)}
 .voce-row .chk{flex:1;min-width:190px;padding:0}
 /* Voce scelta ma lasciata a 0 €: non incide sul totale, e il preventivo
    uscirebbe regalando quella voce. */

@@ -37,7 +37,7 @@ Il **tariffario** si configura in Impostazioni: ogni voce è *a ore* (€/ora, m
 
 Nell'elenco si vede la data dell'assistenza (non quella del documento), si filtra per stato, si cambia stato con un clic e si **duplica** un preventivo esistente: le assistenze si ripetono, e ricopiare venti campi a mano non ha senso. Nell'editor il calendario si compila anche per **intervallo di date** (un turno per giornata, con gli stessi orari), le giornate si riordinano da sole, gli orari si scelgono su un **quadrante** — prima l'ora, poi i minuti a passi di dieci — e uscendo con modifiche non salvate l'app avvisa. Il pulsante **Anteprima** mostra il documento senza far partire la stampa.
 
-Il campo **Cliente / ente** si completa da solo: scrivendo tre lettere propone i clienti dei preventivi già fatti (con codice fiscale, indirizzo e referente dell'ultimo preventivo per quel cliente) e gli enti pubblici dell'elenco ufficiale IndicePA — Comuni, istituti scolastici, enti regionali — da cui arrivano denominazione esatta, codice fiscale e sede. Si parte dagli enti liguri (618, 18 KB); l'elenco nazionale (23.000 enti) si scarica solo se lo si chiede dalla voce in fondo ai suggerimenti. I dati stanno in due file generati da [tools/genera-enti-pa.js](tools/genera-enti-pa.js), da rilanciare quando un ente non si trova: nessun servizio esterno viene interrogato mentre si scrive, quindi il nome del cliente non esce dal portale.
+I clienti si tengono in una **rubrica** (voce `Rubrica clienti` nel menu della sezione): una scheda per ente con codice fiscale, indirizzo, referente e note. Si riempie mentre si lavora — nell'editor del preventivo, `Salva in rubrica` apre la scheda già compilata con quello che hai scritto — e si riusa con `Scegli dalla rubrica`, che compila il destinatario in un colpo solo. I dati restano **copiati dentro il preventivo**, come i prezzi delle voci: correggere una scheda non cambia i documenti già mandati. Richiede `supabase/patch-2026-09-03-assistenze-rubrica.sql`.
 
 Si possono applicare due **sconti**, anche insieme: uno in percentuale sul totale e uno in valore assoluto, che si toglie da quanto resta dopo la percentuale. Nel documento compaiono il totale pieno, una riga per ogni sconto applicato e il totale da corrispondere; la somma degli sconti non supera mai l'importo del servizio. Quello che viene salvato come totale del preventivo è sempre il netto, cioè quanto il cliente paga davvero.
 
@@ -134,15 +134,13 @@ js/config.js                   configurazione (URL/chiavi Supabase)
 js/views/home.js                home del portale: la griglia da cui si sceglie la sezione
 js/assistenze/                 sezione Assistenze sanitarie: preventivi per eventi
 js/assistenze/calc.js           tariffario, calcolo dei turni e importo in lettere
+js/assistenze/views/rubrica.js  rubrica clienti: elenco e scheda del singolo cliente
+js/assistenze/views/sceltaCliente.js  riquadro per scegliere un cliente dalla rubrica
 js/assistenze/lib/documento.js  il preventivo come blocchi, da cui derivano PDF e Word
 js/assistenze/lib/carta.js      legge la carta intestata .dotx (immagini e testi)
 js/assistenze/lib/docx.js       genera il .docx sostituendo il corpo del modello
 js/lib/zip.js                   zip minimale (scrittura e lettura): serve a .xlsx e .docx
-js/assistenze/data/entiPa.js    ricerca fra le pubbliche amministrazioni (dati IndicePA)
-js/lib/completamento.js         campo di testo con elenco di suggerimenti
 assets/carta-intestata.dotx    modello Word ufficiale del Comitato
-assets/enti-pa-liguria.json    enti pubblici liguri (generato da tools/genera-enti-pa.js)
-assets/enti-pa.json            enti pubblici di tutta Italia (idem, scaricato su richiesta)
 js/trasporti/                  sezione Trasporti lunghi: preventivi trasporti sanitari
 js/trasporti/calc.js            il calcolo del preventivo (spesa reale, addebito, margine)
 js/trasporti/sezione.js         ingresso della sezione: carica impostazioni e smista alle viste
