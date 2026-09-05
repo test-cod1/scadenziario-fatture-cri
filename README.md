@@ -52,7 +52,7 @@ Sostituendo quel .dotx cambiano insieme sia il Word sia il PDF: logo, indirizzo 
 
 Registro delle ore in più richieste ai dipendenti dalla centrale operativa. Sostituisce il foglio mensile *ELENCO DIPENDENTI-ORARI MESE*, dove lo straordinario era una riga "EXTRA" dentro il tabellone dei turni: scritta a mano, senza chi l'avesse chiesta né perché, con i recuperi come numeri negativi in mezzo agli altri e i totali da sommare a occhio.
 
-Qui ogni straordinario è una riga con **dipendente, giorno, orari, ore, tipo, causale, chi l'ha chiesto e stato**. Il tipo (straordinario, cambio turno, reperibilità, recupero) decide il segno: le ore si scrivono sempre positive e il saldo — straordinari meno recuperi — lo calcola l'app. Lo stato segue la vita della richiesta: `richiesto` → `confermato` (svolto e verificato) → `liquidato` (in busta paga o già recuperato); `annullato` resta nel registro ma non conta in nessun totale.
+Qui ogni straordinario è una riga con **dipendente, giorno, orari, ore, tipo, causale, chi l'ha chiesto e stato**. Il tipo (straordinario, cambio turno, recupero) decide il segno: le ore si scrivono sempre positive e il saldo — straordinari meno recuperi — lo calcola l'app. Lo stato segue la vita della richiesta: `richiesto` → `confermato` (svolto e verificato) → `liquidato` (in busta paga o già recuperato); `annullato` resta nel registro ma non conta in nessun totale.
 
 Le pagine della sezione:
 
@@ -91,6 +91,8 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 > **[`patch-2026-09-05-elimina-utente.sql`](supabase/patch-2026-09-05-elimina-utente.sql)** serve al pulsante *Elimina* in Utenti e autorizzazioni. Le colonne `created_by` (e simili) puntano ad `auth.users` senza regola di cancellazione: finché non la esegui, eliminare una persona che ha inserito anche una sola riga fallisce con un errore di chiave esterna. La patch le porta a `on delete set null` — nessun dato viene cancellato, perdono solo l'indicazione dell'autore. Senza, il resto dell'app funziona normalmente e l'app mostra un errore che rimanda a questo file.
 >
 > **[`patch-2026-09-05-dipendenti.sql`](supabase/patch-2026-09-05-dipendenti.sql)** riguarda la sola sezione Straordinari: rinomina l'anagrafica da `autisti_straordinari` a `dipendenti_straordinari` (con le colonne `autista_id`/`autista_nome`) e carica l'elenco del personale. Va eseguita **insieme al deploy**: fra i due passaggi la sezione Straordinari dà errore, perché l'app cerca i nomi nuovi. Le altre sezioni non ne risentono.
+>
+> **[`patch-2026-09-05-rimozione-reperibilita.sql`](supabase/patch-2026-09-05-rimozione-reperibilita.sql)** toglie il tipo *reperibilità* dagli straordinari, lasciando straordinario, cambio turno e recupero. Le righe già registrate come reperibilità diventano straordinari: il segno era lo stesso, quindi nessun totale cambia.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 

@@ -11,10 +11,8 @@ export const TIPI = [
     descrizione: 'Ore in più rispetto al turno.' },
   { id: 'cambio_turno', label: 'Cambio turno', emoji: '🔄', segno: +1,
     descrizione: 'Ore in più per aver coperto il turno di un collega.' },
-  { id: 'reperibilita', label: 'Reperibilità', emoji: '📞', segno: +1,
-    descrizione: 'Chiamata in reperibilità: ore effettivamente prestate.' },
   { id: 'recupero', label: 'Recupero', emoji: '➖', segno: -1,
-    descrizione: 'Ore restituite alil dipendente, che scalano dal saldo.' },
+    descrizione: 'Ore restituite al dipendente, che scalano dal saldo.' },
 ];
 
 export const STATI = [

@@ -70,7 +70,7 @@ create table if not exists public.straordinari (
   -- falsare il totale del mese. Qui le ore sono sempre positive e il saldo lo
   -- calcola l'app (straordinari − recuperi).
   tipo text not null default 'straordinario'
-    check (tipo in ('straordinario','recupero','reperibilita','cambio_turno')),
+    check (tipo in ('straordinario','recupero','cambio_turno')),
 
   causale text,          -- perché: emergenza, copertura turno, servizio programmato…
   servizio text,         -- riferimento operativo: mezzo, convenzione, evento

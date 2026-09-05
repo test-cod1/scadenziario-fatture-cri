@@ -102,7 +102,7 @@ export async function renderRegistro(view, ctx) {
     const sopraSoglia = elenco.length ? dipendentiSopraSoglia(elenco, ctx.imp.sogliaMensile) : [];
     stats.append(
       el(`<div class="stat"><div class="k">Ore richieste</div><div class="v">${esc(fmtOre(t.positive))}</div>
-        <div class="s">straordinari, cambi turno e reperibilità</div></div>`),
+        <div class="s">straordinari e cambi turno</div></div>`),
       el(`<div class="stat"><div class="k">Recuperi</div><div class="v">${esc(fmtOre(t.recuperi))}</div>
         <div class="s">ore restituite ai dipendenti</div></div>`),
       el(`<div class="stat accent"><div class="k">Saldo del mese</div><div class="v">${esc(fmtOre(t.saldo, { segno: true }))}</div>
