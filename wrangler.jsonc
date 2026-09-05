@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "scadenziario",
+  "name": "amministrazione",
   "main": "worker.js",
   "compatibility_date": "2026-08-28",
   "observability": {

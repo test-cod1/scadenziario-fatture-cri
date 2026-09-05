@@ -130,6 +130,13 @@ Passaggi:
    - (opzionale, se preferisci non hardcodarle nel codice) `SUPABASE_URL` e `SUPABASE_ANON_KEY`
 3. Da qui in avanti, **ogni `git push` sul branch collegato aggiorna automaticamente il sito** — nessun altro passaggio richiesto.
 
+### Nome del Worker e indirizzo del portale
+
+Il campo `name` in [`wrangler.jsonc`](wrangler.jsonc) è anche il sottodominio pubblico: con `"name": "amministrazione"` il portale sta su `https://amministrazione.jacopo-ravaiolicri.workers.dev`. Cambiarlo **non rinomina** il Worker già esistente su Cloudflare: al primo deploy ne nasce uno nuovo e vuoto, mentre il vecchio resta online con i suoi secret. Quindi, dopo un cambio di nome:
+1. ricrea sul nuovo Worker i secret del punto 2 (non vengono ereditati: senza, lettura AI, creazione utenti e km dei preventivi rispondono con un errore);
+2. in Supabase → Authentication → URL Configuration aggiorna la **Site URL** e aggiungi il nuovo indirizzo ai **Redirect URLs** (`https://amministrazione.jacopo-ravaiolicri.workers.dev/**`), altrimenti il link di reset password non funziona;
+3. verifica che il nuovo indirizzo funzioni e solo allora elimina il vecchio Worker dalla dashboard Cloudflare.
+
 ## Gestire gli utenti dall'app
 
 Tutto avviene in **Utenti e autorizzazioni** (voce in fondo alla barra laterale, visibile solo al super admin).
