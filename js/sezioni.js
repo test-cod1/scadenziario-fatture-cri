@@ -104,7 +104,7 @@ export const SEZIONI = [
   {
     id: 'straordinari',
     label: 'Straordinari',
-    descrizione: 'Ore in più richieste agli autisti dalla centrale operativa.',
+    descrizione: 'Ore in più richieste agli dipendenti dalla centrale operativa.',
     emoji: '🕒',
     colore: '#0f766e',
     ombra: 'rgba(15,118,110,.22)',
@@ -118,7 +118,7 @@ export const SEZIONI = [
       { id: 'registro', icon: '📋', label: 'Registro', attivoAnche: ['richiesta'] },
       { id: 'nuovo', icon: '➕', label: 'Nuova richiesta' },
       { id: 'riepilogo', icon: '📅', label: 'Riepilogo mensile' },
-      { id: 'autisti', icon: '👤', label: 'Autisti' },
+      { id: 'dipendenti', icon: '👤', label: 'Dipendenti' },
       { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
     ],
     icona: ICONE.straordinari,

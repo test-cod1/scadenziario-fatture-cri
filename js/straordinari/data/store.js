@@ -1,6 +1,6 @@
 // ============================================================
 //  DATA LAYER della sezione STRAORDINARI
-//  Autisti, righe di straordinario e impostazioni sul Supabase del portale.
+//  Dipendenti, righe di straordinario e impostazioni sul Supabase del portale.
 //  Come nelle altre sezioni, i permessi li fanno rispettare le RLS: qui non
 //  si ripete nessun controllo, sarebbe una cortesia all'utente e non una
 //  sicurezza.
@@ -35,12 +35,12 @@ async function tutteLeRighe(query) {
 }
 
 // ------------------------------------------------------------------
-//  AUTISTI
+//  DIPENDENTI
 // ------------------------------------------------------------------
-export const autisti = {
+export const dipendenti = {
   async list() {
     const sb = await sbClient();
-    return tutteLeRighe((da, a) => sb.from('autisti_straordinari').select('*')
+    return tutteLeRighe((da, a) => sb.from('dipendenti_straordinari').select('*')
       .order('cognome', { ascending: true })
       .order('nome', { ascending: true, nullsFirst: true })
       .order('id', { ascending: true })   // ordine stabile fra un blocco e l'altro
@@ -67,7 +67,7 @@ export const autisti = {
       const { data: u } = await sb.auth.getUser();
       if (u?.user) riga.created_by = u.user.id;
     }
-    const { data, error } = await sb.from('autisti_straordinari').upsert(riga).select().single();
+    const { data, error } = await sb.from('dipendenti_straordinari').upsert(riga).select().single();
     if (error) {
       // L'indice unico su cognome+nome è la difesa vera contro i doppioni (due
       // schede della stessa persona = totali mensili spezzati in due), ma il
@@ -80,12 +80,12 @@ export const autisti = {
 
   async remove(id) {
     const sb = await sbClient();
-    const { error } = await sb.from('autisti_straordinari').delete().eq('id', id);
+    const { error } = await sb.from('dipendenti_straordinari').delete().eq('id', id);
     if (error) {
-      // on delete restrict: l'autista ha straordinari registrati. Cancellarlo
+      // on delete restrict: l'dipendente ha straordinari registrati. Cancellarlo
       // svuoterebbe il registro dei mesi passati, quindi si disattiva.
       if (error.code === '23503') {
-        throw new Error('Questo autista ha straordinari registrati e non può essere eliminato: disattivalo, così sparisce dagli elenchi ma lo storico resta.');
+        throw new Error('Questo dipendente ha straordinari registrati e non può essere eliminato: disattivalo, così sparisce dagli elenchi ma lo storico resta.');
       }
       throw error;
     }
@@ -112,11 +112,11 @@ export const straordinari = {
       .range(d0, d1));
   },
 
-  // Storico di un singolo autista, per la scheda che si apre dal riepilogo.
-  async listAutista(autistaId, { da, al } = {}) {
+  // Storico di un singolo dipendente, per la scheda che si apre dal riepilogo.
+  async listDipendente(dipendenteId, { da, al } = {}) {
     const sb = await sbClient();
     return tutteLeRighe((d0, d1) => {
-      let q = sb.from('straordinari').select('*').eq('autista_id', autistaId);
+      let q = sb.from('straordinari').select('*').eq('dipendente_id', dipendenteId);
       if (da) q = q.gte('data', da);
       if (al) q = q.lte('data', al);
       return q.order('data', { ascending: false }).order('id', { ascending: true }).range(d0, d1);
@@ -140,8 +140,8 @@ export const straordinari = {
     const atteso = rec.updated_at;
     const riga = {
       id: rec.id || uid(),
-      autista_id: rec.autista_id,
-      autista_nome: rec.autista_nome,
+      dipendente_id: rec.dipendente_id,
+      dipendente_nome: rec.dipendente_nome,
       data: rec.data,
       dalle: rec.dalle || null,
       alle: rec.alle || null,
@@ -155,7 +155,7 @@ export const straordinari = {
       note: (rec.note || '').trim() || null,
       updated_at: nowISO(),
     };
-    if (!riga.autista_id) throw new Error('Scegli l’autista.');
+    if (!riga.dipendente_id) throw new Error('Scegli l’dipendente.');
     if (!riga.data) throw new Error('Indica la data dello straordinario.');
     if (!Number.isFinite(riga.ore) || riga.ore <= 0) throw new Error('Le ore devono essere un numero maggiore di zero.');
 

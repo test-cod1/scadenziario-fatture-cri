@@ -41,9 +41,9 @@ export async function renderImpostazioni(view, ctx) {
       troppo tardi — le ore concentrate sempre sulle stesse persone, e lo zero di troppo battuto di fretta.</p>
       <div class="form-row">
         <div class="field">
-          <label for="s-mensile">Ore al mese per autista</label>
+          <label for="s-mensile">Ore al mese per dipendente</label>
           <input type="number" id="s-mensile" min="1" step="1" value="${esc(ctx.imp.sogliaMensile)}" ${soloLettura ? 'disabled' : ''}>
-          <div class="hint">Oltre questo saldo mensile, nel riepilogo l'autista viene evidenziato.</div>
+          <div class="hint">Oltre questo saldo mensile, nel riepilogo l'dipendente viene evidenziato.</div>
         </div>
         <div class="field">
           <label for="s-singola">Ore in una singola richiesta</label>

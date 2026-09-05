@@ -1,7 +1,7 @@
 // ============================================================
 //  CALCOLI DELLA SEZIONE STRAORDINARI
 //  Nessuna moneta: qui si contano ore. Il conto vero è uno solo — il SALDO
-//  del mese per autista, cioè straordinari meno recuperi — ed è quello che
+//  del mese per dipendente, cioè straordinari meno recuperi — ed è quello che
 //  sul foglio di carta si otteneva sommando a mano una riga "EXTRA" piena di
 //  numeri positivi e negativi.
 // ============================================================
@@ -14,7 +14,7 @@ export const TIPI = [
   { id: 'reperibilita', label: 'Reperibilità', emoji: '📞', segno: +1,
     descrizione: 'Chiamata in reperibilità: ore effettivamente prestate.' },
   { id: 'recupero', label: 'Recupero', emoji: '➖', segno: -1,
-    descrizione: 'Ore restituite all’autista, che scalano dal saldo.' },
+    descrizione: 'Ore restituite all’dipendente, che scalano dal saldo.' },
 ];
 
 export const STATI = [
@@ -68,7 +68,7 @@ export function durataOre(dalle, alle) {
 }
 
 // "7,5" e "7.5" sono la stessa cosa per chi scrive di fretta; "7:30" pure,
-// ed è come lo direbbe a voce un autista.
+// ed è come lo direbbe a voce un dipendente.
 export function parseOre(s) {
   if (s === null || s === undefined || s === '') return null;
   if (typeof s === 'number') return Number.isFinite(s) ? s : null;
@@ -137,18 +137,18 @@ export function totali(righe) {
   return t;
 }
 
-// Una riga per autista, con il dettaglio giorno per giorno: è la griglia del
+// Una riga per dipendente, con il dettaglio giorno per giorno: è la griglia del
 // riepilogo mensile, cioè il foglio di carta rifatto in modo che i totali si
-// calcolino da soli. `autisti` serve a tenere in elenco anche chi nel mese
+// calcolino da soli. `dipendenti` serve a tenere in elenco anche chi nel mese
 // non ha fatto straordinari (il foglio li aveva tutti, e vedere gli zeri è
 // il modo per accorgersi di chi si sta caricando di ore e chi no).
-export function riepilogoMensile(righe, autisti, mese) {
-  const perAutista = new Map();
+export function riepilogoMensile(righe, dipendenti, mese) {
+  const perDipendente = new Map();
   const aggiungi = (id, nome, oreContratto) => {
-    if (!perAutista.has(id)) perAutista.set(id, { id, nome, oreContratto, giorni: {}, positive: 0, recuperi: 0, saldo: 0, righe: 0, daConfermare: 0 });
-    return perAutista.get(id);
+    if (!perDipendente.has(id)) perDipendente.set(id, { id, nome, oreContratto, giorni: {}, positive: 0, recuperi: 0, saldo: 0, righe: 0, daConfermare: 0 });
+    return perDipendente.get(id);
   };
-  for (const a of autisti || []) {
+  for (const a of dipendenti || []) {
     if (a.attivo) aggiungi(a.id, nominativo(a), a.ore_contratto);
   }
   for (const r of righe) {
@@ -157,10 +157,10 @@ export function riepilogoMensile(righe, autisti, mese) {
     // farebbero comparire una cella da "0" in una giornata in cui nessuno ha
     // fatto ore, e conterebbero come riga esistente nei conteggi in testata.
     if (!contaNelSaldo(r)) continue;
-    const a = (autisti || []).find(x => x.id === r.autista_id);
-    // Un autista disattivato a metà mese resta nel riepilogo di quel mese: le
+    const a = (dipendenti || []).find(x => x.id === r.dipendente_id);
+    // Un dipendente disattivato a metà mese resta nel riepilogo di quel mese: le
     // ore che ha fatto vanno comunque pagate.
-    const riga = aggiungi(r.autista_id, a ? nominativo(a) : r.autista_nome, a?.ore_contratto);
+    const riga = aggiungi(r.dipendente_id, a ? nominativo(a) : r.dipendente_nome, a?.ore_contratto);
     riga.righe++;
     if (r.stato === 'richiesto') riga.daConfermare++;
     const ore = oreConSegno(r);
@@ -169,7 +169,7 @@ export function riepilogoMensile(righe, autisti, mese) {
     g.ore += ore;
     g.dettagli.push(r);
   }
-  const elenco = [...perAutista.values()].map(r => ({
+  const elenco = [...perDipendente.values()].map(r => ({
     ...r,
     positive: arrotonda(r.positive),
     recuperi: arrotonda(r.recuperi),
@@ -218,7 +218,7 @@ export const IMPOSTAZIONI_DEFAULT = {
     'Assistenza / manifestazione',
     'Formazione',
   ],
-  // Oltre questa soglia il riepilogo evidenzia l'autista: non è un divieto,
+  // Oltre questa soglia il riepilogo evidenzia l'dipendente: non è un divieto,
   // è il promemoria che sul foglio non c'era e che faceva scoprire a fine
   // anno che le ore erano sempre sulle stesse due persone.
   sogliaMensile: 20,

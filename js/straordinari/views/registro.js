@@ -18,7 +18,7 @@ export async function renderRegistro(view, ctx) {
   const head = el(`<div class="page-head">
     <div>
       <h1>Registro straordinari</h1>
-      <p>${esc(etichettaMese(mese))} · ore richieste agli autisti dalla centrale operativa</p>
+      <p>${esc(etichettaMese(mese))} · ore richieste agli dipendenti dalla centrale operativa</p>
     </div>
     <div class="actions">
       <button class="btn" data-xls title="Scarica le righe filtrate in Excel">⬇️ Excel</button>
@@ -38,8 +38,8 @@ export async function renderRegistro(view, ctx) {
   // verificare?"), e farla passare da un menu l'avrebbe nascosta.
   const toolbar = el(`<div class="toolbar">
     <div class="search"><span class="search-icon" aria-hidden="true">🔍</span>
-      <input type="text" id="q" placeholder="Cerca per autista, causale, servizio o note…"></div>
-    <select id="f-autista" aria-label="Filtra per autista"><option value="">Tutti gli autisti</option></select>
+      <input type="text" id="q" placeholder="Cerca per dipendente, causale, servizio o note…"></div>
+    <select id="f-dipendente" aria-label="Filtra per dipendente"><option value="">Tutti gli dipendenti</option></select>
     <select id="f-tipo" aria-label="Filtra per tipo"><option value="">Tutti i tipi</option>
       ${TIPI.map(t => `<option value="${t.id}">${t.emoji} ${esc(t.label)}</option>`).join('')}</select>
     <select id="f-stato" aria-label="Filtra per stato"><option value="">Tutti gli stati</option>
@@ -48,19 +48,19 @@ export async function renderRegistro(view, ctx) {
   </div>`);
   view.appendChild(toolbar);
 
-  const selAutista = toolbar.querySelector('#f-autista');
-  // Nell'elenco ci sono gli autisti attivi più chiunque abbia righe in questo
-  // mese: un autista disattivato a metà mese deve restare filtrabile, o le
+  const selDipendente = toolbar.querySelector('#f-dipendente');
+  // Nell'elenco ci sono gli dipendenti attivi più chiunque abbia righe in questo
+  // mese: un dipendente disattivato a metà mese deve restare filtrabile, o le
   // sue ore diventerebbero irraggiungibili proprio nel mese da liquidare.
-  const idsInMese = new Set(righe.map(r => r.autista_id));
-  for (const a of ctx.autisti) {
+  const idsInMese = new Set(righe.map(r => r.dipendente_id));
+  for (const a of ctx.dipendenti) {
     if (!a.attivo && !idsInMese.has(a.id)) continue;
-    selAutista.appendChild(el(`<option value="${esc(a.id)}">${esc(nominativo(a))}${a.attivo ? '' : ' (non attivo)'}</option>`));
+    selDipendente.appendChild(el(`<option value="${esc(a.id)}">${esc(nominativo(a))}${a.attivo ? '' : ' (non attivo)'}</option>`));
   }
 
   const card = el(`<div class="card"><div class="tbl-wrap"><table class="tbl str-tbl">
     <thead><tr>
-      <th>Data</th><th>Autista</th><th>Orario</th><th class="money">Ore</th>
+      <th>Data</th><th>Dipendente</th><th>Orario</th><th class="money">Ore</th>
       <th>Tipo</th><th>Causale</th><th>Stato</th><th>Richiesto da</th><th></th>
     </tr></thead><tbody></tbody>
     <tfoot><tr><td colspan="9"></td></tr></tfoot>
@@ -71,27 +71,27 @@ export async function renderRegistro(view, ctx) {
 
   const vuoto = el(`<div class="empty-state" hidden><div class="big">🕒</div>
     <p><b>Nessuno straordinario in ${esc(etichettaMese(mese))}</b></p>
-    <p>Quando la centrale chiede ore in più a un autista, registrale qui:<br>
+    <p>Quando la centrale chiede ore in più a un dipendente, registrale qui:<br>
     a fine mese il riepilogo e il file per l'ufficio personale escono da soli.</p>
     <p style="margin-top:18px"><a class="btn primary" href="#/straordinari/nuovo">➕ Registra il primo straordinario</a></p></div>`);
   view.appendChild(vuoto);
 
-  const senzaAutisti = el(`<div class="banner warn" hidden><div class="bi">👤</div><div>
-    <b>Nessun autista in anagrafica</b>
-    <div class="small">Prima di registrare straordinari serve l'elenco degli autisti, con le ore
-    settimanali di contratto: <a href="#/straordinari/autisti">aprilo e compilalo</a>.</div>
+  const senzaDipendenti = el(`<div class="banner warn" hidden><div class="bi">👤</div><div>
+    <b>Nessun dipendente in anagrafica</b>
+    <div class="small">Prima di registrare straordinari serve l'elenco degli dipendenti, con le ore
+    settimanali di contratto: <a href="#/straordinari/dipendenti">aprilo e compilalo</a>.</div>
   </div>`);
-  view.insertBefore(senzaAutisti, stats);
+  view.insertBefore(senzaDipendenti, stats);
 
   function filtrate() {
     const q = toolbar.querySelector('#q').value.toLowerCase().trim();
-    const fa = selAutista.value, ft = toolbar.querySelector('#f-tipo').value, fs = toolbar.querySelector('#f-stato').value;
+    const fa = selDipendente.value, ft = toolbar.querySelector('#f-tipo').value, fs = toolbar.querySelector('#f-stato').value;
     return righe.filter(r => {
-      if (fa && r.autista_id !== fa) return false;
+      if (fa && r.dipendente_id !== fa) return false;
       if (ft && r.tipo !== ft) return false;
       if (fs && r.stato !== fs) return false;
       if (!q) return true;
-      return [r.autista_nome, r.causale, r.servizio, r.note, r.richiesto_da_nome]
+      return [r.dipendente_nome, r.causale, r.servizio, r.note, r.richiesto_da_nome]
         .filter(Boolean).join(' ').toLowerCase().includes(q);
     });
   }
@@ -99,12 +99,12 @@ export async function renderRegistro(view, ctx) {
   function disegnaStats(elenco) {
     const t = totali(elenco);
     clear(stats);
-    const sopraSoglia = elenco.length ? autistiSopraSoglia(elenco, ctx.imp.sogliaMensile) : [];
+    const sopraSoglia = elenco.length ? dipendentiSopraSoglia(elenco, ctx.imp.sogliaMensile) : [];
     stats.append(
       el(`<div class="stat"><div class="k">Ore richieste</div><div class="v">${esc(fmtOre(t.positive))}</div>
         <div class="s">straordinari, cambi turno e reperibilità</div></div>`),
       el(`<div class="stat"><div class="k">Recuperi</div><div class="v">${esc(fmtOre(t.recuperi))}</div>
-        <div class="s">ore restituite agli autisti</div></div>`),
+        <div class="s">ore restituite agli dipendenti</div></div>`),
       el(`<div class="stat accent"><div class="k">Saldo del mese</div><div class="v">${esc(fmtOre(t.saldo, { segno: true }))}</div>
         <div class="s">${t.righe} righe${sopraSoglia.length ? ` · ${sopraSoglia.length} sopra la soglia` : ''}</div></div>`),
     );
@@ -120,8 +120,8 @@ export async function renderRegistro(view, ctx) {
   function disegna() {
     const elenco = filtrate();
     disegnaStats(elenco);
-    senzaAutisti.hidden = ctx.autisti.some(a => a.attivo);
-    const nessunFiltro = !toolbar.querySelector('#q').value && !selAutista.value
+    senzaDipendenti.hidden = ctx.dipendenti.some(a => a.attivo);
+    const nessunFiltro = !toolbar.querySelector('#q').value && !selDipendente.value
       && !toolbar.querySelector('#f-tipo').value && !toolbar.querySelector('#f-stato').value;
     toolbar.querySelector('[data-azzera]').hidden = nessunFiltro;
     // Con il mese davvero vuoto si mostra l'invito; con un filtro che non
@@ -161,7 +161,7 @@ export async function renderRegistro(view, ctx) {
     const ore = oreConSegno(r);
     const tr = el(`<tr class="${r.stato === 'annullato' ? 'str-annullata' : ''}">
       <td>${esc(fmtGiorno(r.data))}</td>
-      <td><b>${esc(r.autista_nome)}</b></td>
+      <td><b>${esc(r.dipendente_nome)}</b></td>
       <td class="muted">${esc(fmtOrario(r.dalle, r.alle))}</td>
       <td class="money ${ore < 0 ? 'str-neg' : ''}">${esc(fmtOre(ore, { segno: true }))}</td>
       <td>${esc(etichettaTipo(r.tipo))}</td>
@@ -194,14 +194,14 @@ export async function renderRegistro(view, ctx) {
     tr.querySelector('[data-annulla]').addEventListener('click', async () => {
       const verso = r.stato === 'annullato' ? 'richiesto' : 'annullato';
       if (verso === 'annullato' && !await confirmDialog(
-        `Annullare lo straordinario di ${r.autista_nome} del ${fmtGiorno(r.data)}? Resta nel registro ma non conta in nessun totale.`,
+        `Annullare lo straordinario di ${r.dipendente_nome} del ${fmtGiorno(r.data)}? Resta nel registro ma non conta in nessun totale.`,
         { okLabel: 'Annulla la richiesta' })) return;
       cambiaStato(r, verso, tr);
     });
 
     tr.querySelector('[data-del]').addEventListener('click', async () => {
       if (!await confirmDialog(
-        `Eliminare definitivamente lo straordinario di ${r.autista_nome} del ${fmtGiorno(r.data)}? Se il servizio non è stato svolto conviene annullarlo, così resta traccia della richiesta.`,
+        `Eliminare definitivamente lo straordinario di ${r.dipendente_nome} del ${fmtGiorno(r.data)}? Se il servizio non è stato svolto conviene annullarlo, così resta traccia della richiesta.`,
         { danger: true, okLabel: 'Elimina' })) return;
       try { await straordinari.remove(r.id); }
       catch (e) { toast('Eliminazione non riuscita: ' + e.message, 'err'); return; }
@@ -244,25 +244,25 @@ export async function renderRegistro(view, ctx) {
     disegna();
   });
   head.querySelector('[data-xls]').addEventListener('click', () => exportXLSX(filtrate(), mese));
-  head.querySelector('[data-print]').addEventListener('click', () => stampaElenco(filtrate(), mese, descrizioneFiltri(toolbar, selAutista)));
+  head.querySelector('[data-print]').addEventListener('click', () => stampaElenco(filtrate(), mese, descrizioneFiltri(toolbar, selDipendente)));
 
   disegna();
 }
 
-// Quali autisti hanno superato la soglia mensile: serve solo al conteggio in
+// Quali dipendenti hanno superato la soglia mensile: serve solo al conteggio in
 // testata, il dettaglio sta nel riepilogo.
-function autistiSopraSoglia(elenco, soglia) {
+function dipendentiSopraSoglia(elenco, soglia) {
   const per = new Map();
-  for (const r of elenco) per.set(r.autista_id, (per.get(r.autista_id) || 0) + oreConSegno(r));
+  for (const r of elenco) per.set(r.dipendente_id, (per.get(r.dipendente_id) || 0) + oreConSegno(r));
   return [...per.entries()].filter(([, ore]) => ore > soglia);
 }
 
 // Riga di sottotitolo della stampa: senza, un elenco filtrato per un solo
-// autista stampato sembrerebbe il registro intero del mese.
-function descrizioneFiltri(toolbar, selAutista) {
+// dipendente stampato sembrerebbe il registro intero del mese.
+function descrizioneFiltri(toolbar, selDipendente) {
   const parti = [];
   const q = toolbar.querySelector('#q').value.trim();
-  if (selAutista.value) parti.push(selAutista.selectedOptions[0].textContent);
+  if (selDipendente.value) parti.push(selDipendente.selectedOptions[0].textContent);
   const tipo = toolbar.querySelector('#f-tipo');
   if (tipo.value) parti.push(tipoDi(tipo.value).label);
   const stato = toolbar.querySelector('#f-stato');

@@ -15,7 +15,7 @@ import { sorvegliaUscita, armaGuardiaIndietro, smettiDiSorvegliare } from '../..
 export async function renderRichiesta(view, id, ctx) {
   const nuovo = !id;
   let rec = nuovo ? bozza(ctx) : await straordinari.get(id);
-  // Righe dello stesso autista nello stesso giorno: servono all'avviso sui
+  // Righe dello stesso dipendente nello stesso giorno: servono all'avviso sui
   // doppioni (la stessa serata registrata due volte è l'errore più comune di
   // un registro compilato in due persone).
   let stessoGiorno = [];
@@ -23,14 +23,14 @@ export async function renderRichiesta(view, id, ctx) {
   let sporco = false;
   const modificato = () => { sporco = true; armaGuardiaIndietro(); };
 
-  const attivi = ctx.autisti.filter(a => a.attivo || a.id === rec.autista_id);
+  const attivi = ctx.dipendenti.filter(a => a.attivo || a.id === rec.dipendente_id);
 
   const editor = el(`<div class="str-editor">
     <div class="page-head">
       <div>
         <h1>${nuovo ? 'Nuova richiesta di straordinario' : 'Straordinario'}</h1>
-        <p>${nuovo ? 'Registra le ore chieste a un autista: bastano autista, giorno e ore.'
-                   : `${esc(rec.autista_nome)} · ${esc(fmtGiorno(rec.data))}`}</p>
+        <p>${nuovo ? 'Registra le ore chieste a un dipendente: bastano dipendente, giorno e ore.'
+                   : `${esc(rec.dipendente_nome)} · ${esc(fmtGiorno(rec.data))}`}</p>
       </div>
       <div class="actions">
         <a class="btn" href="#/straordinari/registro">← Registro</a>
@@ -44,8 +44,8 @@ export async function renderRichiesta(view, id, ctx) {
     <div class="card"><div class="card-h">Dati della richiesta</div><div class="card-b str-form">
       <div class="form-row">
         <div class="field">
-          <label for="f-autista">Autista *</label>
-          <select id="f-autista">
+          <label for="f-dipendente">Dipendente *</label>
+          <select id="f-dipendente">
             <option value="">— scegli —</option>
             ${attivi.map(a => `<option value="${esc(a.id)}">${esc(nominativo(a))}${a.ore_contratto ? ` (${a.ore_contratto}h)` : ''}</option>`).join('')}
           </select>
@@ -124,7 +124,7 @@ export async function renderRichiesta(view, id, ctx) {
   view.appendChild(editor);
 
   const campi = {
-    autista: editor.querySelector('#f-autista'),
+    dipendente: editor.querySelector('#f-dipendente'),
     data: editor.querySelector('#f-data'),
     dalle: editor.querySelector('#f-dalle'),
     alle: editor.querySelector('#f-alle'),
@@ -181,7 +181,7 @@ export async function renderRichiesta(view, id, ctx) {
 
   // ---------- riempimento dai dati ----------
   function riempi() {
-    campi.autista.value = rec.autista_id || '';
+    campi.dipendente.value = rec.dipendente_id || '';
     campi.data.value = rec.data || '';
     campi.dalle.value = String(rec.dalle || '').slice(0, 5);
     campi.alle.value = String(rec.alle || '').slice(0, 5);
@@ -204,7 +204,7 @@ export async function renderRichiesta(view, id, ctx) {
   }
 
   function aggiornaContratto() {
-    const a = ctx.autisti.find(x => x.id === campi.autista.value);
+    const a = ctx.dipendenti.find(x => x.id === campi.dipendente.value);
     editor.querySelector('[data-contratto]').textContent = a?.ore_contratto
       ? `Contratto da ${a.ore_contratto} ore settimanali.` : '';
   }
@@ -227,21 +227,21 @@ export async function renderRichiesta(view, id, ctx) {
   async function controllaDoppioni() {
     const banner = editor.querySelector('[data-avviso-doppione]');
     const testo = banner.querySelector('div:last-child');
-    if (!campi.autista.value || !campi.data.value) { banner.hidden = true; return; }
+    if (!campi.dipendente.value || !campi.data.value) { banner.hidden = true; return; }
     try {
-      stessoGiorno = (await straordinari.listAutista(campi.autista.value, { da: campi.data.value, al: campi.data.value }))
+      stessoGiorno = (await straordinari.listDipendente(campi.dipendente.value, { da: campi.data.value, al: campi.data.value }))
         .filter(r => r.id !== rec.id && r.stato !== 'annullato');
     } catch { stessoGiorno = []; }          // l'avviso è un aiuto, non deve bloccare il salvataggio
     if (!stessoGiorno.length) { banner.hidden = true; return; }
     const dettaglio = stessoGiorno.map(r => `${fmtOre(r.ore)} (${tipoDi(r.tipo).label.toLowerCase()})`).join(', ');
-    testo.innerHTML = `<b>Per questo autista c'è già una riga in questo giorno</b>
+    testo.innerHTML = `<b>Per questo dipendente c'è già una riga in questo giorno</b>
       <div class="small">${esc(dettaglio)}. Se sono ore diverse va bene così; se è la stessa serata,
       correggi quella esistente invece di aggiungerne un'altra.</div>`;
     banner.hidden = false;
   }
 
   // ---------- eventi ----------
-  campi.autista.addEventListener('change', () => { aggiornaContratto(); controllaDoppioni(); modificato(); });
+  campi.dipendente.addEventListener('change', () => { aggiornaContratto(); controllaDoppioni(); modificato(); });
   campi.data.addEventListener('change', () => { aggiornaGiorno(); controllaDoppioni(); modificato(); });
   campi.ore.addEventListener('input', () => { oreAMano = true; aggiornaHintOre(); modificato(); });
   campi.stato.addEventListener('change', () => { aggiornaStatoDesc(); modificato(); });
@@ -251,11 +251,11 @@ export async function renderRichiesta(view, id, ctx) {
 
   // ---------- salvataggio ----------
   function raccogli() {
-    const a = ctx.autisti.find(x => x.id === campi.autista.value);
+    const a = ctx.dipendenti.find(x => x.id === campi.dipendente.value);
     return {
       ...rec,
-      autista_id: campi.autista.value || null,
-      autista_nome: a ? nominativo(a) : rec.autista_nome,
+      dipendente_id: campi.dipendente.value || null,
+      dipendente_nome: a ? nominativo(a) : rec.dipendente_nome,
       data: campi.data.value || null,
       dalle: campi.dalle.value || null,
       alle: campi.alle.value || null,
@@ -272,7 +272,7 @@ export async function renderRichiesta(view, id, ctx) {
 
   async function salva({ poiNuova } = {}) {
     const da = raccogli();
-    if (!da.autista_id) { toast('Scegli l’autista', 'err'); campi.autista.focus(); return; }
+    if (!da.dipendente_id) { toast('Scegli l’dipendente', 'err'); campi.dipendente.focus(); return; }
     if (!da.data) { toast('Indica il giorno', 'err'); campi.data.focus(); return; }
     if (!da.ore || da.ore <= 0) { toast('Indica quante ore', 'err'); campi.ore.focus(); return; }
     if (da.ore > 24) { toast('Le ore di una singola riga non possono superare 24', 'err'); campi.ore.focus(); return; }
@@ -296,12 +296,12 @@ export async function renderRichiesta(view, id, ctx) {
 
     if (poiNuova) {
       // "Salva e nuova" tiene giorno, tipo e richiedente (si registra una
-      // serata alla volta, di solito con più autisti coinvolti) e azzera il
+      // serata alla volta, di solito con più dipendenti coinvolti) e azzera il
       // resto.
       rec = { ...bozza(ctx), data: salvata.data, tipo: salvata.tipo, richiesto_da_nome: salvata.richiesto_da_nome };
       oreAMano = false;
       riempi();
-      campi.autista.focus();
+      campi.dipendente.focus();
       controllaDoppioni();
       return;
     }
@@ -329,7 +329,7 @@ export async function renderRichiesta(view, id, ctx) {
 
   riempi();
   controllaDoppioni();
-  if (nuovo) campi.autista.focus();
+  if (nuovo) campi.dipendente.focus();
   sorvegliaUscita(editor, () => sporco);
 }
 
@@ -338,8 +338,8 @@ export async function renderRichiesta(view, id, ctx) {
 // venti volte al mese sempre uguali.
 function bozza(ctx) {
   return {
-    autista_id: '',
-    autista_nome: '',
+    dipendente_id: '',
+    dipendente_nome: '',
     data: todayISO(),
     dalle: '', alle: '', ore: '',
     tipo: 'straordinario',

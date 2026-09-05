@@ -92,6 +92,44 @@ function opzioni(valore) {
     .map(([v, t]) => `<option value="${v}" ${valore === v ? 'selected' : ''}>${t}</option>`).join('');
 }
 
+// Nome visualizzato di un profilo. Serve perché quello di partenza non lo
+// sceglie nessuno: il trigger handle_new_user() lo ricava dall'email
+// (split_part(email,'@',1)), quindi ogni account nasce chiamandosi
+// "nome.cognome". Fin qui l'unico modo per correggerlo era una UPDATE a mano
+// sul database.
+async function rinomina(u, tr, sonoIo) {
+  const body = el(`<div class="field" style="margin:0">
+    <label for="ren-nome">Nome visualizzato</label>
+    <input type="text" id="ren-nome" value="${esc(u.nome || '')}" placeholder="Nome Cognome">
+    <div class="hint">Compare nella barra laterale, nel registro modifiche e accanto a ciò che questa
+    persona registra. L'email (${esc(u.email || '—')}) e la password non cambiano.</div>
+  </div>`);
+  const foot = el(`<div style="display:flex;gap:10px;justify-content:flex-end">
+    <button class="btn" data-annulla>Annulla</button>
+    <button class="btn primary" data-ok>Salva</button></div>`);
+  const { close } = openModal({ title: sonoIo ? 'Il tuo nome' : 'Nome utente', body, footer: foot });
+  foot.querySelector('[data-annulla]').addEventListener('click', () => close());
+  foot.querySelector('[data-ok]').addEventListener('click', async () => {
+    const nome = body.querySelector('#ren-nome').value.trim();
+    if (!nome) { toast('Il nome non può restare vuoto', 'err'); return; }
+    if (nome === u.nome) { close(); return; }
+    try {
+      await amministrazione.aggiornaUtente(u.id, { nome });
+    } catch (e) { toast('Modifica non riuscita: ' + e.message, 'err'); return; }
+    u.nome = nome;
+    tr.querySelector('[data-nome]').textContent = nome;
+    // La barra laterale è disegnata una volta sola all'avvio: cambiando il
+    // PROPRIO nome resterebbe quello vecchio fino al ricaricamento della
+    // pagina, cioè sembrerebbe che il salvataggio non abbia funzionato.
+    if (sonoIo) {
+      const who = document.querySelector('.sidebar .foot .who');
+      if (who) who.textContent = nome;
+    }
+    toast('Nome aggiornato', 'ok');
+    close();
+  });
+}
+
 function renderTabellaUtenti(zona, utenti, ctx, ricarica) {
   if (!utenti.length) { zona.replaceChildren(el('<div class="empty-state"><div class="big">👤</div><p>Nessun utente.</p></div>')); return; }
   const table = el(`<table class="tbl perm-tbl"><thead><tr>
@@ -104,7 +142,10 @@ function renderTabellaUtenti(zona, utenti, ctx, ricarica) {
     const superAdmin = u.ruolo === 'super_admin';
     const tr = el(`<tr>
       <td>
-        <div style="font-weight:600">${esc(u.nome || '—')}${sonoIo ? ' <span class="chip">tu</span>' : ''}</div>
+        <div style="font-weight:600">
+          <span data-nome>${esc(u.nome || '—')}</span>${sonoIo ? ' <span class="chip">tu</span>' : ''}
+          <button class="btn ghost sm" data-rinomina title="Cambia il nome visualizzato">✏️</button>
+        </div>
         <div class="muted" style="font-size:12.5px">${esc(u.email || '—')}</div>
       </td>
       <td data-stato></td>
@@ -112,6 +153,8 @@ function renderTabellaUtenti(zona, utenti, ctx, ricarica) {
         ? `<td colspan="${SEZIONI.length}" class="muted" style="font-style:italic">accesso completo a tutte le sezioni</td>`
         : SEZIONI.map(s => `<td><select data-sezione="${s.id}" style="min-width:120px">${opzioni(u.sezioni[s.id] || '')}</select></td>`).join('')}
     </tr>`);
+
+    tr.querySelector('[data-rinomina]').addEventListener('click', () => rinomina(u, tr, sonoIo));
 
     disegnaStato(tr.querySelector('[data-stato]'), u, sonoIo, ricarica);
 

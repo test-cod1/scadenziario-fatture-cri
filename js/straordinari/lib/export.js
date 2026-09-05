@@ -4,7 +4,7 @@
 //   * Excel — l'elenco delle righe, per l'ufficio personale che deve
 //     rimetterle in busta paga (una riga per straordinario, non una griglia:
 //     una griglia in Excel non si somma né si filtra).
-//   * Stampa — la griglia mensile autisti × giorni, cioè il foglio che oggi
+//   * Stampa — la griglia mensile dipendenti × giorni, cioè il foglio che oggi
 //     si consegna firmato. È l'unico punto in cui la forma del vecchio PDF
 //     resta utile: su carta serve la vista d'insieme.
 // ============================================================
@@ -15,7 +15,7 @@ import { fmtOrario } from './ui.js';
 
 const COLS = [
   { header: 'Data', tipo: 'data', get: r => r.data },
-  { header: 'Autista', tipo: 'testo', get: r => r.autista_nome || '' },
+  { header: 'Dipendente', tipo: 'testo', get: r => r.dipendente_nome || '' },
   { header: 'Dalle', tipo: 'testo', get: r => String(r.dalle || '').slice(0, 5) },
   { header: 'Alle', tipo: 'testo', get: r => String(r.alle || '').slice(0, 5) },
   // Le ore vanno in Excel come NUMERO con il segno del tipo: è la colonna che
@@ -42,7 +42,7 @@ function scarica(blob, filename) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-// Griglia mensile stampabile: gli autisti in riga, i giorni in colonna, le
+// Griglia mensile stampabile: gli dipendenti in riga, i giorni in colonna, le
 // ore nelle celle. In fondo il totale di giornata, a destra il saldo del
 // mese; i sabati e le domeniche hanno lo sfondo grigio, come si è abituati a
 // leggerli sul tabellone dei turni.
@@ -101,7 +101,7 @@ export function stampaRiepilogo(riepilogo, perGiorno, mese, { righe = [] } = {})
     ore richieste ${numero(t.positive)}, recuperi ${numero(t.recuperi)}, saldo ${numero(t.saldo)}
     ${t.daConfermare ? ` · ATTENZIONE: ${t.daConfermare} righe ancora da confermare` : ''}</div>
   <table>
-    <thead><tr><th class="nome">Autista</th>${intestazione}<th class="tot">Str.</th><th class="tot">Rec.</th><th class="tot">Saldo</th></tr></thead>
+    <thead><tr><th class="nome">Dipendente</th>${intestazione}<th class="tot">Str.</th><th class="tot">Rec.</th><th class="tot">Saldo</th></tr></thead>
     <tbody>${corpo || `<tr><td colspan="${giorni.length + 4}">Nessuno straordinario registrato in questo mese.</td></tr>`}</tbody>
     <tfoot><tr><th class="nome">Totale giornata</th>${piede}<td class="tot">${numero(t.positive)}</td><td class="tot">${numero(t.recuperi)}</td><td class="tot saldo">${numero(t.saldo)}</td></tr></tfoot>
   </table>
@@ -121,7 +121,7 @@ export function stampaElenco(righe, mese, sottotitolo = '') {
   const t = totali(righe);
   const corpo = righe.map(r => `<tr>
     <td>${esc(new Date(r.data + 'T00:00:00').toLocaleDateString('it-IT'))}</td>
-    <td>${esc(r.autista_nome || '')}</td>
+    <td>${esc(r.dipendente_nome || '')}</td>
     <td>${esc(fmtOrario(r.dalle, r.alle))}</td>
     <td class="num">${numero(tipoDi(r.tipo).segno * (Number(r.ore) || 0))}</td>
     <td>${esc(tipoDi(r.tipo).label)}</td>
@@ -147,7 +147,7 @@ export function stampaElenco(righe, mese, sottotitolo = '') {
   <h1>Straordinari — ${esc(etichettaMese(mese))}</h1>
   <div class="sub">Croce Rossa Italiana — Comitato di Genova · Centrale operativa${sottotitolo ? ' · ' + esc(sottotitolo) : ''}</div>
   <table>
-    <thead><tr><th>Data</th><th>Autista</th><th>Orario</th><th class="num">Ore</th><th>Tipo</th><th>Causale</th><th>Stato</th><th>Richiesto da</th></tr></thead>
+    <thead><tr><th>Data</th><th>Dipendente</th><th>Orario</th><th class="num">Ore</th><th>Tipo</th><th>Causale</th><th>Stato</th><th>Richiesto da</th></tr></thead>
     <tbody>${corpo || '<tr><td colspan="8">Nessuna riga.</td></tr>'}</tbody>
     <tfoot><tr><td colspan="3">Totale (${righe.length} righe)</td><td class="num">${numero(t.saldo)}</td><td colspan="4">straordinari ${numero(t.positive)} · recuperi ${numero(t.recuperi)}</td></tr></tfoot>
   </table>

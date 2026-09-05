@@ -1,5 +1,5 @@
 // ============================================================
-//  RIEPILOGO MENSILE — la griglia autisti × giorni.
+//  RIEPILOGO MENSILE — la griglia dipendenti × giorni.
 //  È la vista che eredita la forma del foglio di carta, perché per capire
 //  "come stiamo distribuendo le ore" serve vedere il mese tutto insieme. La
 //  differenza è che qui i totali non si sommano a mano, le celle si aprono
@@ -22,7 +22,7 @@ export async function renderRiepilogo(view, ctx) {
   const head = el(`<div class="page-head">
     <div>
       <h1>Riepilogo mensile</h1>
-      <p>${esc(etichettaMese(mese))} · ore per autista, giorno per giorno</p>
+      <p>${esc(etichettaMese(mese))} · ore per dipendente, giorno per giorno</p>
     </div>
     <div class="actions">
       <button class="btn" data-xls>⬇️ Excel</button>
@@ -45,7 +45,7 @@ export async function renderRiepilogo(view, ctx) {
   function disegna() {
     clear(zona);
     const t = totali(righe);
-    const riepilogo = riepilogoMensile(righe, ctx.autisti, mese);
+    const riepilogo = riepilogoMensile(righe, ctx.dipendenti, mese);
     const perGiorno = totaliPerGiorno(riepilogo, mese);
     const conOre = riepilogo.filter(r => r.righe > 0);
 
@@ -59,12 +59,12 @@ export async function renderRiepilogo(view, ctx) {
 
     const stats = el(`<div class="grid stats" style="margin:18px 0 20px">
       <div class="stat"><div class="k">Ore richieste</div><div class="v">${esc(fmtOre(t.positive))}</div>
-        <div class="s">a ${conOre.length} autisti su ${riepilogo.length}</div></div>
+        <div class="s">a ${conOre.length} dipendenti su ${riepilogo.length}</div></div>
       <div class="stat"><div class="k">Recuperi</div><div class="v">${esc(fmtOre(t.recuperi))}</div>
         <div class="s">ore restituite</div></div>
       <div class="stat accent"><div class="k">Saldo del mese</div><div class="v">${esc(fmtOre(t.saldo, { segno: true }))}</div>
-        <div class="s">da riconoscere agli autisti</div></div>
-      <div class="stat"><div class="k">Media per autista</div>
+        <div class="s">da riconoscere agli dipendenti</div></div>
+      <div class="stat"><div class="k">Media per dipendente</div>
         <div class="v">${esc(fmtOre(conOre.length ? t.saldo / conOre.length : 0))}</div>
         <div class="s">fra chi ha fatto ore</div></div>
     </div>`);
@@ -72,8 +72,8 @@ export async function renderRiepilogo(view, ctx) {
 
     if (!riepilogo.length) {
       zona.appendChild(el(`<div class="empty-state"><div class="big">👤</div>
-        <p><b>Nessun autista in anagrafica</b></p>
-        <p>Il riepilogo mostra una riga per autista: <a href="#/straordinari/autisti">compila prima l'elenco</a>.</p></div>`));
+        <p><b>Nessun dipendente in anagrafica</b></p>
+        <p>Il riepilogo mostra una riga per dipendente: <a href="#/straordinari/dipendenti">compila prima l'elenco</a>.</p></div>`));
       return;
     }
 
@@ -83,7 +83,7 @@ export async function renderRiepilogo(view, ctx) {
         <span class="dow">${['do', 'lu', 'ma', 'me', 'gi', 've', 'sa'][g.dow]}</span>${g.numero}</th>`).join('');
 
     const tabella = el(`<div class="card"><div class="tbl-wrap"><table class="str-griglia">
-      <thead><tr><th class="nome">Autista</th>${intestazione}
+      <thead><tr><th class="nome">Dipendente</th>${intestazione}
         <th class="tot">Str.</th><th class="tot">Rec.</th><th class="tot saldo">Saldo</th></tr></thead>
       <tbody></tbody>
       <tfoot><tr><th class="nome">Totale giornata</th>
@@ -114,7 +114,7 @@ export async function renderRiepilogo(view, ctx) {
 
     zona.appendChild(el(`<p class="muted small" style="margin-top:12px">
       Le ore sono il saldo della giornata: i recuperi sono in rosso, con il segno meno.
-      Gli autisti senza ore restano in elenco apposta — vedere gli zeri è il modo per accorgersi
+      Gli dipendenti senza ore restano in elenco apposta — vedere gli zeri è il modo per accorgersi
       di chi si sta caricando di straordinari e chi no.</p>`));
 
     head.querySelector('[data-xls]').onclick = () => exportXLSX(righe, mese);

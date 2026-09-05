@@ -1,5 +1,5 @@
 -- ============================================================
---  PATCH — Sezione STRAORDINARI (registro degli straordinari degli autisti)
+--  PATCH — Sezione STRAORDINARI (registro degli straordinari degli dipendenti)
 --  Da eseguire nell'SQL Editor di Supabase del portale, dopo
 --  patch-2026-09-01-portale.sql.
 --
@@ -10,17 +10,17 @@
 --  chi, quando, quante ore, per quale motivo, chiesto da chi e a che punto è
 --  (richiesto → confermato → liquidato/recuperato).
 --
---  Tre tabelle: gli autisti, le righe di straordinario, e la solita riga
+--  Tre tabelle: gli dipendenti, le righe di straordinario, e la solita riga
 --  unica di impostazioni (causali e soglie di avviso).
 -- ============================================================
 
--- ---------- ANAGRAFICA DEGLI AUTISTI ----------
+-- ---------- ANAGRAFICA DEGLI DIPENDENTI ----------
 -- Sono i dipendenti del foglio mensile, con le ore settimanali di contratto
 -- (38 / 35 / 30 / 24) che lì comparivano accanto al cognome. Non è una copia
 -- del personale dell'ente: serve a scegliere un nome da un elenco invece di
 -- riscriverlo, e a sapere quante ore ordinarie fa chi si sta caricando di
 -- straordinari.
-create table if not exists public.autisti_straordinari (
+create table if not exists public.dipendenti_straordinari (
   id uuid primary key default gen_random_uuid(),
 
   cognome text not null,
@@ -42,19 +42,19 @@ create table if not exists public.autisti_straordinari (
 -- Due schede per la stessa persona renderebbero i totali mensili sbagliati
 -- senza che nulla lo segnali: cognome+nome è unico, senza distinzione fra
 -- maiuscole e minuscole né spazi in più agli estremi.
-create unique index if not exists idx_autisti_str_nominativo
-  on public.autisti_straordinari (lower(btrim(cognome)), lower(btrim(coalesce(nome, ''))));
-create index if not exists idx_autisti_str_attivo on public.autisti_straordinari(attivo);
+create unique index if not exists idx_dipendenti_str_nominativo
+  on public.dipendenti_straordinari (lower(btrim(cognome)), lower(btrim(coalesce(nome, ''))));
+create index if not exists idx_dipendenti_str_attivo on public.dipendenti_straordinari(attivo);
 
 -- ---------- RIGHE DI STRAORDINARIO ----------
 create table if not exists public.straordinari (
   id uuid primary key default gen_random_uuid(),
 
-  autista_id uuid not null references public.autisti_straordinari(id) on delete restrict,
+  dipendente_id uuid not null references public.dipendenti_straordinari(id) on delete restrict,
   -- Il nominativo è COPIATO qui, come i dati del cliente nei preventivi delle
   -- assistenze: correggere un cognome in anagrafica non deve riscrivere i
   -- registri dei mesi già chiusi e già mandati all'ufficio personale.
-  autista_nome text not null,
+  dipendente_nome text not null,
 
   data date not null,
   -- Orari indicativi dello straordinario: servono a ricostruire cos'è
@@ -92,7 +92,7 @@ create table if not exists public.straordinari (
 );
 
 create index if not exists idx_straord_data on public.straordinari(data desc);
-create index if not exists idx_straord_autista on public.straordinari(autista_id, data desc);
+create index if not exists idx_straord_dipendente on public.straordinari(dipendente_id, data desc);
 create index if not exists idx_straord_stato on public.straordinari(stato);
 
 -- ---------- IMPOSTAZIONI (causali e soglie) ----------
@@ -108,17 +108,17 @@ create table if not exists public.impostazioni_straordinari (
 -- chi è già stato abilitato non proteggerebbe nulla. Le impostazioni
 -- (causali e soglie) restano invece al solo admin di sezione: sono le regole
 -- con cui si legge tutto il registro, non un dato di giornata.
--- L'eliminazione di un autista con straordinari a suo carico la impedisce la
+-- L'eliminazione di un dipendente con straordinari a suo carico la impedisce la
 -- chiave esterna (on delete restrict), non un permesso.
-alter table public.autisti_straordinari      enable row level security;
+alter table public.dipendenti_straordinari      enable row level security;
 alter table public.straordinari              enable row level security;
 alter table public.impostazioni_straordinari enable row level security;
 
-drop policy if exists autisti_str_read on public.autisti_straordinari;
-create policy autisti_str_read on public.autisti_straordinari for select
+drop policy if exists dipendenti_str_read on public.dipendenti_straordinari;
+create policy dipendenti_str_read on public.dipendenti_straordinari for select
   using (public.accede_a('straordinari'));
-drop policy if exists autisti_str_write on public.autisti_straordinari;
-create policy autisti_str_write on public.autisti_straordinari for all
+drop policy if exists dipendenti_str_write on public.dipendenti_straordinari;
+create policy dipendenti_str_write on public.dipendenti_straordinari for all
   using (public.accede_a('straordinari')) with check (public.accede_a('straordinari'));
 
 drop policy if exists straord_read on public.straordinari;
@@ -141,16 +141,16 @@ insert into public.sezioni (id, etichetta, ordine) values
 on conflict (id) do update set etichetta = excluded.etichetta, ordine = excluded.ordine;
 
 comment on table public.straordinari is
-  'Registro degli straordinari richiesti agli autisti dalla centrale operativa';
-comment on table public.autisti_straordinari is
-  'Autisti a cui si possono richiedere straordinari, con le ore settimanali di contratto';
+  'Registro degli straordinari richiesti agli dipendenti dalla centrale operativa';
+comment on table public.dipendenti_straordinari is
+  'Dipendenti a cui si possono richiedere straordinari, con le ore settimanali di contratto';
 
 -- ============================================================
 --  DOPO L'ESECUZIONE
 --   1. Dal portale, "Utenti e autorizzazioni": dai la sezione "Straordinari"
 --      al responsabile della centrale operativa (ruolo admin se deve anche
 --      modificare causali e soglie, operatore se solo registrare).
---   2. Nella sezione, "Autisti": inserisci l'elenco con le ore di contratto.
+--   2. Nella sezione, "Dipendenti": inserisci l'elenco con le ore di contratto.
 --      Quelli del foglio di agosto 2026 sono, con le ore settimanali:
 --        DE BARBIERI 38, DJEFFAL 38, MUÑOZ 38, PAZZANO 38, PELLEGRINI 38,
 --        SORDELLI 38, BASTIA 35, CANEPA 35, GARIBALDI 35, PORTORICO 35,
