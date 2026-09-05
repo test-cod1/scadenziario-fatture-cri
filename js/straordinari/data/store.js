@@ -149,9 +149,6 @@ export const straordinari = {
       tipo: rec.tipo || 'straordinario',
       causale: (rec.causale || '').trim() || null,
       servizio: (rec.servizio || '').trim() || null,
-      stato: rec.stato || 'richiesto',
-      richiesto_da: rec.richiesto_da || null,
-      richiesto_da_nome: rec.richiesto_da_nome || null,
       note: (rec.note || '').trim() || null,
       updated_at: nowISO(),
     };
@@ -177,33 +174,6 @@ export const straordinari = {
       throw e;
     }
     return data;
-  },
-
-  // Cambio di stato: è l'operazione più frequente del registro (si conferma
-  // a fine turno, si liquida a fine mese) e non passa per l'editor.
-  async setStato(id, stato) {
-    const sb = await sbClient();
-    const { data, error } = await sb.from('straordinari')
-      .update({ stato, updated_at: nowISO() }).eq('id', id).select().single();
-    if (error) throw error;
-    return data;
-  },
-
-  // Chiusura del mese: porta a "liquidato" tutte le righe confermate del
-  // periodo, che è esattamente il gesto che si fa quando il riepilogo è
-  // stato mandato all'ufficio personale. Le righe ancora "richiesto" NON si
-  // toccano: sono quelle da verificare, e liquidarle in blocco vorrebbe dire
-  // pagare ore che nessuno ha confermato.
-  async liquidaMese(mese) {
-    const sb = await sbClient();
-    const [y, m] = mese.split('-').map(Number);
-    const al = new Date(Date.UTC(y, m, 0)).toISOString().slice(0, 10);
-    const { data, error } = await sb.from('straordinari')
-      .update({ stato: 'liquidato', updated_at: nowISO() })
-      .eq('stato', 'confermato').gte('data', `${mese}-01`).lte('data', al)
-      .select('id');
-    if (error) throw error;
-    return data?.length || 0;
   },
 
   async remove(id) {

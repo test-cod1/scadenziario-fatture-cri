@@ -9,9 +9,9 @@
 import { straordinari } from '../data/store.js';
 import {
   riepilogoMensile, totaliPerGiorno, giorniDelMese, etichettaMese, totali,
-  fmtOre, tipoDi, statoDi,
+  fmtOre, tipoDi,
 } from '../calc.js';
-import { el, clear, esc, toast, confirmDialog, openModal, selettoreMese, fmtGiorno, fmtOrario, rendiCliccabile } from '../lib/ui.js';
+import { el, clear, esc, openModal, selettoreMese, fmtGiorno, fmtOrario, rendiCliccabile } from '../lib/ui.js';
 import { exportXLSX, stampaRiepilogo } from '../lib/export.js';
 
 export async function renderRiepilogo(view, ctx) {
@@ -27,7 +27,6 @@ export async function renderRiepilogo(view, ctx) {
     <div class="actions">
       <button class="btn" data-xls>⬇️ Excel</button>
       <button class="btn" data-print>🖨️ Stampa griglia</button>
-      ${ctx.ruolo === 'admin' ? '<button class="btn primary" data-liquida title="Segna come liquidate tutte le righe confermate del mese">✅ Chiudi il mese</button>' : ''}
     </div>
   </div>`);
   view.appendChild(head);
@@ -48,14 +47,6 @@ export async function renderRiepilogo(view, ctx) {
     const riepilogo = riepilogoMensile(righe, ctx.dipendenti, mese);
     const perGiorno = totaliPerGiorno(riepilogo, mese);
     const conOre = riepilogo.filter(r => r.righe > 0);
-
-    if (t.daConfermare) {
-      zona.appendChild(el(`<div class="banner warn"><div class="bi">⏳</div><div>
-        <b>${t.daConfermare} righe ancora da confermare</b>
-        <div class="small">Sono già conteggiate qui sotto, ma non sono state verificate: prima di mandare
-        il riepilogo all'ufficio personale, <a href="#/straordinari/registro">controllale nel registro</a>.</div>
-      </div>`));
-    }
 
     const stats = el(`<div class="grid stats" style="margin:18px 0 20px">
       <div class="stat"><div class="k">Ore richieste</div><div class="v">${esc(fmtOre(t.positive))}</div>
@@ -119,25 +110,6 @@ export async function renderRiepilogo(view, ctx) {
 
     head.querySelector('[data-xls]').onclick = () => exportXLSX(righe, mese);
     head.querySelector('[data-print]').onclick = () => stampaRiepilogo(riepilogo, perGiorno, mese, { righe });
-    const btnLiquida = head.querySelector('[data-liquida]');
-    if (btnLiquida) {
-      const confermate = righe.filter(r => r.stato === 'confermato').length;
-      btnLiquida.disabled = confermate === 0;
-      btnLiquida.title = confermate
-        ? `Segna come liquidate le ${confermate} righe confermate di ${etichettaMese(mese)}`
-        : 'Nessuna riga confermata da liquidare in questo mese';
-      btnLiquida.onclick = async () => {
-        if (!await confirmDialog(
-          `Segnare come liquidate le ${confermate} righe confermate di ${etichettaMese(mese)}? ` +
-          `Le righe ancora da confermare non vengono toccate.`, { okLabel: 'Chiudi il mese' })) return;
-        let n;
-        try { n = await straordinari.liquidaMese(mese); }
-        catch (e) { toast('Operazione non riuscita: ' + e.message, 'err'); return; }
-        righe = await straordinari.listMese(mese);
-        toast(`${n} righe segnate come liquidate`, 'ok');
-        disegna();
-      };
-    }
   }
 
   function cellaGiorno(r, g) {
@@ -145,24 +117,21 @@ export async function renderRiepilogo(view, ctx) {
     const ore = cella ? cella.ore : 0;
     const classi = [g.festivo ? 'fest' : '', ore > 0 ? 'pos' : '', ore < 0 ? 'neg' : ''].filter(Boolean).join(' ');
     if (!cella) return `<td class="${classi}"></td>`;
-    const daConfermare = cella.dettagli.some(x => x.stato === 'richiesto');
-    return `<td class="${classi} piena ${daConfermare ? 'dubbia' : ''}" data-giorno="${g.iso}"
-      title="${esc(cella.dettagli.map(x => `${tipoDi(x.tipo).label} ${fmtOre(x.ore)} — ${statoDi(x.stato).label}`).join(' · '))}">${numero(ore)}</td>`;
+    return `<td class="${classi} piena" data-giorno="${g.iso}"
+      title="${esc(cella.dettagli.map(x => `${tipoDi(x.tipo).label} ${fmtOre(x.ore)}`).join(' · '))}">${numero(ore)}</td>`;
   }
 
   function dettaglioGiorno(r, data) {
     const cella = r.giorni[data];
     if (!cella) return;
     const body = el(`<div>
-      <table class="tbl"><thead><tr><th>Orario</th><th class="money">Ore</th><th>Tipo</th><th>Causale</th><th>Stato</th></tr></thead>
+      <table class="tbl"><thead><tr><th>Orario</th><th class="money">Ore</th><th>Tipo</th><th>Causale</th></tr></thead>
       <tbody>${cella.dettagli.map(x => `<tr>
         <td>${esc(fmtOrario(x.dalle, x.alle))}</td>
         <td class="money">${esc(fmtOre(x.ore))}</td>
         <td>${esc(tipoDi(x.tipo).label)}</td>
-        <td>${esc(x.causale || '—')}${x.servizio ? `<div class="small muted">${esc(x.servizio)}</div>` : ''}</td>
-        <td>${esc(statoDi(x.stato).label)}</td></tr>
-        ${x.note ? `<tr><td colspan="5" class="small muted">${esc(x.note)}</td></tr>` : ''}`).join('')}</tbody></table>
-      <p class="muted small" style="margin:12px 0 0">Richiesto da: ${esc([...new Set(cella.dettagli.map(x => x.richiesto_da_nome).filter(Boolean))].join(', ') || '—')}</p>
+        <td>${esc(x.causale || '—')}${x.servizio ? `<div class="small muted">${esc(x.servizio)}</div>` : ''}</td></tr>
+        ${x.note ? `<tr><td colspan="4" class="small muted">${esc(x.note)}</td></tr>` : ''}`).join('')}</tbody></table>
     </div>`);
     const foot = el(`<div style="display:flex;gap:10px;justify-content:flex-end">
       <button class="btn" data-apri>Apri nel registro</button></div>`);

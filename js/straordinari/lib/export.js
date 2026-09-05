@@ -10,7 +10,7 @@
 // ============================================================
 import { buildXlsxBlob } from '../../lib/xlsx.js';
 import { esc } from '../../lib/ui.js';
-import { fmtOre, giorniDelMese, etichettaMese, tipoDi, statoDi, totali } from '../calc.js';
+import { fmtOre, giorniDelMese, etichettaMese, tipoDi, totali } from '../calc.js';
 import { fmtOrario } from './ui.js';
 
 const COLS = [
@@ -25,8 +25,6 @@ const COLS = [
   { header: 'Tipo', tipo: 'testo', get: r => tipoDi(r.tipo).label },
   { header: 'Causale', tipo: 'testo', get: r => r.causale || '' },
   { header: 'Servizio', tipo: 'testo', get: r => r.servizio || '' },
-  { header: 'Stato', tipo: 'testo', get: r => statoDi(r.stato).label },
-  { header: 'Richiesto da', tipo: 'testo', get: r => r.richiesto_da_nome || '' },
   { header: 'Note', tipo: 'testo', get: r => r.note || '' },
 ];
 
@@ -99,7 +97,7 @@ export function stampaRiepilogo(riepilogo, perGiorno, mese, { righe = [] } = {})
   <h1>Straordinari — ${esc(etichettaMese(mese))}</h1>
   <div class="sub">Croce Rossa Italiana — Comitato di Genova · Centrale operativa ·
     ore richieste ${numero(t.positive)}, recuperi ${numero(t.recuperi)}, saldo ${numero(t.saldo)}
-    ${t.daConfermare ? ` · ATTENZIONE: ${t.daConfermare} righe ancora da confermare` : ''}</div>
+</div>
   <table>
     <thead><tr><th class="nome">Dipendente</th>${intestazione}<th class="tot">Str.</th><th class="tot">Rec.</th><th class="tot">Saldo</th></tr></thead>
     <tbody>${corpo || `<tr><td colspan="${giorni.length + 4}">Nessuno straordinario registrato in questo mese.</td></tr>`}</tbody>
@@ -126,8 +124,6 @@ export function stampaElenco(righe, mese, sottotitolo = '') {
     <td class="num">${numero(tipoDi(r.tipo).segno * (Number(r.ore) || 0))}</td>
     <td>${esc(tipoDi(r.tipo).label)}</td>
     <td>${esc(r.causale || '')}${r.servizio ? ` <span class="sv">(${esc(r.servizio)})</span>` : ''}</td>
-    <td>${esc(statoDi(r.stato).label)}</td>
-    <td>${esc(r.richiesto_da_nome || '')}</td>
   </tr>`).join('');
 
   w.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="utf-8">
@@ -147,7 +143,7 @@ export function stampaElenco(righe, mese, sottotitolo = '') {
   <h1>Straordinari — ${esc(etichettaMese(mese))}</h1>
   <div class="sub">Croce Rossa Italiana — Comitato di Genova · Centrale operativa${sottotitolo ? ' · ' + esc(sottotitolo) : ''}</div>
   <table>
-    <thead><tr><th>Data</th><th>Dipendente</th><th>Orario</th><th class="num">Ore</th><th>Tipo</th><th>Causale</th><th>Stato</th><th>Richiesto da</th></tr></thead>
+    <thead><tr><th>Data</th><th>Dipendente</th><th>Orario</th><th class="num">Ore</th><th>Tipo</th><th>Causale</th></tr></thead>
     <tbody>${corpo || '<tr><td colspan="8">Nessuna riga.</td></tr>'}</tbody>
     <tfoot><tr><td colspan="3">Totale (${righe.length} righe)</td><td class="num">${numero(t.saldo)}</td><td colspan="4">straordinari ${numero(t.positive)} · recuperi ${numero(t.recuperi)}</td></tr></tfoot>
   </table>

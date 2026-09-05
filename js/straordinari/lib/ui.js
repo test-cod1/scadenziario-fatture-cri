@@ -5,7 +5,7 @@
 // ============================================================
 export * from '../../lib/ui.js';
 import { el, esc } from '../../lib/ui.js';
-import { etichettaMese, meseSpostato, meseCorrente, statoDi, tipoDi } from '../calc.js';
+import { etichettaMese, meseSpostato, meseCorrente, tipoDi } from '../calc.js';
 
 // Barra di scelta del mese: frecce avanti/indietro, il nome del mese scritto
 // per esteso e il salto a "questo mese". Registro e riepilogo la usano
@@ -31,10 +31,6 @@ export function selettoreMese(mese, onCambio) {
   return barra;
 }
 
-export function chipStato(stato) {
-  const s = statoDi(stato);
-  return `<span class="chip ${s.chip}">${esc(s.label)}</span>`;
-}
 
 export function etichettaTipo(tipo) {
   const t = tipoDi(tipo);

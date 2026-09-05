@@ -7,7 +7,7 @@
 //  chiesto, a che punto è — qui sono campi, non memoria di qualcuno.
 // ============================================================
 import { straordinari } from '../data/store.js';
-import { TIPI, STATI, durataOre, parseOre, fmtOre, tipoDi, nominativo, meseDi } from '../calc.js';
+import { TIPI, durataOre, parseOre, fmtOre, tipoDi, nominativo, meseDi } from '../calc.js';
 import { el, esc, toast, confirmDialog, todayISO, fmtGiorno } from '../lib/ui.js';
 import { collegaOrologio } from '../../lib/orologio.js';
 import { sorvegliaUscita, armaGuardiaIndietro, smettiDiSorvegliare } from '../../lib/uscita.js';
@@ -95,19 +95,6 @@ export async function renderRichiesta(view, id, ctx) {
         </div>
       </div>
 
-      <div class="form-row">
-        <div class="field">
-          <label for="f-stato">Stato</label>
-          <select id="f-stato">${STATI.map(s => `<option value="${s.id}">${esc(s.label)}</option>`).join('')}</select>
-          <div class="hint" data-stato-desc></div>
-        </div>
-        <div class="field">
-          <label for="f-richiedente">Richiesto da</label>
-          <input type="text" id="f-richiedente" placeholder="chi ha chiesto lo straordinario">
-          <div class="hint">Precompilato con il tuo nome: cambialo se la richiesta viene da altri.</div>
-        </div>
-      </div>
-
       <div class="field">
         <label for="f-note">Note</label>
         <textarea id="f-note" rows="2" placeholder="dettagli utili a fine mese: accordi presi, autorizzazioni, chi è stato sostituito…"></textarea>
@@ -118,7 +105,7 @@ export async function renderRichiesta(view, id, ctx) {
 
     ${nuovo ? '' : `<div class="str-elimina">
       <button class="btn danger ghost" data-elimina>🗑️ Elimina questa riga</button>
-      <span class="muted small">Se il servizio non è stato svolto, meglio metterla in stato "Annullato": resta traccia della richiesta.</span>
+      <span class="muted small">Le ore già registrate si eliminano solo se erano sbagliate: qui si scrive ciò che è stato fatto.</span>
     </div>`}
   </div>`);
   view.appendChild(editor);
@@ -131,8 +118,6 @@ export async function renderRichiesta(view, id, ctx) {
     ore: editor.querySelector('#f-ore'),
     causale: editor.querySelector('#f-causale'),
     servizio: editor.querySelector('#f-servizio'),
-    stato: editor.querySelector('#f-stato'),
-    richiedente: editor.querySelector('#f-richiedente'),
     note: editor.querySelector('#f-note'),
   };
 
@@ -188,13 +173,10 @@ export async function renderRichiesta(view, id, ctx) {
     campi.ore.value = rec.ore === null || rec.ore === undefined ? '' : String(rec.ore).replace('.', ',');
     campi.causale.value = rec.causale || '';
     campi.servizio.value = rec.servizio || '';
-    campi.stato.value = rec.stato || 'richiesto';
-    campi.richiedente.value = rec.richiesto_da_nome || '';
     campi.note.value = rec.note || '';
     scegliTipo(rec.tipo || 'straordinario', false);
     aggiornaContratto();
     aggiornaGiorno();
-    aggiornaStatoDesc();
     if (!nuovo) {
       editor.querySelector('[data-meta]').textContent =
         `Registrata il ${new Date(rec.created_at).toLocaleString('it-IT')}` +
@@ -218,11 +200,6 @@ export async function renderRichiesta(view, id, ctx) {
       (futuro ? ' · richiesta per una data futura' : '');
     hint.classList.toggle('avviso', futuro);
   }
-  function aggiornaStatoDesc() {
-    const s = STATI.find(x => x.id === campi.stato.value) || STATI[0];
-    editor.querySelector('[data-stato-desc]').textContent = s.descrizione;
-  }
-
   // ---------- avviso doppioni ----------
   async function controllaDoppioni() {
     const banner = editor.querySelector('[data-avviso-doppione]');
@@ -230,7 +207,7 @@ export async function renderRichiesta(view, id, ctx) {
     if (!campi.dipendente.value || !campi.data.value) { banner.hidden = true; return; }
     try {
       stessoGiorno = (await straordinari.listDipendente(campi.dipendente.value, { da: campi.data.value, al: campi.data.value }))
-        .filter(r => r.id !== rec.id && r.stato !== 'annullato');
+        .filter(r => r.id !== rec.id);
     } catch { stessoGiorno = []; }          // l'avviso è un aiuto, non deve bloccare il salvataggio
     if (!stessoGiorno.length) { banner.hidden = true; return; }
     const dettaglio = stessoGiorno.map(r => `${fmtOre(r.ore)} (${tipoDi(r.tipo).label.toLowerCase()})`).join(', ');
@@ -244,8 +221,7 @@ export async function renderRichiesta(view, id, ctx) {
   campi.dipendente.addEventListener('change', () => { aggiornaContratto(); controllaDoppioni(); modificato(); });
   campi.data.addEventListener('change', () => { aggiornaGiorno(); controllaDoppioni(); modificato(); });
   campi.ore.addEventListener('input', () => { oreAMano = true; aggiornaHintOre(); modificato(); });
-  campi.stato.addEventListener('change', () => { aggiornaStatoDesc(); modificato(); });
-  for (const c of [campi.causale, campi.servizio, campi.richiedente, campi.note]) {
+  for (const c of [campi.causale, campi.servizio, campi.note]) {
     c.addEventListener('input', modificato);
   }
 
@@ -263,9 +239,6 @@ export async function renderRichiesta(view, id, ctx) {
       tipo: rec.tipo,
       causale: campi.causale.value,
       servizio: campi.servizio.value,
-      stato: campi.stato.value,
-      richiesto_da: rec.richiesto_da || ctx.user?.id || null,
-      richiesto_da_nome: campi.richiedente.value.trim() || null,
       note: campi.note.value,
     };
   }
@@ -295,10 +268,9 @@ export async function renderRichiesta(view, id, ctx) {
     ctx.stato.mese = meseDi(salvata.data);
 
     if (poiNuova) {
-      // "Salva e nuova" tiene giorno, tipo e richiedente (si registra una
-      // serata alla volta, di solito con più dipendenti coinvolti) e azzera il
-      // resto.
-      rec = { ...bozza(ctx), data: salvata.data, tipo: salvata.tipo, richiesto_da_nome: salvata.richiesto_da_nome };
+      // "Salva e nuova" tiene giorno e tipo (si registra una serata alla
+      // volta, di solito con più dipendenti coinvolti) e azzera il resto.
+      rec = { ...bozza(ctx), data: salvata.data, tipo: salvata.tipo };
       oreAMano = false;
       riempi();
       campi.dipendente.focus();
@@ -333,9 +305,8 @@ export async function renderRichiesta(view, id, ctx) {
   sorvegliaUscita(editor, () => sporco);
 }
 
-// Riga nuova: il giorno è oggi (in centrale si registra a fine turno) e il
-// richiedente è chi sta scrivendo — le due cose che altrimenti si compilano
-// venti volte al mese sempre uguali.
+// Riga nuova: il giorno è oggi, perché in centrale si registra a fine turno —
+// la data che altrimenti si ridigita venti volte al mese sempre uguale.
 function bozza(ctx) {
   return {
     dipendente_id: '',
@@ -344,9 +315,6 @@ function bozza(ctx) {
     dalle: '', alle: '', ore: '',
     tipo: 'straordinario',
     causale: '', servizio: '',
-    stato: 'richiesto',
-    richiesto_da: ctx.user?.id || null,
-    richiesto_da_nome: ctx.user?.nome || ctx.user?.email || '',
     note: '',
   };
 }

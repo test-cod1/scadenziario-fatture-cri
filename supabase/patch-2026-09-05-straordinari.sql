@@ -75,15 +75,6 @@ create table if not exists public.straordinari (
   causale text,          -- perché: emergenza, copertura turno, servizio programmato…
   servizio text,         -- riferimento operativo: mezzo, convenzione, evento
 
-  stato text not null default 'richiesto'
-    check (stato in ('richiesto','confermato','liquidato','annullato')),
-
-  -- Chi ha chiesto lo straordinario (di norma il responsabile della centrale
-  -- che sta registrando): nel foglio non c'era, ed era la prima domanda a
-  -- ogni contestazione di fine mese.
-  richiesto_da uuid references auth.users(id),
-  richiesto_da_nome text,
-
   note text,
 
   created_by uuid references auth.users(id),
@@ -93,7 +84,6 @@ create table if not exists public.straordinari (
 
 create index if not exists idx_straord_data on public.straordinari(data desc);
 create index if not exists idx_straord_dipendente on public.straordinari(dipendente_id, data desc);
-create index if not exists idx_straord_stato on public.straordinari(stato);
 
 -- ---------- IMPOSTAZIONI (causali e soglie) ----------
 create table if not exists public.impostazioni_straordinari (

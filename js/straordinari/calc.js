@@ -15,33 +15,12 @@ export const TIPI = [
     descrizione: 'Ore restituite al dipendente, che scalano dal saldo.' },
 ];
 
-export const STATI = [
-  { id: 'richiesto', label: 'Richiesto', chip: 'warn',
-    descrizione: 'Chiesto dalla centrale, non ancora confermato come svolto.' },
-  { id: 'confermato', label: 'Confermato', chip: 'info',
-    descrizione: 'Svolto e verificato: entra nei conteggi da mandare al personale.' },
-  { id: 'liquidato', label: 'Liquidato', chip: 'ok',
-    descrizione: 'Pagato in busta paga o già recuperato: pratica chiusa.' },
-  { id: 'annullato', label: 'Annullato', chip: '',
-    descrizione: 'Richiesta ritirata o servizio non svolto: non conta in nessun totale.' },
-];
-
-// Ordine in cui uno stato può avanzare cliccando sul chip nel registro:
-// richiesto → confermato → liquidato. L'annullamento è a parte (è una
-// marcia indietro, non un passo avanti) e sta nel menu della riga.
-export const AVANZAMENTO = { richiesto: 'confermato', confermato: 'liquidato', liquidato: null, annullato: null };
-
 export function tipoDi(id) { return TIPI.find(t => t.id === id) || TIPI[0]; }
-export function statoDi(id) { return STATI.find(s => s.id === id) || STATI[0]; }
-
-// Le righe annullate non contano da nessuna parte: restano scritte perché
-// "chi ha chiesto cosa e poi l'ha ritirato" è un'informazione, ma non devono
-// entrare in nessun totale.
-export function contaNelSaldo(r) { return r && r.stato !== 'annullato'; }
 
 // Ore con il segno del tipo: è il numero da sommare, mai `r.ore` da solo.
+// Ogni riga conta: nel registro si scrive solo ciò che è già stato fatto,
+// quindi non esistono righe da escludere dai totali.
 export function oreConSegno(r) {
-  if (!contaNelSaldo(r)) return 0;
   return tipoDi(r.tipo).segno * (Number(r.ore) || 0);
 }
 
@@ -123,9 +102,8 @@ export function meseSpostato(mese, delta) {
 // ---------- riepiloghi ----------
 // Totali di un insieme di righe: quello che va in testa al registro.
 export function totali(righe) {
-  const t = { positive: 0, recuperi: 0, saldo: 0, daConfermare: 0, righe: righe.length };
+  const t = { positive: 0, recuperi: 0, saldo: 0, righe: righe.length };
   for (const r of righe) {
-    if (r.stato === 'richiesto') t.daConfermare++;
     const ore = oreConSegno(r);
     if (ore > 0) t.positive += ore; else t.recuperi += -ore;
   }
@@ -143,7 +121,7 @@ export function totali(righe) {
 export function riepilogoMensile(righe, dipendenti, mese) {
   const perDipendente = new Map();
   const aggiungi = (id, nome, oreContratto) => {
-    if (!perDipendente.has(id)) perDipendente.set(id, { id, nome, oreContratto, giorni: {}, positive: 0, recuperi: 0, saldo: 0, righe: 0, daConfermare: 0 });
+    if (!perDipendente.has(id)) perDipendente.set(id, { id, nome, oreContratto, giorni: {}, positive: 0, recuperi: 0, saldo: 0, righe: 0 });
     return perDipendente.get(id);
   };
   for (const a of dipendenti || []) {
@@ -151,16 +129,11 @@ export function riepilogoMensile(righe, dipendenti, mese) {
   }
   for (const r of righe) {
     if (meseDi(r.data) !== mese) continue;
-    // Le righe annullate restano nel registro ma non nel riepilogo: qui
-    // farebbero comparire una cella da "0" in una giornata in cui nessuno ha
-    // fatto ore, e conterebbero come riga esistente nei conteggi in testata.
-    if (!contaNelSaldo(r)) continue;
     const a = (dipendenti || []).find(x => x.id === r.dipendente_id);
     // Un dipendente disattivato a metà mese resta nel riepilogo di quel mese: le
     // ore che ha fatto vanno comunque pagate.
     const riga = aggiungi(r.dipendente_id, a ? nominativo(a) : r.dipendente_nome, a?.ore_contratto);
     riga.righe++;
-    if (r.stato === 'richiesto') riga.daConfermare++;
     const ore = oreConSegno(r);
     if (ore > 0) riga.positive += ore; else riga.recuperi += -ore;
     const g = riga.giorni[r.data] || (riga.giorni[r.data] = { ore: 0, dettagli: [] });

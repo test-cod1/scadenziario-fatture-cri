@@ -566,8 +566,6 @@ input.fuel-price{width:110px;padding:6px 8px}
    stesso giorno vanno lette insieme, è la serata in cui è mancato qualcuno. */
 tr.str-giorno td{background:var(--bg);font-size:13px;padding:7px 12px}
 table.tbl tbody tr.str-giorno:hover td{background:var(--bg);cursor:default}
-tr.str-annullata td{opacity:.55;text-decoration:line-through}
-tr.str-annullata td:last-child{text-decoration:none}
 .str-neg{color:var(--danger)}
 
 /* Tipo di riga: quattro pulsanti invece di una tendina, perché la scelta
@@ -598,8 +596,6 @@ tr.str-annullata td:last-child{text-decoration:none}
 .str-griglia td.neg{color:var(--danger)}
 /* Cella con righe ancora da confermare: il puntino evita di usare il colore,
    già impegnato a distinguere ore in più e recuperi. */
-.str-griglia td.dubbia{position:relative}
-.str-griglia td.dubbia::after{content:"";position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
 .str-griglia td.tot,.str-griglia tfoot td,.str-griglia tfoot th{background:#f8fafb;font-weight:700}
 .str-griglia td.saldo{background:var(--cri-red-soft)}
 .str-griglia td.saldo.sopra{background:var(--warn-soft);color:var(--warn)}
