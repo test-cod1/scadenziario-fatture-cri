@@ -95,6 +95,7 @@ const STYLES = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 // simbolo, esattamente il difetto da evitare.
 function stimaLarghezza(c, valore) {
   if (c.tipo === 'data') return 10; // "31/12/2026"
+  if (c.tipo === 'numero') return String(valore ?? '').length + 1;   // "-12,25"
   if (c.tipo === 'valuta') {
     const n = Number(valore);
     if (!Number.isFinite(n)) return 0;
@@ -105,7 +106,7 @@ function stimaLarghezza(c, valore) {
   return String(valore ?? '').length;
 }
 
-// colonne: [{ header, tipo: 'testo'|'valuta'|'data', get: riga => valore }]
+// colonne: [{ header, tipo: 'testo'|'numero'|'valuta'|'data', get: riga => valore }]
 function costruisciFoglio(colonne, righe) {
   const larghezze = colonne.map(c => {
     let max = String(c.header).length;
@@ -127,6 +128,13 @@ function costruisciFoglio(colonne, righe) {
       if (c.tipo === 'valuta') {
         const n = Number(raw);
         return Number.isFinite(n) ? `<c r="${rif}" s="1"><v>${n}</v></c>` : '';
+      }
+      // Numero semplice, senza formato valuta: le ore di straordinario, che
+      // in Excel devono restare sommabili (e con il loro segno) ma non sono
+      // euro. Scritte come testo, la somma in fondo alla colonna darebbe zero.
+      if (c.tipo === 'numero') {
+        const n = Number(raw);
+        return Number.isFinite(n) ? `<c r="${rif}"><v>${n}</v></c>` : '';
       }
       if (c.tipo === 'data') {
         const s = serialeData(raw);

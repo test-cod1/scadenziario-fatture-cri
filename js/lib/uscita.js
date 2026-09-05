@@ -111,3 +111,13 @@ function abbandona() {
   stato = null;
   guardia = false;
 }
+
+// Da chiamare dopo un salvataggio riuscito, PRIMA di cambiare pagina da
+// codice (ctx.go, location.hash): smonta la sorveglianza e la voce di
+// cronologia della guardia. Senza, la navigazione fatta dall'editor viene
+// scambiata per un "indietro" — assegnare location.hash dopo una pushState
+// fa scattare anche popstate — e onIndietro riporta l'utente sull'editor
+// appena salvato, come se il salvataggio non avesse cambiato pagina.
+export function smettiDiSorvegliare() {
+  abbandona();
+}

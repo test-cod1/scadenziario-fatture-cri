@@ -28,6 +28,8 @@ const ICONE = {
     <rect x="2" y="9" width="18" height="13" rx="2"/><path d="M20 13h6l6 5v4H20z"/><circle cx="9" cy="27" r="3.2"/><circle cx="25" cy="27" r="3.2"/></svg>`,
   assistenze: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M18 3 30 7v10c0 7.6-5 13.2-12 16-7-2.8-12-8.4-12-16V7z"/><path d="M18 12v10M13 17h10"/></svg>`,
+  straordinari: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <circle cx="18" cy="20" r="13"/><path d="M18 13v7l5 3"/><path d="M13 3h10"/></svg>`,
 };
 
 export const SEZIONI = [
@@ -98,6 +100,28 @@ export const SEZIONI = [
     ],
     tour: () => import('./tour/assistenze.js'),
     icona: ICONE.assistenze,
+  },
+  {
+    id: 'straordinari',
+    label: 'Straordinari',
+    descrizione: 'Ore in più richieste agli autisti dalla centrale operativa.',
+    emoji: '🕒',
+    colore: '#0f766e',
+    ombra: 'rgba(15,118,110,.22)',
+    tipo: 'interna',
+    home: '#/straordinari/registro',
+    // Le impostazioni stanno nel menu della sezione e non fra le voci
+    // riservate agli admin (dove sta quella dello scadenziario) perché la
+    // pagina si apre anche in sola lettura: chi registra deve poter vedere
+    // quali sono le soglie che gli fanno comparire gli avvisi.
+    menu: [
+      { id: 'registro', icon: '📋', label: 'Registro', attivoAnche: ['richiesta'] },
+      { id: 'nuovo', icon: '➕', label: 'Nuova richiesta' },
+      { id: 'riepilogo', icon: '📅', label: 'Riepilogo mensile' },
+      { id: 'autisti', icon: '👤', label: 'Autisti' },
+      { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
+    ],
+    icona: ICONE.straordinari,
   },
 ];
 

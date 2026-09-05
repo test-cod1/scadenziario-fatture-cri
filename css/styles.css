@@ -541,3 +541,81 @@ input.fuel-price{width:110px;padding:6px 8px}
    non toccano quelli dell'anello esterno. */
 .oro-num.interno{width:30px;height:30px;font-size:12.5px;color:var(--ink-soft)}
 .oro-num.interno.sel{color:#fff}
+
+/* ============================================================
+   SEZIONE STRAORDINARI
+   ============================================================ */
+
+/* Barra del mese: registro e riepilogo si guardano un mese alla volta, e il
+   mese scelto è lo stesso per entrambi (vedi js/straordinari/sezione.js). */
+.mese-nav{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--card);border:1px solid var(--line);
+  border-radius:var(--radius);padding:8px 12px;box-shadow:var(--shadow)}
+.mese-nome{font-weight:700;font-size:16px;min-width:150px;text-align:center}
+.mese-scelta{display:flex;align-items:center;margin-left:auto}
+.mese-scelta input[type=month]{font-family:inherit;font-size:13.5px;padding:7px 10px;border:1px solid var(--line);
+  border-radius:10px;background:#fff;color:var(--ink)}
+.sr-solo{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap;border:0}
+
+/* ---------- Registro ---------- */
+.str-editor{max-width:900px}
+.str-editor .card+.str-elimina{margin-top:18px}
+.str-elimina{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:18px}
+.str-meta{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line)}
+
+/* Riga di separazione fra una giornata e l'altra nel registro: le righe dello
+   stesso giorno vanno lette insieme, è la serata in cui è mancato qualcuno. */
+tr.str-giorno td{background:var(--bg);font-size:13px;padding:7px 12px}
+table.tbl tbody tr.str-giorno:hover td{background:var(--bg);cursor:default}
+tr.str-annullata td{opacity:.55;text-decoration:line-through}
+tr.str-annullata td:last-child{text-decoration:none}
+.str-neg{color:var(--danger)}
+
+/* Tipo di riga: quattro pulsanti invece di una tendina, perché la scelta
+   cambia il segno delle ore e deve vedersi senza aprire nulla. */
+.str-tipi{display:flex;gap:8px;flex-wrap:wrap}
+.str-tipo{display:inline-flex;align-items:center;gap:7px;border:1px solid var(--line);background:#fff;color:var(--ink-soft);
+  padding:9px 14px;border-radius:999px;font-size:13.5px;font-weight:600;cursor:pointer;transition:.12s}
+.str-tipo:hover{background:var(--bg)}
+.str-tipo.sel{background:var(--cri-red-soft);border-color:var(--cri-red);color:var(--cri-red-dark)}
+.str-tipo:focus-visible{outline:2px solid var(--cri-red);outline-offset:2px}
+
+/* ---------- Griglia mensile (riepilogo) ---------- */
+/* Le colonne dei giorni sono 28-31: la tabella scorre dentro il suo
+   .tbl-wrap, ma la colonna dei nomi resta ferma a sinistra, altrimenti
+   scorrendo fino a fine mese non si sa più di chi è la riga. */
+.str-griglia{border-collapse:separate;border-spacing:0;font-size:12.5px;font-variant-numeric:tabular-nums}
+.str-griglia th,.str-griglia td{border-bottom:1px solid var(--line);border-right:1px solid var(--line);
+  padding:5px 3px;text-align:center;min-width:27px}
+.str-griglia thead th{background:var(--bg);font-size:11px;font-weight:700;color:var(--ink-soft);position:sticky;top:0;z-index:2}
+.str-griglia thead th .dow{display:block;font-weight:400;font-size:9.5px;opacity:.75}
+.str-griglia th.nome{position:sticky;left:0;z-index:3;background:var(--card);text-align:left;min-width:150px;
+  padding-left:10px;font-size:13px;font-weight:600;white-space:nowrap}
+.str-griglia thead th.nome{z-index:4;background:var(--bg)}
+.str-griglia th.nome .oc{color:var(--ink-soft);font-weight:400;font-size:11.5px}
+.str-griglia td.fest,.str-griglia th.fest{background:#eef1f4}
+.str-griglia td.piena{font-weight:700;cursor:pointer}
+.str-griglia td.piena:hover{background:var(--cri-red-soft)}
+.str-griglia td.neg{color:var(--danger)}
+/* Cella con righe ancora da confermare: il puntino evita di usare il colore,
+   già impegnato a distinguere ore in più e recuperi. */
+.str-griglia td.dubbia{position:relative}
+.str-griglia td.dubbia::after{content:"";position:absolute;top:2px;right:2px;width:5px;height:5px;border-radius:50%;background:var(--warn)}
+.str-griglia td.tot,.str-griglia tfoot td,.str-griglia tfoot th{background:#f8fafb;font-weight:700}
+.str-griglia td.saldo{background:var(--cri-red-soft)}
+.str-griglia td.saldo.sopra{background:var(--warn-soft);color:var(--warn)}
+.str-griglia tr.str-vuota th.nome{color:var(--ink-soft);font-weight:500}
+.str-griglia tfoot th.nome{background:#f8fafb;font-size:12px}
+
+/* ---------- Impostazioni: elenco delle causali ---------- */
+.str-causali{display:flex;flex-direction:column;gap:6px}
+.str-causale{display:flex;align-items:center;justify-content:space-between;gap:10px;
+  border:1px solid var(--line);border-radius:10px;padding:7px 8px 7px 12px;font-size:13.5px}
+
+@media(max-width:820px){
+  .mese-scelta{margin-left:0}
+  .mese-nome{min-width:120px;font-size:15px}
+  .str-griglia th.nome{min-width:110px;font-size:12px}
+}
+/* Autista disattivato: resta in elenco (lo storico è suo) ma si legge come
+   sfondo, senza la barratura usata per le righe annullate del registro. */
+tr.str-inattivo td{opacity:.6}
