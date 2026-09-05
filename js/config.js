@@ -20,6 +20,7 @@ export const CONFIG = {
     estraiFattura: '/api/estrai-fattura',
     estraiFatturaAttiva: '/api/estrai-fattura-attiva',
     creaUtente: '/api/crea-utente',
+    eliminaUtente: '/api/elimina-utente',
   },
 
   // Soglie (giorni) per gli alert di scadenza in dashboard

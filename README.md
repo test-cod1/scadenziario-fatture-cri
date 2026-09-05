@@ -87,6 +87,9 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 >
 > **[`patch-2026-09-04-permessi-profili.sql`](supabase/patch-2026-09-04-permessi-profili.sql)** chiude due falle nei permessi sulla tabella `profili` e va eseguito su qualunque database già in uso: l'obbligo di cambiare la password provvisoria era aggirabile dal client (adesso il flag lo spegne un trigger che guarda la password vera), e un super admin poteva nominarne un altro nonostante quanto scritto qui sotto. Il sito funziona anche senza — l'app ha una rete di sicurezza per non chiedere la password ad ogni accesso su un database non aggiornato — ma finché non lo esegui quelle due strade restano aperte.
 
+>
+> **[`patch-2026-09-05-elimina-utente.sql`](supabase/patch-2026-09-05-elimina-utente.sql)** serve al pulsante *Elimina* in Utenti e autorizzazioni. Le colonne `created_by` (e simili) puntano ad `auth.users` senza regola di cancellazione: finché non la esegui, eliminare una persona che ha inserito anche una sola riga fallisce con un errore di chiave esterna. La patch le porta a `on delete set null` — nessun dato viene cancellato, perdono solo l'indicazione dell'autore. Senza, il resto dell'app funziona normalmente e l'app mostra un errore che rimanda a questo file.
+
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
 1. Vai su [aistudio.google.com/apikey](https://aistudio.google.com/apikey) e crea una chiave API gratuita.
@@ -118,7 +121,7 @@ Senza queste chiavi il resto dell'app funziona lo stesso: manca solo la funzione
 
 Il progetto Cloudflare collegato a questo repo è di tipo **Worker** (il nuovo flusso unificato "Workers & Pages": build command `npx wrangler deploy`), non la vecchia Pages classica. Per questo motivo il repo contiene già:
 - [`wrangler.jsonc`](wrangler.jsonc): configurazione del deploy (nome, asset statici, entry point)
-- [`worker.js`](worker.js): instrada le `/api/*` (lettura AI delle fatture, creazione utenti, geocoding/percorsi e prezzi carburante dei preventivi) alle function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
+- [`worker.js`](worker.js): instrada le `/api/*` (lettura AI delle fatture, creazione ed eliminazione utenti, geocoding/percorsi e prezzi carburante dei preventivi) alle function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
 - [`.assetsignore`](.assetsignore): esclude dagli asset statici i file che non fanno parte del sito (node_modules, supabase/, ecc. — senza questo file il deploy falliva per un asset da 146MB)
 
 Passaggi:
@@ -144,6 +147,10 @@ Tutto avviene in **Utenti e autorizzazioni** (voce in fondo alla barra laterale,
 Da **Aggiungi un utente** si crea l'account con email, nome opzionale e già le sezioni che gli competono: l'app genera una password provvisoria mostrata una sola volta, da comunicare tu stesso al collega (telefono, di persona — non viene inviata via email). Al primo accesso l'app lo obbliga a impostarne una propria prima di poter entrare.
 
 Sotto c'è la tabella di tutti gli account: una riga per utente, una colonna per sezione, e in ogni casella una tendina con **Nessuno / Operatore / Admin**. Assegnare la prima sezione a un utente `in_attesa` lo attiva automaticamente. Il pulsante **Sospendi** blocca del tutto un accesso senza cancellarne i permessi, così riattivarlo non costringe a riassegnarli uno per uno. Due cose non si possono fare dall'app, di proposito: sospendere se stessi e creare un altro super admin (quel ruolo si assegna solo dal database, altrimenti chi gestisce gli utenti potrebbe auto-promuoversi).
+
+Accanto c'è **Elimina**, che è un'altra cosa: cancella l'account per sempre da Supabase, con i suoi permessi, e non si può annullare. Per evitare un click di troppo su una tabella dove le righe si somigliano, la conferma chiede di **riscrivere l'email** della persona. Nella quasi totalità dei casi la scelta giusta è *Sospendi* — un collega che cambia servizio, qualcuno che non deve entrare per un po' —; *Elimina* ha senso per le registrazioni sbagliate, i doppioni e chi ha lasciato l'associazione.
+
+Quello che l'eliminazione **non** porta via: le fatture, le assistenze, i trasporti e i preventivi che quella persona aveva inserito restano tutti, e perdono solo il collegamento al suo account (`created_by` diventa vuoto). Il registro modifiche continua a mostrare nome ed email di chi ha fatto ogni operazione, perché li salva come testo e non come riferimento all'account. Non si può eliminare se stessi né un altro super admin: in quel caso va prima tolto il ruolo dal database.
 
 Le **impostazioni di sezione** sono un'altra cosa: per lo scadenziario stanno in *Impostazioni scadenziario* (scadenza di default e registro modifiche) e le vede l'admin di quella sezione, non il super admin in quanto tale.
 
@@ -191,7 +198,7 @@ js/views/impostazioni.js        impostazioni dello scadenziario e registro modif
 manifest.json                  manifest PWA (nome, icone, tema) — abilita "Aggiungi a schermata Home"
 sw.js                          service worker: cache di riserva se la rete cade, sempre network-first
 icons/                          icone PWA (192px, 512px)
-functions/api/                 endpoint: proxy verso Gemini (passive+attive), creazione utenti
+functions/api/                 endpoint: proxy verso Gemini (passive+attive), creazione ed eliminazione utenti
 functions/_lib/auth.js          verifica sessione/ruolo Supabase lato server
 functions/_lib/gemini.mjs       nome del modello Gemini (condiviso con server.js)
 supabase/schema.sql            schema database + RLS + trigger di audit log (passive+attive)

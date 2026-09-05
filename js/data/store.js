@@ -108,6 +108,25 @@ export const amministrazione = {
     return data; // { email, passwordProvvisoria, error? } — error solo se il profilo non è stato completato
   },
 
+  // Elimina l'account per sempre: sparisce da Supabase Auth, e con lui
+  // profilo e autorizzazioni. Le righe che aveva inserito restano, senza più
+  // l'indicazione dell'autore. Passa dal server perché serve la service key,
+  // che il client non ha (e non deve avere).
+  async eliminaUtente(id) {
+    const { getAccessToken } = await import('../lib/supabase.js');
+    const { CONFIG } = await import('../config.js');
+    const token = await getAccessToken();
+    if (!token) throw new Error('Sessione non valida: ricarica la pagina e riaccedi.');
+    const res = await fetch(CONFIG.api.eliminaUtente, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ id }),
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) throw new Error(data.error || `Eliminazione non riuscita (${res.status}).`);
+    return data; // { ok: true, email }
+  },
+
   // Elenco dei profili con i rispettivi permessi di sezione: le RLS lo
   // restituiscono per intero solo al super admin (policy prof_admin_read e
   // autor_sa_read), a chiunque altro solo il proprio.

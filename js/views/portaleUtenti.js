@@ -168,7 +168,8 @@ function disegnaStato(td, u, sonoIo, ricarica) {
   td.replaceChildren(el(`<div>${chip}${provvisoria}</div>`));
   if (sonoIo) return;
 
-  const btn = el(`<button class="btn ghost sm" style="margin-top:6px">${attivo ? 'Sospendi' : 'Riattiva'}</button>`);
+  const azioni = el('<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"></div>');
+  const btn = el(`<button class="btn ghost sm">${attivo ? 'Sospendi' : 'Riattiva'}</button>`);
   btn.addEventListener('click', async () => {
     const domanda = attivo
       ? `Sospendere ${u.email}? Non potrà più entrare in nessuna sezione, ma le autorizzazioni che gli hai dato restano salvate.`
@@ -184,7 +185,59 @@ function disegnaStato(td, u, sonoIo, ricarica) {
       btn.disabled = false;
     }
   });
-  td.firstElementChild.appendChild(btn);
+
+  // Eliminazione definitiva. Sta accanto a "Sospendi" di proposito: quasi
+  // sempre la cosa giusta è sospendere, e vedere le due possibilità una di
+  // fianco all'altra rende evidente la differenza tra il gesto reversibile e
+  // quello che non lo è.
+  const btnElimina = el('<button class="btn sm danger">Elimina</button>');
+  btnElimina.addEventListener('click', async () => {
+    if (!await confermaEliminazione(u)) return;
+    btnElimina.disabled = true; btn.disabled = true;
+    try {
+      await amministrazione.eliminaUtente(u.id);
+      toast(`${u.email} è stato eliminato`, 'ok');
+      ricarica();
+    } catch (e) {
+      toast('Errore: ' + e.message, 'err');
+      btnElimina.disabled = false; btn.disabled = false;
+    }
+  });
+
+  azioni.append(btn, btnElimina);
+  td.firstElementChild.appendChild(azioni);
+}
+
+// Conferma dell'eliminazione: non un semplice sì/no, ma la digitazione
+// dell'email. È l'unica azione del portale che distrugge un account senza
+// rimedio, e il pulsante sta a pochi pixel da "Sospendi": far riscrivere
+// l'indirizzo costringe a guardare *quale* riga si sta cancellando.
+function confermaEliminazione(u) {
+  return new Promise(res => {
+    let esito = false;
+    const body = el(`<div>
+      <p style="margin:0 0 10px">Stai per eliminare <b>${esc(u.email)}</b> per sempre. L'account sparisce da Supabase e con lui i suoi permessi: non si può annullare.</p>
+      <p class="hint" style="margin:0 0 10px">Le fatture, le assistenze e i trasporti che ha inserito <b>restano tutti</b>: perdono soltanto il collegamento al suo account. Il registro modifiche continua a mostrare il suo nome.</p>
+      <p class="hint" style="margin:0 0 14px">Se ti serve solo impedirgli di entrare, chiudi qui e usa <b>Sospendi</b>: blocca l'accesso conservando i permessi, ed è reversibile.</p>
+      <div class="field">
+        <label>Per confermare, scrivi l'email dell'utente</label>
+        <input type="text" id="el-conferma" placeholder="${esc(u.email)}" autocomplete="off" spellcheck="false">
+      </div>
+    </div>`);
+    const foot = el(`<div style="display:flex;gap:10px">
+      <button class="btn" data-no>Annulla</button>
+      <button class="btn danger" data-yes disabled>Elimina definitivamente</button></div>`);
+    const { close } = openModal({ title: 'Eliminare questo utente?', body, footer: foot, onClose: () => res(esito) });
+
+    const input = body.querySelector('#el-conferma');
+    const ok = foot.querySelector('[data-yes]');
+    const corrisponde = () => input.value.trim().toLowerCase() === String(u.email || '').toLowerCase();
+    input.addEventListener('input', () => { ok.disabled = !corrisponde(); });
+    input.addEventListener('keydown', e => { if (e.key === 'Enter' && corrisponde()) ok.click(); });
+    foot.querySelector('[data-no]').onclick = () => close();
+    ok.onclick = () => { if (!corrisponde()) return; esito = true; close(); };
+    input.focus();
+  });
 }
 
 // La password provvisoria viene mostrata una sola volta: non viene salvata da

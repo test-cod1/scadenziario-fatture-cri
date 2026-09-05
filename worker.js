@@ -13,6 +13,7 @@
 import { onRequestPost as estraiFatturaPost } from './functions/api/estrai-fattura.js';
 import { onRequestPost as estraiFatturaAttivaPost } from './functions/api/estrai-fattura-attiva.js';
 import { onRequestPost as creaUtentePost } from './functions/api/crea-utente.js';
+import { onRequestPost as eliminaUtentePost } from './functions/api/elimina-utente.js';
 import { onRequestGet as geocodeGet } from './functions/api/geocode.js';
 import { onRequestPost as routePost } from './functions/api/route.js';
 import { onRequestGet as prezzoItaliaGet } from './functions/api/prezzo-italia.js';
@@ -23,6 +24,7 @@ const ROUTES = {
   '/api/estrai-fattura': { POST: estraiFatturaPost },
   '/api/estrai-fattura-attiva': { POST: estraiFatturaAttivaPost },
   '/api/crea-utente': { POST: creaUtentePost },
+  '/api/elimina-utente': { POST: eliminaUtentePost },
   // Sezione trasporti: proxy verso OpenRouteService (chiave ORS_KEY lato
   // server) e prezzi carburante ufficiali.
   '/api/geocode': { GET: geocodeGet },

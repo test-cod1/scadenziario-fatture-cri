@@ -1036,3 +1036,46 @@ create policy imp_ass_read on public.impostazioni_assistenze for select using (p
 drop policy if exists imp_ass_write on public.impostazioni_assistenze;
 create policy imp_ass_write on public.impostazioni_assistenze for all
   using (public.accede_a('assistenze')) with check (public.accede_a('assistenze'));
+
+-- ============================================================
+--  ELIMINAZIONE DI UN UTENTE — chiavi esterne verso auth.users
+--  (equivalente di supabase/patch-2026-09-05-elimina-utente.sql, tenuto
+--  qui in fondo perché deve girare dopo la creazione di TUTTE le tabelle)
+--
+--  Le colonne che indicano chi ha inserito una riga (created_by, e
+--  analoghe: proposta_da, decisa_da, richiesto_da, assegnata_da) puntano
+--  ad auth.users. Lasciate senza regola di cancellazione impedirebbero di
+--  eliminare un utente che abbia mai inserito qualcosa — cioè chiunque —
+--  facendo fallire /api/elimina-utente con una violazione di chiave
+--  esterna. Portandole a ON DELETE SET NULL l'account si può cancellare e
+--  i dati restano tutti: perdono soltanto l'indicazione dell'autore.
+--
+--  Restano fuori, di proposito, profili.id e autorizzazioni.utente_id
+--  (già ON DELETE CASCADE: profilo e permessi devono sparire con
+--  l'account) e i log, che non hanno chiave esterna e conservano email e
+--  nome come testo.
+-- ============================================================
+do $$
+declare r record;
+begin
+  for r in
+    select c.conname,
+           c.conrelid::regclass::text as tabella,
+           a.attname                  as colonna
+      from pg_constraint c
+      join pg_attribute a
+        on a.attrelid = c.conrelid
+       and a.attnum   = c.conkey[1]
+     where c.contype      = 'f'
+       and c.confrelid    = 'auth.users'::regclass
+       and c.connamespace = 'public'::regnamespace
+       and array_length(c.conkey, 1) = 1
+       and c.confdeltype in ('a', 'r')
+       and not a.attnotnull
+  loop
+    execute format('alter table %s drop constraint %I', r.tabella, r.conname);
+    execute format(
+      'alter table %s add constraint %I foreign key (%I) references auth.users(id) on delete set null',
+      r.tabella, r.conname, r.colonna);
+  end loop;
+end $$;
