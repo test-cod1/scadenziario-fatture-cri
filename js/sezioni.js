@@ -13,6 +13,7 @@
 //                lunghi, che erano l'unico caso, sono stati assorbiti nel
 //                portale.
 // ============================================================
+import { ID_SEZIONI } from './sezioniIds.js';
 
 // Icone delle card, disegnate a mano in SVG: alla dimensione della home le
 // emoji cambiano forma e colore da un sistema all'altro, mentre qui il tratto
@@ -131,6 +132,21 @@ export const SEZIONI = [
     icona: ICONE.straordinari,
   },
 ];
+
+// Rete di sicurezza sull'elenco condiviso con il Worker (js/sezioniIds.js):
+// una sezione aggiunta qui ma non lì verrebbe proposta dal form "Aggiungi un
+// utente" e poi scartata in silenzio da /api/crea-utente, che quel permesso
+// non lo riconoscerebbe. È già successo con gli Straordinari, e non se n'era
+// accorto nessuno: meglio dirlo subito in console a chi ci sta lavorando.
+{
+  const soloQui = SEZIONI.filter(s => !ID_SEZIONI.includes(s.id)).map(s => s.id);
+  const soloLi = ID_SEZIONI.filter(id => !SEZIONI.some(s => s.id === id));
+  if (soloQui.length || soloLi.length) {
+    console.error('[sezioni] elenco disallineato con js/sezioniIds.js —',
+      soloQui.length ? `mancano in sezioniIds.js: ${soloQui.join(', ')}` : '',
+      soloLi.length ? `non esistono più in sezioni.js: ${soloLi.join(', ')}` : '');
+  }
+}
 
 export function getSezione(id) {
   return SEZIONI.find(s => s.id === id) || null;

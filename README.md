@@ -48,7 +48,13 @@ Richiede [`supabase/patch-2026-09-06-formazione.sql`](supabase/patch-2026-09-06-
 
 ## Sezione Trasporti lunghi
 
-Preventivi per i trasporti sanitari fuori Genova: si indica il mezzo, si scrivono le tappe (indirizzi cercati con OpenRouteService, che calcola anche i km del percorso reale) e l'app somma carburante, pedaggi esteri, pasti, pernottamenti e personale sanitario, confrontando la spesa viva con l'addebito al cliente. La stampa produce il preventivo da consegnare.
+Preventivi per i trasporti sanitari fuori Genova: si indica il mezzo, si scrivono le tappe (indirizzi cercati con OpenRouteService, che calcola anche i km del percorso reale) e l'app somma carburante, pedaggi esteri, pasti, pernottamenti e personale sanitario, confrontando la spesa viva con l'addebito al cliente.
+
+Il documento da consegnare esce come nelle altre due sezioni: **PDF** e **Word (.docx)** sulla carta intestata ufficiale, generati dagli stessi moduli condivisi (`js/lib/carta.js`, `js/lib/docxBlocchi.js`, `js/lib/stampaBlocchi.js`). Riporta destinatario, itinerario, dati del servizio e importo richiesto, con la firma e i testi fissi configurati in Impostazioni. Prima aveva una stampa tutta sua, con un'intestazione disegnata in CSS che imitava il logo e nessuna versione Word.
+
+**La spesa viva e il margine non compaiono nel documento.** Ci comparivano — due volte, di cui una in un riquadro accanto al totale — nel foglio consegnato al cliente, che poteva così ricavarsi in un attimo quanto ci guadagna il Comitato. Restano dove servono, nell'editor e nell'elenco dei preventivi.
+
+Il destinatario si compila nella scheda **Destinatario e documento** dell'editor: cliente ed eventuale data del servizio finiscono nelle colonne omonime della tabella (c'erano da sempre e non le scriveva nessuno), mentre indirizzo, codice fiscale, referente, protocollo e data del documento stanno dentro `input`, insieme alla partenza e ai flag dell'interfaccia — così la sezione non ha richiesto nessuna modifica al database.
 
 I prezzi del carburante si aggiornano da soli: la media italiana dai dati del MISE ad ogni apertura della sezione, quelli europei su richiesta dal bollettino settimanale della Commissione (pulsante in Impostazioni). Le impostazioni della sezione (parco mezzi, tariffe, prezzi) le modifica chiunque vi abbia accesso, operatori compresi, come nel gestionale da cui arriva.
 
@@ -193,6 +199,7 @@ index.html                   pagina unica (SPA)
 css/styles.css                stile
 js/app.js                     router e shell del portale (home, sezioni, permessi)
 js/sezioni.js                  elenco delle sezioni (icone, colori, rotte) e regole di accesso
+js/sezioniIds.js               i soli id delle sezioni, letti anche dal Worker (creazione utenti)
 js/config.js                   configurazione (URL/chiavi Supabase)
 js/views/home.js                home del portale: la griglia da cui si sceglie la sezione
 js/assistenze/                 sezione Assistenze sanitarie: preventivi per eventi
@@ -212,6 +219,7 @@ js/lib/zip.js                   zip minimale (scrittura e lettura): serve a .xls
 assets/carta-intestata.dotx    modello Word ufficiale del Comitato
 js/trasporti/                  sezione Trasporti lunghi: preventivi trasporti sanitari
 js/trasporti/calc.js            il calcolo del preventivo (spesa reale, addebito, margine)
+js/trasporti/lib/documento.js   il preventivo come blocchi: itinerario, dati del servizio, importo
 js/trasporti/sezione.js         ingresso della sezione: carica impostazioni e smista alle viste
 js/straordinari/               sezione Straordinari: registro delle ore chieste ai dipendenti
 js/straordinari/calc.js         tipi, stati, calcolo delle ore e riepiloghi mensili

@@ -3,7 +3,7 @@ import { calcola, nuovoInput } from '../calc.js';
 import { CONFIG } from '../config.js';
 import { geocode, route, RoutingError } from '../lib/routing.js';
 import { prezzoRiferimento, paeseDaIso } from '../data/fuel-prices.js';
-import { stampaPreventivo } from '../lib/pdf.js';
+import { stampaPreventivo, anteprimaPreventivo } from '../lib/stampa.js';
 import { el, clear, esc, fmtEuro, fmtNum, fmtKm, fmtDate, toast, debounce, confirmDialog } from '../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 
@@ -46,6 +46,9 @@ export async function renderPreventivo(view, id, ctx) {
     // prezzo iniziale = Italia diesel
     prev.input.prezzoCarburante = prezzoRiferimento('IT', prev.input.alimentazione, tabella(imp));
   }
+  // Dati del destinatario e del documento: come la partenza e i flag qui
+  // sotto, vivono dentro `input` per non aggiungere colonne alla tabella.
+  const documento = { ...(prev.input?._documento || {}) };
   // I flag UI e la partenza vivono dentro input (jsonb) per persistere senza colonne dedicate.
   let prezzoAuto = prev.input._prezzoAuto !== false; // di default il prezzo segue il Paese
   let pedaggioAuto = prev.input._pedaggioAuto !== false; // stima pedaggi estero attiva finché non la modifichi a mano
@@ -64,6 +67,8 @@ export async function renderPreventivo(view, id, ctx) {
     </div>
     <div class="inline">
       <a class="btn" href="#/trasporti/preventivi">← Elenco</a>
+      <button class="btn" id="btn-anteprima">👁 Anteprima</button>
+      <button class="btn" id="btn-word">📄 Word</button>
       <button class="btn" id="btn-pdf">🖨️ Stampa / PDF</button>
       <button class="btn primary" id="btn-save">💾 Salva</button>
     </div>
@@ -178,8 +183,47 @@ export async function renderPreventivo(view, id, ctx) {
   main.appendChild(cMateriale);
   renderMateriale();
 
+  // ================= SEZIONE 6: DESTINATARIO E DOCUMENTO =================
+  // Serve alla lettera che si consegna: senza un destinatario il preventivo
+  // esce con "Spett.le —". Nome del cliente e data del servizio hanno le loro
+  // colonne (erano già nella tabella e non le scriveva nessuno); indirizzo,
+  // codice fiscale, referente, protocollo e data del documento stanno dentro
+  // `input`, dove vivono già la partenza e i flag dell'interfaccia — così non
+  // serve una migrazione del database per una riga di intestazione.
+  const cDest = card('Destinatario e documento', `
+    <p class="hint" style="margin:0 0 12px">Questi campi compaiono in cima al preventivo stampato, sulla carta intestata del Comitato.</p>
+    <div class="form-row">
+      <div class="field"><label>Cliente / ente</label>
+        <input type="text" id="cliente" value="${esc(prev.cliente || '')}" placeholder="es. Ospedale Galliera"></div>
+      <div class="field"><label>Codice fiscale / P.IVA</label>
+        <input type="text" id="doc-cf" value="${esc(documento.cf || '')}"></div>
+    </div>
+    <div class="field"><label>Indirizzo</label>
+      <input type="text" id="doc-indirizzo" value="${esc(documento.indirizzo || '')}"></div>
+    <div class="form-row three">
+      <div class="field"><label>Referente (Alla c.a.)</label>
+        <input type="text" id="doc-referente" value="${esc(documento.referente || '')}"></div>
+      <div class="field"><label>Numero di protocollo</label>
+        <input type="text" id="doc-protocollo" value="${esc(documento.protocollo || '')}" placeholder="lascia vuoto se non serve"></div>
+      <div class="field"><label>Data del documento</label>
+        <input type="date" id="doc-data" value="${esc(documento.data_documento || '')}"></div>
+    </div>
+    <div class="field" style="max-width:260px"><label>Data del servizio</label>
+      <input type="date" id="data-servizio" value="${esc(prev.data_servizio || '')}">
+      <div class="hint">Compare fra i dati del servizio; vuota, il documento scrive «da concordare».</div></div>`);
+  main.appendChild(cDest);
+
   const cNote = card('Note', `<textarea id="note" rows="3" placeholder="Note per il preventivo (visibili in stampa)…">${esc(prev.note || '')}</textarea>`);
   main.appendChild(cNote);
+
+  // I campi del destinatario scrivono direttamente sul preventivo: quelli con
+  // una colonna loro in cima all'oggetto, gli altri dentro `input._documento`.
+  cDest.querySelector('#cliente').addEventListener('input', e => { prev.cliente = e.target.value; });
+  cDest.querySelector('#data-servizio').addEventListener('change', e => { prev.data_servizio = e.target.value || null; });
+  for (const [sel, chiave] of [['#doc-cf', 'cf'], ['#doc-indirizzo', 'indirizzo'], ['#doc-referente', 'referente'],
+    ['#doc-protocollo', 'protocollo'], ['#doc-data', 'data_documento']]) {
+    cDest.querySelector(sel).addEventListener('input', e => { documento[chiave] = e.target.value; });
+  }
 
   // ---------------- BINDINGS ----------------
   const $ = (sel) => view.querySelector(sel);
@@ -262,7 +306,39 @@ export async function renderPreventivo(view, id, ctx) {
   $('#add-mat').addEventListener('click', () => { prev.input.materiale.push({ desc: '', importo: 0 }); renderMateriale(); recalc(); });
 
   head.querySelector('#btn-save').addEventListener('click', save);
-  head.querySelector('#btn-pdf').addEventListener('click', () => { syncItinerario(); prev.risultato = calcola(prev.input, imp); stampaPreventivo({ ...prev }, imp); });
+
+  // Il preventivo così com'è adesso, pronto per il documento: l'itinerario
+  // aggiornato, il titolo che al salvataggio verrebbe ricavato dalla
+  // destinazione (altrimenti stampando prima di salvare l'oggetto sarebbe
+  // vuoto) e i dati del destinatario dentro `input`, da dove il documento li
+  // legge.
+  function perDocumento() {
+    syncItinerario();
+    prev.risultato = calcola(prev.input, imp);
+    return {
+      ...prev,
+      titolo: prev.titolo || titoloDaDestinazione(),
+      input: { ...prev.input, partenza: prev.partenza, _documento: documento },
+    };
+  }
+
+  head.querySelector('#btn-pdf').addEventListener('click', async () => {
+    try { await stampaPreventivo(perDocumento(), imp); }
+    catch (e) { toast('Stampa non riuscita: ' + (e.message || e), 'err'); }
+  });
+  head.querySelector('#btn-anteprima').addEventListener('click', async () => {
+    try { await anteprimaPreventivo(perDocumento(), imp); }
+    catch (e) { toast('Anteprima non riuscita: ' + (e.message || e), 'err'); }
+  });
+  head.querySelector('#btn-word').addEventListener('click', async () => {
+    const btn = head.querySelector('#btn-word'); const old = btn.innerHTML;
+    btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Genero…';
+    try {
+      const { scaricaDocx } = await import('../lib/docx.js');
+      await scaricaDocx(perDocumento(), imp);
+    } catch (e) { toast('Generazione Word non riuscita: ' + (e.message || e), 'err'); }
+    finally { btn.disabled = false; btn.innerHTML = old; }
+  });
 
   updateMezzoHint();
   updateCarbHint();
@@ -508,6 +584,11 @@ export async function renderPreventivo(view, id, ctx) {
     // record con SOLO colonne reali; partenza e flag UI dentro input (jsonb)
     const rec = {
       titolo: prev.titolo,
+      // Le due colonne del destinatario c'erano da sempre ma non le scriveva
+      // nessuno: ci finivano solo i preventivi importati dal vecchio
+      // gestionale. Adesso le riempie la scheda "Destinatario e documento".
+      cliente: prev.cliente || null,
+      data_servizio: prev.data_servizio || null,
       note: prev.note ?? null,
       tappe: prev.tappe || [],
       andata_ritorno: prev.andata_ritorno,
@@ -515,7 +596,7 @@ export async function renderPreventivo(view, id, ctx) {
       km_totali: prev.km_totali,
       paese_dest: prev.paese_dest ?? null,
       paese_dest_nome: prev.paese_dest_nome ?? null,
-      input: { ...prev.input, partenza: prev.partenza, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _medicoOreAuto: medicoOreAuto, _medicoTotAuto: medicoTotAuto, _infermiereTotAuto: infermiereTotAuto },
+      input: { ...prev.input, partenza: prev.partenza, _documento: documento, _prezzoAuto: prezzoAuto, _pedaggioAuto: pedaggioAuto, _medicoOreAuto: medicoOreAuto, _medicoTotAuto: medicoTotAuto, _infermiereTotAuto: infermiereTotAuto },
       risultato: prev.risultato,
     };
     if (prev.id) rec.id = prev.id;

@@ -73,9 +73,14 @@ export function passi() {
       testo: 'A destra il riepilogo si aggiorna a ogni modifica: il dettaglio della spesa viva (carburante, pasti, pedaggi…), quanto addebiti al cliente e il margine che resta. Se il margine è rosso, il trasporto costa più di quanto stai chiedendo.',
     },
     {
-      selettore: '#btn-pdf',
-      titolo: 'Stampa e consegna',
-      testo: 'Genera il preventivo in versione stampabile, da salvare in PDF o consegnare al cliente. Le note che scrivi in fondo alla pagina compaiono nella stampa.',
+      selettore: '#cliente',
+      titolo: 'A chi va il preventivo',
+      testo: 'Cliente, indirizzo e referente compaiono in cima al documento, sotto «Spett.le». Qui stanno anche il numero di protocollo — se serve — e la data del servizio, che il preventivo riporta fra i dati del trasporto.',
+    },
+    {
+      selettore: '#btn-word',
+      titolo: 'Il documento da consegnare',
+      testo: 'Word per un file modificabile, «Stampa / PDF» per la versione da firmare e mandare, «Anteprima» per controllare prima come viene. Esce sulla carta intestata del Comitato, come i preventivi delle altre sezioni, e riporta itinerario, dati del servizio e importo richiesto. Il costo vivo e il margine restano qui dentro: nel documento non compaiono.',
     },
     {
       hash: '#/trasporti/impostazioni',

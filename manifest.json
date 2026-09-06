@@ -1,7 +1,7 @@
 {
   "name": "Amministrazione CRI — Genova",
   "short_name": "Amm. CRI",
-  "description": "Portale gestionale CRI Genova: scadenziario fatture, formazione esterna, trasporti lunghi e assistenze sanitarie",
+  "description": "Portale gestionale CRI Genova: scadenziario fatture, formazione esterna, trasporti lunghi, assistenze sanitarie e straordinari",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

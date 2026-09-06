@@ -18,13 +18,20 @@
 // ============================================================
 
 import { requireUser, ruoloUtente, SUPABASE_URL } from '../_lib/auth.js';
+import { ID_SEZIONI } from '../../js/sezioniIds.js';
 
 const ALFABETO_PASSWORD = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; // niente 0/O/1/l/I: ambigui da leggere/comunicare a voce
 
-// Deve restare allineato alla tabella public.sezioni: una sezione non prevista
-// verrebbe comunque rifiutata dalla chiave esterna, ma tanto vale scartarla
-// qui invece di creare l'utente e fallire a metà strada.
-const SEZIONI_VALIDE = ['scadenziario', 'formazione', 'trasporti', 'assistenze'];
+// Le sezioni che si possono assegnare, dallo stesso elenco che il portale usa
+// per disegnare il form: una sezione non prevista verrebbe comunque rifiutata
+// dalla chiave esterna verso public.sezioni, ma tanto vale scartarla qui
+// invece di creare l'utente e fallire a metà strada.
+//
+// L'elenco NON va riscritto qui: quando era una copia scritta a mano si è
+// disallineato dal portale, e i permessi per una sezione che il server non
+// conosceva venivano buttati via senza un errore visibile — il collega
+// risultava creato, ma senza quell'accesso.
+const SEZIONI_VALIDE = ID_SEZIONI;
 
 export async function onRequestPost(context) {
   const { request, env } = context;

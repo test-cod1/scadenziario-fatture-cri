@@ -177,12 +177,20 @@ function bloccoHtml(b) {
   }
   if (b.t === 'tabella') {
     const cl = (i) => b.allineamenti?.[i] === 'dx' ? ' class="dx"' : b.allineamenti?.[i] === 'centro' ? ' class="centro"' : '';
-    const larg = (i) => b.larghezze?.[i] ? ` style="width:${b.larghezze[i]}%"` : '';
-    const thead = `<thead><tr>${b.intestazioni.map((h, i) => `<th${cl(i)}${larg(i)}>${esc(h)}</th>`).join('')}</tr></thead>`;
+    // Le larghezze stanno in un <colgroup> e non sulle intestazioni: una
+    // tabella a due colonne senza titoli (i dati del servizio, nel preventivo
+    // di trasporto) non ha un <thead> su cui appoggiarle.
+    const colgroup = b.larghezze?.length
+      ? `<colgroup>${b.larghezze.map(w => `<col style="width:${w}%">`).join('')}</colgroup>` : '';
+    // Intestazioni tutte vuote = tabella senza testata: stamparla lascerebbe
+    // in cima una fascia grigia vuota.
+    const senzaTestata = b.intestazioni.every(h => !String(h ?? '').trim());
+    const thead = senzaTestata ? ''
+      : `<thead><tr>${b.intestazioni.map((h, i) => `<th${cl(i)}>${esc(h)}</th>`).join('')}</tr></thead>`;
     const righe = b.righe.map(r => `<tr>${r.map((c, i) => `<td${cl(i)}>${esc(c)}</td>`).join('')}</tr>`).join('');
     const piede = (b.piede || []).map(p =>
       `<tr class="totale${p.forte ? ' forte' : ''}">${p.celle.map((c, i) => `<td${cl(i)}>${esc(c)}</td>`).join('')}</tr>`).join('');
-    return `<table class="dati${b.compatta ? ' compatta' : ''}">${thead}<tbody>${righe}${piede}</tbody></table>`;
+    return `<table class="dati${b.compatta ? ' compatta' : ''}">${colgroup}${thead}<tbody>${righe}${piede}</tbody></table>`;
   }
   return '';
 }

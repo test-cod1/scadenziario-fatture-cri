@@ -141,7 +141,11 @@ function tabellaXml(b) {
   };
 
   // tblHeader ripete l'intestazione se la tabella si spezza fra due pagine.
-  const intestazione = `<w:tr><w:trPr><w:tblHeader/></w:trPr>` +
+  // Se i titoli sono tutti vuoti la riga non si scrive affatto: una fascia
+  // grigia senza testo in cima alla tabella non dice niente a nessuno (è il
+  // caso della tabella "dati del servizio" nel preventivo di trasporto).
+  const senzaTestata = b.intestazioni.every(h => !String(h ?? '').trim());
+  const intestazione = senzaTestata ? '' : `<w:tr><w:trPr><w:tblHeader/></w:trPr>` +
     b.intestazioni.map((h, i) => cella(h, i, { intestazione: true })).join('') + `</w:tr>`;
   const righe = b.righe.map(r => `<w:tr>${r.map((c, i) => cella(c, i)).join('')}</w:tr>`).join('');
   // Piede: una riga sola col totale, oppure di più quando ci sono sconti o IVA.

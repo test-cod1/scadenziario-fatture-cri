@@ -31,6 +31,27 @@ export const DEFAULT_IMPOSTAZIONI = {
   infermiereTariffaOraria: 30,  // €/ora indicativa per l'infermiere (modificabile)
 
   fuelDataDate: FUEL_DATA_DATE,
+
+  // Testi fissi del documento consegnato al cliente. Stanno qui e non nel
+  // codice perché sono formule che cambiano con le convenzioni: si correggono
+  // in Impostazioni senza rifare il sito. Il regime IVA nasce VUOTO di
+  // proposito — una dichiarazione fiscale non va messa per impostazione
+  // predefinita in un documento che qualcuno firma: si scrive quando si sa
+  // quale sia, e finché è vuota la riga non compare.
+  testi: {
+    premessa: 'A seguito della Vostra richiesta indichiamo il preventivo di spesa per il servizio di trasporto sanitario in oggetto:',
+    // Il carburante non compare nel documento come voce a sé (è compreso
+    // nella tariffa chilometrica): l'avvertenza parla quindi di quello da cui
+    // l'importo dipende davvero, i chilometri e le spese effettive.
+    avvertenza: 'Il presente preventivo è indicativo: gli importi possono variare in funzione del percorso effettivamente compiuto e delle spese sostenute durante il servizio.',
+    iva: '',
+    chiusura: 'Restando a disposizione per ogni ulteriore chiarimento, si porgono cordiali e distinti saluti.',
+  },
+
+  firma: {
+    ruolo: 'La Presidente',
+    nome: 'Federica Bonelli',
+  },
 };
 
 // ---- Input di default per un nuovo preventivo --------------------------

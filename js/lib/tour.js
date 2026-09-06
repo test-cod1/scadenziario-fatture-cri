@@ -137,6 +137,11 @@ export function startTour(passi) {
       target = await attendiElemento(passo.selettore, passo.hash ? 6000 : 1200);
       if (!tourAttivo) return; // chiuso mentre si attendeva l'elemento
       if (!target) return goToStep(i + 1); // pagina/ruolo senza quell'elemento: salta al passo dopo
+      // Un elemento dentro una scheda richiudibile (i <details> dell'editor
+      // trasporti) esiste nel documento ma non ha dimensioni finché la scheda
+      // è chiusa: l'evidenziazione finiva in un angolo, su un rettangolo alto
+      // zero. Si aprono tutte le schede che lo contengono prima di misurarlo.
+      for (let d = target.closest('details'); d; d = d.parentElement?.closest('details')) d.open = true;
       target.scrollIntoView({ block: 'center', behavior: 'auto' });
       await new Promise(r => setTimeout(r, 200)); // lascia assestare lo scroll prima di misurare
       if (!tourAttivo) return;

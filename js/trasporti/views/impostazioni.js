@@ -168,6 +168,45 @@ export async function renderImpostazioni(view, ctx) {
     } finally { btn.disabled = false; btn.innerHTML = old; }
   });
 
+  // ---------- Firma e testi del documento ----------
+  // Da quando il preventivo esce sulla carta intestata ufficiale (in PDF e in
+  // Word) è un vero documento del Comitato: le formule che lo accompagnano e
+  // la firma stanno qui, come nelle altre sezioni, e si correggono senza
+  // toccare il codice.
+  const cFirma = card('Firma del preventivo', `
+    <p class="hint" style="margin:0 0 14px">Le due righe in fondo al documento, sopra lo spazio per la firma. Lasciando vuoto il nome resta la sola qualifica.</p>
+    <div class="form-row">
+      <div class="field"><label>Ruolo</label><input type="text" id="f-ruolo" value="${esc(imp.firma?.ruolo || '')}"></div>
+      <div class="field"><label>Nome</label><input type="text" id="f-nome" value="${esc(imp.firma?.nome || '')}"></div>
+    </div>`);
+  pagina.appendChild(cFirma);
+  for (const [campo, chiave] of [['#f-ruolo', 'ruolo'], ['#f-nome', 'nome']]) {
+    cFirma.querySelector(campo).addEventListener('input', e => {
+      imp.firma = { ...(imp.firma || {}), [chiave]: e.target.value };
+    });
+  }
+
+  const ETICHETTE_TESTI = {
+    premessa: ['Premessa', 'La frase che introduce il preventivo.'],
+    avvertenza: ['Avvertenza', 'La riga in corpo piccolo che ricorda che il preventivo è indicativo.'],
+    iva: ['Regime IVA', 'Riga sotto il totale. Lasciala vuota se il preventivo non deve dichiarare nulla: in quel caso non compare.'],
+    chiusura: ['Chiusura', 'I saluti finali, prima della firma.'],
+  };
+  const cTesti = card('Testi fissi del documento', '');
+  pagina.appendChild(cTesti);
+  const corpoTesti = cTesti.querySelector('.card-b');
+  for (const [chiave, [etichetta, aiuto]] of Object.entries(ETICHETTE_TESTI)) {
+    const campo = el(`<div class="field">
+      <label>${esc(etichetta)}</label>
+      <textarea rows="2">${esc(imp.testi?.[chiave] || '')}</textarea>
+      <div class="hint">${esc(aiuto)}</div>
+    </div>`);
+    campo.querySelector('textarea').addEventListener('input', e => {
+      imp.testi = { ...(imp.testi || {}), [chiave]: e.target.value };
+    });
+    corpoTesti.appendChild(campo);
+  }
+
   // ---------- salvataggio ----------
   pagina.querySelector('#save').addEventListener('click', async () => {
     const btn = pagina.querySelector('#save'); const old = btn.innerHTML;

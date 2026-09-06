@@ -85,5 +85,13 @@ function mergeImpostazioni(dati) {
     mezzi: Array.isArray(dati.mezzi) && dati.mezzi.length ? dati.mezzi : DEFAULT_IMPOSTAZIONI.mezzi,
     // la tabella prezzi carburante personalizzata è opzionale
     prezziCustom: dati.prezziCustom || null,
+    // Testi e firma del documento: si uniscono chiave per chiave, così una
+    // formula aggiunta al codice compare anche in un database salvato prima
+    // che esistesse, invece di risultare vuota.
+    testi: { ...DEFAULT_IMPOSTAZIONI.testi, ...(dati.testi || {}) },
+    firma: {
+      ruolo: dati.firma?.ruolo ?? DEFAULT_IMPOSTAZIONI.firma.ruolo,
+      nome: dati.firma?.nome ?? DEFAULT_IMPOSTAZIONI.firma.nome,
+    },
   };
 }

@@ -1,6 +1,6 @@
 import { preventivi } from '../data/store.js';
 import { el, clear, fmtEuro, fmtDate, fmtKm, esc, toast, confirmDialog } from '../lib/ui.js';
-import { stampaPreventivo } from '../lib/pdf.js';
+import { stampaPreventivo } from '../lib/stampa.js';
 
 export async function renderDashboard(view, ctx) {
   // Niente clear(view): la pagina la svuota gia' il router del portale, che ci
@@ -79,15 +79,25 @@ export async function renderDashboard(view, ctx) {
         <td class="money">${fmtEuro(p.risultato?.spesaReale)}</td>
         <td class="money">${fmtEuro(p.risultato?.addebito)}</td>
         <td style="white-space:nowrap;text-align:right">
+          <button class="btn ghost sm" data-word title="Scarica in Word">📄</button>
           <button class="btn ghost sm" data-pdf title="Stampa / PDF">🖨️</button>
           <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
         </td>
       </tr>`);
       tr.addEventListener('click', (e) => {
-        if (e.target.closest('[data-pdf]') || e.target.closest('[data-del]')) return;
+        if (e.target.closest('button')) return;
         ctx.go(`#/trasporti/preventivo/${p.id}`);
       });
-      tr.querySelector('[data-pdf]').addEventListener('click', () => stampaPreventivo(p, ctx.imp));
+      tr.querySelector('[data-pdf]').addEventListener('click', async () => {
+        try { await stampaPreventivo(p, ctx.imp); }
+        catch (e) { toast('Stampa non riuscita: ' + e.message, 'err'); }
+      });
+      tr.querySelector('[data-word]').addEventListener('click', async () => {
+        try {
+          const { scaricaDocx } = await import('../lib/docx.js');
+          await scaricaDocx(p, ctx.imp);
+        } catch (e) { toast('Generazione Word non riuscita: ' + e.message, 'err'); }
+      });
       tr.querySelector('[data-del]').addEventListener('click', async () => {
         if (!await confirmDialog(`Eliminare il preventivo "${p.titolo || 'senza titolo'}"?`, { danger: true, okLabel: 'Elimina' })) return;
         try {

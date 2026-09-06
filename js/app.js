@@ -209,8 +209,8 @@ function disegnaNav(sezioneId, sottoSezione, sub) {
     const nav = el('<nav class="nav"></nav>');
     nav.appendChild(el('<a href="#/home" class="solo-mobile"><span class="ic">🏠</span><span class="txt">Home</span></a>'));
     // Sezioni con un menu interno semplice (una voce = una pagina): lo
-    // dichiarano in js/sezioni.js. Quelle senza menu (per ora Formazione e
-    // Assistenze, ancora vuote) restano con la sola voce Home.
+    // dichiarano in js/sezioni.js. Una sezione che non dichiara un menu
+    // resta con la sola voce Home — è il caso di quelle ancora da fare.
     for (const n of (getSezione(sezioneId)?.menu || [])) {
       const a = el(`<a href="#/${sezioneId}/${n.id}" data-nav="${n.id}"><span class="ic">${n.icon}</span><span class="txt">${esc(n.label)}</span></a>`);
       // `attivoAnche` copre le pagine di dettaglio: aprendo un preventivo
