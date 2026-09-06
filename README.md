@@ -243,6 +243,8 @@ js/views/registroModifiche.js   registro modifiche unificato (passive+attive), d
 js/views/impostazioni.js        impostazioni dello scadenziario e registro modifiche (admin di sezione)
 manifest.json                  manifest PWA (nome, icone, tema) — abilita "Aggiungi a schermata Home"
 sw.js                          service worker: cache di riserva se la rete cade, sempre network-first
+                               (il guscio dell'app è messo da parte all'installazione, così offline
+                                si apre anche appena aggiunta alla schermata Home)
 icons/                          icone PWA (192px, 512px)
 functions/api/                 endpoint: proxy verso Gemini (passive+attive), creazione ed eliminazione utenti
 functions/_lib/auth.js          verifica sessione/ruolo Supabase lato server
