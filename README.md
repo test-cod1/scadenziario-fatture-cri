@@ -180,7 +180,7 @@ Non contiene gli account veri (`auth.users`): le password non sono esportabili p
 ## 5. Deploy su Cloudflare (Workers con Git integration)
 
 Il progetto Cloudflare collegato a questo repo è di tipo **Worker** (il nuovo flusso unificato "Workers & Pages": build command `npx wrangler deploy`), non la vecchia Pages classica. Per questo motivo il repo contiene già:
-- [`wrangler.jsonc`](wrangler.jsonc): configurazione del deploy (nome, asset statici, entry point)
+- [`wrangler.jsonc`](wrangler.jsonc): configurazione del deploy (nome, asset statici, entry point). Contiene `assets.run_worker_first: true`, ed è importante: senza, Cloudflare serve i file statici **prima** del Worker, che non viene nemmeno eseguito — e le intestazioni di sicurezza (CSP, `nosniff`, `X-Frame-Options`) arrivavano solo sulle risposte delle `/api/*`, mentre la pagina che esegue il codice e tiene la sessione usciva senza nessuna di esse. Dopo un deploy vale la pena ricontrollarlo: `curl -D - -o /dev/null https://<indirizzo>/js/app.js` deve mostrare `Content-Security-Policy`
 - [`worker.js`](worker.js): instrada le `/api/*` (lettura AI delle fatture, creazione ed eliminazione utenti, geocoding/percorsi e prezzi carburante dei preventivi) alle function in `functions/api/`, il resto (index.html, css/, js/) viene servito come asset statico
 - [`.assetsignore`](.assetsignore): esclude dagli asset statici i file che non fanno parte del sito (node_modules, supabase/, ecc. — senza questo file il deploy falliva per un asset da 146MB)
 

@@ -8,6 +8,19 @@
   },
   "assets": {
     "directory": ".",
-    "binding": "ASSETS"
+    "binding": "ASSETS",
+    // Senza questo, Cloudflare serve i file statici PRIMA del Worker, che
+    // quindi non viene nemmeno eseguito: le intestazioni di sicurezza scritte
+    // in worker.js (CSP, nosniff, no-frame) arrivavano solo sulle risposte
+    // delle /api/*, mentre la pagina — quella che esegue il codice e maneggia
+    // la sessione — usciva senza. Verificato in produzione il 06/09/2026:
+    // `curl -D - .../js/app.js` non riportava nessuna delle due.
+    //
+    // Con run_worker_first ogni richiesta passa da worker.js, che instrada le
+    // /api/* e per tutto il resto chiama env.ASSETS.fetch() aggiungendo le
+    // intestazioni. Costa un'invocazione del Worker per file servito: sul
+    // piano gratuito ce ne sono 100.000 al giorno, e questo portale ne usa
+    // una frazione.
+    "run_worker_first": true
   }
 }
