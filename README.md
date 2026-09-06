@@ -226,8 +226,8 @@ js/config.js                   configurazione (URL/chiavi Supabase)
 js/views/home.js                home del portale: la griglia da cui si sceglie la sezione
 js/assistenze/                 sezione Assistenze sanitarie: preventivi per eventi
 js/assistenze/calc.js           tariffario, calcolo dei turni e importo in lettere
-js/assistenze/views/rubrica.js  rubrica clienti: elenco e scheda del singolo cliente
-js/assistenze/views/sceltaCliente.js  riquadro per scegliere un cliente dalla rubrica
+js/assistenze/views/rubrica.js  la rubrica di questa sezione: il suo store e le sue parole
+js/assistenze/views/sceltaCliente.js  il riquadro di scelta (rimanda a rubrica.js)
 js/assistenze/lib/documento.js  il preventivo come blocchi, da cui derivano PDF e Word
 js/formazione/                 sezione Formazione Esterna: preventivi per i corsi alle aziende
 js/formazione/calc.js           catalogo dei corsi, listino/prezzo riservato, sconti e IVA
@@ -238,6 +238,7 @@ js/lib/docxBlocchi.js           dai blocchi al .docx, sostituendo il corpo del m
 js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF
 js/lib/numeri.js                importo in lettere e arrotondamento ai centesimi
 js/lib/importi.js               i campi con i decimali: la virgola si può scrivere e incollare
+js/lib/rubrica.js               la rubrica (elenco, scheda, riquadro di scelta), una volta sola
 js/lib/zip.js                   zip minimale (scrittura e lettura): serve a .xlsx e .docx
 js/vendor/supabase-js-*.js      il client Supabase, dentro il progetto e non su una CDN
 test/                          le prove automatiche (npm test)
@@ -299,3 +300,4 @@ wrangler.jsonc                 configurazione del deploy Cloudflare
 - **Chi salva per secondo non cancella il lavoro del primo.** Tutte le sezioni salvano confrontando la versione da cui si era partiti (`updated_at`): se nel frattempo qualcun altro ha salvato lo stesso record, il salvataggio si ferma e l'app propone di ricaricare la versione aggiornata, invece di sovrascriverla.
 - **Le impostazioni non ripiegano di nascosto sui valori di fabbrica.** Se la lettura delle impostazioni di una sezione fallisce (rete, permessi), la sezione mostra un errore: prima almeno una di esse restituiva i valori di default — tariffe e consumi di listino — come se fossero la configurazione vera del Comitato, e il preventivo usciva con numeri plausibili ma sbagliati.
 - **Il client Supabase sta dentro il progetto** ([`js/vendor/`](js/vendor/)), non su una CDN. Prima veniva scaricato da `esm.sh` a ogni avvio: il portale non si apriva se quel sito era irraggiungibile, e chi lo avesse controllato avrebbe potuto eseguire codice proprio nella pagina che maneggia le credenziali. Di conseguenza la Content-Security-Policy non autorizza più nessun host esterno per gli script. Per aggiornarlo, le istruzioni sono in cima a [`js/lib/supabase.js`](js/lib/supabase.js).
+- **La rubrica è una sola** ([`js/lib/rubrica.js`](js/lib/rubrica.js)): elenco, scheda e riquadro «Scegli dalla rubrica» sono lo stesso codice per assistenze e formazione, che gli passano soltanto il proprio store e le proprie parole (una sezione ha *clienti*, l'altra *committenti*: in italiano il genere si porta dietro articoli e participi, quindi le frasi sono parametri e non pezzi da incollare). **I dati restano separati**: due tabelle, due permessi — chi è abilitato solo alla formazione non vede i clienti delle assistenze. Unirle sarebbe un'altra cosa, con una migrazione e una decisione su chi può vedere cosa.
