@@ -72,7 +72,17 @@ export function parseFatturaXml(xmlText) {
     scadenza: txt(d, 'DataScadenzaPagamento'),
     importo: numero(txt(d, 'ImportoPagamento')) || 0,
   })).filter(r => r.scadenza || r.importo);
-  rate.sort((a, b) => (a.scadenza || '').localeCompare(b.scadenza || ''));
+  // Le rate senza data in fondo, non in testa. Ordinandole per stringa, la
+  // data vuota finiva PRIMA di qualunque data vera: un documento con una rata
+  // senza scadenza (il campo e' facoltativo nel tracciato) faceva risultare
+  // il documento intero senza scadenza, e salvando la fattura l'app ci
+  // applicava lo scadenzario di default — cioe' una data che contraddiceva
+  // il documento, senza dirlo a nessuno.
+  rate.sort((a, b) => {
+    if (!a.scadenza) return 1;
+    if (!b.scadenza) return -1;
+    return a.scadenza.localeCompare(b.scadenza);
+  });
 
   const importo = calcolaImporto(body, datiGen, rate);
 
@@ -148,7 +158,17 @@ export function parseFatturaAttivaXml(xmlText) {
     scadenza: txt(d, 'DataScadenzaPagamento'),
     importo: numero(txt(d, 'ImportoPagamento')) || 0,
   })).filter(r => r.scadenza || r.importo);
-  rate.sort((a, b) => (a.scadenza || '').localeCompare(b.scadenza || ''));
+  // Le rate senza data in fondo, non in testa. Ordinandole per stringa, la
+  // data vuota finiva PRIMA di qualunque data vera: un documento con una rata
+  // senza scadenza (il campo e' facoltativo nel tracciato) faceva risultare
+  // il documento intero senza scadenza, e salvando la fattura l'app ci
+  // applicava lo scadenzario di default — cioe' una data che contraddiceva
+  // il documento, senza dirlo a nessuno.
+  rate.sort((a, b) => {
+    if (!a.scadenza) return 1;
+    if (!b.scadenza) return -1;
+    return a.scadenza.localeCompare(b.scadenza);
+  });
 
   const importo = calcolaImporto(body, datiGen, rate);
   const modPagTag = allTags(body, 'ModalitaPagamento')[0];

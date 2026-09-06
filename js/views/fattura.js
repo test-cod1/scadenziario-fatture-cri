@@ -2,6 +2,7 @@ import { fatture, pagamenti, noteCredito, impostazioni, proposte, svuotaCacheNom
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, sommaGiorniISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml, METODI } from '../lib/xmlFattura.js';
 import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento, aggiornaDopo } from '../lib/documenti.js';
+import { CAMPO_DECIMALE, testoDecimale, testoDecimaleOVuoto } from '../lib/importi.js';
 
 export { METODI };
 
@@ -59,7 +60,7 @@ export async function apriEditor(id, ctx, onSaved) {
         </div>
         <div class="form-row three">
           <div class="field"><label>Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
-          <div class="field"><label>Importo (€) *</label><input type="number" step="0.01" id="f-importo" value="${esc(rec.importo ?? '')}"></div>
+          <div class="field"><label>Importo (€) *</label><input ${CAMPO_DECIMALE} id="f-importo" value="${testoDecimale(rec.importo)}"></div>
           <div class="field"><label>Scadenza</label><input type="date" id="f-scadenza" value="${esc(rec.scadenza || '')}">
             <div style="display:flex;gap:6px;margin-top:6px">
               <button type="button" class="btn ghost sm" id="f-scad-30" title="Calcola: data fattura + 30 giorni">30gg</button>
@@ -123,7 +124,7 @@ export async function apriEditor(id, ctx, onSaved) {
       if (estratti.fornitore) body.querySelector('#f-fornitore').value = estratti.fornitore;
       if (estratti.numero_fattura) body.querySelector('#f-numero').value = estratti.numero_fattura;
       if (estratti.data_fattura) body.querySelector('#f-data').value = estratti.data_fattura;
-      if (estratti.importo !== null && estratti.importo !== undefined) body.querySelector('#f-importo').value = estratti.importo;
+      if (estratti.importo !== null && estratti.importo !== undefined) body.querySelector('#f-importo').value = testoDecimale(estratti.importo);
       if (estratti.scadenza) body.querySelector('#f-scadenza').value = estratti.scadenza;
       if (estratti.metodo_pagamento) body.querySelector('#f-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) body.querySelector('#f-note').value = estratti.note;
@@ -208,7 +209,7 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.fornitore)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''} — residuo <b>${fmtEuro(rec._residuo)}</b></p>
     <div class="form-row three" style="align-items:end">
       <div class="field"><label>Data</label><input type="date" id="qp-data" value="${todayISO()}"></div>
-      <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="qp-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
+      <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="qp-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
       <div class="field"><label>Metodo</label><select id="qp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
     </div>
     <div id="qp-err" style="color:var(--danger);font-size:13px"></div>
@@ -256,7 +257,7 @@ export function apriProponiPagamento(rec, ctx, onSaved) {
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.fornitore)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''} — residuo <b>${fmtEuro(rec._residuo)}</b></p>
     <div class="form-row three" style="align-items:end">
       <div class="field"><label>Data prevista</label><input type="date" id="pp-data" value="${todayISO()}"></div>
-      <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="pp-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
+      <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="pp-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
       <div class="field"><label>Metodo</label><select id="pp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${(rec.metodo_pagamento || 'bonifico') === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
     </div>
     <div class="field"><label>Note per l'admin (opzionale)</label><textarea id="pp-note" rows="2"></textarea></div>
@@ -331,7 +332,7 @@ function renderPagamenti(node, rec, ctx, onChange) {
       clear(formZone);
       const f = el(`<div class="form-row three" style="align-items:end">
         <div class="field"><label>Data</label><input type="date" id="p-data" value="${todayISO()}"></div>
-        <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="p-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
+        <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="p-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
         <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
       </div><button class="btn primary sm" id="p-save">Registra pagamento</button>`);
       formZone.appendChild(f);
@@ -443,14 +444,14 @@ export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata) {
         <input type="checkbox" ${checked ? 'checked' : ''}>
         <span>${esc(f.fornitore)} ${f.numero_fattura ? '· n. ' + esc(f.numero_fattura) : ''} · residuo ${fmtEuro(f._residuo)}</span>
       </label>
-      <input type="number" step="0.01" style="width:110px" placeholder="Importo €" value="${checked ? selezionate.get(f.id).toFixed(2) : ''}" ${checked ? '' : 'disabled'}>
+      <input ${CAMPO_DECIMALE} style="width:110px" placeholder="Importo €" value="${checked ? testoDecimale(selezionate.get(f.id)) : ''}" ${checked ? '' : 'disabled'}>
     </div>`);
     const checkbox = row.querySelector('input[type=checkbox]');
-    const importoInput = row.querySelector('input[type=number]');
+    const importoInput = row.querySelector('input[inputmode=decimal]');
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) {
         selezionate.set(f.id, f._residuo);
-        importoInput.value = f._residuo.toFixed(2);
+        importoInput.value = testoDecimale(f._residuo);
         importoInput.disabled = false;
       } else {
         selezionate.delete(f.id);
@@ -616,7 +617,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
             <div class="field"><label>Fornitore</label><input type="text" class="i-fornitore"></div>
             <div class="field"><label>N. fattura</label><input type="text" class="i-numero"></div>
             <div class="field"><label>Data</label><input type="date" class="i-data"></div>
-            <div class="field"><label>Importo €</label><input type="number" step="0.01" class="i-importo"></div>
+            <div class="field"><label>Importo €</label><input ${CAMPO_DECIMALE} class="i-importo"></div>
           </div>
           <div class="u-fields" style="margin-top:8px">
             <div class="field"><label>Scadenza</label><input type="date" class="i-scadenza">
@@ -655,7 +656,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
       if (estratti.fornitore) box.querySelector('.i-fornitore').value = estratti.fornitore;
       if (estratti.numero_fattura) box.querySelector('.i-numero').value = estratti.numero_fattura;
       if (estratti.data_fattura) box.querySelector('.i-data').value = estratti.data_fattura;
-      if (estratti.importo !== null && estratti.importo !== undefined) box.querySelector('.i-importo').value = estratti.importo;
+      if (estratti.importo !== null && estratti.importo !== undefined) box.querySelector('.i-importo').value = testoDecimale(estratti.importo);
       if (estratti.scadenza) box.querySelector('.i-scadenza').value = estratti.scadenza;
       if (estratti.metodo_pagamento) box.querySelector('.i-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) box.querySelector('.i-note').value = estratti.note;

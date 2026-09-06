@@ -8,6 +8,7 @@
 import { impostazioni } from '../data/store.js';
 import { IMPOSTAZIONI_DEFAULT } from '../calc.js';
 import { el, clear, esc, toast, confirmDialog } from '../lib/ui.js';
+import { CAMPO_DECIMALE, testoDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
 
 export async function renderImpostazioni(view, ctx) {
   const soloLettura = ctx.ruolo !== 'admin';
@@ -47,7 +48,7 @@ export async function renderImpostazioni(view, ctx) {
         </div>
         <div class="field">
           <label for="s-singola">Ore in una singola richiesta</label>
-          <input type="number" id="s-singola" min="1" step="0.5" value="${esc(ctx.imp.sogliaSingola)}" ${soloLettura ? 'disabled' : ''}>
+          <input ${CAMPO_DECIMALE} id="s-singola" value="${testoDecimale(ctx.imp.sogliaSingola)}" ${soloLettura ? 'disabled' : ''}>
           <div class="hint">Oltre queste ore, il salvataggio chiede una conferma.</div>
         </div>
       </div>
@@ -97,7 +98,7 @@ export async function renderImpostazioni(view, ctx) {
       const dati = {
         causali,
         sogliaMensile: Number(wrap.querySelector('#s-mensile').value),
-        sogliaSingola: Number(wrap.querySelector('#s-singola').value),
+        sogliaSingola: leggiDecimaleO0(wrap.querySelector('#s-singola').value),
       };
       try { await impostazioni.save(dati); }
       catch (e) { toast('Salvataggio non riuscito: ' + e.message, 'err'); return; }

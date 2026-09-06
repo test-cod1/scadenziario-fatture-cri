@@ -2,6 +2,7 @@ import { proposte } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro } from '../lib/ui.js';
 import { METODI } from '../lib/xmlFattura.js';
 import { confermaSeSuperaResiduo } from '../lib/documenti.js';
+import { CAMPO_DECIMALE, testoDecimale } from '../lib/importi.js';
 
 const ESITO_CHIP = { proposta: 'warn', confermata: 'ok', rifiutata: 'danger' };
 const ESITO_LABEL = { proposta: 'In attesa', confermata: 'Confermata', rifiutata: 'Rifiutata' };
@@ -127,7 +128,7 @@ function apriConfermaProposta(proposta, fattura, ctx, ricarica) {
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(fattura.fornitore || '')} ${fattura.numero_fattura ? '· ' + esc(fattura.numero_fattura) : ''} — proposto da ${esc(proposta.proposta_da_nome || proposta.proposta_da_email || 'un operatore')}${fattura._residuo !== undefined ? ` — residuo <b>${fmtEuro(fattura._residuo)}</b>` : ''}</p>
     <div class="form-row three" style="align-items:end">
       <div class="field"><label>Data pagamento</label><input type="date" id="cp-data" value="${proposta.data_prevista || todayISO()}"></div>
-      <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="cp-importo" value="${Number(proposta.importo).toFixed(2)}"></div>
+      <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="cp-importo" value="${testoDecimale(proposta.importo)}"></div>
       <div class="field"><label>Metodo</label><select id="cp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${proposta.metodo === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
     </div>
     <div id="cp-err" style="color:var(--danger);font-size:13px"></div>

@@ -3,6 +3,7 @@ import { svuotaCacheNomi } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaAttivaXml, METODI } from '../lib/xmlFattura.js';
 import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento, aggiornaDopo } from '../lib/documenti.js';
+import { CAMPO_DECIMALE, testoDecimale, testoDecimaleOVuoto } from '../lib/importi.js';
 
 export { METODI };
 
@@ -43,7 +44,7 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
         </div>
         <div class="form-row">
           <div class="field"><label>Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
-          <div class="field"><label>Importo (€) *</label><input type="number" step="0.01" id="f-importo" value="${esc(rec.importo ?? '')}"></div>
+          <div class="field"><label>Importo (€) *</label><input ${CAMPO_DECIMALE} id="f-importo" value="${testoDecimale(rec.importo)}"></div>
         </div>
         <div class="form-row three">
           <div class="field"><label>Metodo di incasso</label><select id="f-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_incasso === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
@@ -94,7 +95,7 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
       if (estratti.cliente) body.querySelector('#f-cliente').value = estratti.cliente;
       if (estratti.numero_fattura) body.querySelector('#f-numero').value = estratti.numero_fattura;
       if (estratti.data_fattura) body.querySelector('#f-data').value = estratti.data_fattura;
-      if (estratti.importo !== null && estratti.importo !== undefined) body.querySelector('#f-importo').value = estratti.importo;
+      if (estratti.importo !== null && estratti.importo !== undefined) body.querySelector('#f-importo').value = testoDecimale(estratti.importo);
       if (estratti.metodo_pagamento) body.querySelector('#f-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) body.querySelector('#f-note').value = estratti.note;
       viaAI = !!estratti._viaAI;
@@ -173,7 +174,7 @@ export function apriIncassoRapido(rec, ctx, onSaved) {
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.cliente)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''} — residuo <b>${fmtEuro(rec._residuo)}</b></p>
     <div class="form-row three" style="align-items:end">
       <div class="field"><label>Data</label><input type="date" id="qp-data" value="${todayISO()}"></div>
-      <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="qp-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
+      <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="qp-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
       <div class="field"><label>Metodo</label><select id="qp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_incasso === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
     </div>
     <div id="qp-err" style="color:var(--danger);font-size:13px"></div>
@@ -264,7 +265,7 @@ function renderIncassi(node, rec, ctx, onChange) {
     clear(formZone);
     const f = el(`<div class="form-row three" style="align-items:end">
       <div class="field"><label>Data</label><input type="date" id="p-data" value="${todayISO()}"></div>
-      <div class="field"><label>Importo (€)</label><input type="number" step="0.01" id="p-importo" value="${rec._residuo > 0 ? rec._residuo.toFixed(2) : ''}"></div>
+      <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="p-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
       <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
     </div><button class="btn primary sm" id="p-save">Registra incasso</button>`);
     formZone.appendChild(f);
@@ -363,14 +364,14 @@ export function apriNuovaNotaCreditoAttiva(ctx, onSaved, fatturaPreselezionata) 
         <input type="checkbox" ${checked ? 'checked' : ''}>
         <span>${esc(f.cliente)} ${f.numero_fattura ? '· n. ' + esc(f.numero_fattura) : ''} · residuo ${fmtEuro(f._residuo)}</span>
       </label>
-      <input type="number" step="0.01" style="width:110px" placeholder="Importo €" value="${checked ? selezionate.get(f.id).toFixed(2) : ''}" ${checked ? '' : 'disabled'}>
+      <input ${CAMPO_DECIMALE} style="width:110px" placeholder="Importo €" value="${checked ? testoDecimale(selezionate.get(f.id)) : ''}" ${checked ? '' : 'disabled'}>
     </div>`);
     const checkbox = row.querySelector('input[type=checkbox]');
-    const importoInput = row.querySelector('input[type=number]');
+    const importoInput = row.querySelector('input[inputmode=decimal]');
     checkbox.addEventListener('change', () => {
       if (checkbox.checked) {
         selezionate.set(f.id, f._residuo);
-        importoInput.value = f._residuo.toFixed(2);
+        importoInput.value = testoDecimale(f._residuo);
         importoInput.disabled = false;
       } else {
         selezionate.delete(f.id);
@@ -521,7 +522,7 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
             <div class="field"><label>Cliente</label><input type="text" class="i-cliente"></div>
             <div class="field"><label>N. fattura</label><input type="text" class="i-numero"></div>
             <div class="field"><label>Data</label><input type="date" class="i-data"></div>
-            <div class="field"><label>Importo €</label><input type="number" step="0.01" class="i-importo"></div>
+            <div class="field"><label>Importo €</label><input ${CAMPO_DECIMALE} class="i-importo"></div>
           </div>
           <div class="u-fields" style="margin-top:8px">
             <div class="field"><label>Metodo</label><select class="i-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
@@ -551,7 +552,7 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
       if (estratti.cliente) box.querySelector('.i-cliente').value = estratti.cliente;
       if (estratti.numero_fattura) box.querySelector('.i-numero').value = estratti.numero_fattura;
       if (estratti.data_fattura) box.querySelector('.i-data').value = estratti.data_fattura;
-      if (estratti.importo !== null && estratti.importo !== undefined) box.querySelector('.i-importo').value = estratti.importo;
+      if (estratti.importo !== null && estratti.importo !== undefined) box.querySelector('.i-importo').value = testoDecimale(estratti.importo);
       if (estratti.metodo_pagamento) box.querySelector('.i-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) box.querySelector('.i-note').value = estratti.note;
     }).catch(err => {

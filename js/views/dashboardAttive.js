@@ -1,9 +1,10 @@
 import { fattureAttive, incassi } from '../data/storeAttive.js';
-import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, rendiCliccabile, toast, todayISO, fineMeseISO } from '../lib/ui.js';
+import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, rendiCliccabile, toast, todayISO, fineMeseISO, parseEuro } from '../lib/ui.js';
 import { impostazioni } from '../data/store.js';
 import { exportXLSXAttive, exportPDFAttive } from '../lib/export.js';
 import { apriEditorAttiva, apriUploadAttive, apriIncassoRapido, apriNuovaNotaCreditoAttiva, apriSollecitoRapido } from './fatturaAttiva.js';
 import { FILTRO_CLIENTE_KEY } from './reportAttive.js';
+import { CAMPO_DECIMALE } from '../lib/importi.js';
 
 const STATO_LABEL = { da_incassare: 'Da incassare', incassata_parziale: 'Incassata parz.', incassata: 'Incassata', stornata: 'Stornata' };
 const STATO_CHIP = { da_incassare: 'warn', incassata_parziale: 'red', incassata: 'ok', stornata: 'info' };
@@ -82,8 +83,8 @@ export async function renderDashboardAttive(view, ctx) {
       </select>
       <input type="date" id="f-da" title="Data fattura da">
       <input type="date" id="f-a" title="Data fattura a">
-      <input type="number" id="f-min" placeholder="Importo min €" style="width:120px">
-      <input type="number" id="f-max" placeholder="Importo max €" style="width:120px">
+      <input ${CAMPO_DECIMALE} id="f-min" placeholder="Importo min €" style="width:120px">
+      <input ${CAMPO_DECIMALE} id="f-max" placeholder="Importo max €" style="width:120px">
       <button class="btn ghost sm" id="f-reset">Azzera filtri</button>
     </div>
     <div class="muted" id="nota-filtri" style="font-size:13px;margin:-8px 0 10px"></div>
@@ -175,8 +176,12 @@ export async function renderDashboardAttive(view, ctx) {
     // emissione, l'unico riferimento che hanno.
     if (state.da) r = r.filter(f => f.data_fattura && f.data_fattura >= state.da);
     if (state.aData) r = r.filter(f => f.data_fattura && f.data_fattura <= state.aData);
-    if (state.importoMin) r = r.filter(f => Number(f.importo) >= Number(state.importoMin));
-    if (state.importoMax) r = r.filter(f => Number(f.importo) <= Number(state.importoMax));
+    // parseEuro e non Number: i due campi accettano anche "1.234,56", che
+    // Number() leggerebbe come NaN e il filtro lascerebbe passare tutto.
+    const min = parseEuro(state.importoMin);
+    if (min !== null) r = r.filter(f => Number(f.importo) >= min);
+    const max = parseEuro(state.importoMax);
+    if (max !== null) r = r.filter(f => Number(f.importo) <= max);
     return r;
   }
 

@@ -8,6 +8,7 @@
 import { dipendenti as store, straordinari } from '../data/store.js';
 import { nominativo, fmtOre, meseCorrente, oreConSegno } from '../calc.js';
 import { el, clear, esc, toast, confirmDialog, openModal } from '../lib/ui.js';
+import { CAMPO_DECIMALE, testoDecimale, leggiDecimale } from '../../lib/importi.js';
 
 export async function renderDipendenti(view, ctx) {
   // Ore del mese in corso accanto a ogni nome: l'anagrafica è anche il posto
@@ -93,7 +94,7 @@ export async function renderDipendenti(view, ctx) {
       </div>
       <div class="form-row three">
         <div class="field"><label for="a-ore">Ore settimanali</label>
-          <input type="number" id="a-ore" min="1" max="60" step="0.5" value="${esc(d.ore_contratto ?? '')}">
+          <input ${CAMPO_DECIMALE} id="a-ore" value="${testoDecimale(d.ore_contratto)}">
           <div class="hint">38, 35, 30, 24…</div></div>
         <div class="field"><label for="a-matricola">Matricola</label>
           <input type="text" id="a-matricola" value="${esc(d.matricola || '')}"></div>
@@ -116,7 +117,7 @@ export async function renderDipendenti(view, ctx) {
         ...d,
         cognome: body.querySelector('#a-cognome').value,
         nome: body.querySelector('#a-nome').value,
-        ore_contratto: body.querySelector('#a-ore').value,
+        ore_contratto: leggiDecimale(body.querySelector('#a-ore').value),
         matricola: body.querySelector('#a-matricola').value,
         telefono: body.querySelector('#a-tel').value,
         note: body.querySelector('#a-note').value,

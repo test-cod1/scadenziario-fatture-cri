@@ -69,6 +69,7 @@ export const fattureAttive = {
         .lt("data_fattura", inizioAnno)
         .in("stato", ["incassata", "stornata"])
         .order("data_fattura", { ascending: false })
+        .order("id", { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
         .range(da, da + BLOCCO - 1);
       if (error) throw error;
       tutte.push(...data);
