@@ -5,7 +5,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | Sezione | Stato |
 |---|---|
 | **Scadenziario** | attiva (è il contenuto storico di questo progetto, descritto qui sotto) |
-| **Formazione Esterna** | da sviluppare |
+| **Formazione Esterna** | attiva: preventivi per i corsi erogati ad aziende ed enti, con uscita in PDF e Word sulla carta intestata |
 | **Trasporti lunghi** | attiva: preventivi per i trasporti sanitari fuori Genova (arrivata dal gestionale `preventivo-trasporti`, assorbita qui il 01/09/2026) |
 | **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
 | **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
@@ -21,6 +21,30 @@ Si divide a sua volta in due parti indipendenti, selezionabili come due schede d
 - **Fatture Attive**: fatture emesse ai clienti (quando *veniamo pagati*) — stesse funzionalità delle passive (inserimento manuale o da PDF/XML, incassi/acconti, note di credito, export, registro modifiche), più un campo per segnare la data dell'ultimo sollecito di pagamento inviato al cliente.
 
 Le due sezioni hanno tabelle, dati e permessi separati: nulla di quanto inserito in una compare nell'altra.
+
+## Sezione Formazione Esterna
+
+Generatore di preventivi per i **corsi che il Comitato eroga alle aziende**: primo soccorso per i lavoratori designati (gruppo A e gruppo B/C, con i rispettivi aggiornamenti), BLSD e retraining BLSD. Sostituisce la lettera scritta a mano ogni volta, dove i prezzi erano righe discorsive senza somma e mancavano il numero dei discenti, la validità dell'offerta e la riga sull'IVA.
+
+Si compila il destinatario, si scelgono i corsi dal catalogo e per ognuno si indicano **quante persone** e **a che prezzo**. I prezzi sono due, come si è sempre scritto nei preventivi del Comitato: il **listino** e il **prezzo riservato** a quel cliente. Nel documento il listino compare solo dove è più alto, così la formula «euro 60 a discente, per Voi euro 55» resta leggibile senza diventare una colonna che ripete l'altra. Il numero di discenti può anche restare vuoto: in quel caso il corso compare col prezzo a persona e senza totale, che è come si quota quando l'azienda non sa ancora quanti manderà.
+
+Il **catalogo dei corsi** si configura in Impostazioni: per ogni corso denominazione, durata, prezzo di listino, sigla (serve solo a proporre l'oggetto: «PREVENTIVO CORSI BLSD») e **attestazione rilasciata** — che cambia da corso a corso, l'attestato triennale del primo soccorso non è l'autorizzazione all'uso del DAE, e nel documento diventa un elenco sotto la tabella. Dentro il singolo preventivo tutto resta modificabile, e la modifica vale solo per quel preventivo: un preventivo già inviato continua a mostrare i corsi e i prezzi con cui è stato fatto anche se il catalogo cambia. C'è anche il pulsante per una riga **fuori catalogo**, per il corso chiesto una volta sola.
+
+Tre cose si decidono preventivo per preventivo:
+
+- il **numero di protocollo**, che si scrive a mano quando serve (la numerazione la tiene il registro del Comitato, non l'app) e allora compare come «Prot. n. …» sopra la data;
+- la **sede**: presso di noi oppure presso il committente. Nel secondo caso si scrive l'indirizzo — che finisce nella frase del documento — e si può aggiungere una **maggiorazione per la trasferta**, che entra nel totale come riga a sé. La cifra proposta si imposta in Impostazioni, e nel preventivo si cambia o si azzera;
+- l'**IVA**: nessuna indicazione (come i preventivi scritti finora), esente ai sensi dell'art. 10, oppure soggetta al 22% — e in quel caso il documento mostra imponibile, IVA e totale. Le due frasi si scrivono in Impostazioni.
+
+Ci sono poi i due **sconti** sull'intero pacchetto, percentuale e valore assoluto, che funzionano come nelle assistenze (la percentuale sul totale, l'importo fisso su quello che resta) e sono un'altra cosa rispetto al prezzo riservato del singolo corso. L'IVA, quando c'è, si calcola dopo gli sconti.
+
+Nell'elenco si filtra per stato, si cambia stato con un clic, si cerca anche **per nome del corso** («chi ci ha chiesto il BLSD?») e si **duplica** un preventivo: gli aggiornamenti scadono ogni tre anni e la stessa azienda richiama con la stessa richiesta. Il duplicato nasce come bozza con la data di oggi e **senza protocollo**, che è il numero di quel documento e non va ereditato. I committenti si tengono in una **rubrica** (voce `Rubrica committenti`) che si riempie mentre si lavora, con `Salva in rubrica` dall'editor e `Scegli dalla rubrica` per compilare il destinatario in un colpo solo; anche qui i dati restano copiati dentro il preventivo.
+
+Il preventivo esce in **PDF** (stampa del browser) e in **Word (.docx)**, con lo stesso contenuto e la stessa impaginazione delle assistenze sanitarie: la carta intestata, la resa in Word e quella di stampa sono ora codice condiviso (`js/lib/carta.js`, `js/lib/docxBlocchi.js`, `js/lib/stampaBlocchi.js`), quindi sostituendo il `.dotx` cambiano insieme i documenti di tutte e due le sezioni.
+
+La sezione ha il suo **tour guidato** (il pulsante 🎓): una ventina di passi che attraversano elenco, editor, rubrica e impostazioni: il copione sta in [`js/tour/formazione.js`](js/tour/formazione.js). Passa davvero dall'editor di un preventivo nuovo, ma non salva nulla.
+
+Richiede [`supabase/patch-2026-09-06-formazione.sql`](supabase/patch-2026-09-06-formazione.sql). Il catalogo di partenza — i sei corsi del listino — lo crea l'app alla prima apertura delle Impostazioni, **con i prezzi a zero**: vanno impostati lì prima del primo preventivo, e finché un corso resta a zero l'editor lo segnala.
 
 ## Sezione Trasporti lunghi
 
@@ -82,6 +106,8 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 > **L'ultimo è [`patch-2026-09-01-portale.sql`](supabase/patch-2026-09-01-portale.sql)** ed è obbligatorio su un database già in uso: trasforma lo scadenziario nel portale multi-sezione. Crea le tabelle `sezioni` e `autorizzazioni`, sposta lì i ruoli che stavano in `profili.ruolo` (chi era admin/operatore resta admin/operatore **dello scadenziario** e di nient'altro) e nomina il super admin — nel file c'è un `update` con l'email da controllare prima di eseguirlo.
 >
 > **Per la sezione assistenze sanitarie** servono [`patch-2026-09-02-assistenze.sql`](supabase/patch-2026-09-02-assistenze.sql) (crea `preventivi_assistenze` e `impostazioni_assistenze`) e [`patch-2026-09-02-assistenze-sconto.sql`](supabase/patch-2026-09-02-assistenze-sconto.sql) (le colonne degli sconti).
+>
+> **Per la sezione formazione esterna** serve [`patch-2026-09-06-formazione.sql`](supabase/patch-2026-09-06-formazione.sql) (crea `preventivi_formazione`, `clienti_formazione` e `impostazioni_formazione` con le relative RLS). Nella stessa occasione è stata rimediata una dimenticanza di `schema.sql`, che non conteneva `clienti_assistenze`: su un database creato da zero la rubrica delle assistenze rispondeva con un errore, perché quella tabella arrivava solo dal patch del 3 settembre. Su un database già in uso non cambia nulla.
 >
 > **Per la sezione trasporti** servono in più [`patch-2026-09-01-trasporti.sql`](supabase/patch-2026-09-01-trasporti.sql) (crea `preventivi` e `impostazioni_trasferte`) e, per portarsi dietro i dati del vecchio gestionale, [`export-trasporti.sql`](supabase/export-trasporti.sql) — che però va lanciato sul **vecchio** progetto Supabase: stampa gli insert già pronti da incollare qui.
 >
@@ -174,8 +200,14 @@ js/assistenze/calc.js           tariffario, calcolo dei turni e importo in lette
 js/assistenze/views/rubrica.js  rubrica clienti: elenco e scheda del singolo cliente
 js/assistenze/views/sceltaCliente.js  riquadro per scegliere un cliente dalla rubrica
 js/assistenze/lib/documento.js  il preventivo come blocchi, da cui derivano PDF e Word
-js/assistenze/lib/carta.js      legge la carta intestata .dotx (immagini e testi)
-js/assistenze/lib/docx.js       genera il .docx sostituendo il corpo del modello
+js/formazione/                 sezione Formazione Esterna: preventivi per i corsi alle aziende
+js/formazione/calc.js           catalogo dei corsi, listino/prezzo riservato, sconti e IVA
+js/formazione/lib/documento.js  il preventivo dei corsi come blocchi (tabella, attestazioni, sede)
+js/formazione/views/preventivo.js  editor: destinatario, corsi, sede, IVA e sconti
+js/lib/carta.js                 legge la carta intestata .dotx (immagini e testi)
+js/lib/docxBlocchi.js           dai blocchi al .docx, sostituendo il corpo del modello
+js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF
+js/lib/numeri.js                importo in lettere e arrotondamento ai centesimi
 js/lib/zip.js                   zip minimale (scrittura e lettura): serve a .xlsx e .docx
 assets/carta-intestata.dotx    modello Word ufficiale del Comitato
 js/trasporti/                  sezione Trasporti lunghi: preventivi trasporti sanitari

@@ -327,6 +327,10 @@ async function route() {
       const { renderTrasporti } = await import('./trasporti/sezione.js');
       return await disegna(z => renderTrasporti(z, ctx, sub, param));
     }
+    if (sezione.id === 'formazione') {
+      const { renderFormazione } = await import('./formazione/sezione.js');
+      return await disegna(z => renderFormazione(z, ctx, sub, param));
+    }
     if (sezione.id === 'assistenze') {
       const { renderAssistenze } = await import('./assistenze/sezione.js');
       return await disegna(z => renderAssistenze(z, ctx, sub, param));

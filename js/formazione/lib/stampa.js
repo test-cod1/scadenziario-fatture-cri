@@ -1,9 +1,9 @@
 // ============================================================
-//  STAMPA / PDF del preventivo assistenze.
+//  STAMPA / PDF del preventivo dei corsi.
 //  L'impaginazione sulla carta intestata sta in js/lib/stampaBlocchi.js,
-//  condivisa con la formazione esterna: i due preventivi escono sullo stesso
-//  foglio. Qui resta solo il preventivo di assistenza, cioè i suoi blocchi e
-//  il titolo della finestra.
+//  condivisa con le assistenze sanitarie: i due preventivi escono sullo
+//  stesso foglio. Qui resta solo il preventivo di formazione, cioè i suoi
+//  blocchi e il titolo della finestra.
 // ============================================================
 import { htmlDocumento, anteprimaDocumento, stampaDocumento } from '../../lib/stampaBlocchi.js';
 import { costruisciBlocchi, nomeFile } from './documento.js';

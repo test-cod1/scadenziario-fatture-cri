@@ -52,12 +52,19 @@ export const SEZIONI = [
   {
     id: 'formazione',
     label: 'Formazione Esterna',
-    descrizione: 'Corsi erogati all’esterno: edizioni, iscritti e attestati.',
+    descrizione: 'Preventivi per i corsi erogati ad aziende ed enti.',
     emoji: '🎓',
     colore: '#1a1d23',
     ombra: 'rgba(0,0,0,.2)',
     tipo: 'interna',
-    home: '#/formazione',
+    home: '#/formazione/nuovo',
+    menu: [
+      { id: 'preventivi', icon: '📋', label: 'Preventivi', attivoAnche: ['preventivo'] },
+      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
+      { id: 'rubrica', icon: '📇', label: 'Rubrica committenti' },
+      { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
+    ],
+    tour: () => import('./tour/formazione.js'),
     icona: ICONE.formazione,
   },
   {

@@ -1079,3 +1079,129 @@ begin
       r.tabella, r.conname, r.colonna);
   end loop;
 end $$;
+
+-- ============================================================
+--  RUBRICA DEI CLIENTI DELLE ASSISTENZE SANITARIE
+--  Vedi patch-2026-09-03-assistenze-rubrica.sql. Mancava in questo file: su
+--  un database creato da zero la sezione assistenze funzionava, ma "Scegli
+--  dalla rubrica" e "Salva in rubrica" rispondevano con un errore, perche' la
+--  tabella non veniva mai creata.
+-- ============================================================
+create table if not exists public.clienti_assistenze (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  cf text,                       -- codice fiscale o partita IVA
+  indirizzo text,
+  referente text,
+  referente_email text,
+  referente_telefono text,
+  note text,                     -- promemoria interni, non finiscono nel documento
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create unique index if not exists idx_clienti_ass_nome
+  on public.clienti_assistenze (lower(btrim(nome)));
+
+alter table public.clienti_assistenze enable row level security;
+drop policy if exists clienti_ass_read on public.clienti_assistenze;
+create policy clienti_ass_read on public.clienti_assistenze for select
+  using (public.accede_a('assistenze'));
+drop policy if exists clienti_ass_write on public.clienti_assistenze;
+create policy clienti_ass_write on public.clienti_assistenze for all
+  using (public.accede_a('assistenze')) with check (public.accede_a('assistenze'));
+
+-- ============================================================
+--  SEZIONE FORMAZIONE ESTERNA (generatore di preventivi per i corsi)
+--  Vedi patch-2026-09-06-formazione.sql.
+-- ============================================================
+create table if not exists public.preventivi_formazione (
+  id uuid primary key default gen_random_uuid(),
+  cliente text,
+  cliente_indirizzo text,
+  cliente_cf text,
+  referente text,
+  referente_email text,
+  referente_telefono text,
+  -- Il protocollo lo scrive chi prepara il documento, quando serve: la
+  -- numerazione la tiene il registro di protocollo del Comitato, non l'app.
+  protocollo text,
+  oggetto text,
+  data_documento date,
+  stato text not null default 'bozza' check (stato in ('bozza','inviato','confermato','annullato')),
+  -- I corsi proposti, copiati dal catalogo con i valori del momento:
+  -- [{id, nome, durata, attestato, sigla, discenti, listino, prezzo}].
+  -- 'listino' e' il prezzo pieno, 'prezzo' quello riservato al cliente.
+  righe jsonb not null default '[]'::jsonb,
+  -- La maggiorazione di trasferta entra nel totale solo con sede_tipo='cliente'.
+  sede_tipo text not null default 'nostra' check (sede_tipo in ('nostra','cliente')),
+  sede text,
+  trasferta numeric(12,2) check (trasferta >= 0),
+  -- 'nessuno' non stampa nulla, 'esente' e 'soggetto' stampano la frase
+  -- configurata in Impostazioni; con 'soggetto' l'IVA si calcola sul netto.
+  regime_iva text not null default 'nessuno' check (regime_iva in ('nessuno','esente','soggetto')),
+  sconto_percentuale numeric(5,2) check (sconto_percentuale >= 0 and sconto_percentuale <= 100),
+  sconto_valore numeric(12,2) check (sconto_valore >= 0),
+  note text,
+  totale numeric(12,2),
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create index if not exists idx_prev_form_created on public.preventivi_formazione(created_at desc);
+create index if not exists idx_prev_form_stato on public.preventivi_formazione(stato);
+
+create table if not exists public.clienti_formazione (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null,
+  cf text,
+  indirizzo text,
+  referente text,
+  referente_email text,
+  referente_telefono text,
+  note text,
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+create unique index if not exists idx_clienti_form_nome
+  on public.clienti_formazione (lower(btrim(nome)));
+
+create table if not exists public.impostazioni_formazione (
+  id text primary key default 'default',
+  dati jsonb not null,
+  updated_at timestamptz default now()
+);
+
+alter table public.preventivi_formazione   enable row level security;
+alter table public.clienti_formazione      enable row level security;
+alter table public.impostazioni_formazione enable row level security;
+
+-- Cancellare un preventivo resta agli admin di sezione, come nelle
+-- assistenze; il resto lo fa chiunque abbia accesso alla sezione.
+drop policy if exists prev_form_read on public.preventivi_formazione;
+create policy prev_form_read on public.preventivi_formazione for select
+  using (public.accede_a('formazione'));
+drop policy if exists prev_form_insert on public.preventivi_formazione;
+create policy prev_form_insert on public.preventivi_formazione for insert
+  with check (public.accede_a('formazione'));
+drop policy if exists prev_form_update on public.preventivi_formazione;
+create policy prev_form_update on public.preventivi_formazione for update
+  using (public.accede_a('formazione')) with check (public.accede_a('formazione'));
+drop policy if exists prev_form_delete on public.preventivi_formazione;
+create policy prev_form_delete on public.preventivi_formazione for delete
+  using (public.e_admin_sezione('formazione'));
+
+drop policy if exists clienti_form_read on public.clienti_formazione;
+create policy clienti_form_read on public.clienti_formazione for select
+  using (public.accede_a('formazione'));
+drop policy if exists clienti_form_write on public.clienti_formazione;
+create policy clienti_form_write on public.clienti_formazione for all
+  using (public.accede_a('formazione')) with check (public.accede_a('formazione'));
+
+drop policy if exists imp_form_read on public.impostazioni_formazione;
+create policy imp_form_read on public.impostazioni_formazione for select
+  using (public.accede_a('formazione'));
+drop policy if exists imp_form_write on public.impostazioni_formazione;
+create policy imp_form_write on public.impostazioni_formazione for all
+  using (public.accede_a('formazione')) with check (public.accede_a('formazione'));

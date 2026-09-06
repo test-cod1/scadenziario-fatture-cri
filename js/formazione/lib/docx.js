@@ -1,8 +1,8 @@
 // ============================================================
-//  IL PREVENTIVO DI ASSISTENZA IN WORD
+//  IL PREVENTIVO DEI CORSI IN WORD
 //  Il lavoro vero — partire dal modello assets/carta-intestata.dotx e
-//  sostituirne solo il corpo — sta in js/lib/docxBlocchi.js, condiviso con la
-//  formazione esterna. Qui resta la sola parte che riguarda le assistenze:
+//  sostituirne solo il corpo — sta in js/lib/docxBlocchi.js, condiviso con le
+//  assistenze sanitarie. Qui resta la sola parte che riguarda la formazione:
 //  costruire i blocchi del preventivo e dare un nome al file.
 // ============================================================
 import { generaDocx as generaDaBlocchi, scaricaDocx as scaricaDaBlocchi } from '../../lib/docxBlocchi.js';
