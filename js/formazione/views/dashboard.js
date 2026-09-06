@@ -1,6 +1,6 @@
 import { preventivi } from '../data/store.js';
 import { fmtData } from '../lib/documento.js';
-import { el, clear, esc, toast, confirmDialog, fmtEuro } from '../../lib/ui.js';
+import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO } from '../../lib/ui.js';
 
 // ============================================================
 //  ELENCO DEI PREVENTIVI DI FORMAZIONE
@@ -140,7 +140,7 @@ export async function renderDashboard(view, ctx) {
             protocollo: null,
             oggetto: (p.oggetto || '') + ' (copia)',
             stato: 'bozza',
-            data_documento: new Date().toISOString().slice(0, 10),
+            data_documento: todayISO(),
           });
           toast('Preventivo duplicato', 'ok');
           ctx.go(`#/formazione/preventivo/${copia.id}`);

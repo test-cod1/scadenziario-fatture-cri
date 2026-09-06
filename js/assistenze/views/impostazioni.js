@@ -1,6 +1,7 @@
 import { impostazioni } from '../data/store.js';
 import { el, clear, esc, toast } from '../../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
+import { CAMPO_DECIMALE, testoDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
 
 // ============================================================
 //  IMPOSTAZIONI DELLE ASSISTENZE
@@ -63,7 +64,7 @@ export async function renderImpostazioni(view, ctx) {
             <option value="oraria" ${t.tipo !== 'fissa' ? 'selected' : ''}>A ore (€/ora)</option>
             <option value="fissa" ${t.tipo === 'fissa' ? 'selected' : ''}>A prezzo fisso (€ per turno)</option>
           </select></div>
-          <div class="field"><label>Prezzo (€)</label><input type="number" min="0" step="0.5" value="${t.prezzo}"></div>
+          <div class="field"><label>Prezzo (€)</label><input ${CAMPO_DECIMALE} value="${testoDecimale(t.prezzo)}"></div>
         </div>
         <button class="rm btn ghost sm" type="button">✕ Rimuovi voce</button>
       </div>`);
@@ -71,7 +72,7 @@ export async function renderImpostazioni(view, ctx) {
       const tipo = riga.querySelector('select');
       nome.addEventListener('input', () => { t.nome = nome.value; });
       tipo.addEventListener('change', () => { t.tipo = tipo.value; });
-      prezzo.addEventListener('input', () => { t.prezzo = Number(prezzo.value) || 0; });
+      prezzo.addEventListener('input', () => { t.prezzo = leggiDecimaleO0(prezzo.value); });
       riga.querySelector('.rm').addEventListener('click', () => { imp.tariffe.splice(i, 1); modificato(); disegnaTariffe(); });
       zona.appendChild(riga);
     });

@@ -5,6 +5,7 @@ import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO, sommaGiorniISO
 import { collegaOrologio } from '../../lib/orologio.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 import { INIZIO_ANNO, dataAmmessa, MSG_DATA } from '../date.js';
+import { CAMPO_DECIMALE, testoDecimale, leggiDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
 
 // ============================================================
 //  EDITOR DEL PREVENTIVO DI ASSISTENZA
@@ -111,9 +112,9 @@ export async function renderPreventivo(view, id, ctx) {
     <p class="hint" style="margin:0 0 12px">Facoltativi, e utilizzabili anche insieme: la percentuale si calcola sul totale, l'importo fisso si toglie da quello che resta. Nel documento compaiono il totale pieno, gli sconti applicati e il totale da corrispondere.</p>
     <div class="form-row">
       <div class="field"><label>Sconto in percentuale (%)</label>
-        <input type="number" min="0" max="100" step="0.5" id="sconto_percentuale" value="${prev.sconto_percentuale ?? ''}" placeholder="0"></div>
+        <input ${CAMPO_DECIMALE} id="sconto_percentuale" value="${testoDecimale(prev.sconto_percentuale)}" placeholder="0"></div>
       <div class="field"><label>Sconto in valore (€)</label>
-        <input type="number" min="0" step="0.5" id="sconto_valore" value="${prev.sconto_valore ?? ''}" placeholder="0,00"></div>
+        <input ${CAMPO_DECIMALE} id="sconto_valore" value="${testoDecimale(prev.sconto_valore)}" placeholder="0,00"></div>
     </div>
     <div class="hint" id="sconto-hint"></div>`));
 
@@ -193,7 +194,7 @@ export async function renderPreventivo(view, id, ctx) {
   for (const campo of ['sconto_percentuale', 'sconto_valore']) {
     const input = view.querySelector('#' + campo);
     input.addEventListener('input', () => {
-      prev[campo] = input.value === '' ? null : Number(input.value) || 0;
+      prev[campo] = leggiDecimale(input.value);
       aggiorna();
     });
   }
@@ -217,22 +218,22 @@ export async function renderPreventivo(view, id, ctx) {
         <label class="chk"><input type="checkbox" ${attiva ? 'checked' : ''}> <b>${esc(t.nome)}</b></label>
         <span class="mini">${t.tipo === 'fissa' ? 'prezzo fisso' : 'a ore'}${orfana ? ' · non più in tariffario' : ''}</span>
         <div class="field" style="margin:0;max-width:150px">
-          <input type="number" min="0" step="0.5" value="${attiva ? attiva.prezzo : t.prezzo}" ${attiva ? '' : 'disabled'}
+          <input ${CAMPO_DECIMALE} value="${testoDecimale(attiva ? attiva.prezzo : t.prezzo)}" ${attiva ? '' : 'disabled'}
             title="${aZero ? 'Questa voce è a 0 €: non incide sul totale' : ''}">
         </div>
         <span class="mini">${t.tipo === 'fissa' ? '€ cad.' : '€/ora'}</span>
         <span class="mini avviso-zero" ${aZero ? '' : 'hidden'}>manca il prezzo</span>
       </div>`);
-      const [chk, prezzo] = [riga.querySelector('input[type=checkbox]'), riga.querySelector('input[type=number]')];
+      const [chk, prezzo] = [riga.querySelector('input[type=checkbox]'), riga.querySelector('input[inputmode=decimal]')];
       chk.addEventListener('change', () => {
-        if (chk.checked) prev.voci.push({ ...t, prezzo: Number(prezzo.value) || 0 });
+        if (chk.checked) prev.voci.push({ ...t, prezzo: leggiDecimaleO0(prezzo.value) });
         else prev.voci = prev.voci.filter(v => v.id !== t.id);
         disegnaVoci(); disegnaCalendario(); aggiorna();
       });
       prezzo.addEventListener('input', () => {
         const v = prev.voci.find(x => x.id === t.id);
         if (!v) return;
-        v.prezzo = Number(prezzo.value) || 0;
+        v.prezzo = leggiDecimaleO0(prezzo.value);
         // Si aggiorna il segno sulla riga senza ridisegnarla: mentre si
         // scrive il prezzo, il campo deve restare sotto le dita.
         const manca = !v.prezzo;

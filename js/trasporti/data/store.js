@@ -41,16 +41,39 @@ export const preventivi = {
     const { data, error } = await sb.from('preventivi').select('*').eq('id', id).single();
     if (error) throw error; return data;
   },
+  // `rec.updated_at` è la versione da cui si è partiti, non quella da
+  // scrivere: se nel frattempo qualcun altro ha salvato lo stesso preventivo,
+  // l'aggiornamento non trova più quella versione e si ferma. Prima qui c'era
+  // un `upsert` secco — vinceva l'ultimo che premeva Salva, e il lavoro
+  // dell'altro spariva senza che nessuno dei due se ne accorgesse. È la
+  // stessa protezione che hanno assistenze, formazione, straordinari e
+  // scadenziario: questa sezione era rimasta indietro.
   async save(rec) {
     const isNew = !rec.id;
+    const atteso = rec.updated_at;
     rec = { id: rec.id || uid(), created_at: rec.created_at || nowISO(), ...rec, updated_at: nowISO() };
     const sb = await sbClient();
+
     if (isNew) {
       const { data: u } = await sb.auth.getUser();
       if (u?.user) rec.created_by = rec.created_by || u.user.id;
+      const { data, error } = await sb.from('preventivi').insert(rec).select().single();
+      if (error) throw error;
+      return data;
     }
-    const { data, error } = await sb.from('preventivi').upsert(rec).select().single();
-    if (error) throw error; return data;
+
+    let q = sb.from('preventivi').update(rec).eq('id', rec.id);
+    if (atteso) q = q.eq('updated_at', atteso);
+    const { data, error } = await q.select().maybeSingle();
+    if (error) throw error;
+    if (!data) {
+      // Nessuna riga aggiornata: o il preventivo è stato cancellato, o è la
+      // versione a non corrispondere più.
+      const e = new Error('Il preventivo è stato modificato o eliminato da un altro utente.');
+      e.conflitto = true;
+      throw e;
+    }
+    return data;
   },
   async remove(id) {
     const sb = await sbClient();
@@ -65,7 +88,14 @@ export const preventivi = {
 export const impostazioni = {
   async get() {
     const sb = await sbClient();
-    const { data } = await sb.from('impostazioni_trasferte').select('*').eq('id', 'default').maybeSingle();
+    // L'errore va propagato, non ingoiato: senza questo controllo un problema
+    // di rete o di permessi restituiva i valori di fabbrica — tariffa 1,20
+    // €/km, consumi di listino, prezzi carburante precaricati — come se
+    // fossero la configurazione vera del Comitato, e il preventivo scritto in
+    // quel momento usciva con numeri plausibili ma sbagliati, senza che
+    // niente lo segnalasse.
+    const { data, error } = await sb.from('impostazioni_trasferte').select('*').eq('id', 'default').maybeSingle();
+    if (error) throw error;
     // merge coi default per tollerare nuove chiavi
     return mergeImpostazioni(data?.dati || null);
   },

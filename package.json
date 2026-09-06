@@ -3,6 +3,8 @@
   "version": "1.0.0",
   "description": "Scadenziario fatture fornitori — CRI Genova",
   "scripts": {
-    "dev": "node server.js"
+    "dev": "node server.js",
+    "test": "node test/esegui.mjs",
+    "backup": "node tools/backup.mjs"
   }
 }

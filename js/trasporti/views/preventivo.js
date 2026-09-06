@@ -6,6 +6,7 @@ import { prezzoRiferimento, paeseDaIso } from '../data/fuel-prices.js';
 import { stampaPreventivo, anteprimaPreventivo } from '../lib/stampa.js';
 import { el, clear, esc, fmtEuro, fmtNum, fmtKm, fmtDate, toast, debounce, confirmDialog } from '../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
+import { CAMPO_DECIMALE, testoDecimale, testoDecimaleOVuoto, leggiDecimaleO0 } from '../../lib/importi.js';
 
 export async function renderPreventivo(view, id, ctx) {
   const imp = ctx.imp;
@@ -106,7 +107,7 @@ export async function renderPreventivo(view, id, ctx) {
       </select></div>
       <div class="field">
         <label>Prezzo carburante (€/l) <span class="badge-auto" id="badge-auto">auto</span></label>
-        <input type="number" step="0.001" id="prezzoCarb">
+        <input ${CAMPO_DECIMALE} id="prezzoCarb">
         <div class="hint" id="carb-hint"></div>
       </div>
     </div>
@@ -120,7 +121,7 @@ export async function renderPreventivo(view, id, ctx) {
     <div class="form-row three">
       <div class="field"><label>Persone in squadra</label><input type="number" min="0" id="persone" value="${prev.input.persone}"></div>
       <div class="field"><label>Pasti a persona</label><input type="number" min="0" id="pastiPersona" value="${prev.input.pastiPersona}"></div>
-      <div class="field"><label>Costo a pasto (€)</label><input type="number" min="0" step="0.5" id="pastoCosto" value="${prev.input.pastoCosto}"></div>
+      <div class="field"><label>Costo a pasto (€)</label><input ${CAMPO_DECIMALE} id="pastoCosto" value="${testoDecimale(prev.input.pastoCosto)}"></div>
     </div>`);
   main.appendChild(cEq);
 
@@ -129,16 +130,16 @@ export async function renderPreventivo(view, id, ctx) {
     <div class="form-row three">
       <div class="field"><label>Notti</label><input type="number" min="0" id="notti" value="${prev.input.notti}"></div>
       <div class="field"><label>N. camere</label><input type="number" min="0" id="camere" value="${prev.input.camere}"></div>
-      <div class="field"><label>€ a camera / notte</label><input type="number" min="0" step="0.5" id="prezzoCameraNotte" value="${prev.input.prezzoCameraNotte}"></div>
+      <div class="field"><label>€ a camera / notte</label><input ${CAMPO_DECIMALE} id="prezzoCameraNotte" value="${testoDecimale(prev.input.prezzoCameraNotte)}"></div>
     </div>
-    <div class="field"><label>€ a persona / notte (opzionale, alternativo alle camere)</label><input type="number" min="0" step="0.5" id="prezzoPersonaNotte" value="${prev.input.prezzoPersonaNotte}"></div>`);
+    <div class="field"><label>€ a persona / notte (opzionale, alternativo alle camere)</label><input ${CAMPO_DECIMALE} id="prezzoPersonaNotte" value="${testoDecimale(prev.input.prezzoPersonaNotte)}"></div>`);
   main.appendChild(cPern);
 
   // ================= SEZIONE 5: SANITARI (MEDICO / INFERMIERE) =================
   const cMedico = card('Sanitari', `
     <div class="form-row three">
       <div class="field"><label>Ore stimate <span class="badge-auto" id="badge-medico-ore">stima</span></label>
-        <input type="number" min="0" step="0.5" id="medicoOre" value="${prev.input.medicoOre || ''}">
+        <input ${CAMPO_DECIMALE} id="medicoOre" value="${testoDecimaleOVuoto(prev.input.medicoOre)}">
         <div class="hint" id="medico-ore-hint"></div></div>
       <div class="field"></div>
       <div class="field"></div>
@@ -149,9 +150,9 @@ export async function renderPreventivo(view, id, ctx) {
         <label class="chk"><input type="checkbox" id="ruolo-medico" ${prev.input.medicoOn?'checked':''}> Medico</label>
       </div>
       <div class="field"><label>Tariffa oraria (€/h)</label>
-        <input type="number" min="0" step="0.5" id="medicoOraria" value="${prev.input.medicoOraria}"></div>
+        <input ${CAMPO_DECIMALE} id="medicoOraria" value="${testoDecimale(prev.input.medicoOraria)}"></div>
       <div class="field"><label>Totale medico (€) <span class="badge-auto" id="badge-medico-tot">calcolato</span></label>
-        <input type="number" min="0" step="0.5" id="medico" value="${prev.input.medico || ''}">
+        <input ${CAMPO_DECIMALE} id="medico" value="${testoDecimaleOVuoto(prev.input.medico)}">
         <div class="hint" id="medico-tot-hint"></div></div>
     </div>
     <div class="form-row three">
@@ -159,9 +160,9 @@ export async function renderPreventivo(view, id, ctx) {
         <label class="chk"><input type="checkbox" id="ruolo-infermiere" ${prev.input.infermiereOn?'checked':''}> Infermiere</label>
       </div>
       <div class="field"><label>Tariffa oraria (€/h)</label>
-        <input type="number" min="0" step="0.5" id="infermiereOraria" value="${prev.input.infermiereOraria}"></div>
+        <input ${CAMPO_DECIMALE} id="infermiereOraria" value="${testoDecimale(prev.input.infermiereOraria)}"></div>
       <div class="field"><label>Totale infermiere (€) <span class="badge-auto" id="badge-infermiere-tot">calcolato</span></label>
-        <input type="number" min="0" step="0.5" id="infermiere" value="${prev.input.infermiere || ''}">
+        <input ${CAMPO_DECIMALE} id="infermiere" value="${testoDecimaleOVuoto(prev.input.infermiere)}">
         <div class="hint" id="infermiere-tot-hint"></div></div>
     </div>`);
   main.appendChild(cMedico);
@@ -170,7 +171,7 @@ export async function renderPreventivo(view, id, ctx) {
   const cPedaggi = card('Pedaggi estero', `
     <div class="form-row">
       <div class="field"><label>Pedaggi / vignette estero (€) <span class="badge-auto" id="badge-pedaggio">stima</span></label>
-        <input type="number" min="0" step="0.5" id="pedaggi" value="${prev.input.pedaggi}">
+        <input ${CAMPO_DECIMALE} id="pedaggi" value="${testoDecimaleOVuoto(prev.input.pedaggi)}">
         <div class="hint" id="pedaggio-hint"></div></div>
       <div class="field"></div>
     </div>`);
@@ -239,7 +240,7 @@ export async function renderPreventivo(view, id, ctx) {
   $('#alim').value = prev.input.alimentazione;
   $('#alim').addEventListener('change', e => { prev.input.alimentazione = e.target.value; if (prezzoAuto) refillPrezzo(); recalc(); });
 
-  $('#prezzoCarb').value = prev.input.prezzoCarburante ?? '';
+  $('#prezzoCarb').value = testoDecimale(prev.input.prezzoCarburante);
   $('#prezzoCarb').addEventListener('input', e => {
     prev.input.prezzoCarburante = num(e.target.value);
     prezzoAuto = false; $('#badge-auto').style.display = 'none'; recalc();
@@ -252,7 +253,7 @@ export async function renderPreventivo(view, id, ctx) {
   bindNum('#camere', 'camere');
   bindNum('#prezzoCameraNotte', 'prezzoCameraNotte');
   bindNum('#prezzoPersonaNotte', 'prezzoPersonaNotte');
-  $('#pedaggi').value = prev.input.pedaggi || '';
+  $('#pedaggi').value = testoDecimaleOVuoto(prev.input.pedaggi);
   $('#pedaggi').addEventListener('input', e => {
     prev.input.pedaggi = num(e.target.value);
     pedaggioAuto = false;
@@ -369,12 +370,12 @@ export async function renderPreventivo(view, id, ctx) {
         <button class="btn sm" id="calc-km" type="button">🧭 Ricalcola percorso</button>
       </div>
       <div class="form-row" style="margin-top:12px">
-        <div class="field"><label>Km totali</label><input type="number" min="0" id="kmTotali" value="${prev.input.kmTotali||''}">
+        <div class="field"><label>Km totali</label><input ${CAMPO_DECIMALE} id="kmTotali" value="${testoDecimaleOVuoto(prev.input.kmTotali)}">
           <div class="hint" id="km-hint">Calcolati in automatico dalla destinazione. Puoi correggerli a mano.</div></div>
         <div class="field"></div>
       </div>
       <div class="form-row" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)">
-        <div class="field"><label>Tariffa € / km</label><input type="number" min="0" step="0.05" id="tariffaKm" value="${prev.input.tariffaKm}">
+        <div class="field"><label>Tariffa € / km</label><input ${CAMPO_DECIMALE} id="tariffaKm" value="${testoDecimale(prev.input.tariffaKm)}">
           <div class="hint">Totale = km × tariffa + le voci attive (pasti, pernottamento, sanitari, materiale, pedaggi).</div></div>
         <div class="field"><label>Preset rapidi</label>
           <div class="pill-toggle" id="tariffa-preset">
@@ -408,7 +409,7 @@ export async function renderPreventivo(view, id, ctx) {
     controls.querySelector('#tariffa-preset').addEventListener('click', e => {
       const b = e.target.closest('[data-t]'); if (!b) return;
       prev.input.tariffaKm = Number(b.dataset.t);
-      controls.querySelector('#tariffaKm').value = b.dataset.t;
+      controls.querySelector('#tariffaKm').value = testoDecimale(b.dataset.t);
       recalc();
     });
     // Interruttori sezioni facoltative: off di default, la maggior parte dei
@@ -504,7 +505,7 @@ export async function renderPreventivo(view, id, ctx) {
       if (mySeq !== calcKmSeq) return; // una richiesta più recente ha già preso il suo posto
       prev.input.kmTotali = Math.round(r.distanceKm);
       prev.km_auto = true;
-      view.querySelector('#kmTotali').value = prev.input.kmTotali;
+      view.querySelector('#kmTotali').value = testoDecimale(prev.input.kmTotali);
       const h = Math.floor(r.durationMin / 60), m = Math.round(r.durationMin % 60);
       view.querySelector('#km-hint').innerHTML = `✅ ${fmtKm(prev.input.kmTotali)} · durata stimata ${h}h ${m}m ${prev.andata_ritorno ? '(a/r)' : '(sola andata)'}`;
       if (prev.input.estero && pedaggioAuto) refillPedaggio();
@@ -532,7 +533,7 @@ export async function renderPreventivo(view, id, ctx) {
     (prev.input.materiale || []).forEach((m, i) => {
       const r = el(`<div class="matrow">
         <input type="text" placeholder="Descrizione (es. ossigeno, orinale, DPI…)" value="${esc(m.desc || '')}">
-        <input type="number" step="0.5" placeholder="€" value="${m.importo || ''}">
+        <input ${CAMPO_DECIMALE} placeholder="€" value="${testoDecimaleOVuoto(m.importo)}">
         <button class="rm btn ghost sm" type="button" title="Rimuovi">✕</button>
       </div>`);
       const [d, imp2] = r.querySelectorAll('input');
@@ -601,6 +602,10 @@ export async function renderPreventivo(view, id, ctx) {
     };
     if (prev.id) rec.id = prev.id;
     if (prev.created_at) rec.created_at = prev.created_at;
+    // Versione da cui si è partiti: se nel frattempo qualcun altro ha salvato
+    // lo stesso preventivo, il salvataggio si ferma invece di cancellargli il
+    // lavoro (vedi store.js).
+    rec.updated_at = prev.updated_at;
     const btn = head.querySelector('#btn-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvo…';
     try {
@@ -609,8 +614,22 @@ export async function renderPreventivo(view, id, ctx) {
       sporco = false;   // salvato: uscendo non c'è più niente da perdere
       prev.id = saved.id;
       prev.created_at = saved.created_at;
+      // Senza aggiornare la versione, il salvataggio successivo verrebbe
+      // scambiato per una modifica altrui e si fermerebbe.
+      prev.updated_at = saved.updated_at;
       ctx.go(`#/trasporti/preventivo/${saved.id}`);
     } catch (e) {
+      if (e.conflitto) {
+        const ricarica = await confirmDialog(
+          'Qualcun altro ha modificato questo preventivo mentre lo stavi aprendo. ' +
+          'Puoi ricaricare la versione aggiornata (perdendo le tue modifiche) oppure restare qui e ricopiartele.',
+          { danger: true, okLabel: 'Ricarica la versione aggiornata' });
+        // Si ricarica la pagina invece di ridisegnare la vista: riparte tutto
+        // dalla versione nel database, senza tenersi in memoria pezzi di
+        // quella vecchia.
+        if (ricarica) { sporco = false; location.reload(); }
+        return;
+      }
       toast('Errore nel salvataggio: ' + (e.message || e), 'err');
       console.error(e);
     } finally { btn.disabled = false; btn.innerHTML = old; }
@@ -643,7 +662,7 @@ export async function renderPreventivo(view, id, ctx) {
     const badge = view.querySelector('#badge-auto');
     if (p != null) {
       prev.input.prezzoCarburante = p;
-      const inp = view.querySelector('#prezzoCarb'); if (inp) inp.value = p;
+      const inp = view.querySelector('#prezzoCarb'); if (inp) inp.value = testoDecimale(p);
       if (badge) badge.style.display = '';
     } else if (badge) {
       // Nessun prezzo di riferimento per questo Paese: non lasciare il badge
@@ -659,7 +678,7 @@ export async function renderPreventivo(view, id, ctx) {
     const rate = tariffaEstero();
     const km = num(prev.input.kmTotali);
     prev.input.pedaggi = Math.round(km * rate);
-    const inp = view.querySelector('#pedaggi'); if (inp) inp.value = prev.input.pedaggi || '';
+    const inp = view.querySelector('#pedaggi'); if (inp) inp.value = testoDecimaleOVuoto(prev.input.pedaggi);
     const badge = view.querySelector('#badge-pedaggio'); if (badge) badge.style.display = '';
     const h = view.querySelector('#pedaggio-hint');
     if (h) h.innerHTML = `≈ ${fmtNum(km, 0)} km × ${fmtEuro(rate)}/km (stima estero). Adegua a mano per vignette o caselli reali.`;
@@ -705,7 +724,7 @@ export async function renderPreventivo(view, id, ctx) {
   function refillMedicoOre(durationMin) {
     const ore = Math.round((num(durationMin) / 60) * 2) / 2;
     prev.input.medicoOre = ore;
-    const inp = view.querySelector('#medicoOre'); if (inp) inp.value = ore || '';
+    const inp = view.querySelector('#medicoOre'); if (inp) inp.value = testoDecimaleOVuoto(ore);
     const badge = view.querySelector('#badge-medico-ore'); if (badge) badge.style.display = '';
     const h = view.querySelector('#medico-ore-hint'); if (h) h.innerHTML = `≈ durata del percorso. Stima, modificabile.`;
     if (medicoTotAuto) refillMedicoTotale();
@@ -715,7 +734,7 @@ export async function renderPreventivo(view, id, ctx) {
     const ore = num(prev.input.medicoOre);
     const tariffa = num(prev.input.medicoOraria);
     prev.input.medico = Math.round(ore * tariffa * 100) / 100;
-    const inp = view.querySelector('#medico'); if (inp) inp.value = prev.input.medico || '';
+    const inp = view.querySelector('#medico'); if (inp) inp.value = testoDecimaleOVuoto(prev.input.medico);
     const badge = view.querySelector('#badge-medico-tot'); if (badge) badge.style.display = '';
     const h = view.querySelector('#medico-tot-hint');
     if (h) h.innerHTML = `= ${fmtNum(ore,1)} h × ${fmtEuro(tariffa)}/h. Calcolato, modificabile.`;
@@ -724,7 +743,7 @@ export async function renderPreventivo(view, id, ctx) {
     const ore = num(prev.input.medicoOre);
     const tariffa = num(prev.input.infermiereOraria);
     prev.input.infermiere = Math.round(ore * tariffa * 100) / 100;
-    const inp = view.querySelector('#infermiere'); if (inp) inp.value = prev.input.infermiere || '';
+    const inp = view.querySelector('#infermiere'); if (inp) inp.value = testoDecimaleOVuoto(prev.input.infermiere);
     const badge = view.querySelector('#badge-infermiere-tot'); if (badge) badge.style.display = '';
     const h = view.querySelector('#infermiere-tot-hint');
     if (h) h.innerHTML = `= ${fmtNum(ore,1)} h × ${fmtEuro(tariffa)}/h. Calcolato, modificabile.`;
@@ -822,7 +841,7 @@ function attachAutocomplete(input, box, onSelect) {
 // ================= util =================
 function emptyTappa() { return { label: '', lon: null, lat: null, iso2: null, iso3: null, paese: null }; }
 function tabella(imp) { return imp.prezziCustom || undefined; }
-function num(v) { const n = Number(String(v).replace(',', '.')); return Number.isFinite(n) ? n : 0; }
+function num(v) { return leggiDecimaleO0(v); }
 function shorten(s) { return String(s).split(',')[0].trim(); }
 function defaultPartenza() {
   return {

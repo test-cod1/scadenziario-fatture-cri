@@ -4,6 +4,7 @@ import { FUEL_PRICES, FUEL_DATA_DATE } from '../data/fuel-prices.js';
 import { getAccessToken } from '../../lib/supabase.js';
 import { el, clear, esc, toast, fmtNum, fmtDate } from '../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
+import { CAMPO_DECIMALE, testoDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
 
 // Paesi UE coperti da /api/prezzo-eu (Weekly Oil Bulletin): gli altri restano
 // modificabili solo a mano, non esiste una fonte gratuita equivalente.
@@ -63,7 +64,7 @@ export async function renderImpostazioni(view, ctx) {
             <option value="diesel" ${m.alimentazione==='diesel'?'selected':''}>Gasolio</option>
             <option value="benzina" ${m.alimentazione==='benzina'?'selected':''}>Benzina</option>
           </select></div>
-          <div class="field"><label>Consumo (km/l)</label><input type="number" step="0.1" value="${m.consumo}"></div>
+          <div class="field"><label>Consumo (km/l)</label><input ${CAMPO_DECIMALE} value="${testoDecimale(m.consumo)}"></div>
         </div>
         <button class="rm btn ghost sm" type="button">✕ Rimuovi mezzo</button>
       </div>`);
@@ -71,7 +72,7 @@ export async function renderImpostazioni(view, ctx) {
       const alim = r.querySelector('select');
       nome.addEventListener('input', () => m.nome = nome.value);
       alim.addEventListener('change', () => m.alimentazione = alim.value);
-      cons.addEventListener('input', () => m.consumo = Number(cons.value) || 0);
+      cons.addEventListener('input', () => m.consumo = leggiDecimaleO0(cons.value));
       r.querySelector('.rm').addEventListener('click', () => {
         if (imp.mezzi.length <= 1) { toast('Serve almeno un mezzo', 'err'); return; }
         imp.mezzi.splice(i, 1); drawMezzi();
@@ -87,24 +88,24 @@ export async function renderImpostazioni(view, ctx) {
   // ---------- Parametri economici ----------
   const cPar = card('Parametri economici', `
     <div class="form-row three">
-      <div class="field"><label>Costo a pasto (€)</label><input type="number" step="0.5" id="pastoCosto" value="${imp.pastoCosto}"></div>
-      <div class="field"><label>Tariffa € / km (default)</label><input type="number" step="0.05" id="tariffaKm" value="${imp.tariffaKm}"></div>
+      <div class="field"><label>Costo a pasto (€)</label><input ${CAMPO_DECIMALE} id="pastoCosto" value="${testoDecimale(imp.pastoCosto)}"></div>
+      <div class="field"><label>Tariffa € / km (default)</label><input ${CAMPO_DECIMALE} id="tariffaKm" value="${testoDecimale(imp.tariffaKm)}"></div>
       <div class="field"><label>&nbsp;</label><div class="hint">La tariffa resta modificabile in ogni singolo preventivo.</div></div>
     </div>
     <div class="form-row three">
-      <div class="field"><label>Pedaggi estero (€/km)</label><input type="number" step="0.01" id="pedaggiEsteroKm" value="${imp.pedaggiEsteroKm}">
+      <div class="field"><label>Pedaggi estero (€/km)</label><input ${CAMPO_DECIMALE} id="pedaggiEsteroKm" value="${testoDecimale(imp.pedaggiEsteroKm)}">
         <div class="hint">In Italia la CRI è esente: i pedaggi si applicano solo ai viaggi all'estero (attivo automaticamente in base alla destinazione).</div></div>
-      <div class="field"><label>Medico: tariffa oraria (€/h)</label><input type="number" step="0.5" id="medicoTariffaOraria" value="${imp.medicoTariffaOraria}">
+      <div class="field"><label>Medico: tariffa oraria (€/h)</label><input ${CAMPO_DECIMALE} id="medicoTariffaOraria" value="${testoDecimale(imp.medicoTariffaOraria)}">
         <div class="hint">Default usato nel preventivo: totale = ore stimate × tariffa, sempre modificabile.</div></div>
-      <div class="field"><label>Infermiere: tariffa oraria (€/h)</label><input type="number" step="0.5" id="infermiereTariffaOraria" value="${imp.infermiereTariffaOraria}">
+      <div class="field"><label>Infermiere: tariffa oraria (€/h)</label><input ${CAMPO_DECIMALE} id="infermiereTariffaOraria" value="${testoDecimale(imp.infermiereTariffaOraria)}">
         <div class="hint">Stesso principio del medico: totale = ore stimate × tariffa, sempre modificabile.</div></div>
     </div>`);
   pagina.appendChild(cPar);
-  cPar.querySelector('#pastoCosto').addEventListener('input', e => imp.pastoCosto = Number(e.target.value) || 0);
-  cPar.querySelector('#tariffaKm').addEventListener('input', e => imp.tariffaKm = Number(e.target.value) || 0);
-  cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = Number(e.target.value) || 0);
-  cPar.querySelector('#medicoTariffaOraria').addEventListener('input', e => imp.medicoTariffaOraria = Number(e.target.value) || 0);
-  cPar.querySelector('#infermiereTariffaOraria').addEventListener('input', e => imp.infermiereTariffaOraria = Number(e.target.value) || 0);
+  cPar.querySelector('#pastoCosto').addEventListener('input', e => imp.pastoCosto = leggiDecimaleO0(e.target.value));
+  cPar.querySelector('#tariffaKm').addEventListener('input', e => imp.tariffaKm = leggiDecimaleO0(e.target.value));
+  cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = leggiDecimaleO0(e.target.value));
+  cPar.querySelector('#medicoTariffaOraria').addEventListener('input', e => imp.medicoTariffaOraria = leggiDecimaleO0(e.target.value));
+  cPar.querySelector('#infermiereTariffaOraria').addEventListener('input', e => imp.infermiereTariffaOraria = leggiDecimaleO0(e.target.value));
 
   // ---------- Prezzi carburante ----------
   const cFuel = card(`Prezzi carburante di riferimento`, `
@@ -123,12 +124,12 @@ export async function renderImpostazioni(view, ctx) {
       if (q && !row.nome.toLowerCase().includes(q)) return;
       const tr = el(`<tr>
         <td class="fuel-country">${flag(iso)} ${esc(row.nome)} <span class="mini">${iso}</span></td>
-        <td><input class="fuel-price" type="number" step="0.001" value="${row.diesel}"></td>
-        <td><input class="fuel-price" type="number" step="0.001" value="${row.benzina}"></td>
+        <td><input class="fuel-price" ${CAMPO_DECIMALE} value="${testoDecimale(row.diesel)}"></td>
+        <td><input class="fuel-price" ${CAMPO_DECIMALE} value="${testoDecimale(row.benzina)}"></td>
       </tr>`);
       const [d, b] = tr.querySelectorAll('input');
-      d.addEventListener('input', () => row.diesel = Number(d.value) || 0);
-      b.addEventListener('input', () => row.benzina = Number(b.value) || 0);
+      d.addEventListener('input', () => row.diesel = leggiDecimaleO0(d.value));
+      b.addEventListener('input', () => row.benzina = leggiDecimaleO0(b.value));
       fuelBody.appendChild(tr);
     });
   }

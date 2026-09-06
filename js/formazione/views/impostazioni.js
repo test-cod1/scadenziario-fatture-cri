@@ -1,6 +1,7 @@
 import { impostazioni } from '../data/store.js';
 import { el, clear, esc, toast } from '../../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
+import { CAMPO_DECIMALE, testoDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
 
 // ============================================================
 //  IMPOSTAZIONI DELLA FORMAZIONE ESTERNA
@@ -66,7 +67,7 @@ export async function renderImpostazioni(view, ctx) {
           <div class="field"><label>Durata</label><input type="text" data-k="durata" value="${esc(c.durata || '')}" placeholder="es. 12 ore"></div>
           <div class="field"><label>Sigla (per l'oggetto)</label><input type="text" data-k="sigla" value="${esc(c.sigla || '')}" placeholder="es. BLSD"></div>
           <div class="field"><label>Prezzo di listino a discente (€)</label>
-            <input type="number" min="0" step="0.5" data-k="prezzo" value="${Number(c.prezzo) || 0}"></div>
+            <input ${CAMPO_DECIMALE} data-k="prezzo" value="${testoDecimale(c.prezzo)}"></div>
         </div>
         <div class="field"><label>Attestazione rilasciata</label>
           <input type="text" data-k="attestato" value="${esc(c.attestato || '')}" placeholder="es. Rilascio di attestazione — validità 3 anni"></div>
@@ -75,7 +76,7 @@ export async function renderImpostazioni(view, ctx) {
       riga.querySelectorAll('[data-k]').forEach(input => {
         input.addEventListener('input', () => {
           const k = input.dataset.k;
-          c[k] = k === 'prezzo' ? (Number(input.value) || 0) : input.value;
+          c[k] = k === 'prezzo' ? leggiDecimaleO0(input.value) : input.value;
         });
       });
       riga.querySelector('.rm').addEventListener('click', () => { imp.corsi.splice(i, 1); modificato(); disegnaCorsi(); });
@@ -95,10 +96,10 @@ export async function renderImpostazioni(view, ctx) {
     <div class="card-h">Corsi presso il committente</div><div class="card-b">
       <p class="hint" style="margin:0 0 14px">Quanto si aggiunge, di norma, quando il corso non si tiene nella nostra sede. È solo la proposta: nel singolo preventivo la cifra si cambia o si azzera, se la trasferta è già compresa nel prezzo concordato.</p>
       <div class="field" style="max-width:260px"><label>Maggiorazione proposta (€)</label>
-        <input type="number" min="0" step="5" id="f-trasferta" value="${Number(imp.trasferta_predefinita) || 0}"></div>
+        <input ${CAMPO_DECIMALE} id="f-trasferta" value="${testoDecimale(imp.trasferta_predefinita)}"></div>
     </div></div>`));
   pagina.querySelector('#f-trasferta').addEventListener('input', (e) => {
-    imp.trasferta_predefinita = Number(e.target.value) || 0;
+    imp.trasferta_predefinita = leggiDecimaleO0(e.target.value);
   });
 
   // ---------- firma ----------

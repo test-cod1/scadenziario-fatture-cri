@@ -20,3 +20,5 @@ package-lock.json
 README.md
 .gitignore
 .assetsignore
+test/
+backup/

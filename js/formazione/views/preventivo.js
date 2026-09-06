@@ -4,6 +4,7 @@ import { etichettaSconto } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO } from '../../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 import { INIZIO_ANNO, dataAmmessa, MSG_DATA } from '../date.js';
+import { CAMPO_DECIMALE, testoDecimale, leggiDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
 
 // ============================================================
 //  EDITOR DEL PREVENTIVO DI FORMAZIONE
@@ -127,7 +128,7 @@ export async function renderPreventivo(view, id, ctx) {
           <option value="cliente" ${prev.sede_tipo === 'cliente' ? 'selected' : ''}>Presso il committente</option>
         </select></div>
       <div class="field" id="campo-trasferta"><label>Maggiorazione per la trasferta (€)</label>
-        <input type="number" min="0" step="5" id="trasferta" value="${prev.trasferta ?? ''}" placeholder="0,00">
+        <input ${CAMPO_DECIMALE} id="trasferta" value="${testoDecimale(prev.trasferta)}" placeholder="0,00">
         <div class="hint">Si somma una volta sola al totale. Lasciala vuota se è già compresa nel prezzo.</div></div>
     </div>
     <div class="field" id="campo-sede"><label>Indirizzo della sede del committente</label>
@@ -144,9 +145,9 @@ export async function renderPreventivo(view, id, ctx) {
     <p class="hint" style="margin:16px 0 12px">Gli sconti sono facoltativi e utilizzabili anche insieme: la percentuale si calcola sul totale, l'importo fisso si toglie da quello che resta. Sono un'altra cosa rispetto al prezzo riservato di ogni corso — usali per uno sconto sull'intero pacchetto.</p>
     <div class="form-row">
       <div class="field"><label>Sconto in percentuale (%)</label>
-        <input type="number" min="0" max="100" step="0.5" id="sconto_percentuale" value="${prev.sconto_percentuale ?? ''}" placeholder="0"></div>
+        <input ${CAMPO_DECIMALE} id="sconto_percentuale" value="${testoDecimale(prev.sconto_percentuale)}" placeholder="0"></div>
       <div class="field"><label>Sconto in valore (€)</label>
-        <input type="number" min="0" step="0.5" id="sconto_valore" value="${prev.sconto_valore ?? ''}" placeholder="0,00"></div>
+        <input ${CAMPO_DECIMALE} id="sconto_valore" value="${testoDecimale(prev.sconto_valore)}" placeholder="0,00"></div>
     </div>
     <div class="hint" id="sconto-hint"></div>`));
 
@@ -239,14 +240,14 @@ export async function renderPreventivo(view, id, ctx) {
     // di nuovo addosso.
     if (prev.sede_tipo === 'cliente' && (prev.trasferta === null || prev.trasferta === undefined)) {
       prev.trasferta = Number(imp.trasferta_predefinita) || 0;
-      view.querySelector('#trasferta').value = prev.trasferta || '';
+      view.querySelector('#trasferta').value = testoDecimale(prev.trasferta);
     }
     mostraCampiSede();
     aggiorna();
   });
   const campoTrasferta = view.querySelector('#trasferta');
   campoTrasferta.addEventListener('input', () => {
-    prev.trasferta = campoTrasferta.value === '' ? null : Number(campoTrasferta.value) || 0;
+    prev.trasferta = leggiDecimale(campoTrasferta.value);
     aggiorna();
   });
   function mostraCampiSede() {
@@ -261,7 +262,7 @@ export async function renderPreventivo(view, id, ctx) {
   for (const campo of ['sconto_percentuale', 'sconto_valore']) {
     const input = view.querySelector('#' + campo);
     input.addEventListener('input', () => {
-      prev[campo] = input.value === '' ? null : Number(input.value) || 0;
+      prev[campo] = leggiDecimale(input.value);
       aggiorna();
     });
   }
@@ -286,9 +287,9 @@ export async function renderPreventivo(view, id, ctx) {
         <div class="form-row three">
           <div class="field"><label>Durata</label><input type="text" data-k="durata" value="${esc(r.durata || '')}" placeholder="es. 12 ore"></div>
           <div class="field"><label>Listino a discente (€)</label>
-            <input type="number" min="0" step="0.5" data-k="listino" value="${r.listino ?? ''}" placeholder="0,00"></div>
+            <input ${CAMPO_DECIMALE} data-k="listino" value="${testoDecimale(r.listino)}" placeholder="0,00"></div>
           <div class="field"><label>Prezzo riservato (€)</label>
-            <input type="number" min="0" step="0.5" data-k="prezzo" value="${r.prezzo ?? ''}" placeholder="0,00"></div>
+            <input ${CAMPO_DECIMALE} data-k="prezzo" value="${testoDecimale(r.prezzo)}" placeholder="0,00"></div>
         </div>
         <div class="form-row">
           <div class="field"><label>N. discenti</label>
@@ -316,7 +317,9 @@ export async function renderPreventivo(view, id, ctx) {
       riga.querySelectorAll('[data-k]').forEach(input => {
         input.addEventListener('input', () => {
           const k = input.dataset.k;
-          if (k === 'discenti' || k === 'listino' || k === 'prezzo') {
+          if (k === 'listino' || k === 'prezzo') {
+            r[k] = leggiDecimale(input.value);
+          } else if (k === 'discenti') {
             r[k] = input.value === '' ? null : Number(input.value) || 0;
           } else {
             r[k] = input.value;

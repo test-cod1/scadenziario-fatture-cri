@@ -1,6 +1,6 @@
 import { preventivi } from '../data/store.js';
 import { fmtData } from '../lib/documento.js';
-import { el, clear, esc, toast, confirmDialog, fmtEuro } from '../../lib/ui.js';
+import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO } from '../../lib/ui.js';
 import { dataAmmessa } from '../date.js';
 
 // ============================================================
@@ -154,7 +154,7 @@ export async function renderDashboard(view, ctx) {
             calendario,
             oggetto: (p.oggetto || '') + ' (copia)',
             stato: 'bozza',
-            data_documento: new Date().toISOString().slice(0, 10),
+            data_documento: todayISO(),
           });
           toast(dateScadute ? 'Preventivo duplicato: indica le nuove giornate' : 'Preventivo duplicato', 'ok');
           ctx.go(`#/assistenze/preventivo/${copia.id}`);

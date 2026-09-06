@@ -155,6 +155,28 @@ ORS_KEY=la-tua-chiave-openrouteservice
 
 Senza queste chiavi il resto dell'app funziona lo stesso: manca solo la funzione che dipende dalla chiave assente (lettura AI, creazione utenti, ricerca indirizzi e km dei preventivi).
 
+### Le prove automatiche
+
+```bash
+npm test
+```
+
+Controlla in pochi secondi le parti che non si possono verificare a occhio ogni volta: gli importi in lettere, la lettura degli importi scritti a mano, i calcoli dei preventivi delle tre sezioni, le ore degli straordinari, il contenuto dei documenti (compreso il fatto che **la spesa viva non finisca nel preventivo consegnato al cliente**), la validità del file Word e il comportamento offline del service worker. Non serve né rete né database: le prove lavorano sulle funzioni, non sul sito acceso.
+
+Le prove stanno in [`test/`](test/), un file per argomento (`*.prove.mjs`), e il motore è una cinquantina di righe senza librerie ([`test/aiuto.mjs`](test/aiuto.mjs), [`test/esegui.mjs`](test/esegui.mjs)). **Vale la pena lanciarle prima di ogni `git push`**: un `git commit` non le esegue da solo.
+
+### Copia di sicurezza del database
+
+```bash
+npm run backup
+```
+
+Scarica tutte le tabelle in `backup/<data>/`, un file JSON per tabella più un `_riepilogo.json` con la data e il numero di righe. Richiede la `SUPABASE_SERVICE_ROLE_KEY` in `.dev.vars` (la stessa del punto 3): è la chiave che scavalca i permessi, quindi vede anche quello che l'utente collegato non vedrebbe.
+
+Serve perché **il piano gratuito di Supabase non garantisce copie ripristinabili da soli**: le fatture del Comitato sono l'unica cosa di questo progetto che, se si perde, non si rimedia riscrivendo del codice. La cartella `backup/` è esclusa dal repository e dal sito: i file contengono dati personali e vanno trattati come si tratterebbe un raccoglitore di fatture — e vanno tenuti **anche fuori da questo computer**, altrimenti non sono una copia di sicurezza ma solo un secondo file nello stesso posto.
+
+Non contiene gli account veri (`auth.users`): le password non sono esportabili per costruzione, e di ogni persona restano id, email, nome e ruolo in `profili`, che è quanto serve per ricrearli.
+
 ## 5. Deploy su Cloudflare (Workers con Git integration)
 
 Il progetto Cloudflare collegato a questo repo è di tipo **Worker** (il nuovo flusso unificato "Workers & Pages": build command `npx wrangler deploy`), non la vecchia Pages classica. Per questo motivo il repo contiene già:
@@ -215,7 +237,11 @@ js/lib/carta.js                 legge la carta intestata .dotx (immagini e testi
 js/lib/docxBlocchi.js           dai blocchi al .docx, sostituendo il corpo del modello
 js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF
 js/lib/numeri.js                importo in lettere e arrotondamento ai centesimi
+js/lib/importi.js               i campi con i decimali: la virgola si può scrivere e incollare
 js/lib/zip.js                   zip minimale (scrittura e lettura): serve a .xlsx e .docx
+js/vendor/supabase-js-*.js      il client Supabase, dentro il progetto e non su una CDN
+test/                          le prove automatiche (npm test)
+tools/backup.mjs               la copia di sicurezza del database (npm run backup)
 assets/carta-intestata.dotx    modello Word ufficiale del Comitato
 js/trasporti/                  sezione Trasporti lunghi: preventivi trasporti sanitari
 js/trasporti/calc.js            il calcolo del preventivo (spesa reale, addebito, margine)
@@ -266,3 +292,10 @@ wrangler.jsonc                 configurazione del deploy Cloudflare
 - **Fatture attive**: stesse funzionalità delle passive, tabelle e permessi indipendenti (vedi sopra). Unica differenza voluta: gli **incassi** li registra direttamente anche l'operatore (non solo l'admin come per i pagamenti delle passive), perché qui non esiste un flusso di "proposte" — chiunque può segnare che una fattura è stata incassata. Il campo **sollecito** (data dell'ultimo sollecito di pagamento inviato al cliente) è puramente informativo: si aggiorna a mano dall'editor o con un click rapido dalla tabella, non invia nulla automaticamente. Le fatture attive non hanno una data di scadenza propria: il filtro temporale della dashboard e l'avviso "emesse da troppo tempo e non incassate" lavorano quindi sulla **data di emissione**, con la stessa soglia in giorni configurata in Impostazioni.
 - **Registro modifiche**: ogni creazione, modifica, cancellazione di una fattura (e ogni pagamento aggiunto/rimosso) viene registrata automaticamente da un trigger del database — non è disattivabile dall'app, visibile in sola lettura solo agli admin.
 - **Niente collegamento diretto al cassetto fiscale**: richiederebbe login SPID/CIE (non automatizzabile) o un accreditamento come intermediario SdI presso l'Agenzia delle Entrate (procedura complessa, sproporzionata per questo progetto). Il flusso previsto è: scarichi tu il PDF o l'XML dal cassetto fiscale, poi lo carichi qui.
+
+## Note trasversali (valgono per tutte le sezioni)
+
+- **Gli importi si scrivono all'italiana.** I campi con i decimali — prezzi, tariffe, km, ore — accettano sia «55,50» sia «55.50», e capiscono anche «1.234,56». Non sono campi `type="number"`: quelli scartano in silenzio quello che non riconoscono, e **incollando** un importo con la virgola il campo restava vuoto e il codice salvava **zero**, senza un errore. Succedeva anche su Chrome in italiano. La lettura passa da `parseEuro` ([`js/lib/importi.js`](js/lib/importi.js)), come faceva già lo scadenziario. I campi che contengono numeri interi (persone, notti, discenti) restano numerici: lì la virgola non c'entra.
+- **Chi salva per secondo non cancella il lavoro del primo.** Tutte le sezioni salvano confrontando la versione da cui si era partiti (`updated_at`): se nel frattempo qualcun altro ha salvato lo stesso record, il salvataggio si ferma e l'app propone di ricaricare la versione aggiornata, invece di sovrascriverla.
+- **Le impostazioni non ripiegano di nascosto sui valori di fabbrica.** Se la lettura delle impostazioni di una sezione fallisce (rete, permessi), la sezione mostra un errore: prima almeno una di esse restituiva i valori di default — tariffe e consumi di listino — come se fossero la configurazione vera del Comitato, e il preventivo usciva con numeri plausibili ma sbagliati.
+- **Il client Supabase sta dentro il progetto** ([`js/vendor/`](js/vendor/)), non su una CDN. Prima veniva scaricato da `esm.sh` a ogni avvio: il portale non si apriva se quel sito era irraggiungibile, e chi lo avesse controllato avrebbe potuto eseguire codice proprio nella pagina che maneggia le credenziali. Di conseguenza la Content-Security-Policy non autorizza più nessun host esterno per gli script. Per aggiornarlo, le istruzioni sono in cima a [`js/lib/supabase.js`](js/lib/supabase.js).
