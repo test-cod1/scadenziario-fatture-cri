@@ -1,10 +1,10 @@
 // ============================================================
-//  RICHIESTA DI STRAORDINARIO — la scheda che si compila in centrale.
-//  Volutamente corta: chi la usa la sta compilando mentre risponde al
-//  telefono. Gli orari si prendono dal quadrante, le ore si calcolano da
+//  REGISTRAZIONE DI UNO STRAORDINARIO — la scheda che si compila in
+//  centrale, a turno finito. Volutamente corta: dipendente, giorno e ore
+//  bastano. Gli orari si prendono dal quadrante, le ore si calcolano da
 //  soli (e restano correggibili), causale e tipo sono scelte da elenco.
-//  Le tre cose che il foglio di carta non registrava — perché, chi l'ha
-//  chiesto, a che punto è — qui sono campi, non memoria di qualcuno.
+//  La cosa che il foglio di carta non registrava — il perché — qui è un
+//  campo, non memoria di qualcuno.
 // ============================================================
 import { straordinari } from '../data/store.js';
 import { TIPI, durataOre, parseOre, fmtOre, tipoDi, nominativo, meseDi } from '../calc.js';
@@ -47,9 +47,8 @@ export async function renderRegistrazione(view, id, ctx) {
           <label for="f-dipendente">Dipendente *</label>
           <select id="f-dipendente">
             <option value="">— scegli —</option>
-            ${attivi.map(a => `<option value="${esc(a.id)}">${esc(nominativo(a))}${a.ore_contratto ? ` (${a.ore_contratto}h)` : ''}</option>`).join('')}
+            ${attivi.map(a => `<option value="${esc(a.id)}">${esc(nominativo(a))}</option>`).join('')}
           </select>
-          <div class="hint" data-contratto></div>
         </div>
         <div class="field">
           <label for="f-data">Giorno *</label>
@@ -175,7 +174,6 @@ export async function renderRegistrazione(view, id, ctx) {
     campi.servizio.value = rec.servizio || '';
     campi.note.value = rec.note || '';
     scegliTipo(rec.tipo || 'straordinario', false);
-    aggiornaContratto();
     aggiornaGiorno();
     if (!nuovo) {
       editor.querySelector('[data-meta]').textContent =
@@ -185,11 +183,6 @@ export async function renderRegistrazione(view, id, ctx) {
     }
   }
 
-  function aggiornaContratto() {
-    const a = ctx.dipendenti.find(x => x.id === campi.dipendente.value);
-    editor.querySelector('[data-contratto]').textContent = a?.ore_contratto
-      ? `Contratto da ${a.ore_contratto} ore settimanali.` : '';
-  }
   function aggiornaGiorno() {
     const hint = editor.querySelector('[data-giorno]');
     if (!campi.data.value) { hint.textContent = ''; hint.classList.remove('avviso'); return; }
@@ -218,7 +211,7 @@ export async function renderRegistrazione(view, id, ctx) {
   }
 
   // ---------- eventi ----------
-  campi.dipendente.addEventListener('change', () => { aggiornaContratto(); controllaDoppioni(); modificato(); });
+  campi.dipendente.addEventListener('change', () => { controllaDoppioni(); modificato(); });
   campi.data.addEventListener('change', () => { aggiornaGiorno(); controllaDoppioni(); modificato(); });
   campi.ore.addEventListener('input', () => { oreAMano = true; aggiornaHintOre(); modificato(); });
   for (const c of [campi.causale, campi.servizio, campi.note]) {

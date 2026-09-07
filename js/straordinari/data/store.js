@@ -55,10 +55,6 @@ export const dipendenti = {
       id: rec.id || uid(),
       cognome,
       nome: (rec.nome || '').trim() || null,
-      matricola: (rec.matricola || '').trim() || null,
-      telefono: (rec.telefono || '').trim() || null,
-      ore_contratto: rec.ore_contratto === '' || rec.ore_contratto === null || rec.ore_contratto === undefined
-        ? null : Number(rec.ore_contratto),
       attivo: rec.attivo !== false,
       note: (rec.note || '').trim() || null,
       updated_at: nowISO(),

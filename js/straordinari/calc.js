@@ -120,19 +120,19 @@ export function totali(righe) {
 // il modo per accorgersi di chi si sta caricando di ore e chi no).
 export function riepilogoMensile(righe, dipendenti, mese) {
   const perDipendente = new Map();
-  const aggiungi = (id, nome, oreContratto) => {
-    if (!perDipendente.has(id)) perDipendente.set(id, { id, nome, oreContratto, giorni: {}, positive: 0, recuperi: 0, saldo: 0, righe: 0 });
+  const aggiungi = (id, nome) => {
+    if (!perDipendente.has(id)) perDipendente.set(id, { id, nome, giorni: {}, positive: 0, recuperi: 0, saldo: 0, righe: 0 });
     return perDipendente.get(id);
   };
   for (const a of dipendenti || []) {
-    if (a.attivo) aggiungi(a.id, nominativo(a), a.ore_contratto);
+    if (a.attivo) aggiungi(a.id, nominativo(a));
   }
   for (const r of righe) {
     if (meseDi(r.data) !== mese) continue;
     const a = (dipendenti || []).find(x => x.id === r.dipendente_id);
     // Un dipendente disattivato a metà mese resta nel riepilogo di quel mese: le
     // ore che ha fatto vanno comunque pagate.
-    const riga = aggiungi(r.dipendente_id, a ? nominativo(a) : r.dipendente_nome, a?.ore_contratto);
+    const riga = aggiungi(r.dipendente_id, a ? nominativo(a) : r.dipendente_nome);
     riga.righe++;
     const ore = oreConSegno(r);
     if (ore > 0) riga.positive += ore; else riga.recuperi += -ore;

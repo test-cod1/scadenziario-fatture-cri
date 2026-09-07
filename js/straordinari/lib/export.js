@@ -61,7 +61,7 @@ export function stampaRiepilogo(riepilogo, perGiorno, mese, { righe = [] } = {})
       return `<td class="${g.festivo ? 'fest' : ''} ${ore < 0 ? 'neg' : 'pos'}">${numero(ore)}</td>`;
     }).join('');
     return `<tr>
-      <th class="nome">${esc(r.nome)}${r.oreContratto ? ` <span class="oc">${numero(r.oreContratto)}</span>` : ''}</th>
+      <th class="nome">${esc(r.nome)}</th>
       ${celle}
       <td class="tot">${numero(r.positive)}</td>
       <td class="tot">${r.recuperi ? '−' + numero(r.recuperi) : ''}</td>

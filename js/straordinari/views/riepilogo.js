@@ -87,7 +87,7 @@ export async function renderRiepilogo(view, ctx) {
     for (const r of riepilogo) {
       const sopra = r.saldo > ctx.imp.sogliaMensile;
       const tr = el(`<tr class="${r.righe ? '' : 'str-vuota'}">
-        <th class="nome" title="${esc(r.nome)}">${esc(r.nome)}${r.oreContratto ? ` <span class="oc">${numero(r.oreContratto)}h</span>` : ''}</th>
+        <th class="nome" title="${esc(r.nome)}">${esc(r.nome)}</th>
         ${giorni.map(g => cellaGiorno(r, g)).join('')}
         <td class="tot">${r.positive ? numero(r.positive) : ''}</td>
         <td class="tot">${r.recuperi ? numero(r.recuperi) : ''}</td>

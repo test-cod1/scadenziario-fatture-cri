@@ -7,27 +7,24 @@
 --  straordinario era una riga "EXTRA" dentro il tabellone dei turni, scritta
 --  a mano, senza chi l'aveva chiesto né perché, e con i recuperi segnati come
 --  numeri negativi in mezzo agli altri. Qui ogni straordinario è un record:
---  chi, quando, quante ore, per quale motivo, chiesto da chi e a che punto è
---  (richiesto → confermato → liquidato/recuperato).
+--  chi, quando, quante ore, di che tipo e per quale motivo. Si scrivono a
+--  turno finito, quindi non c'è uno stato da far avanzare.
 --
 --  Tre tabelle: i dipendenti, le righe di straordinario, e la solita riga
 --  unica di impostazioni (causali e soglie di avviso).
 -- ============================================================
 
 -- ---------- ANAGRAFICA DEI DIPENDENTI ----------
--- Sono i dipendenti del foglio mensile, con le ore settimanali di contratto
--- (38 / 35 / 30 / 24) che lì comparivano accanto al cognome. Non è una copia
--- del personale dell'ente: serve a scegliere un nome da un elenco invece di
--- riscriverlo, e a sapere quante ore ordinarie fa chi si sta caricando di
--- straordinari.
+-- Serve a scegliere un nome da un elenco invece di riscriverlo ogni volta,
+-- e a nient'altro: non è una copia del personale dell'ente. Aveva anche
+-- matricola, telefono e ore settimanali di contratto, ripresi dal foglio
+-- mensile; sono stati tolti il 05/09/2026 perché non entravano in nessun
+-- calcolo e restavano da compilare per niente.
 create table if not exists public.dipendenti_straordinari (
   id uuid primary key default gen_random_uuid(),
 
   cognome text not null,
   nome text,
-  matricola text,
-  telefono text,
-  ore_contratto numeric(4,1) check (ore_contratto > 0 and ore_contratto <= 60),
 
   -- Chi va via non si cancella (i suoi straordinari restano nello storico):
   -- si disattiva, e sparisce dagli elenchi di scelta.
@@ -133,7 +130,7 @@ on conflict (id) do update set etichetta = excluded.etichetta, ordine = excluded
 comment on table public.straordinari is
   'Registro degli straordinari richiesti ai dipendenti dalla centrale operativa';
 comment on table public.dipendenti_straordinari is
-  'Dipendenti a cui si possono richiedere straordinari, con le ore settimanali di contratto';
+  'Dipendenti a cui si possono richiedere straordinari: solo il nominativo, serve a scegliere un nome da un elenco';
 
 -- ============================================================
 --  DOPO L'ESECUZIONE
@@ -143,12 +140,7 @@ comment on table public.dipendenti_straordinari is
 --   2. Esegui subito dopo patch-2026-09-05-dipendenti.sql: rinomina questa
 --      anagrafica da "autisti" a "dipendenti" (il registro serve per tutto
 --      il personale, non solo per chi guida) e carica l'elenco delle 19
---      persone in servizio. Le ore settimanali di contratto restano da
---      compilare a mano nella scheda di ciascuno: quelle del foglio di
---      agosto 2026 erano
---        DE BARBIERI 38, DJEFFAL 38, MUÑOZ 38, PAZZANO 38, PELLEGRINI 38,
---        SORDELLI 38, BASTIA 35, CANEPA 35, GARIBALDI 35, PORTORICO 35,
---        GRIMALDI 30, AIELLO 30, BISIGNANI 30, PASCU 24, PICOLLO.
+--      persone in servizio, che è tutto quello che serve: cognome e nome.
 --   3. Le causali di partenza le crea l'app alla prima apertura delle
 --      impostazioni: vanno riviste con quelle davvero usate in centrale.
 -- ============================================================

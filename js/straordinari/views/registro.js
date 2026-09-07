@@ -74,8 +74,8 @@ export async function renderRegistro(view, ctx) {
 
   const senzaDipendenti = el(`<div class="banner warn" hidden><div class="bi">👤</div><div>
     <b>Nessun dipendente in anagrafica</b>
-    <div class="small">Prima di registrare straordinari serve l'elenco dei dipendenti, con le ore
-    settimanali di contratto: <a href="#/straordinari/dipendenti">aprilo e compilalo</a>.</div>
+    <div class="small">Prima di registrare straordinari serve l'elenco dei dipendenti:
+    <a href="#/straordinari/dipendenti">aprilo e compilalo</a>.</div>
   </div>`);
   view.insertBefore(senzaDipendenti, stats);
 

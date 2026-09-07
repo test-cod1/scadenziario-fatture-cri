@@ -1,14 +1,14 @@
 // ============================================================
 //  ANAGRAFICA DEI DIPENDENTI
-//  L'elenco da cui si sceglie chi ha fatto lo straordinario, con le ore
-//  settimanali di contratto. Nel foglio di carta erano l'intestazione delle
-//  colonne (il "38" accanto al cognome): qui sono un dato, e servono a
-//  leggere il carico di ore di ciascuno.
+//  L'elenco da cui si sceglie chi ha fatto lo straordinario. Nient'altro:
+//  cognome, nome e un promemoria, perché il registro serve a contare ore e
+//  non a tenere una copia del personale dell'ente. Matricola, telefono e
+//  ore di contratto c'erano e sono stati tolti il 05/09/2026: nessuno
+//  li leggeva, e l'anagrafe del personale sta altrove.
 // ============================================================
 import { dipendenti as store, straordinari } from '../data/store.js';
 import { nominativo, fmtOre, meseCorrente, oreConSegno } from '../calc.js';
 import { el, clear, esc, toast, confirmDialog, openModal } from '../lib/ui.js';
-import { CAMPO_DECIMALE, testoDecimale, leggiDecimale } from '../../lib/importi.js';
 
 export async function renderDipendenti(view, ctx) {
   // Ore del mese in corso accanto a ogni nome: l'anagrafica è anche il posto
@@ -19,14 +19,14 @@ export async function renderDipendenti(view, ctx) {
   for (const r of righeMese) oreMese.set(r.dipendente_id, (oreMese.get(r.dipendente_id) || 0) + oreConSegno(r));
 
   const head = el(`<div class="page-head">
-    <div><h1>Dipendenti</h1><p>Chi può fare straordinari, con le ore settimanali di contratto</p></div>
+    <div><h1>Dipendenti</h1><p>Chi può fare straordinari</p></div>
     <div class="actions"><button class="btn primary" data-nuovo>➕ Nuovo dipendente</button></div>
   </div>`);
   view.appendChild(head);
 
   const card = el(`<div class="card"><div class="tbl-wrap"><table class="tbl">
-    <thead><tr><th>Dipendente</th><th>Contratto</th><th class="money">Saldo mese in corso</th>
-      <th>Matricola</th><th>Telefono</th><th>Stato</th><th></th></tr></thead><tbody></tbody>
+    <thead><tr><th>Dipendente</th><th class="money">Saldo mese in corso</th>
+      <th>Stato</th><th></th></tr></thead><tbody></tbody>
   </table></div></div>`);
   view.appendChild(card);
   const tbody = card.querySelector('tbody');
@@ -34,7 +34,7 @@ export async function renderDipendenti(view, ctx) {
   const vuoto = el(`<div class="empty-state" hidden><div class="big">👤</div>
     <p><b>Nessun dipendente in elenco</b></p>
     <p>Aggiungi i dipendenti a cui la centrale può chiedere straordinari.<br>
-    Bastano cognome e ore di contratto; il resto è facoltativo.</p></div>`);
+    Basta il cognome; il nome e le note sono facoltativi.</p></div>`);
   view.appendChild(vuoto);
 
   function disegna() {
@@ -46,10 +46,7 @@ export async function renderDipendenti(view, ctx) {
       const saldo = oreMese.get(a.id) || 0;
       const tr = el(`<tr class="${a.attivo ? '' : 'str-inattivo'}">
         <td><b>${esc(nominativo(a))}</b>${a.note ? `<div class="small muted">${esc(a.note)}</div>` : ''}</td>
-        <td>${a.ore_contratto ? esc(String(a.ore_contratto).replace('.', ',')) + ' h/sett.' : '—'}</td>
         <td class="money">${saldo ? esc(fmtOre(saldo, { segno: true })) : '—'}</td>
-        <td class="muted">${esc(a.matricola || '—')}</td>
-        <td class="muted">${esc(a.telefono || '—')}</td>
         <td>${a.attivo ? '<span class="chip ok">Attivo</span>' : '<span class="chip">Non attivo</span>'}</td>
         <td style="white-space:nowrap;text-align:right">
           <button class="btn ghost sm" data-mod title="Modifica">✏️</button>
@@ -84,22 +81,13 @@ export async function renderDipendenti(view, ctx) {
 
   function scheda(a) {
     const nuovo = !a;
-    const d = a || { cognome: '', nome: '', matricola: '', telefono: '', ore_contratto: '', attivo: true, note: '' };
+    const d = a || { cognome: '', nome: '', attivo: true, note: '' };
     const body = el(`<div>
       <div class="form-row">
         <div class="field"><label for="a-cognome">Cognome *</label>
           <input type="text" id="a-cognome" value="${esc(d.cognome)}"></div>
         <div class="field"><label for="a-nome">Nome</label>
           <input type="text" id="a-nome" value="${esc(d.nome || '')}"></div>
-      </div>
-      <div class="form-row three">
-        <div class="field"><label for="a-ore">Ore settimanali</label>
-          <input ${CAMPO_DECIMALE} id="a-ore" value="${testoDecimale(d.ore_contratto)}">
-          <div class="hint">38, 35, 30, 24…</div></div>
-        <div class="field"><label for="a-matricola">Matricola</label>
-          <input type="text" id="a-matricola" value="${esc(d.matricola || '')}"></div>
-        <div class="field"><label for="a-tel">Telefono</label>
-          <input type="text" id="a-tel" value="${esc(d.telefono || '')}"></div>
       </div>
       <div class="field"><label for="a-note">Note</label>
         <textarea id="a-note" rows="2" placeholder="es. disponibile solo nei feriali">${esc(d.note || '')}</textarea></div>
@@ -117,9 +105,6 @@ export async function renderDipendenti(view, ctx) {
         ...d,
         cognome: body.querySelector('#a-cognome').value,
         nome: body.querySelector('#a-nome').value,
-        ore_contratto: leggiDecimale(body.querySelector('#a-ore').value),
-        matricola: body.querySelector('#a-matricola').value,
-        telefono: body.querySelector('#a-tel').value,
         note: body.querySelector('#a-note').value,
         attivo: body.querySelector('#a-attivo').checked,
       };

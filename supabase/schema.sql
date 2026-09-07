@@ -1288,19 +1288,16 @@ create policy imp_form_write on public.impostazioni_formazione for all
 -- ============================================================
 
 -- ---------- ANAGRAFICA DEI DIPENDENTI ----------
--- Sono i dipendenti del foglio mensile, con le ore settimanali di contratto
--- (38 / 35 / 30 / 24) che lì comparivano accanto al cognome. Non è una copia
--- del personale dell'ente: serve a scegliere un nome da un elenco invece di
--- riscriverlo, e a sapere quante ore ordinarie fa chi si sta caricando di
--- straordinari.
+-- Serve a scegliere un nome da un elenco invece di riscriverlo ogni volta,
+-- e a nient'altro: non è una copia del personale dell'ente. Aveva anche
+-- matricola, telefono e ore settimanali di contratto, ripresi dal foglio
+-- mensile; sono stati tolti il 05/09/2026 perché non entravano in nessun
+-- calcolo e restavano da compilare per niente.
 create table if not exists public.dipendenti_straordinari (
   id uuid primary key default gen_random_uuid(),
 
   cognome text not null,
   nome text,
-  matricola text,
-  telefono text,
-  ore_contratto numeric(4,1) check (ore_contratto > 0 and ore_contratto <= 60),
 
   -- Chi va via non si cancella (i suoi straordinari restano nello storico):
   -- si disattiva, e sparisce dagli elenchi di scelta.
@@ -1399,6 +1396,6 @@ create policy imp_straord_write on public.impostazioni_straordinari for all
   using (public.e_admin_sezione('straordinari')) with check (public.e_admin_sezione('straordinari'));
 
 comment on table public.dipendenti_straordinari is
-  'Dipendenti a cui si possono richiedere straordinari, con le ore settimanali di contratto';
+  'Dipendenti a cui si possono richiedere straordinari: solo il nominativo, serve a scegliere un nome da un elenco';
 comment on table public.straordinari is
   'Registro degli straordinari richiesti ai dipendenti dalla centrale operativa';
