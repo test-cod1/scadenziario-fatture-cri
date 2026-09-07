@@ -7,7 +7,7 @@
 import { dipendenti as dipendentiStore, impostazioni } from './data/store.js';
 import { meseCorrente } from './calc.js';
 import { renderRegistro } from './views/registro.js';
-import { renderRichiesta } from './views/richiesta.js';
+import { renderRegistrazione } from './views/registrazione.js';
 import { renderRiepilogo } from './views/riepilogo.js';
 import { renderDipendenti } from './views/dipendenti.js';
 import { renderImpostazioni } from './views/impostazioni.js';
@@ -50,8 +50,8 @@ export async function renderStraordinari(view, ctx, sub, param) {
     },
   };
 
-  if (sub === 'nuovo') return renderRichiesta(view, null, ctxS);
-  if (sub === 'richiesta' && param) return renderRichiesta(view, param, ctxS);
+  if (sub === 'nuovo') return renderRegistrazione(view, null, ctxS);
+  if (sub === 'registrazione' && param) return renderRegistrazione(view, param, ctxS);
   if (sub === 'riepilogo') return renderRiepilogo(view, ctxS);
   if (sub === 'dipendenti') return renderDipendenti(view, ctxS);
   if (sub === 'impostazioni') return renderImpostazioni(view, ctxS);

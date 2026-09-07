@@ -47,7 +47,7 @@ export async function renderImpostazioni(view, ctx) {
           <div class="hint">Oltre questo saldo mensile, nel riepilogo il dipendente viene evidenziato.</div>
         </div>
         <div class="field">
-          <label for="s-singola">Ore in una singola richiesta</label>
+          <label for="s-singola">Ore in una sola registrazione</label>
           <input ${CAMPO_DECIMALE} id="s-singola" value="${testoDecimale(ctx.imp.sogliaSingola)}" ${soloLettura ? 'disabled' : ''}>
           <div class="hint">Oltre queste ore, il salvataggio chiede una conferma.</div>
         </div>

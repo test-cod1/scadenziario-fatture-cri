@@ -80,8 +80,9 @@ async function startApp() {
 
 // ------------------------------------------------------------------
 //  MENU DELLO SCADENZIARIO
-//  È l'unica sezione con una struttura interna (fatture passive e attive,
-//  ognuna con le sue pagine); le altre, per ora, hanno una pagina sola.
+//  È l'unica sezione divisa in DUE PARTI (fatture passive e attive), ognuna
+//  col suo menu: le altre hanno un elenco di pagine e se lo costruiscono da
+//  sé, dalla propria voce in js/sezioni.js.
 // ------------------------------------------------------------------
 function navItemsPassive() {
   return [

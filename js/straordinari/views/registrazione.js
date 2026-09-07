@@ -12,7 +12,7 @@ import { el, esc, toast, confirmDialog, todayISO, fmtGiorno } from '../lib/ui.js
 import { collegaOrologio } from '../../lib/orologio.js';
 import { sorvegliaUscita, armaGuardiaIndietro, smettiDiSorvegliare } from '../../lib/uscita.js';
 
-export async function renderRichiesta(view, id, ctx) {
+export async function renderRegistrazione(view, id, ctx) {
   const nuovo = !id;
   let rec = nuovo ? bozza(ctx) : await straordinari.get(id);
   // Righe dello stesso dipendente nello stesso giorno: servono all'avviso sui
@@ -28,7 +28,7 @@ export async function renderRichiesta(view, id, ctx) {
   const editor = el(`<div class="str-editor">
     <div class="page-head">
       <div>
-        <h1>${nuovo ? 'Nuova richiesta di straordinario' : 'Straordinario'}</h1>
+        <h1>${nuovo ? 'Nuovo straordinario' : 'Straordinario'}</h1>
         <p>${nuovo ? 'Registra le ore chieste a un dipendente: bastano dipendente, giorno e ore.'
                    : `${esc(rec.dipendente_nome)} · ${esc(fmtGiorno(rec.data))}`}</p>
       </div>
@@ -41,7 +41,7 @@ export async function renderRichiesta(view, id, ctx) {
 
     <div class="banner warn" data-avviso-doppione hidden><div class="bi">⚠️</div><div></div></div>
 
-    <div class="card"><div class="card-h">Dati della richiesta</div><div class="card-b str-form">
+    <div class="card"><div class="card-h">Dati dello straordinario</div><div class="card-b str-form">
       <div class="form-row">
         <div class="field">
           <label for="f-dipendente">Dipendente *</label>
@@ -143,7 +143,7 @@ export async function renderRichiesta(view, id, ctx) {
     const segno = tipoDi(rec.tipo).segno;
     const parti = [`Conteggiate ${fmtOre(ore)}${segno < 0 ? ' in meno (recupero)' : ''}.`];
     if (d !== null && Math.abs(d - ore) > 0.01) parti.push(`Gli orari indicati ne farebbero ${fmtOre(d)}.`);
-    if (ore > ctx.imp.sogliaSingola) parti.push(`Sopra la soglia di ${fmtOre(ctx.imp.sogliaSingola)} per una singola richiesta: controlla che non sia un errore di battitura.`);
+    if (ore > ctx.imp.sogliaSingola) parti.push(`Sopra la soglia di ${fmtOre(ctx.imp.sogliaSingola)} per una sola registrazione: controlla che non sia un errore di battitura.`);
     hint.textContent = parti.join(' ');
     hint.classList.toggle('avviso', ore > ctx.imp.sogliaSingola);
   }
@@ -197,7 +197,7 @@ export async function renderRichiesta(view, id, ctx) {
     const festivo = d.getDay() === 0 || d.getDay() === 6;
     const futuro = campi.data.value > todayISO();
     hint.textContent = fmtGiorno(campi.data.value) + (festivo ? ' · sabato/domenica' : '') +
-      (futuro ? ' · richiesta per una data futura' : '');
+      (futuro ? ' · data futura' : '');
     hint.classList.toggle('avviso', futuro);
   }
   // ---------- avviso doppioni ----------
@@ -252,7 +252,7 @@ export async function renderRichiesta(view, id, ctx) {
     // Una soglia superata non è un errore (una notte intera di emergenza
     // esiste): si chiede conferma, non si rifiuta.
     if (da.ore > ctx.imp.sogliaSingola && !await confirmDialog(
-      `${fmtOre(da.ore)} in una sola richiesta: è sopra la soglia di ${fmtOre(ctx.imp.sogliaSingola)}. Confermi?`,
+      `${fmtOre(da.ore)} in una sola registrazione: è sopra la soglia di ${fmtOre(ctx.imp.sogliaSingola)}. Confermi?`,
       { okLabel: 'Sì, è corretto' })) { campi.ore.focus(); return; }
 
     let salvata;

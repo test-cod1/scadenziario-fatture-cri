@@ -3,7 +3,7 @@
 //  Un mese alla volta, una riga per straordinario, con i quattro numeri che
 //  contano in testa e i filtri sotto. È il rovescio del foglio di carta: lì
 //  si vedeva la griglia e si cercava a occhio la riga "EXTRA", qui si vedono
-//  le richieste (chi, quando, perché, a che punto è) e la griglia è una
+//  le singole registrazioni (chi, quando, quante ore, perché) e la griglia è una
 //  pagina a parte, per chi deve guardarla d'insieme.
 // ============================================================
 import { straordinari } from '../data/store.js';
@@ -23,7 +23,7 @@ export async function renderRegistro(view, ctx) {
     <div class="actions">
       <button class="btn" data-xls title="Scarica le righe filtrate in Excel">⬇️ Excel</button>
       <button class="btn" data-print title="Stampa l'elenco filtrato">🖨️ Stampa</button>
-      <a class="btn primary" href="#/straordinari/nuovo">➕ Nuova richiesta</a>
+      <a class="btn primary" href="#/straordinari/nuovo">➕ Registra ore</a>
     </div>
   </div>`);
   view.appendChild(head);
@@ -96,7 +96,7 @@ export async function renderRegistro(view, ctx) {
     clear(stats);
     const sopraSoglia = elenco.length ? dipendentiSopraSoglia(elenco, ctx.imp.sogliaMensile) : [];
     stats.append(
-      el(`<div class="stat"><div class="k">Ore richieste</div><div class="v">${esc(fmtOre(t.positive))}</div>
+      el(`<div class="stat"><div class="k">Ore in più</div><div class="v">${esc(fmtOre(t.positive))}</div>
         <div class="s">straordinari e cambi turno</div></div>`),
       el(`<div class="stat"><div class="k">Recuperi</div><div class="v">${esc(fmtOre(t.recuperi))}</div>
         <div class="s">ore restituite ai dipendenti</div></div>`),
@@ -162,7 +162,7 @@ export async function renderRegistro(view, ctx) {
     // Riga cliccabile = apre l'editor.
     tr.addEventListener('click', (e) => {
       if (e.target.closest('button')) return;
-      ctx.go(`#/straordinari/richiesta/${r.id}`);
+      ctx.go(`#/straordinari/registrazione/${r.id}`);
     });
 
     tr.querySelector('[data-del]').addEventListener('click', async () => {

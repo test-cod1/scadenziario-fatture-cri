@@ -73,7 +73,8 @@ insert into public.sezioni (id, etichetta, ordine) values
   ('scadenziario', 'Scadenziario',          1),
   ('formazione',   'Formazione Esterna',    2),
   ('trasporti',    'Trasporti lunghi',      3),
-  ('assistenze',   'Assistenze sanitarie',  4)
+  ('assistenze',   'Assistenze sanitarie',  4),
+  ('straordinari', 'Straordinari',          5)
 on conflict (id) do update set etichetta = excluded.etichetta, ordine = excluded.ordine;
 
 -- ---------- AUTORIZZAZIONI (utente x sezione x ruolo) ----------
@@ -1267,3 +1268,137 @@ create policy imp_form_read on public.impostazioni_formazione for select
 drop policy if exists imp_form_write on public.impostazioni_formazione;
 create policy imp_form_write on public.impostazioni_formazione for all
   using (public.accede_a('formazione')) with check (public.accede_a('formazione'));
+
+-- ============================================================
+--  SEZIONE STRAORDINARI
+--  Registro delle ore in piu' richieste ai dipendenti dalla centrale
+--  operativa. Sostituisce il foglio mensile "ELENCO DIPENDENTI-ORARI
+--  MESE", dove lo straordinario era una riga "EXTRA" scritta a mano nel
+--  tabellone dei turni, senza chi l'avesse chiesta ne' perche', con i
+--  recuperi come numeri negativi in mezzo agli altri e i totali da
+--  sommare a occhio.
+--
+--  Le righe si scrivono a cose fatte, a fine turno: non c'e' uno stato
+--  da far avanzare, e una riga sbagliata si corregge o si elimina.
+--  Qui sta la forma definitiva, quella che nasce su un database nuovo:
+--  su un database gia' in uso ci si arriva con
+--  patch-2026-09-05-straordinari.sql e le tre patch dello stesso giorno
+--  che l'hanno rifinita (dipendenti, rimozione-reperibilita,
+--  straordinari-senza-stato).
+-- ============================================================
+
+-- ---------- ANAGRAFICA DEI DIPENDENTI ----------
+-- Sono i dipendenti del foglio mensile, con le ore settimanali di contratto
+-- (38 / 35 / 30 / 24) che lì comparivano accanto al cognome. Non è una copia
+-- del personale dell'ente: serve a scegliere un nome da un elenco invece di
+-- riscriverlo, e a sapere quante ore ordinarie fa chi si sta caricando di
+-- straordinari.
+create table if not exists public.dipendenti_straordinari (
+  id uuid primary key default gen_random_uuid(),
+
+  cognome text not null,
+  nome text,
+  matricola text,
+  telefono text,
+  ore_contratto numeric(4,1) check (ore_contratto > 0 and ore_contratto <= 60),
+
+  -- Chi va via non si cancella (i suoi straordinari restano nello storico):
+  -- si disattiva, e sparisce dagli elenchi di scelta.
+  attivo boolean not null default true,
+  note text,
+
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- Due schede per la stessa persona renderebbero i totali mensili sbagliati
+-- senza che nulla lo segnali: cognome+nome è unico, senza distinzione fra
+-- maiuscole e minuscole né spazi in più agli estremi.
+create unique index if not exists idx_dipendenti_str_nominativo
+  on public.dipendenti_straordinari (lower(btrim(cognome)), lower(btrim(coalesce(nome, ''))));
+create index if not exists idx_dipendenti_str_attivo on public.dipendenti_straordinari(attivo);
+
+-- ---------- RIGHE DI STRAORDINARIO ----------
+create table if not exists public.straordinari (
+  id uuid primary key default gen_random_uuid(),
+
+  dipendente_id uuid not null references public.dipendenti_straordinari(id) on delete restrict,
+  -- Il nominativo è COPIATO qui, come i dati del cliente nei preventivi delle
+  -- assistenze: correggere un cognome in anagrafica non deve riscrivere i
+  -- registri dei mesi già chiusi e già mandati all'ufficio personale.
+  dipendente_nome text not null,
+
+  data date not null,
+  -- Orari indicativi dello straordinario: servono a ricostruire cos'è
+  -- successo, ma NON sono il calcolo — le ore valide sono quelle in `ore`,
+  -- che l'app propone dagli orari e chi registra può correggere (un rientro
+  -- arrotondato, una frazione concordata a voce).
+  dalle time,
+  alle time,
+  ore numeric(5,2) not null check (ore > 0 and ore <= 24),
+
+  -- Il segno lo dà il tipo, non il numero: nel foglio di carta i recuperi
+  -- erano ore negative in mezzo alle altre, e bastava un meno dimenticato per
+  -- falsare il totale del mese. Qui le ore sono sempre positive e il saldo lo
+  -- calcola l'app (straordinari − recuperi).
+  tipo text not null default 'straordinario'
+    check (tipo in ('straordinario','recupero','cambio_turno')),
+
+  causale text,          -- perché: emergenza, copertura turno, servizio programmato…
+  servizio text,         -- riferimento operativo: mezzo, convenzione, evento
+
+  note text,
+
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+create index if not exists idx_straord_data on public.straordinari(data desc);
+create index if not exists idx_straord_dipendente on public.straordinari(dipendente_id, data desc);
+
+-- ---------- IMPOSTAZIONI (causali e soglie) ----------
+create table if not exists public.impostazioni_straordinari (
+  id text primary key default 'default',
+  dati jsonb not null,
+  updated_at timestamptz default now()
+);
+
+-- ---------- ROW LEVEL SECURITY DELLA SEZIONE ----------
+-- Chi ha accesso alla sezione legge e scrive: è il responsabile della
+-- centrale operativa che registra, e distinguere fra lettura e scrittura per
+-- chi è già stato abilitato non proteggerebbe nulla. Le impostazioni
+-- (causali e soglie) restano invece al solo admin di sezione: sono le regole
+-- con cui si legge tutto il registro, non un dato di giornata.
+-- L'eliminazione di un dipendente con straordinari a suo carico la impedisce la
+-- chiave esterna (on delete restrict), non un permesso.
+alter table public.dipendenti_straordinari      enable row level security;
+alter table public.straordinari              enable row level security;
+alter table public.impostazioni_straordinari enable row level security;
+
+drop policy if exists dipendenti_str_read on public.dipendenti_straordinari;
+create policy dipendenti_str_read on public.dipendenti_straordinari for select
+  using (public.accede_a('straordinari'));
+drop policy if exists dipendenti_str_write on public.dipendenti_straordinari;
+create policy dipendenti_str_write on public.dipendenti_straordinari for all
+  using (public.accede_a('straordinari')) with check (public.accede_a('straordinari'));
+
+drop policy if exists straord_read on public.straordinari;
+create policy straord_read on public.straordinari for select
+  using (public.accede_a('straordinari'));
+drop policy if exists straord_write on public.straordinari;
+create policy straord_write on public.straordinari for all
+  using (public.accede_a('straordinari')) with check (public.accede_a('straordinari'));
+
+drop policy if exists imp_straord_read on public.impostazioni_straordinari;
+create policy imp_straord_read on public.impostazioni_straordinari for select
+  using (public.accede_a('straordinari'));
+drop policy if exists imp_straord_write on public.impostazioni_straordinari;
+create policy imp_straord_write on public.impostazioni_straordinari for all
+  using (public.e_admin_sezione('straordinari')) with check (public.e_admin_sezione('straordinari'));
+
+comment on table public.dipendenti_straordinari is
+  'Dipendenti a cui si possono richiedere straordinari, con le ore settimanali di contratto';
+comment on table public.straordinari is
+  'Registro degli straordinari richiesti ai dipendenti dalla centrale operativa';

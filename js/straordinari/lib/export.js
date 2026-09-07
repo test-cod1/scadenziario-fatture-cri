@@ -96,7 +96,7 @@ export function stampaRiepilogo(riepilogo, perGiorno, mese, { righe = [] } = {})
   </style></head><body>
   <h1>Straordinari — ${esc(etichettaMese(mese))}</h1>
   <div class="sub">Croce Rossa Italiana — Comitato di Genova · Centrale operativa ·
-    ore richieste ${numero(t.positive)}, recuperi ${numero(t.recuperi)}, saldo ${numero(t.saldo)}
+    ore in più ${numero(t.positive)}, recuperi ${numero(t.recuperi)}, saldo ${numero(t.saldo)}
 </div>
   <table>
     <thead><tr><th class="nome">Dipendente</th>${intestazione}<th class="tot">Str.</th><th class="tot">Rec.</th><th class="tot">Saldo</th></tr></thead>

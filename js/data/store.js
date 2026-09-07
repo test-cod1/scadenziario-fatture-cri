@@ -127,6 +127,21 @@ export const amministrazione = {
     return data; // { ok: true, email }
   },
 
+  // Le sezioni COME LE CONOSCE IL DATABASE. Serve a confrontarle con
+  // l'elenco del codice (js/sezioniIds.js): la tabella `sezioni` è la
+  // chiave esterna di `autorizzazioni`, quindi è lei l'autorità finale su
+  // cosa sia una sezione, e assegnare un permesso per una sezione che lì
+  // non c'è fallisce. Il controllo fra codice del browser e codice del
+  // Worker esisteva già; questo chiude il terzo lato, che è quello che si
+  // era disallineato per davvero (schema.sql non conosceva gli
+  // straordinari, e su un database nuovo la sezione non nasceva).
+  async listaSezioni() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('sezioni').select('id, etichetta, ordine').order('ordine');
+    if (error) throw error;
+    return data || [];
+  },
+
   // Elenco dei profili con i rispettivi permessi di sezione: le RLS lo
   // restituiscono per intero solo al super admin (policy prof_admin_read e
   // autor_sa_read), a chiunque altro solo il proprio.

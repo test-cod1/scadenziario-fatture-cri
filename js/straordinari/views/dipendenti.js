@@ -19,7 +19,7 @@ export async function renderDipendenti(view, ctx) {
   for (const r of righeMese) oreMese.set(r.dipendente_id, (oreMese.get(r.dipendente_id) || 0) + oreConSegno(r));
 
   const head = el(`<div class="page-head">
-    <div><h1>Dipendenti</h1><p>Chi può ricevere richieste di straordinario, con le ore settimanali di contratto</p></div>
+    <div><h1>Dipendenti</h1><p>Chi può fare straordinari, con le ore settimanali di contratto</p></div>
     <div class="actions"><button class="btn primary" data-nuovo>➕ Nuovo dipendente</button></div>
   </div>`);
   view.appendChild(head);

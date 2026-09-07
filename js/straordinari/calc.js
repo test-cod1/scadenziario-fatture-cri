@@ -193,7 +193,7 @@ export const IMPOSTAZIONI_DEFAULT = {
   // è il promemoria che sul foglio non c'era e che faceva scoprire a fine
   // anno che le ore erano sempre sulle stesse due persone.
   sogliaMensile: 20,
-  // Ore oltre le quali una singola richiesta chiede conferma: un 8 al posto
+  // Ore oltre le quali una singola registrazione chiede conferma: un 8 al posto
   // di un 0,8 è l'errore di battitura tipico di questo registro.
   sogliaSingola: 8,
 };

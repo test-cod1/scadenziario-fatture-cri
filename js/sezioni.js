@@ -123,8 +123,8 @@ export const SEZIONI = [
     // pagina si apre anche in sola lettura: chi registra deve poter vedere
     // quali sono le soglie che gli fanno comparire gli avvisi.
     menu: [
-      { id: 'registro', icon: '📋', label: 'Registro', attivoAnche: ['richiesta'] },
-      { id: 'nuovo', icon: '➕', label: 'Nuova richiesta' },
+      { id: 'registro', icon: '📋', label: 'Registro', attivoAnche: ['registrazione'] },
+      { id: 'nuovo', icon: '➕', label: 'Registra ore' },
       { id: 'riepilogo', icon: '📅', label: 'Riepilogo mensile' },
       { id: 'dipendenti', icon: '👤', label: 'Dipendenti' },
       { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },

@@ -1,7 +1,7 @@
 {
-  "name": "scadenziario-fatture-cri",
+  "name": "amministrazione-cri-genova",
   "version": "1.0.0",
-  "description": "Scadenziario fatture fornitori — CRI Genova",
+  "description": "Portale gestionale CRI Genova: scadenziario fatture, formazione esterna, trasporti lunghi, assistenze sanitarie, straordinari",
   "scripts": {
     "dev": "node server.js",
     "test": "node test/esegui.mjs",

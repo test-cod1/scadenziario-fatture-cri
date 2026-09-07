@@ -49,7 +49,7 @@ export async function renderRiepilogo(view, ctx) {
     const conOre = riepilogo.filter(r => r.righe > 0);
 
     const stats = el(`<div class="grid stats" style="margin:18px 0 20px">
-      <div class="stat"><div class="k">Ore richieste</div><div class="v">${esc(fmtOre(t.positive))}</div>
+      <div class="stat"><div class="k">Ore in più</div><div class="v">${esc(fmtOre(t.positive))}</div>
         <div class="s">a ${conOre.length} dipendenti su ${riepilogo.length}</div></div>
       <div class="stat"><div class="k">Recuperi</div><div class="v">${esc(fmtOre(t.recuperi))}</div>
         <div class="s">ore restituite</div></div>
@@ -140,7 +140,7 @@ export async function renderRiepilogo(view, ctx) {
       close();
       // Una riga sola si apre direttamente; più righe nello stesso giorno
       // si guardano meglio nel registro.
-      if (cella.dettagli.length === 1) ctx.go(`#/straordinari/richiesta/${cella.dettagli[0].id}`);
+      if (cella.dettagli.length === 1) ctx.go(`#/straordinari/registrazione/${cella.dettagli[0].id}`);
       else ctx.go('#/straordinari/registro');
     });
   }

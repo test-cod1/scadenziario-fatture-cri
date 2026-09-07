@@ -85,6 +85,29 @@ export async function renderPortaleUtenti(view, ctx) {
     }
   }
   disegnaUtenti();
+  controllaSezioni();
+
+  // Le sezioni che il portale mostra devono esistere anche nella tabella
+  // `sezioni` del database: è la chiave esterna di `autorizzazioni`, quindi
+  // una sezione che c'è solo nel codice si può scegliere nella tendina qui
+  // sopra ma non si può salvare. È già capitato con gli straordinari, e
+  // l'errore che ne usciva parlava di chiavi esterne, non di questo.
+  // Il controllo sta qui perché è l'unica pagina che assegna permessi, e la
+  // vede solo chi può rimediare.
+  async function controllaSezioni() {
+    let delDatabase;
+    try { delDatabase = await amministrazione.listaSezioni(); }
+    catch { return; }                 // un avviso in più non deve rompere la pagina
+    const idDatabase = delDatabase.map(s => s.id);
+    const mancanti = SEZIONI.filter(s => !idDatabase.includes(s.id));
+    if (!mancanti.length) return;
+    wrap.insertBefore(el(`<div class="banner warn"><div class="bi">⚠️</div><div>
+      <b>${mancanti.length === 1 ? 'Una sezione del portale non esiste nel database' : `${mancanti.length} sezioni del portale non esistono nel database`}</b>
+      <div class="small">${esc(mancanti.map(s => s.label).join(', '))}: ${mancanti.length === 1 ? 'compare' : 'compaiono'}
+      nel menu, ma ${mancanti.length === 1 ? 'il permesso non si può assegnare' : 'i loro permessi non si possono assegnare'}
+      finché non esegui la patch che ${mancanti.length === 1 ? 'la crea' : 'le crea'} su Supabase.</div>
+    </div></div>`), wrap.firstElementChild.nextElementSibling);
+  }
 }
 
 function opzioni(valore) {
