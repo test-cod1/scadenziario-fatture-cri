@@ -16,6 +16,7 @@
 // ============================================================
 
 import { requireUser, ruoloSezione } from '../_lib/auth.js';
+import { consumaQuota, errore429 } from '../_lib/quota.js';
 
 const BULLETIN_INDEX_URL = 'https://energy.ec.europa.eu/data-and-analysis/weekly-oil-bulletin_en';
 const LABEL_MARKER = 'data-untranslated-label="Prices with taxes latest prices (xlsx)"';
@@ -43,6 +44,11 @@ export async function onRequestGet(context) {
   if (!await ruoloSezione(request, env, 'trasporti')) {
     return json({ error: 'Non sei autorizzato ad accedere ai trasporti lunghi: chiedi a un amministratore del portale.' }, 403);
   }
+
+  // Tetto giornaliero per persona: la quota esterna e' di tutto il
+  // Comitato, non di chi la sta spendendo (vedi _lib/quota.js).
+  const quota = await consumaQuota(request, env, 'prezzo-eu');
+  if (!quota.ok) return json(errore429('prezzo-eu', quota), 429);
 
   const cache = caches.default;
   const cacheKey = new Request(new URL(request.url).origin + '/api/prezzo-eu');

@@ -90,6 +90,21 @@ create table if not exists public.autorizzazioni (
 );
 create index if not exists idx_autorizzazioni_utente on public.autorizzazioni(utente_id);
 
+-- ---------- CONSUMI DEGLI ENDPOINT A QUOTA ----------
+-- Gemini (lettura AI delle fatture) e OpenRouteService (indirizzi e km dei
+-- preventivi trasporti) hanno una quota gratuita giornaliera condivisa da
+-- tutto il Comitato: l'autorizzazione di sezione dice CHI puo' spenderla,
+-- questa tabella dice QUANTO. Il Worker incrementa il contatore prima di
+-- ogni chiamata a pagamento e si ferma oltre il limite, cosi' un ciclo
+-- sbagliato in una pagina non lascia gli altri senza servizio.
+create table if not exists public.consumi_api (
+  utente_id  uuid not null references auth.users(id) on delete cascade,
+  giorno     date not null default current_date,
+  endpoint   text not null,
+  conteggio  integer not null default 0,
+  primary key (utente_id, giorno, endpoint)
+);
+
 -- ---------- CONTROLLO ACCESSI ----------
 create or replace function public.e_super_admin()
 returns boolean language sql stable security definer set search_path = public as $$
@@ -98,14 +113,30 @@ $$;
 
 -- Ruolo dell'utente corrente nella sezione indicata: 'admin', 'operatore'
 -- oppure NULL se non vi ha accesso. Il super admin e' admin ovunque.
+--
+-- Il primo ramo e' quello che fa valere la SOSPENSIONE: chi non ha un
+-- profilo attivo non ha ruolo in nessuna sezione, quali che siano le
+-- autorizzazioni scritte a suo nome (sospendere le lascia intatte di
+-- proposito, per non doverle riassegnare a mano quando si riattiva).
+-- Copre anche chi si e' registrato e non e' ancora stato abilitato, e chi
+-- e' stato eliminato: senza riga in profili, qui la risposta e' NULL.
+-- Tutte le policy del portale passano da questa funzione, quindi la
+-- regola sta scritta una volta sola.
 create or replace function public.ruolo_sezione(p_sezione text)
-returns text language sql stable security definer set search_path = public as $$
+returns text language sql stable security definer set search_path = public as $
   select case
-    when exists (select 1 from public.profili where id = auth.uid() and ruolo = 'super_admin') then 'admin'
+    when not exists (
+      select 1 from public.profili p
+       where p.id = auth.uid() and p.ruolo in ('super_admin', 'utente')
+    ) then null
+    when exists (
+      select 1 from public.profili p
+       where p.id = auth.uid() and p.ruolo = 'super_admin'
+    ) then 'admin'
     else (select a.ruolo from public.autorizzazioni a
-          where a.utente_id = auth.uid() and a.sezione = p_sezione)
+           where a.utente_id = auth.uid() and a.sezione = p_sezione)
   end;
-$$;
+$;
 
 create or replace function public.accede_a(p_sezione text)
 returns boolean language sql stable security definer set search_path = public as $$
@@ -451,6 +482,7 @@ create index if not exists idx_proposte_stato on public.proposte_pagamento(stato
 alter table public.profili           enable row level security;
 alter table public.sezioni           enable row level security;
 alter table public.autorizzazioni    enable row level security;
+alter table public.consumi_api       enable row level security;
 alter table public.fatture           enable row level security;
 alter table public.pagamenti         enable row level security;
 alter table public.note_credito       enable row level security;
@@ -506,6 +538,36 @@ create policy sezioni_read on public.sezioni for select to authenticated using (
 -- il super admin li legge e li scrive tutti.
 drop policy if exists autor_self on public.autorizzazioni;
 create policy autor_self on public.autorizzazioni for select using (utente_id = auth.uid());
+
+-- Consumi: ognuno vede i propri (serve a capire un blocco per quota senza
+-- aprire il database), il super admin vede tutto. Nessuno scrive da fuori:
+-- l'unica scrittura passa da consuma_quota(), che e' security definer.
+drop policy if exists consumi_self on public.consumi_api;
+create policy consumi_self on public.consumi_api for select
+  using (utente_id = auth.uid() or public.e_super_admin());
+
+-- Incrementa il contatore di oggi e restituisce il valore raggiunto. Il
+-- Worker la chiama col token dell'utente prima di spendere la quota: oltre
+-- il limite risponde 429 e non chiama il servizio esterno. Incremento e
+-- lettura nella stessa istruzione, altrimenti due schede aperte in
+-- parallelo leggevano lo stesso numero e il tetto si aggirava.
+create or replace function public.consuma_quota(p_endpoint text)
+returns integer language sql volatile security definer set search_path = public as $
+  insert into public.consumi_api (utente_id, giorno, endpoint, conteggio)
+  values (auth.uid(), current_date, p_endpoint, 1)
+  on conflict (utente_id, giorno, endpoint)
+    do update set conteggio = public.consumi_api.conteggio + 1
+  returning conteggio;
+$;
+revoke all on function public.consuma_quota(text) from public;
+grant execute on function public.consuma_quota(text) to authenticated;
+
+-- Le righe vecchie non servono: si tengono due mesi, per poter guardare
+-- indietro se qualcuno segnala di essere stato bloccato.
+create or replace function public.pulisci_consumi_api()
+returns void language sql volatile security definer set search_path = public as $
+  delete from public.consumi_api where giorno < current_date - 60;
+$;
 drop policy if exists autor_sa_read on public.autorizzazioni;
 create policy autor_sa_read on public.autorizzazioni for select using (public.e_super_admin());
 drop policy if exists autor_sa_write on public.autorizzazioni;

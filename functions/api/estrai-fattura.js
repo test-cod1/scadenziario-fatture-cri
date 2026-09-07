@@ -11,6 +11,7 @@
 // ============================================================
 
 import { requireUser, ruoloSezione } from '../_lib/auth.js';
+import { consumaQuota, errore429 } from '../_lib/quota.js';
 import { MODELLO_GEMINI } from '../_lib/gemini.mjs';
 
 const SCHEMA = {
@@ -53,6 +54,11 @@ export async function onRequestPost(context) {
   // ~15MB in base64 è un limite prudente: la request API di Gemini per file inline è comunque
   // pensata per allegati di pochi MB (fatture singole), non per archivi.
   if (dataBase64.length > 20_000_000) return json({ error: 'File troppo grande.' }, 413);
+
+  // Tetto giornaliero per persona: la quota esterna e' di tutto il
+  // Comitato, non di chi la sta spendendo (vedi _lib/quota.js).
+  const quota = await consumaQuota(request, env, 'estrai-fattura');
+  if (!quota.ok) return json(errore429('estrai-fattura', quota), 429);
 
   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODELLO_GEMINI}:generateContent?key=${env.GEMINI_API_KEY}`;
   const payload = {

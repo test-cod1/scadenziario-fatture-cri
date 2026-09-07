@@ -9,6 +9,7 @@
 // ============================================================
 
 import { requireUser, ruoloSezione } from '../_lib/auth.js';
+import { consumaQuota, errore429 } from '../_lib/quota.js';
 
 export async function onRequestGet(context) {
   const { request, env } = context;
@@ -27,6 +28,11 @@ export async function onRequestGet(context) {
   const size = url.searchParams.get('size') || '6';
   if (!text || text.length < 2) return json({ features: [] });
   if (!env.ORS_KEY) return json({ error: 'Chiave OpenRouteService non configurata (ORS_KEY).' }, 500);
+
+  // Tetto giornaliero per persona: la quota esterna e' di tutto il
+  // Comitato, non di chi la sta spendendo (vedi _lib/quota.js).
+  const quota = await consumaQuota(request, env, 'geocode');
+  if (!quota.ok) return json(errore429('geocode', quota), 429);
 
   const api = new URL('https://api.openrouteservice.org/geocode/search');
   api.searchParams.set('api_key', env.ORS_KEY);

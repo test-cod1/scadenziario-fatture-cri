@@ -7,6 +7,7 @@
 // ============================================================
 
 import { requireUser, ruoloSezione } from '../_lib/auth.js';
+import { consumaQuota, errore429 } from '../_lib/quota.js';
 
 export async function onRequestPost(context) {
   const { request, env } = context;
@@ -32,6 +33,11 @@ export async function onRequestPost(context) {
     Number.isFinite(c[0]) && c[0] >= -180 && c[0] <= 180 &&
     Number.isFinite(c[1]) && c[1] >= -90 && c[1] <= 90);
   if (!valid) return json({ error: 'Coordinate non valide.' }, 400);
+
+  // Tetto giornaliero per persona: la quota esterna e' di tutto il
+  // Comitato, non di chi la sta spendendo (vedi _lib/quota.js).
+  const quota = await consumaQuota(request, env, 'route');
+  if (!quota.ok) return json(errore429('route', quota), 429);
 
   const payload = { coordinates };
   if (body.avoidTolls) payload.options = { avoid_features: ['tollways'] };

@@ -36,6 +36,16 @@ const CSP = [
 
 export const HEADER_SICUREZZA = {
   "Content-Security-Policy": CSP,
+  // Un anno di HTTPS obbligatorio, sottodomini compresi: dopo la prima
+  // visita il browser non prova nemmeno a chiamare la versione in chiaro,
+  // quindi non c'è una richiesta HTTP da intercettare e dirottare. Su
+  // workers.dev cambia poco (accetta solo HTTPS), ma è l'intestazione che
+  // serve il giorno in cui il portale passa su un dominio del Comitato,
+  // ed è meglio averla già attiva che ricordarsene allora.
+  // In locale è inerte: i browser ignorano HSTS sulle risposte in chiaro.
+  // Niente "preload": iscriversi alla lista è irreversibile in pratica, e
+  // vincolerebbe anche i sottodomini futuri prima di sapere quali saranno.
+  "Strict-Transport-Security": "max-age=31536000; includeSubDomains",
   "X-Content-Type-Options": "nosniff",
   "X-Frame-Options": "DENY",
   "Referrer-Policy": "no-referrer",

@@ -20,7 +20,7 @@
 import { requireUser, ruoloUtente, SUPABASE_URL } from '../_lib/auth.js';
 import { ID_SEZIONI } from '../../js/sezioniIds.js';
 
-const ALFABETO_PASSWORD = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; // niente 0/O/1/l/I: ambigui da leggere/comunicare a voce
+export const ALFABETO_PASSWORD = 'ABCDEFGHJKMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789'; // niente 0/O/1/l/I: ambigui da leggere/comunicare a voce
 
 // Le sezioni che si possono assegnare, dallo stesso elenco che il portale usa
 // per disegnare il form: una sezione non prevista verrebbe comunque rifiutata
@@ -116,10 +116,26 @@ export async function onRequestPost(context) {
   return json({ email, passwordProvvisoria });
 }
 
-function generaPassword(lunghezza = 12) {
-  const bytes = new Uint8Array(lunghezza);
-  crypto.getRandomValues(bytes);
-  return Array.from(bytes, b => ALFABETO_PASSWORD[b % ALFABETO_PASSWORD.length]).join('');
+// I byte casuali si scartano invece di ripiegarli con il modulo: 256 non è
+// divisibile per i 55 caratteri dell'alfabeto, quindi `b % 55` rendeva i
+// primi 36 caratteri circa il 5% più probabili degli altri. Si tengono solo
+// i byte sotto il multiplo di 55 più alto (220) e gli altri si buttano,
+// chiedendone altri finché serve: così ogni carattere ha esattamente la
+// stessa probabilità. In media basta un giro e mezzo.
+export function generaPassword(lunghezza = 12) {
+  const n = ALFABETO_PASSWORD.length;
+  const soglia = Math.floor(256 / n) * n;   // 220 con 55 caratteri
+  const out = [];
+  while (out.length < lunghezza) {
+    const bytes = new Uint8Array(lunghezza);
+    crypto.getRandomValues(bytes);
+    for (const b of bytes) {
+      if (b >= soglia) continue;
+      out.push(ALFABETO_PASSWORD[b % n]);
+      if (out.length === lunghezza) break;
+    }
+  }
+  return out.join('');
 }
 
 function json(obj, status = 200) {
