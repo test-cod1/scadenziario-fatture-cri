@@ -3,7 +3,7 @@
 //  È la vista che eredita la forma del foglio di carta, perché per capire
 //  "come stiamo distribuendo le ore" serve vedere il mese tutto insieme. La
 //  differenza è che qui i totali non si sommano a mano, le celle si aprono
-//  sul dettaglio, e chi sfora la soglia è evidenziato invece che scoperto a
+//  sul dettaglio, e i totali di riga e di colonna sono calcolati invece che
 //  fine anno.
 // ============================================================
 import { straordinari } from '../data/store.js';
@@ -85,13 +85,12 @@ export async function renderRiepilogo(view, ctx) {
     const tbody = tabella.querySelector('tbody');
 
     for (const r of riepilogo) {
-      const sopra = r.saldo > ctx.imp.sogliaMensile;
       const tr = el(`<tr class="${r.righe ? '' : 'str-vuota'}">
         <th class="nome" title="${esc(r.nome)}">${esc(r.nome)}</th>
         ${giorni.map(g => cellaGiorno(r, g)).join('')}
         <td class="tot">${r.positive ? numero(r.positive) : ''}</td>
         <td class="tot">${r.recuperi ? numero(r.recuperi) : ''}</td>
-        <td class="tot saldo ${sopra ? 'sopra' : ''}" ${sopra ? `title="Oltre la soglia di ${ctx.imp.sogliaMensile} ore al mese"` : ''}>${r.righe ? numero(r.saldo) : ''}</td>
+        <td class="tot saldo">${r.righe ? numero(r.saldo) : ''}</td>
       </tr>`);
       // Ogni cella piena apre il dettaglio della giornata: è la domanda che
       // il foglio di carta lasciava sempre senza risposta ("questo 3,5 di

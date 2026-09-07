@@ -189,13 +189,6 @@ export const IMPOSTAZIONI_DEFAULT = {
     'Assistenza / manifestazione',
     'Formazione',
   ],
-  // Oltre questa soglia il riepilogo evidenzia il dipendente: non è un divieto,
-  // è il promemoria che sul foglio non c'era e che faceva scoprire a fine
-  // anno che le ore erano sempre sulle stesse due persone.
-  sogliaMensile: 20,
-  // Ore oltre le quali una singola registrazione chiede conferma: un 8 al posto
-  // di un 0,8 è l'errore di battitura tipico di questo registro.
-  sogliaSingola: 8,
 };
 
 export function mergeImpostazioni(dati) {
@@ -203,9 +196,5 @@ export function mergeImpostazioni(dati) {
   const causali = Array.isArray(d.causali) ? d.causali.map(c => String(c).trim()).filter(Boolean) : null;
   return {
     causali: causali && causali.length ? causali : [...IMPOSTAZIONI_DEFAULT.causali],
-    sogliaMensile: Number.isFinite(Number(d.sogliaMensile)) && Number(d.sogliaMensile) > 0
-      ? Number(d.sogliaMensile) : IMPOSTAZIONI_DEFAULT.sogliaMensile,
-    sogliaSingola: Number.isFinite(Number(d.sogliaSingola)) && Number(d.sogliaSingola) > 0
-      ? Number(d.sogliaSingola) : IMPOSTAZIONI_DEFAULT.sogliaSingola,
   };
 }

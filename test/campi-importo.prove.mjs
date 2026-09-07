@@ -20,7 +20,6 @@ const INTERI_AMMESSI = {
   'js/assistenze/views/preventivo.js': ['data-tutti', 'data-voce'],       // quantità per turno
   'js/formazione/views/preventivo.js': ['data-k="discenti"'],             // numero di persone
   'js/trasporti/views/preventivo.js': ['id="persone"', 'id="pastiPersona"', 'id="notti"', 'id="camere"'],
-  'js/straordinari/views/impostazioni.js': ['id="s-mensile"'],            // soglia in ore intere
   'js/views/impostazioni.js': ['id="giorni"'],                            // giorni di scadenza
 };
 

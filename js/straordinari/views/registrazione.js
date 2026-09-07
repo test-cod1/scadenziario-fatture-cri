@@ -142,9 +142,8 @@ export async function renderRegistrazione(view, id, ctx) {
     const segno = tipoDi(rec.tipo).segno;
     const parti = [`Conteggiate ${fmtOre(ore)}${segno < 0 ? ' in meno (recupero)' : ''}.`];
     if (d !== null && Math.abs(d - ore) > 0.01) parti.push(`Gli orari indicati ne farebbero ${fmtOre(d)}.`);
-    if (ore > ctx.imp.sogliaSingola) parti.push(`Sopra la soglia di ${fmtOre(ctx.imp.sogliaSingola)} per una sola registrazione: controlla che non sia un errore di battitura.`);
     hint.textContent = parti.join(' ');
-    hint.classList.toggle('avviso', ore > ctx.imp.sogliaSingola);
+    hint.classList.remove('avviso');
   }
 
   // ---------- tipo (pulsanti invece di una tendina: sono quattro e la
@@ -242,11 +241,6 @@ export async function renderRegistrazione(view, id, ctx) {
     if (!da.data) { toast('Indica il giorno', 'err'); campi.data.focus(); return; }
     if (!da.ore || da.ore <= 0) { toast('Indica quante ore', 'err'); campi.ore.focus(); return; }
     if (da.ore > 24) { toast('Le ore di una singola riga non possono superare 24', 'err'); campi.ore.focus(); return; }
-    // Una soglia superata non è un errore (una notte intera di emergenza
-    // esiste): si chiede conferma, non si rifiuta.
-    if (da.ore > ctx.imp.sogliaSingola && !await confirmDialog(
-      `${fmtOre(da.ore)} in una sola registrazione: è sopra la soglia di ${fmtOre(ctx.imp.sogliaSingola)}. Confermi?`,
-      { okLabel: 'Sì, è corretto' })) { campi.ore.focus(); return; }
 
     let salvata;
     try { salvata = await straordinari.save(da); }

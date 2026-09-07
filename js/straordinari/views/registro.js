@@ -94,14 +94,13 @@ export async function renderRegistro(view, ctx) {
   function disegnaStats(elenco) {
     const t = totali(elenco);
     clear(stats);
-    const sopraSoglia = elenco.length ? dipendentiSopraSoglia(elenco, ctx.imp.sogliaMensile) : [];
     stats.append(
       el(`<div class="stat"><div class="k">Ore in più</div><div class="v">${esc(fmtOre(t.positive))}</div>
         <div class="s">straordinari e cambi turno</div></div>`),
       el(`<div class="stat"><div class="k">Recuperi</div><div class="v">${esc(fmtOre(t.recuperi))}</div>
         <div class="s">ore restituite ai dipendenti</div></div>`),
       el(`<div class="stat accent"><div class="k">Saldo del mese</div><div class="v">${esc(fmtOre(t.saldo, { segno: true }))}</div>
-        <div class="s">${t.righe} righe${sopraSoglia.length ? ` · ${sopraSoglia.length} sopra la soglia` : ''}</div></div>`),
+        <div class="s">${t.righe} righe</div></div>`),
     );
   }
 
@@ -203,13 +202,6 @@ export async function renderRegistro(view, ctx) {
   disegna();
 }
 
-// Quali dipendenti hanno superato la soglia mensile: serve solo al conteggio in
-// testata, il dettaglio sta nel riepilogo.
-function dipendentiSopraSoglia(elenco, soglia) {
-  const per = new Map();
-  for (const r of elenco) per.set(r.dipendente_id, (per.get(r.dipendente_id) || 0) + oreConSegno(r));
-  return [...per.entries()].filter(([, ore]) => ore > soglia);
-}
 
 // Riga di sottotitolo della stampa: senza, un elenco filtrato per un solo
 // dipendente stampato sembrerebbe il registro intero del mese.

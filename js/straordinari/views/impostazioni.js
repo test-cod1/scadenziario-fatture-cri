@@ -1,14 +1,14 @@
 // ============================================================
 //  IMPOSTAZIONI DELLA SEZIONE STRAORDINARI
-//  Due cose sole: l'elenco delle causali (perché un campo libero, dopo tre
-//  mesi, diventa venti modi diversi di scrivere "copertura turno") e le due
-//  soglie di avviso. Le può cambiare l'admin di sezione: sono le regole con
-//  cui si legge tutto il registro, non un dato di giornata.
+//  Una cosa sola: l'elenco delle causali, perché un campo libero dopo tre
+//  mesi diventa venti modi diversi di scrivere "copertura turno". Lo può
+//  cambiare l'admin di sezione. C'erano anche due soglie di attenzione,
+//  tolte il 05/09/2026: nessuno le tarava, e gli avvisi che facevano
+//  comparire non cambiavano il lavoro di chi registra.
 // ============================================================
 import { impostazioni } from '../data/store.js';
 import { IMPOSTAZIONI_DEFAULT } from '../calc.js';
 import { el, clear, esc, toast, confirmDialog } from '../lib/ui.js';
-import { CAMPO_DECIMALE, testoDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
 
 export async function renderImpostazioni(view, ctx) {
   const soloLettura = ctx.ruolo !== 'admin';
@@ -17,7 +17,7 @@ export async function renderImpostazioni(view, ctx) {
   const wrap = el(`<div class="str-editor">
     <div class="page-head">
       <div><h1>Impostazioni straordinari</h1>
-        <p>Causali proposte in fase di registrazione e soglie di attenzione</p></div>
+        <p>Le causali proposte in fase di registrazione</p></div>
       ${soloLettura ? '' : '<div class="actions"><button class="btn primary" data-salva>💾 Salva</button></div>'}
     </div>
 
@@ -36,23 +36,6 @@ export async function renderImpostazioni(view, ctx) {
       </div>`}
     </div></div>
 
-    <div class="card" style="margin-top:18px"><div class="card-h">Soglie di attenzione</div><div class="card-b">
-      <p class="muted small" style="margin:0 0 14px">Non impediscono niente: servono a far comparire
-      un avviso dove prima non c'era nulla, cioè le due situazioni che sul foglio di carta si scoprivano
-      troppo tardi — le ore concentrate sempre sulle stesse persone, e lo zero di troppo battuto di fretta.</p>
-      <div class="form-row">
-        <div class="field">
-          <label for="s-mensile">Ore al mese per dipendente</label>
-          <input type="number" id="s-mensile" min="1" step="1" value="${esc(ctx.imp.sogliaMensile)}" ${soloLettura ? 'disabled' : ''}>
-          <div class="hint">Oltre questo saldo mensile, nel riepilogo il dipendente viene evidenziato.</div>
-        </div>
-        <div class="field">
-          <label for="s-singola">Ore in una sola registrazione</label>
-          <input ${CAMPO_DECIMALE} id="s-singola" value="${testoDecimale(ctx.imp.sogliaSingola)}" ${soloLettura ? 'disabled' : ''}>
-          <div class="hint">Oltre queste ore, il salvataggio chiede una conferma.</div>
-        </div>
-      </div>
-    </div></div>
   </div>`);
   view.appendChild(wrap);
 
@@ -95,11 +78,7 @@ export async function renderImpostazioni(view, ctx) {
     });
 
     wrap.querySelector('[data-salva]').addEventListener('click', async () => {
-      const dati = {
-        causali,
-        sogliaMensile: Number(wrap.querySelector('#s-mensile').value),
-        sogliaSingola: leggiDecimaleO0(wrap.querySelector('#s-singola').value),
-      };
+      const dati = { causali };
       try { await impostazioni.save(dati); }
       catch (e) { toast('Salvataggio non riuscito: ' + e.message, 'err'); return; }
       await ctx.ricarica();
