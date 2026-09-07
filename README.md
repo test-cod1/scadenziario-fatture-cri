@@ -92,6 +92,7 @@ Le pagine della sezione:
 - **Dipendenti** — l’elenco da cui si sceglie chi ha fatto lo straordinario, col saldo del mese in corso accanto a ogni nome. Cognome, nome e un promemoria: non è una copia del personale dell’ente, e matricola, telefono e ore di contratto sono stati tolti perché non entravano in nessun calcolo. Chi va via si disattiva, non si cancella: lo storico è suo.
 - **Impostazioni** — l'elenco delle causali proposte in fase di registrazione. Le modifica l'admin di sezione; gli altri le vedono in sola lettura. C'erano anche due soglie di attenzione, tolte perché gli avvisi che facevano comparire non cambiavano il lavoro di chi registra.
 
+La sezione ha il suo **tour guidato** (il pulsante 🎓): diciotto passi che attraversano registro, scheda di registrazione, riepilogo, dipendenti e impostazioni — il copione sta in [`js/tour/straordinari.js`](js/tour/straordinari.js). Passa davvero dalla scheda di una registrazione nuova, ma non salva nulla.
 Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di menu della sezione) e, subito dopo, `supabase/patch-2026-09-05-dipendenti.sql`, che rinomina l'anagrafica da *autisti* a *dipendenti* — il registro serve per tutto il personale, non solo per chi guida — e carica l'elenco delle 19 persone in servizio al 05/09/2026. Poi `supabase/patch-2026-09-05-dipendenti-essenziali.sql`, che toglie dall'anagrafica matricola, telefono e ore di contratto.
 
 ## 1. Crea il progetto Supabase

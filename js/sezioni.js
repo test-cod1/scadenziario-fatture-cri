@@ -121,7 +121,7 @@ export const SEZIONI = [
     // Le impostazioni stanno nel menu della sezione e non fra le voci
     // riservate agli admin (dove sta quella dello scadenziario) perché la
     // pagina si apre anche in sola lettura: chi registra deve poter vedere
-    // quali sono le soglie che gli fanno comparire gli avvisi.
+    // quali causali sono state configurate.
     menu: [
       { id: 'registro', icon: '📋', label: 'Registro', attivoAnche: ['registrazione'] },
       { id: 'nuovo', icon: '➕', label: 'Registra ore' },
@@ -129,6 +129,7 @@ export const SEZIONI = [
       { id: 'dipendenti', icon: '👤', label: 'Dipendenti' },
       { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
     ],
+    tour: () => import('./tour/straordinari.js'),
     icona: ICONE.straordinari,
   },
 ];
