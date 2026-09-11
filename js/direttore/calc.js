@@ -33,9 +33,14 @@ export function oggiISO() {
 // millisecondi.
 export function giorniAllaScadenza(scadenza, da = oggiISO()) {
   if (!scadenza) return null;
-  const a = Date.UTC(...scadenza.split('-').map((n, i) => i === 1 ? Number(n) - 1 : Number(n)));
-  const b = Date.UTC(...da.split('-').map((n, i) => i === 1 ? Number(n) - 1 : Number(n)));
-  return Math.round((a - b) / 86400000);
+  const a = Date.UTC(...String(scadenza).split('-').map((n, i) => i === 1 ? Number(n) - 1 : Number(n)));
+  const b = Date.UTC(...String(da).split('-').map((n, i) => i === 1 ? Number(n) - 1 : Number(n)));
+  const giorni = Math.round((a - b) / 86400000);
+  // Una data che non si legge vale come nessuna data. Dal database non
+  // può arrivare (la colonna è `date`), ma senza questo controllo il NaN
+  // attraversava tutti i confronti di etichettaScadenza — sono tutti
+  // falsi con NaN — e usciva dall'ultimo come «fra NaN mesi».
+  return Number.isFinite(giorni) ? giorni : null;
 }
 
 // Come si chiama, a parole, il tempo che resta. È l'etichetta che va sul

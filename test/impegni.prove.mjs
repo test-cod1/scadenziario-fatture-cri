@@ -35,6 +35,16 @@ prova('la scadenza si racconta a parole, non con una data', () => {
   uguale(etichettaScadenza(null, OGGI).stato, 'nessuna');
 });
 
+prova('una data che non si legge vale come nessuna data', () => {
+  // Senza il controllo, il NaN attraversava tutti i confronti di
+  // etichettaScadenza (con NaN sono tutti falsi) e usciva dall'ultimo
+  // come «fra NaN mesi», scritto in chiaro nell'elenco.
+  uguale(giorniAllaScadenza('domani', OGGI), null);
+  uguale(giorniAllaScadenza('2026-09-11T10:00:00Z', OGGI), null, 'un timestamp non è una scadenza');
+  uguale(etichettaScadenza('domani', OGGI).testo, 'senza scadenza');
+  uguale(etichettaScadenza('domani', OGGI).stato, 'nessuna');
+});
+
 prova('oltre il mese si contano i mesi, e uno solo è «un mese»', () => {
   uguale(etichettaScadenza('2026-10-11', OGGI).testo, 'fra 30 giorni', 'fino a trenta si contano i giorni');
   uguale(etichettaScadenza('2026-10-21', OGGI).testo, 'fra un mese', 'non «fra 1 mesi»');

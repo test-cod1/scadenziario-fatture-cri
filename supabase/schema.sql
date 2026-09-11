@@ -1400,3 +1400,61 @@ comment on table public.dipendenti_straordinari is
   'Dipendenti a cui si possono richiedere straordinari: solo il nominativo, serve a scegliere un nome da un elenco';
 comment on table public.straordinari is
   'Registro degli straordinari richiesti ai dipendenti dalla centrale operativa';
+
+-- ============================================================
+--  SEZIONE DIRETTORE
+--  Gli impegni della direzione: cosa fare, quanto urgente, quanto
+--  importante, entro quando. Urgenza e importanza restano due colonne
+--  separate perche' sono due cose diverse — la riunione di domani preme
+--  molto e puo' contare poco — e l'ordine in cui compaiono lo calcola
+--  l'app (js/direttore/calc.js), non il database: dipende da quanti
+--  giorni mancano alla scadenza, quindi cambia da solo ogni giorno.
+--  Vedi patch-2026-09-11-impegni-direttore.sql.
+-- ============================================================
+
+create table if not exists public.impegni_direttore (
+  id uuid primary key default gen_random_uuid(),
+
+  titolo text not null check (btrim(titolo) <> ''),
+  dettagli text,
+
+  -- Tre livelli, non un numero libero: un campo aperto avrebbe prodotto
+  -- una scala diversa ogni mese, e l'ordinamento avrebbe smesso di voler
+  -- dire qualcosa.
+  urgenza    text not null default 'media' check (urgenza    in ('alta', 'media', 'bassa')),
+  importanza text not null default 'media' check (importanza in ('alta', 'media', 'bassa')),
+
+  -- Può mancare, ed è un'informazione: "va fatto, ma non entro una data".
+  -- Un default a oggi avrebbe spinto in cima all'elenco ogni cosa appena
+  -- scritta, che è il contrario di quello che serve.
+  scadenza date,
+
+  fatto boolean not null default false,
+  fatto_il timestamptz,
+
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+-- L'elenco si apre sempre sulle cose da fare: l'indice segue quella
+-- lettura, non l'ordine di inserimento.
+create index if not exists idx_impegni_dir_aperti on public.impegni_direttore(fatto, scadenza);
+
+comment on table public.impegni_direttore is
+  'Impegni della direzione: cosa fare, quanto urgente, quanto importante, entro quando';
+
+-- ---------- ROW LEVEL SECURITY ----------
+-- Gli impegni sono condivisi fra chi ha accesso alla sezione, come i dati
+-- di tutte le altre sezioni del portale: Direttore è la scrivania della
+-- direzione, non l'agenda privata di una persona. Chi non ha la sezione
+-- non vede nulla, e da patch-2026-09-05-sospensione-e-quote.sql questo
+-- vale anche per chi è stato sospeso, non solo nel browser.
+alter table public.impegni_direttore enable row level security;
+
+drop policy if exists impegni_dir_read on public.impegni_direttore;
+create policy impegni_dir_read on public.impegni_direttore for select
+  using (public.accede_a('direttore'));
+drop policy if exists impegni_dir_write on public.impegni_direttore;
+create policy impegni_dir_write on public.impegni_direttore for all
+  using (public.accede_a('direttore')) with check (public.accede_a('direttore'));

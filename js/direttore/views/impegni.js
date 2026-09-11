@@ -13,6 +13,13 @@ import { LIVELLI, livelloDi, ordina, totali, etichettaScadenza, giorniAllaScaden
 import { el, clear, esc, toast, confirmDialog, rendiCliccabile, fmtDate } from '../../lib/ui.js';
 
 export async function renderImpegni(view, ctx) {
+  // Un "Annulla" rimasto in sospeso vale per la pagina su cui è stato
+  // aperto: premerlo dopo essere usciti e rientrati avrebbe corretto il
+  // database ma aggiornato la pagina di prima, ormai staccata, lasciando
+  // a schermo un elenco che dice il contrario del vero. Aprendo l'elenco
+  // si chiude quello che era rimasto lì.
+  document.querySelectorAll('.toast .toast-azione').forEach(b => b.closest('.toast').remove());
+
   let elenco = await store.list();
 
   const head = el(`<div class="page-head">
