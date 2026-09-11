@@ -1,7 +1,7 @@
 import { auth } from '../data/store.js';
 import { el, clear, esc, toast } from '../lib/ui.js';
 
-const BRAND = `<div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>CRI Genova</span></div></div>`;
+const BRAND = `<div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>Croce Rossa Italiana — Comitato di Genova</span></div></div>`;
 
 export function renderLogin(app, onDone) {
   clear(app);

@@ -1,7 +1,7 @@
 {
   "name": "amministrazione-cri-genova",
   "version": "1.0.0",
-  "description": "Portale gestionale CRI Genova: scadenziario fatture, formazione esterna, trasporti lunghi, assistenze sanitarie, straordinari",
+  "description": "Strumenti amministrativi del Comitato di Genova della Croce Rossa Italiana: scadenziario fatture, formazione esterna, trasporti lunghi, assistenze sanitarie, straordinari",
   "scripts": {
     "dev": "node server.js",
     "test": "node test/esegui.mjs",

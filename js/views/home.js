@@ -12,7 +12,7 @@ export async function renderHome(view, ctx) {
   const wrap = el(`<div class="home">
     <div class="home-head">
       <h1>Seleziona una sezione</h1>
-      <p>Portale gestionale CRI Genova</p>
+      <p>Croce Rossa Italiana — Comitato di Genova</p>
     </div>
     <div class="home-grid"></div>
   </div>`);

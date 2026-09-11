@@ -49,7 +49,7 @@ async function boot() {
 function renderNonAbilitato() {
   clear(app);
   app.appendChild(el(`<div class="login-wrap"><div class="login">
-    <div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>CRI Genova</span></div></div>
+    <div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>Croce Rossa Italiana — Comitato di Genova</span></div></div>
     <div class="banner warn" style="margin:18px 0"><div class="bi">⏳</div><div>
       <b>Account non ancora abilitato</b>
       <div class="small">L'accesso è riuscito, ma un amministratore del portale deve autorizzare il tuo
@@ -102,7 +102,7 @@ function renderShell() {
   clear(app);
   const layout = el(`<div class="layout">
     <aside class="sidebar">
-      <a class="brand brand-link" href="#/home" title="Torna alla scelta delle sezioni"><div class="logo">✚</div><div><b>Amministrazione</b><span>CRI Genova</span></div></a>
+      <a class="brand brand-link" href="#/home" title="Torna alla scelta delle sezioni"><div class="logo">✚</div><div><b>Amministrazione</b><span>Croce Rossa Italiana — Comitato di Genova</span></div></a>
       <nav class="nav nav-sezioni"></nav>
       <div class="sez-corrente" id="subnav"></div>
       <nav class="nav nav-secondary" id="nav-imp"></nav>

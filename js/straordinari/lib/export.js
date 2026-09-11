@@ -95,7 +95,7 @@ export function stampaRiepilogo(riepilogo, perGiorno, mese, { righe = [] } = {})
     .firme div{flex:1;border-top:1px solid #9aa4ae;padding-top:4px}
   </style></head><body>
   <h1>Straordinari — ${esc(etichettaMese(mese))}</h1>
-  <div class="sub">Croce Rossa Italiana — Comitato di Genova · Centrale operativa ·
+  <div class="sub">Croce Rossa Italiana — Comitato di Genova · Sala Operativa ·
     ore in più ${numero(t.positive)}, recuperi ${numero(t.recuperi)}, saldo ${numero(t.saldo)}
 </div>
   <table>
@@ -103,7 +103,7 @@ export function stampaRiepilogo(riepilogo, perGiorno, mese, { righe = [] } = {})
     <tbody>${corpo || `<tr><td colspan="${giorni.length + 4}">Nessuno straordinario registrato in questo mese.</td></tr>`}</tbody>
     <tfoot><tr><th class="nome">Totale giornata</th>${piede}<td class="tot">${numero(t.positive)}</td><td class="tot">${numero(t.recuperi)}</td><td class="tot saldo">${numero(t.saldo)}</td></tr></tfoot>
   </table>
-  <div class="firme"><div>Il responsabile della centrale operativa</div><div>Ufficio personale</div></div>
+  <div class="firme"><div>Il responsabile della Sala Operativa</div><div>Ufficio personale</div></div>
   </body></html>`);
   w.document.close();
   w.focus();
@@ -141,7 +141,7 @@ export function stampaElenco(righe, mese, sottotitolo = '') {
     tfoot td{font-weight:700;border-top:2px solid #cfd6dc}
   </style></head><body>
   <h1>Straordinari — ${esc(etichettaMese(mese))}</h1>
-  <div class="sub">Croce Rossa Italiana — Comitato di Genova · Centrale operativa${sottotitolo ? ' · ' + esc(sottotitolo) : ''}</div>
+  <div class="sub">Croce Rossa Italiana — Comitato di Genova · Sala Operativa${sottotitolo ? ' · ' + esc(sottotitolo) : ''}</div>
   <table>
     <thead><tr><th>Data</th><th>Dipendente</th><th>Orario</th><th class="num">Ore</th><th>Tipo</th><th>Causale</th></tr></thead>
     <tbody>${corpo || '<tr><td colspan="8">Nessuna riga.</td></tr>'}</tbody>

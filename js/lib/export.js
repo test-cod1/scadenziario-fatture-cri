@@ -62,7 +62,7 @@ export function exportPDF(righe, titolo = 'Scadenziario fatture') {
     tfoot td{font-weight:700;border-top:2px solid #1c2024}
   </style></head><body>
   <h1>${esc(titolo)}</h1>
-  <div class="sub">CRI Genova · generato il ${new Date().toLocaleString('it-IT')}</div>
+  <div class="sub">Croce Rossa Italiana — Comitato di Genova · generato il ${new Date().toLocaleString('it-IT')}</div>
   <table>
     <thead><tr><th>Fornitore</th><th>N. Fattura</th><th>Data</th><th class="num">Importo</th><th>Scadenza</th><th>Stato</th><th class="num">Residuo</th></tr></thead>
     <tbody>${rowsHtml}</tbody>
@@ -127,7 +127,7 @@ export function exportPDFAttive(righe, titolo = 'Fatture attive') {
     tfoot td{font-weight:700;border-top:2px solid #1c2024}
   </style></head><body>
   <h1>${esc(titolo)}</h1>
-  <div class="sub">CRI Genova · generato il ${new Date().toLocaleString('it-IT')}</div>
+  <div class="sub">Croce Rossa Italiana — Comitato di Genova · generato il ${new Date().toLocaleString('it-IT')}</div>
   <table>
     <thead><tr><th>Cliente</th><th>N. Fattura</th><th>Data</th><th class="num">Importo</th><th>Stato</th><th class="num">Residuo</th><th>Ultimo sollecito</th></tr></thead>
     <tbody>${rowsHtml}</tbody>

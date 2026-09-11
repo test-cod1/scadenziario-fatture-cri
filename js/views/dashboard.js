@@ -53,7 +53,7 @@ export async function renderDashboard(view, ctx) {
 
   const wrap = el(`<div>
     <div class="page-head">
-      <div><h1>Scadenziario Fatture</h1><p>Fatture fornitori — CRI Genova</p></div>
+      <div><h1>Scadenziario Fatture</h1><p>Fatture fornitori — Croce Rossa Italiana — Comitato di Genova</p></div>
       <div class="actions">
         <button class="btn" id="exp-csv">📊 Esporta Excel</button>
         <button class="btn" id="exp-pdf">🖨️ Esporta PDF</button>
