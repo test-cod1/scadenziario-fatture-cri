@@ -142,13 +142,33 @@ export async function renderImpegni(view, ctx) {
     </div>`);
 
     r.querySelector('.dir-spunta').addEventListener('click', async () => {
+      const eraFatto = !!i.fatto;
       try {
-        const agg = await store.segna(i.id, !i.fatto);
+        const agg = await store.segna(i.id, !eraFatto);
         Object.assign(i, agg);
       } catch (e) { toast('Non è riuscito: ' + e.message, 'err'); return; }
-      toast(i.fatto ? 'Fatto' : 'Rimesso fra le cose da fare', 'ok');
       disegnaStats();
       disegna();
+
+      if (eraFatto) { toast('Rimesso fra le cose da fare', 'ok'); return; }
+
+      // Segnare "fatto" fa sparire la riga dalla vista "Da fare", che è
+      // come si guarda l'elenco quasi sempre: se il clic è finito su
+      // quella sbagliata, senza questo non si saprebbe più nemmeno quale
+      // era. Cinque secondi per tornare indietro, col titolo sott'occhio.
+      const nome = i.titolo.length > 42 ? i.titolo.slice(0, 41).trimEnd() + '…' : i.titolo;
+      toast(`Fatto: ${nome}`, 'ok', {
+        label: 'Annulla', secondi: 5,
+        onAzione: async () => {
+          try {
+            const agg = await store.segna(i.id, false);
+            Object.assign(i, agg);
+          } catch (e) { toast('Annullamento non riuscito: ' + e.message, 'err'); return; }
+          toast('Rimesso fra le cose da fare', 'ok');
+          disegnaStats();
+          disegna();
+        },
+      });
     });
     r.querySelector('[data-mod]').addEventListener('click', () => ctx.go(`#/direttore/impegno/${i.id}`));
     rendiCliccabile(r.querySelector('.dir-corpo'), () => ctx.go(`#/direttore/impegno/${i.id}`));

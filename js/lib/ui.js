@@ -73,13 +73,30 @@ export function giorniDa(iso) {
 }
 
 // ---------- Toast ----------
+// Il terzo parametro trasforma l'avviso in un'azione annullabile: dentro
+// al toast compare un pulsante, e una barra che si consuma mostra quanto
+// tempo resta per premerlo. Serve dove il gesto fa sparire dalla vista la
+// riga su cui si è agito — segnare "fatto" un impegno mentre si guardano
+// le cose da fare — e chi ha cliccato quella sbagliata non saprebbe più
+// quale era. Scaduto il tempo il toast se ne va e la cosa è definitiva:
+// resta comunque modificabile, ma dall'elenco e con più di un clic.
 let toastT;
-export function toast(msg, kind = '') {
+export function toast(msg, kind = '', azione = null) {
   document.querySelectorAll('.toast').forEach(t => t.remove());
-  const t = el(`<div class="toast ${kind}">${esc(msg)}</div>`);
+  const durata = (azione?.secondi || 3) * 1000;
+  const t = el(`<div class="toast ${kind}" role="status"><span>${esc(msg)}</span></div>`);
+  if (azione) {
+    const b = el(`<button type="button" class="toast-azione">${esc(azione.label)}</button>`);
+    b.addEventListener('click', () => {
+      clearTimeout(toastT);
+      t.remove();
+      azione.onAzione();
+    });
+    t.append(b, el(`<span class="toast-tempo" style="animation-duration:${durata}ms"></span>`));
+  }
   document.body.appendChild(t);
   clearTimeout(toastT);
-  toastT = setTimeout(() => t.remove(), 3000);
+  toastT = setTimeout(() => t.remove(), durata);
 }
 
 // ---------- Modal ----------

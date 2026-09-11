@@ -230,7 +230,20 @@ tr.scaduta:hover td{background:#fbdcdd}
 .spinner{width:34px;height:34px;border:3px solid var(--line);border-top-color:var(--cri-red);border-radius:50%;animation:spin .8s linear infinite;margin:0 auto}
 .spinner.sm{width:18px;height:18px;border-width:2px;display:inline-block;margin:0;vertical-align:middle}
 @keyframes spin{to{transform:rotate(360deg)}}
-.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:100;animation:up .25s}
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:10px;font-size:14px;box-shadow:0 8px 24px rgba(0,0,0,.3);z-index:100;animation:up .25s;display:flex;align-items:center;gap:16px;overflow:hidden;max-width:min(92vw,560px)}
+/* Il pulsante dentro al toast (es. «Annulla» dopo aver segnato un impegno
+   come fatto): si legge sul fondo scuro o colorato del toast qualunque
+   esso sia, quindi prende il colore dal testo e non da una tinta fissa. */
+.toast-azione{flex:none;background:transparent;border:1.5px solid currentColor;color:inherit;
+  font:inherit;font-weight:700;padding:5px 12px;border-radius:8px;cursor:pointer}
+.toast-azione:hover{background:rgba(255,255,255,.18)}
+/* Quanto tempo resta per premerlo: una barra che si consuma, invece di un
+   numero che conta alla rovescia e che si finisce per leggere invece di
+   decidere. */
+.toast-tempo{position:absolute;left:0;bottom:0;height:3px;width:100%;background:rgba(255,255,255,.55);
+  animation-name:toast-tempo;animation-timing-function:linear;animation-fill-mode:forwards}
+@keyframes toast-tempo{from{width:100%}to{width:0}}
+@media (prefers-reduced-motion:reduce){.toast-tempo{animation:none;width:100%;opacity:.45}}
 .toast.ok{background:var(--ok)} .toast.err{background:var(--danger)}
 @keyframes up{from{opacity:0;transform:translate(-50%,10px)}}
 
