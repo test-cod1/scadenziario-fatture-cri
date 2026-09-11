@@ -613,3 +613,69 @@ table.tbl tbody tr.str-giorno:hover td{background:var(--bg);cursor:default}
 /* Autista disattivato: resta in elenco (lo storico è suo) ma si legge come
    sfondo, senza la barratura usata per le righe annullate del registro. */
 tr.str-inattivo td{opacity:.6}
+
+/* ============================================================
+   SEZIONE DIRETTORE (impegni)
+   ============================================================ */
+
+/* L'elenco non è una tabella: ogni impegno è un blocco con la sua spunta,
+   il titolo e i tre chip che ne spiegano il peso. Una tabella avrebbe
+   costretto i dettagli in una cella stretta, e i dettagli sono la parte
+   che si rilegge quando si riprende in mano la cosa dopo una settimana. */
+.dir-lista{display:flex;flex-direction:column;gap:10px}
+
+.dir-riga{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:start;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.dir-riga:hover{border-color:var(--ink-soft)}
+
+.dir-spunta{width:26px;height:26px;flex:none;margin-top:2px;border-radius:8px;cursor:pointer;
+  border:2px solid var(--line);background:var(--bg);color:var(--ok);
+  font-size:15px;font-weight:700;line-height:1;display:grid;place-items:center}
+.dir-spunta:hover{border-color:var(--ok)}
+.dir-corpo{min-width:0;cursor:pointer}
+.dir-titolo{font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+.dir-dettagli{color:var(--ink-soft);font-size:13px;margin-top:3px;
+  display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.dir-chip{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}
+.dir-azioni{display:flex;gap:4px;white-space:nowrap}
+
+/* Fatto: resta leggibile ma smette di chiedere attenzione. Niente
+   barratura sul titolo, che rende faticoso rileggere un archivio. */
+.dir-riga.fatta{background:var(--bg)}
+.dir-riga.fatta .dir-titolo{color:var(--ink-soft)}
+.dir-riga.fatta .dir-spunta{border-color:var(--ok);background:var(--ok-soft)}
+
+/* I tre livelli hanno lo stesso colore ovunque compaiano — sui chip
+   dell'elenco e sui pulsanti della scheda — così il colpo d'occhio vale
+   in tutte e due le pagine. */
+.chip.liv-alta{background:var(--danger-soft);color:var(--danger);border-color:transparent}
+.chip.liv-media{background:var(--info-soft);color:var(--info);border-color:transparent}
+.chip.liv-bassa{background:var(--bg);color:var(--ink-soft)}
+
+.chip.sca-scaduto{background:var(--danger-soft);color:var(--danger);border-color:transparent;font-weight:700}
+.chip.sca-oggi{background:var(--warn-soft);color:var(--warn);border-color:transparent;font-weight:700}
+.chip.sca-vicino{background:var(--warn-soft);color:var(--warn);border-color:transparent}
+.chip.sca-lontano{background:var(--bg);color:var(--ink-soft)}
+.chip.sca-nessuna{background:transparent;color:var(--ink-soft);border-style:dashed}
+
+/* Scelta del livello: tre pulsanti affiancati invece di una tendina.
+   Sono tre opzioni sempre le stesse, e vederle tutte e tre insieme rende
+   evidente che si sta scegliendo su una scala. */
+.dir-livelli{display:flex;gap:6px}
+.dir-liv{flex:1;padding:9px 6px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:600;
+  border:1.5px solid var(--line);background:var(--card);color:var(--ink-soft)}
+.dir-liv:hover{border-color:var(--ink-soft)}
+.dir-liv.scelto.liv-alta{background:var(--danger-soft);color:var(--danger);border-color:var(--danger)}
+.dir-liv.scelto.liv-media{background:var(--info-soft);color:var(--info);border-color:var(--info)}
+.dir-liv.scelto.liv-bassa{background:var(--bg);color:var(--ink);border-color:var(--ink-soft)}
+
+/* La riga che dice dove finirà l'impegno nell'elenco: è un aiuto, non un
+   dato, quindi sta staccata in fondo alla scheda e non compete col form. */
+.dir-peso{margin-top:16px;padding-top:14px;border-top:1px dashed var(--line);
+  color:var(--ink-soft);font-size:13px}
+
+@media (max-width:560px){
+  .dir-riga{grid-template-columns:auto 1fr;row-gap:8px}
+  .dir-azioni{grid-column:2;justify-content:flex-end}
+  .dir-livelli{flex-direction:column}
+}

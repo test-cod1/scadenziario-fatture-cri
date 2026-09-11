@@ -9,7 +9,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Trasporti lunghi** | attiva: preventivi per i trasporti sanitari fuori Genova (arrivata dal gestionale `preventivo-trasporti`, assorbita qui il 01/09/2026) |
 | **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
 | **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
-| **Direttore** | da sviluppare: per ora esiste la card e i permessi, il contenuto arriverà |
+| **Direttore** | attiva: gli impegni della direzione, ordinati per urgenza, importanza e scadenza |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 
@@ -46,6 +46,28 @@ Il preventivo esce in **PDF** (stampa del browser) e in **Word (.docx)**, con lo
 La sezione ha il suo **tour guidato** (il pulsante 🎓): una ventina di passi che attraversano elenco, editor, rubrica e impostazioni: il copione sta in [`js/tour/formazione.js`](js/tour/formazione.js). Passa davvero dall'editor di un preventivo nuovo, ma non salva nulla.
 
 Richiede [`supabase/patch-2026-09-06-formazione.sql`](supabase/patch-2026-09-06-formazione.sql). Il catalogo di partenza — i sei corsi del listino — lo crea l'app alla prima apertura delle Impostazioni, **con i prezzi a zero**: vanno impostati lì prima del primo preventivo, e finché un corso resta a zero l'editor lo segnala.
+
+## Sezione Direttore
+
+Le cose da fare della direzione, tenute in ordine di **peso** invece che di arrivo. Ogni impegno porta tre informazioni, e sono tre cose diverse di proposito:
+
+- l'**importanza** — quanto pesa il risultato, a prescindere da quando va fatto;
+- l'**urgenza** — quanto preme il tempo;
+- la **scadenza** — entro quando, e può restare vuota: «va fatto, ma non entro una data» è una risposta legittima.
+
+Tenerle separate è tutto il punto della sezione: la riunione di domani preme molto e può contare poco, il bilancio conta molto mesi prima di premere. Confonderle in una sola "priorità" è il modo classico per passare le giornate a spegnere incendi e non fare mai le cose che contano.
+
+**L'elenco si ordina da sé** e cambia da solo con il passare dei giorni: l'ordine nasce da importanza (che pesa il doppio), urgenza e giorni che mancano alla scadenza. Una cosa importante che scade domani sale sopra una urgente che scade fra un mese; una che è già scaduta sale in alto, ma non arriva a coprire ciò che è al massimo su entrambe le scale — se bastasse una scadenza dimenticata su una pratica marginale per finire in testa, l'elenco smetterebbe di dire quale sia il lavoro che conta. Le regole sono fissate da [`test/impegni.prove.mjs`](test/impegni.prove.mjs), caso per caso.
+
+In testa alla pagina ci sono quattro numeri — da fare, scaduti, in scadenza entro sette giorni, senza scadenza — e i due di mezzo sono anche filtri: un clic e l'elenco mostra solo quelli. La **spunta si dà dall'elenco**, senza aprire niente: è il gesto che si fa più spesso, e farlo passare da una scheda sarebbe il modo per non tenere mai l'elenco aggiornato. Gli impegni fatti scendono in fondo con la data, i più recenti per primi: è un archivio, non una coda.
+
+Nella scheda l'unica cosa obbligatoria è **che cosa c'è da fare** — un impegno che non si riesce ad annotare in dieci secondi non viene annotato affatto. Man mano che si scelgono i livelli, una riga in fondo dice in che parte dell'elenco comparirà, così non si deve indovinare l'effetto delle tre scelte.
+
+Gli impegni sono **condivisi fra chi ha accesso alla sezione**, come i dati di tutte le altre: Direttore è la scrivania della direzione, non l'agenda privata di una persona.
+
+La sezione ha il suo **tour guidato** (il pulsante 🎓): undici passi fra elenco e scheda, il copione sta in [`js/tour/direttore.js`](js/tour/direttore.js).
+
+Richiede [`supabase/patch-2026-09-11-direttore.sql`](supabase/patch-2026-09-11-direttore.sql) (la sezione nel portale) e [`supabase/patch-2026-09-11-impegni-direttore.sql`](supabase/patch-2026-09-11-impegni-direttore.sql) (la tabella degli impegni, con le sue policy).
 
 ## Sezione Trasporti lunghi
 
@@ -133,6 +155,8 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 > **[`patch-2026-09-05-sospensione-e-quote.sql`](supabase/patch-2026-09-05-sospensione-e-quote.sql)** è una **correzione di sicurezza, da eseguire appena possibile**. Rende effettiva la sospensione: `ruolo_sezione()` ora risponde NULL a chi ha il profilo sospeso o non ne ha più uno, e siccome tutte le policy passano da quella funzione, l'accesso ai dati si chiude per tutte le sezioni insieme. Prima il blocco viveva solo nel browser, e un utente sospeso con una sessione aperta continuava a leggere e scrivere via API. La stessa patch aggiunge `consumi_api` e `consuma_quota()`, il tetto giornaliero per utente sugli endpoint che spendono le quote di Gemini e OpenRouteService.
 >
 > **[`patch-2026-09-11-direttore.sql`](supabase/patch-2026-09-11-direttore.sql)** aggiunge la sezione *Direttore* a `public.sezioni`. Senza, la card compare nella home ma il permesso non si può assegnare, perché quella tabella è la chiave esterna di `autorizzazioni` — ed è esattamente il caso che la pagina *Utenti e autorizzazioni* segnala da sé con un avviso.
+>
+> **[`patch-2026-09-11-impegni-direttore.sql`](supabase/patch-2026-09-11-impegni-direttore.sql)** crea `impegni_direttore`, la tabella della sezione Direttore, con le policy che la riservano a chi ha quella sezione. Va dopo la patch qui sopra, che crea la sezione stessa.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -239,6 +263,10 @@ js/formazione/                 sezione Formazione Esterna: preventivi per i cors
 js/formazione/calc.js           catalogo dei corsi, listino/prezzo riservato, sconti e IVA
 js/formazione/lib/documento.js  il preventivo dei corsi come blocchi (tabella, attestazioni, sede)
 js/formazione/views/preventivo.js  editor: destinatario, corsi, sede, IVA e sconti
+js/direttore/                  sezione Direttore: gli impegni della direzione
+js/direttore/calc.js            livelli, scadenze e il punteggio con cui si ordina l’elenco
+js/direttore/views/impegni.js   l’elenco, i quattro numeri in testa e la spunta rapida
+js/direttore/views/impegno.js   la scheda: titolo, i due livelli, scadenza e dettagli
 js/lib/carta.js                 legge la carta intestata .dotx (immagini e testi)
 js/lib/docxBlocchi.js           dai blocchi al .docx, sostituendo il corpo del modello
 js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF

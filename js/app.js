@@ -340,6 +340,10 @@ async function route() {
       const { renderStraordinari } = await import('./straordinari/sezione.js');
       return await disegna(z => renderStraordinari(z, ctx, sub, param));
     }
+    if (sezione.id === 'direttore') {
+      const { renderDirettore } = await import('./direttore/sezione.js');
+      return await disegna(z => renderDirettore(z, ctx, sub, param));
+    }
     if (sezione.id !== 'scadenziario') return await disegna(z => renderSezioneVuota(z, ctx, sezione));
 
     if (sub === 'impostazioni') await disegna(z => renderImpostazioni(z, ctx));

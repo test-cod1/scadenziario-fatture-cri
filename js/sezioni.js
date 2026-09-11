@@ -140,21 +140,17 @@ export const SEZIONI = [
   {
     id: 'direttore',
     label: 'Direttore',
-    descrizione: 'Lo spazio della direzione: contenuto ancora da definire.',
+    descrizione: 'Gli impegni della direzione, per urgenza, importanza e scadenza.',
     emoji: '🧭',
     colore: '#1e40af',
     ombra: 'rgba(30,64,175,.22)',
     tipo: 'interna',
-    home: '#/direttore',
-    // Nessun `menu`: finché non ci sono pagine, la barra laterale mostra la
-    // sola voce Home e il router serve il segnaposto "in costruzione"
-    // (js/views/sezioneVuota.js). Quando il contenuto ci sarà, qui si
-    // aggiungono le voci e in js/app.js il ramo che importa il modulo della
-    // sezione — come è stato per straordinari.
-    //
-    // `inSviluppo` non cambia nulla a schermo: dice alle prove automatiche
-    // che l'assenza di un tour guidato è voluta e non una dimenticanza.
-    inSviluppo: true,
+    home: '#/direttore/impegni',
+    menu: [
+      { id: 'impegni', icon: '🗒️', label: 'Impegni', attivoAnche: ['impegno'] },
+      { id: 'nuovo', icon: '➕', label: 'Nuovo impegno' },
+    ],
+    tour: () => import('./tour/direttore.js'),
     icona: ICONE.direttore,
   },
 ];
