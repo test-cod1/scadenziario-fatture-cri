@@ -43,7 +43,7 @@ function cardAperta(s, ruolo) {
   const href = esterna ? s.url : s.home;
   const card = el(`<a class="home-card" href="${esc(href)}"
       ${esterna ? 'target="_blank" rel="noopener noreferrer"' : ''}
-      style="--c:${s.colore};--o:${s.ombra}" title="${esc(s.descrizione)}">
+      title="${esc(s.descrizione)}">
     <div class="hc-top">
       <span class="hc-ico">${s.icona}</span>
       ${ruolo === 'admin' ? '<span class="hc-badge">admin</span>' : ''}
@@ -57,7 +57,7 @@ function cardAperta(s, ruolo) {
 }
 
 function cardBloccata(s) {
-  const card = el(`<div class="home-card locked" style="--c:${s.colore};--o:${s.ombra}"
+  const card = el(`<div class="home-card locked"
       role="button" tabindex="0" aria-disabled="true" title="Non sei autorizzato ad accedere a ${esc(s.label)}">
     <div class="hc-top">
       <span class="hc-ico">${s.icona}</span>
