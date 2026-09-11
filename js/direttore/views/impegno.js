@@ -66,12 +66,6 @@ export async function renderImpegno(view, id, ctx) {
           <input type="date" id="f-scadenza">
           <div class="hint" data-scadenza>Può restare vuota: «va fatto, ma non entro una data».</div>
         </div>
-        <div class="field">
-          <label for="f-fatto">Stato</label>
-          <div class="switch-row"><label class="switch">
-            <input type="checkbox" id="f-fatto"><span class="slider"></span>
-            <span data-stato>Da fare</span></label></div>
-        </div>
       </div>
 
       <div class="field">
@@ -80,6 +74,10 @@ export async function renderImpegno(view, id, ctx) {
       </div>
 
       <div class="dir-peso" data-peso></div>
+
+      ${nuovo ? '' : `<div class="switch-row"><label class="switch">
+        <input type="checkbox" id="f-fatto"><span class="slider"></span>
+        <span data-stato>Da fare</span></label></div>`}
     </div></div>
 
     ${nuovo ? '' : `<div class="str-elimina">
@@ -148,15 +146,19 @@ export async function renderImpegno(view, id, ctx) {
     hint.classList.toggle('avviso', sca.stato === 'scaduto');
   }
 
+  // Lo switch c'è solo quando si modifica un impegno esistente: uno nuovo
+  // nasce da fare, e chiederlo sarebbe una domanda con una risposta sola.
   function aggiornaStato() {
-    editor.querySelector('[data-stato]').textContent = campi.fatto.checked ? 'Fatto' : 'Da fare';
+    if (!campi.fatto) return;
+    editor.querySelector('[data-stato]').textContent =
+      campi.fatto.checked ? 'Fatto' : 'Da fare — spunta quando è chiuso';
   }
 
   function riempi() {
     campi.titolo.value = rec.titolo || '';
     campi.scadenza.value = rec.scadenza || '';
     campi.dettagli.value = rec.dettagli || '';
-    campi.fatto.checked = !!rec.fatto;
+    if (campi.fatto) campi.fatto.checked = !!rec.fatto;
     scegliLivello('urgenza', rec.urgenza || 'media', false);
     scegliLivello('importanza', rec.importanza || 'media', false);
     aggiornaScadenza();
@@ -172,7 +174,7 @@ export async function renderImpegno(view, id, ctx) {
   campi.titolo.addEventListener('input', segnaModificato);
   campi.dettagli.addEventListener('input', segnaModificato);
   campi.scadenza.addEventListener('change', () => { aggiornaScadenza(); aggiornaPeso(); segnaModificato(); });
-  campi.fatto.addEventListener('change', () => { aggiornaStato(); segnaModificato(); });
+  campi.fatto?.addEventListener('change', () => { aggiornaStato(); segnaModificato(); });
 
   function raccogli() {
     return {
@@ -181,7 +183,7 @@ export async function renderImpegno(view, id, ctx) {
       dettagli: campi.dettagli.value,
       urgenza, importanza,
       scadenza: campi.scadenza.value || null,
-      fatto: campi.fatto.checked,
+      fatto: campi.fatto ? campi.fatto.checked : !!rec.fatto,
     };
   }
 
