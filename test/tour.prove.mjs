@@ -38,9 +38,22 @@ async function copioni() {
   return out;
 }
 
-prova('ogni sezione del portale ha il suo tour', () => {
-  const senza = SEZIONI.filter(s => typeof s.tour !== 'function').map(s => s.id);
-  uguale(senza, [], 'sezioni senza tour');
+prova('ogni sezione già sviluppata ha il suo tour', () => {
+  // Una sezione ancora da costruire non ha pagine da mostrare, quindi non ha
+  // un tour: lo dichiara con `inSviluppo` in js/sezioni.js. È un'esenzione
+  // esplicita, non un buco — il giorno in cui la sezione viene sviluppata si
+  // toglie quel flag e questa prova chiede il tour.
+  const senza = SEZIONI.filter(s => !s.inSviluppo && typeof s.tour !== 'function').map(s => s.id);
+  uguale(senza, [], 'sezioni sviluppate senza tour');
+});
+
+prova('una sezione in sviluppo non promette pagine che non ha', () => {
+  for (const s of SEZIONI.filter(x => x.inSviluppo)) {
+    vero(!s.menu || !s.menu.length,
+      `${s.id}: dichiara un menu ma è segnata in sviluppo — il router servirebbe comunque il segnaposto`);
+    vero(typeof s.tour !== 'function',
+      `${s.id}: ha un tour ma è segnata in sviluppo — toglile il flag`);
+  }
 });
 
 prova('i copioni si caricano ed espongono dei passi', async () => {

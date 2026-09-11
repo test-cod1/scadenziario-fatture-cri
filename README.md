@@ -9,6 +9,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Trasporti lunghi** | attiva: preventivi per i trasporti sanitari fuori Genova (arrivata dal gestionale `preventivo-trasporti`, assorbita qui il 01/09/2026) |
 | **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
 | **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
+| **Direttore** | da sviluppare: per ora esiste la card e i permessi, il contenuto arriverà |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 
@@ -130,6 +131,8 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 > **[`patch-2026-09-05-straordinari-senza-stato.sql`](supabase/patch-2026-09-05-straordinari-senza-stato.sql)** elimina le colonne `stato`, `richiesto_da` e `richiesto_da_nome`: il registro raccoglie ore già svolte, non pratiche da far avanzare. **Cancella dati**: le righe che erano in stato *annullato* vengono eliminate (senza lo stato conterebbero nei totali) e chi aveva chiesto lo straordinario non è più conservato. Se ti serve tenerne traccia, copia la tabella prima di eseguire — il comando è scritto nel file.
 >
 > **[`patch-2026-09-05-sospensione-e-quote.sql`](supabase/patch-2026-09-05-sospensione-e-quote.sql)** è una **correzione di sicurezza, da eseguire appena possibile**. Rende effettiva la sospensione: `ruolo_sezione()` ora risponde NULL a chi ha il profilo sospeso o non ne ha più uno, e siccome tutte le policy passano da quella funzione, l'accesso ai dati si chiude per tutte le sezioni insieme. Prima il blocco viveva solo nel browser, e un utente sospeso con una sessione aperta continuava a leggere e scrivere via API. La stessa patch aggiunge `consumi_api` e `consuma_quota()`, il tetto giornaliero per utente sugli endpoint che spendono le quote di Gemini e OpenRouteService.
+>
+> **[`patch-2026-09-11-direttore.sql`](supabase/patch-2026-09-11-direttore.sql)** aggiunge la sezione *Direttore* a `public.sezioni`. Senza, la card compare nella home ma il permesso non si può assegnare, perché quella tabella è la chiave esterna di `autorizzazioni` — ed è esattamente il caso che la pagina *Utenti e autorizzazioni* segnala da sé con un avviso.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 

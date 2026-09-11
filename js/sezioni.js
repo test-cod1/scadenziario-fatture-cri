@@ -31,6 +31,11 @@ const ICONE = {
     <path d="M18 3 30 7v10c0 7.6-5 13.2-12 16-7-2.8-12-8.4-12-16V7z"/><path d="M18 12v10M13 17h10"/></svg>`,
   straordinari: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <circle cx="18" cy="20" r="13"/><path d="M18 13v7l5 3"/><path d="M13 3h10"/></svg>`,
+  // Un organigramma: chi sta sopra e i rami che ne dipendono. È il disegno
+  // che dice "direzione" senza ricorrere a una scrivania o a una cravatta.
+  direttore: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="12" y="3" width="12" height="9" rx="2"/><path d="M18 12v6M8 24v-6h20v6"/>
+    <rect x="2" y="24" width="12" height="9" rx="2"/><rect x="22" y="24" width="12" height="9" rx="2"/></svg>`,
 };
 
 export const SEZIONI = [
@@ -131,6 +136,26 @@ export const SEZIONI = [
     ],
     tour: () => import('./tour/straordinari.js'),
     icona: ICONE.straordinari,
+  },
+  {
+    id: 'direttore',
+    label: 'Direttore',
+    descrizione: 'Lo spazio della direzione: contenuto ancora da definire.',
+    emoji: '🧭',
+    colore: '#1e40af',
+    ombra: 'rgba(30,64,175,.22)',
+    tipo: 'interna',
+    home: '#/direttore',
+    // Nessun `menu`: finché non ci sono pagine, la barra laterale mostra la
+    // sola voce Home e il router serve il segnaposto "in costruzione"
+    // (js/views/sezioneVuota.js). Quando il contenuto ci sarà, qui si
+    // aggiungono le voci e in js/app.js il ramo che importa il modulo della
+    // sezione — come è stato per straordinari.
+    //
+    // `inSviluppo` non cambia nulla a schermo: dice alle prove automatiche
+    // che l'assenza di un tour guidato è voluta e non una dimenticanza.
+    inSviluppo: true,
+    icona: ICONE.direttore,
   },
 ];
 

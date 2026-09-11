@@ -74,7 +74,8 @@ insert into public.sezioni (id, etichetta, ordine) values
   ('formazione',   'Formazione Esterna',    2),
   ('trasporti',    'Trasporti lunghi',      3),
   ('assistenze',   'Assistenze sanitarie',  4),
-  ('straordinari', 'Straordinari',          5)
+  ('straordinari', 'Straordinari',          5),
+  ('direttore',    'Direttore',             6)
 on conflict (id) do update set etichetta = excluded.etichetta, ordine = excluded.ordine;
 
 -- ---------- AUTORIZZAZIONI (utente x sezione x ruolo) ----------

@@ -23,4 +23,5 @@ export const ID_SEZIONI = [
   'trasporti',
   'assistenze',
   'straordinari',
+  'direttore',
 ];
