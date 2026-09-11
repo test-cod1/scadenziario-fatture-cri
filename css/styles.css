@@ -1,7 +1,13 @@
 :root{
-  --cri-red:#e30613;
-  --cri-red-dark:#b10410;
-  --cri-red-soft:#fdecec;
+  /* Un solo colore d'identita', in due valori per destinazione: #EE0000 a
+     schermo, #CC0000 (Pantone 485) in stampa — vedi la @media print in fondo
+     al file. Prima ne convivevano tre: uno come identita', uno come scuro e
+     un terzo per gli errori, che competeva con l'unico colore
+     dell'Associazione. */
+  --cri-red:#EE0000;
+  --cri-red-print:#CC0000;
+  --cri-red-dark:#BB0000;
+  --cri-red-soft:#FDECEC;
   --ink:#1c2024;
   --ink-soft:#5a6570;
   --line:#e4e8ec;
@@ -11,7 +17,7 @@
   --ok-soft:#e7f6ec;
   --warn:#c98a00;
   --warn-soft:#fff6e0;
-  --danger:#d32029;
+  --danger:var(--cri-red);
   --danger-soft:#fdecec;
   --info:#1c6fd3;
   --info-soft:#e8f0fd;
@@ -692,3 +698,8 @@ tr.str-inattivo td{opacity:.6}
   .dir-azioni{grid-column:2;justify-content:flex-end}
   .dir-livelli{flex-direction:column}
 }
+
+/* In stampa il rosso passa al Pantone 485 (#CC0000): e' lo stesso colore
+   d'identita', nel valore previsto per la carta. Tutto il resto del foglio
+   usa gia' var(--cri-red), quindi basta ridefinire il token. */
+@media print{:root{--cri-red:var(--cri-red-print)}}

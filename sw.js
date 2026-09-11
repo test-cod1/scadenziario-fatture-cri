@@ -112,7 +112,7 @@ function paginaOffline() {
          font-family:-apple-system,"Segoe UI",Roboto,Arial,sans-serif; }
   .box { background:#fff; border:1px solid #e4e8ec; border-radius:14px; padding:28px 26px;
          max-width:380px; margin:20px; box-shadow:0 6px 24px rgba(0,0,0,.06); text-align:center; }
-  .logo { width:46px; height:46px; margin:0 auto 14px; border-radius:10px; background:#e30613;
+  .logo { width:46px; height:46px; margin:0 auto 14px; border-radius:10px; background:#EE0000;
           color:#fff; font-size:28px; font-weight:800; display:flex; align-items:center; justify-content:center; }
   h1 { font-size:18px; margin:0 0 8px; }
   p { margin:0 0 16px; color:#5a6570; font-size:14px; line-height:1.5; }
