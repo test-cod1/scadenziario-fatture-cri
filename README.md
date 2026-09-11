@@ -13,6 +13,25 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 
+## Identita visiva (Manuale di comunicazione istituzionale CRI)
+
+Il portale segue il Manuale CRI. Le regole che valgono ovunque:
+
+- **Un solo rosso**, in due valori per destinazione: `--cri-red` **#EE0000** a schermo e `--cri-red-print` **#CC0000** (Pantone 485) in stampa, applicato da una `@media print` in fondo a [`css/styles.css`](css/styles.css). Gli errori usano lo stesso rosso: non ne esiste un secondo.
+- **Arial** come unico font, a schermo e nei documenti. Nessun webfont, nessun `@font-face`.
+- **Marchio testuale per esteso**: «Croce Rossa Italiana — Comitato di Genova». Non si abbrevia. «Amministrazione» e il nome dello strumento, non del marchio.
+- **Angoli fra 0 e 4px**, ombre appena percettibili (`--shadow-card`), nessun gradiente, nessun sollevamento in hover. I cerchi veri (spinner, interruttore) restano tondi.
+- **L emblema non si ridisegna**: si usano solo gli asset ufficiali del Comitato.
+
+Restano da completare quattro interventi dell audit dell 11/09/2026, tutti fermi sugli asset ufficiali che il Comitato deve fornire in `assets/brand/` e `assets/icons/ifrc/`:
+
+| | Cosa manca |
+|---|---|
+| **T1** | L emblema nel blocco del marchio e ancora un glifo tipografico dentro un quadrato rosso arrotondato: serve `emblema-genova-orizzontale-rosso.svg`. |
+| **T2** | Favicon e icone PWA sono lo stesso emblema alterato: servono l emblema verticale ufficiale e la rigenerazione dei PNG. |
+| **T6** | 294 emoji usate come icone in 43 file: servono le icone IFRC 2024 e la libreria Lucide in `js/vendor/` (la CSP vieta i CDN). |
+| **T10** | Firma di formato nelle stampe: banda, marchio verticale e payoff «Un Italia che aiuta». |
+
 ## Sezione Scadenziario
 
 Inserimento manuale o automatico delle fatture (PDF via AI Gemini, XML fattura elettronica letto direttamente), pagamenti/acconti, alert scadenze, ricerca e filtri, export Excel/PDF, registro modifiche per gli admin.
