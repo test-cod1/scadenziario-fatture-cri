@@ -49,7 +49,8 @@ export function etichettaScadenza(scadenza, da = oggiISO()) {
   if (g === 1) return { testo: 'scade domani', stato: 'vicino' };
   if (g <= 7) return { testo: `fra ${g} giorni`, stato: 'vicino' };
   if (g <= 30) return { testo: `fra ${g} giorni`, stato: 'lontano' };
-  return { testo: `fra ${Math.round(g / 30)} mesi`, stato: 'lontano' };
+  const mesi = Math.round(g / 30);
+  return { testo: mesi === 1 ? 'fra un mese' : `fra ${mesi} mesi`, stato: 'lontano' };
 }
 
 // Quanto la scadenza spinge in avanti un impegno. Non sostituisce
