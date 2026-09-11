@@ -76,7 +76,7 @@ export function stampaRiepilogo(riepilogo, perGiorno, mese, { righe = [] } = {})
   <title>Straordinari ${esc(etichettaMese(mese))}</title>
   <style>
     @page{size:A4 landscape;margin:12mm}
-    body{font-family:system-ui,Arial,sans-serif;color:#1c2024;padding:0;margin:0}
+    body{font-family:Arial,Helvetica,sans-serif;color:#1c2024;padding:0;margin:0}
     h1{font-size:16px;margin:0 0 2px}
     .sub{color:#5a6570;font-size:11px;margin-bottom:12px}
     table{width:100%;border-collapse:collapse;font-size:9.5px;table-layout:fixed}
@@ -130,7 +130,7 @@ export function stampaElenco(righe, mese, sottotitolo = '') {
   <title>Straordinari ${esc(etichettaMese(mese))}</title>
   <style>
     @page{size:A4;margin:14mm}
-    body{font-family:system-ui,Arial,sans-serif;color:#1c2024}
+    body{font-family:Arial,Helvetica,sans-serif;color:#1c2024}
     h1{font-size:17px;margin:0 0 2px}
     .sub{color:#5a6570;font-size:11.5px;margin-bottom:14px}
     table{width:100%;border-collapse:collapse;font-size:11px}

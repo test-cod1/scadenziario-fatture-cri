@@ -52,7 +52,7 @@ export function exportPDF(righe, titolo = 'Scadenziario fatture') {
   const residuo = righe.reduce((s, r) => s + Number(r._residuo || 0), 0);
   w.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>${esc(titolo)}</title>
   <style>
-    body{font-family:system-ui,Arial,sans-serif;padding:24px;color:#1c2024}
+    body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#1c2024}
     h1{font-size:18px;margin:0 0 4px}
     .sub{color:#5a6570;font-size:12px;margin-bottom:16px}
     table{width:100%;border-collapse:collapse;font-size:12px}
@@ -117,7 +117,7 @@ export function exportPDFAttive(righe, titolo = 'Fatture attive') {
   const residuo = righe.reduce((s, r) => s + Number(r._residuo || 0), 0);
   w.document.write(`<!DOCTYPE html><html lang="it"><head><meta charset="utf-8"><title>${esc(titolo)}</title>
   <style>
-    body{font-family:system-ui,Arial,sans-serif;padding:24px;color:#1c2024}
+    body{font-family:Arial,Helvetica,sans-serif;padding:24px;color:#1c2024}
     h1{font-size:18px;margin:0 0 4px}
     .sub{color:#5a6570;font-size:12px;margin-bottom:16px}
     table{width:100%;border-collapse:collapse;font-size:12px}

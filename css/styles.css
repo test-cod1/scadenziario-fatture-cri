@@ -23,7 +23,9 @@
   --info-soft:#e8f0fd;
   --radius:14px;
   --shadow:0 1px 3px rgba(20,30,40,.08),0 6px 18px rgba(20,30,40,.05);
-  --font:system-ui,-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+  /* Arial e' l'unico font previsto dal Manuale, per l'interfaccia come per
+     i documenti: nessun webfont, nessun @font-face, nessun preload. */
+  --font:Arial,Helvetica,sans-serif;
 }
 *{box-sizing:border-box}
 /* L'attributo `hidden` deve nascondere davvero. Il browser lo applica con un
@@ -176,8 +178,8 @@ tr.scaduta:hover td{background:#fbdcdd}
 .form-row.three{grid-template-columns:1fr 1fr 1fr}
 
 /* ---------- Login ---------- */
-.login-wrap{display:grid;place-items:center;min-height:100vh;padding:20px;background:linear-gradient(160deg,#fff, var(--cri-red-soft))}
-.login{background:#fff;border:1px solid var(--line);border-radius:18px;box-shadow:var(--shadow);width:100%;max-width:380px;padding:32px 28px}
+.login-wrap{display:grid;place-items:center;min-height:100vh;padding:20px;background:#FEFEFE}
+.login{background:#fff;border:1px solid var(--line);border-top:8px solid var(--cri-red);border-radius:4px;box-shadow:var(--shadow);width:100%;max-width:380px;padding:32px 28px}
 .login .brand{justify-content:center;flex-direction:column;text-align:center;gap:8px;padding-bottom:22px}
 .login .brand .logo{width:52px;height:52px;font-size:26px}
 
