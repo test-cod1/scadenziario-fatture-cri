@@ -154,7 +154,7 @@ export function startTour(passi) {
     tip.querySelector('.tt-step').textContent = `Passo ${idx + 1} di ${passi.length}`;
     tip.querySelector('.tt-b').textContent = passo.testo;
     tip.querySelector('.tt-indietro').style.visibility = idx === 0 ? 'hidden' : 'visible';
-    tip.querySelector('.tt-avanti').textContent = idx === passi.length - 1 ? 'Fine ✓' : 'Avanti ›';
+    tip.querySelector('.tt-avanti').textContent = idx === passi.length - 1 ? 'Fine' : 'Avanti ›';
     riposiziona();
     tip.querySelector('.tt-avanti').focus();
   }

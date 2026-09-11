@@ -54,7 +54,7 @@ function renderRichiestaReset(app, onDone, emailPrecompilata = '') {
     try {
       await auth.resetPassword(email);
       msg.style.color = 'var(--ok)';
-      msg.innerHTML = '✅ Se l\'email è registrata, riceverai a breve un link per reimpostare la password. Controlla anche lo spam.';
+      msg.innerHTML = 'Se l\'email è registrata, riceverai a breve un link per reimpostare la password. Controlla anche lo spam.';
     } catch (e) {
       msg.textContent = traduci(e.message) || 'Invio non riuscito.';
     } finally { btn.disabled = false; btn.innerHTML = old; }

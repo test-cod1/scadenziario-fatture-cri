@@ -13,9 +13,9 @@
   --line:#e4e8ec;
   --bg:#f4f6f8;
   --card:#ffffff;
-  --ok:#1a8f3c;
+  --ok:#14742F;
   --ok-soft:#e7f6ec;
-  --warn:#c98a00;
+  --warn:#8A5A00;
   --warn-soft:#fff6e0;
   --danger:var(--cri-red);
   --danger-soft:#fdecec;
@@ -363,7 +363,10 @@ tr.scaduta:hover td{background:#fbdcdd}
 .home-card.locked{filter:grayscale(.75);opacity:.5;box-shadow:none}
 .home-card.locked:hover{transform:none;box-shadow:none}
 
-.nav-bloccata{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:var(--ink-soft);font-size:14.5px;font-weight:500;opacity:.55;cursor:not-allowed}
+/* Le sezioni non autorizzate si leggono: prima erano a opacity .55, che
+   portava il grigio molto sotto la soglia di contrasto. Il fatto che non
+   siano cliccabili lo dicono il colore piu' tenue e il lucchetto. */
+.nav-bloccata{display:flex;align-items:center;gap:11px;padding:10px 12px;border-radius:10px;color:#5a6570;font-size:14.5px;font-weight:500;cursor:not-allowed}
 .nav-bloccata .ic{width:20px;text-align:center}
 .sez-corrente:not(:empty){border-top:1px solid var(--line);margin-top:10px;padding-top:10px}
 /* Voce presente solo nella barra in basso del telefono (vedi più sotto). */
