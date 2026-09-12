@@ -343,31 +343,34 @@ tr.scaduta:hover td{background:#fbdcdd}
   .pag-row input[type=number]{width:100%!important}
 }
 
-/* ---------- Portale: home a card e menu delle sezioni ---------- */
+/* ---------- Portale: home a card e menu delle sezioni ----------
+   Le card della home sono l'eccezione voluta alla geometria del resto del
+   portale: colore pieno per sezione, angoli a 16px e sollevamento in hover.
+   L'audit CRI del 11/09/2026 chiedeva di uniformarle (rilievo M3) e la
+   versione conforme e' stata fatta e poi ritirata su richiesta: e' la
+   pagina d'ingresso, e chi la usa tutti i giorni riconosce le sezioni dal
+   colore prima che dal nome. */
 .home-head h1{font-size:22px;margin:0}
 .home-head p{margin:3px 0 26px;color:var(--ink-soft);font-size:13.5px}
 .home-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,190px));gap:20px}
-/* Una sola identità: fondo chiaro, bordo sottile e un filo rosso in testa.
-   Prima ogni sezione aveva un colore proprio e una card monocroma a tutto
-   campo — sei identità diverse nella pagina d'ingresso, con un teal e un blu
-   che non appartengono al sistema. */
-.home-card{background:#FEFEFE;border:1px solid var(--line);border-top:4px solid var(--cri-red);border-radius:4px;display:flex;flex-direction:column;justify-content:space-between;gap:18px;padding:18px;box-shadow:var(--shadow-card);color:var(--ink);text-decoration:none;cursor:pointer;transition:border-color .12s cubic-bezier(.2,0,.2,1),background .12s cubic-bezier(.2,0,.2,1)}
-.home-card:hover{border-color:var(--cri-red);background:var(--cri-red-soft)}
+.home-card{aspect-ratio:1;background:var(--c);border-radius:16px;display:flex;flex-direction:column;justify-content:space-between;padding:20px;box-shadow:0 6px 16px var(--o);color:#fff;text-decoration:none;cursor:pointer;transition:border-color .12s cubic-bezier(.2,0,.2,1)}
+.home-card:hover{transform:translateY(-2px);box-shadow:0 10px 22px var(--o)}
+.home-card:focus-visible{outline:3px solid var(--ink);outline-offset:3px}
 .hc-top{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
-.hc-ico{display:block;width:44px;height:44px;color:var(--cri-red);flex:none}
+.hc-ico{display:block;width:36px;height:36px;color:rgba(255,255,255,.85);flex:none}
 .hc-ico svg{width:100%;height:100%;display:block}
-.hc-badge{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);background:var(--bg);border:1px solid var(--line);padding:3px 8px;border-radius:4px}
+.hc-badge{font-size:10.5px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;background:rgba(255,255,255,.18);padding:3px 8px;border-radius:4px}
 .hc-badge.lock{background:none;font-size:14px;padding:0}
-.hc-line{height:1px;background:var(--line);margin-bottom:12px}
+.hc-line{height:1px;background:rgba(255,255,255,.3);margin-bottom:12px}
 /* Il titolo occupa sempre lo spazio di due righe, anche quando ne serve una
    sola: così il filetto e la prima riga del nome stanno alla stessa altezza in
    tutte le card, invece di alzarsi solo su quelle dal nome lungo. */
-.hc-title{font-size:17px;font-weight:700;line-height:1.2;color:var(--ink)}
-.hc-ext{font-weight:600;color:var(--ink-soft)}
+.hc-title{font-size:17px;font-weight:800;letter-spacing:-.01em;line-height:1.2;min-height:2.4em}
+.hc-ext{font-weight:600;opacity:.75}
 /* Sezione non autorizzata: resta visibile (così si sa che esiste e a cosa
    chiedere l'accesso) ma si vede a colpo d'occhio che è spenta. */
-.home-card.locked{border-top-color:var(--line);background:var(--bg);color:var(--ink-soft);cursor:not-allowed}
-.home-card.locked:hover{border-color:var(--line);background:var(--bg)}
+.home-card.locked{filter:grayscale(.75);opacity:.5;box-shadow:none}
+.home-card.locked:hover{transform:none;box-shadow:none}
 
 /* Le sezioni non autorizzate si leggono: prima erano a opacity .55, che
    portava il grigio molto sotto la soglia di contrasto. Il fatto che non

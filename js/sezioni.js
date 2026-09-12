@@ -44,6 +44,8 @@ export const SEZIONI = [
     label: 'Scadenziario',
     descrizione: 'Fatture fornitori e clienti, scadenze e proposte di pagamento.',
     emoji: '🧾',
+    colore: '#e30613',
+    ombra: 'rgba(227,6,19,.25)',
     tipo: 'interna',
     // Rotta di ingresso: lo scadenziario ha due sotto-sezioni (passive/attive)
     // e parte dalle passive, come faceva quando era l'intera applicazione.
@@ -58,6 +60,8 @@ export const SEZIONI = [
     label: 'Formazione Esterna',
     descrizione: 'Preventivi per i corsi erogati ad aziende ed enti.',
     emoji: '🎓',
+    colore: '#1a1d23',
+    ombra: 'rgba(0,0,0,.2)',
     tipo: 'interna',
     home: '#/formazione/nuovo',
     menu: [
@@ -74,6 +78,8 @@ export const SEZIONI = [
     label: 'Trasporti lunghi',
     descrizione: 'Preventivi per i trasporti sanitari fuori Genova.',
     emoji: '🚐',
+    colore: '#6b7280',
+    ombra: 'rgba(0,0,0,.15)',
     tipo: 'interna',
     home: '#/trasporti/nuovo',
     tour: () => import('./tour/trasporti.js'),
@@ -95,6 +101,8 @@ export const SEZIONI = [
     label: 'Assistenze sanitarie',
     descrizione: 'Servizi di assistenza a manifestazioni ed eventi.',
     emoji: '⛑️',
+    colore: '#374151',
+    ombra: 'rgba(0,0,0,.18)',
     tipo: 'interna',
     home: '#/assistenze/nuovo',
     menu: [
@@ -111,6 +119,8 @@ export const SEZIONI = [
     label: 'Straordinari',
     descrizione: 'Ore in più richieste ai dipendenti dalla centrale operativa.',
     emoji: '🕒',
+    colore: '#0f766e',
+    ombra: 'rgba(15,118,110,.22)',
     tipo: 'interna',
     home: '#/straordinari/registro',
     // Le impostazioni stanno nel menu della sezione e non fra le voci
@@ -132,6 +142,8 @@ export const SEZIONI = [
     label: 'Direttore',
     descrizione: 'Gli impegni della direzione, per urgenza, importanza e scadenza.',
     emoji: '🧭',
+    colore: '#1e40af',
+    ombra: 'rgba(30,64,175,.22)',
     tipo: 'interna',
     home: '#/direttore/impegni',
     menu: [
