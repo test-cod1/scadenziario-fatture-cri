@@ -20,10 +20,12 @@ Il portale segue il Manuale CRI. Le regole che valgono ovunque:
 - **Un solo rosso**, in due valori per destinazione: `--cri-red` **#EE0000** a schermo e `--cri-red-print` **#CC0000** (Pantone 485) in stampa, applicato da una `@media print` in fondo a [`css/styles.css`](css/styles.css). Gli errori usano lo stesso rosso: non ne esiste un secondo.
 - **Arial** come unico font, a schermo e nei documenti. Nessun webfont, nessun `@font-face`.
 - **Marchio testuale per esteso**: «Croce Rossa Italiana — Comitato di Genova». Non si abbrevia. «Amministrazione» e il nome dello strumento, non del marchio.
-- **Angoli fra 0 e 4px**, ombre appena percettibili (`--shadow-card`), nessun gradiente. I cerchi veri (spinner, interruttore) restano tondi. Fanno eccezione le card della home: vedi qui sotto.
+- **Ombre appena percettibili** (`--shadow-card`), **nessun gradiente**, fuoco sempre visibile da tastiera. Gli **angoli restano stondati** come prima dell audit: `--radius` 14px per riquadri e card, 10px per pulsanti e voci di menu, pillole per i chip. L audit chiedeva di portarli fra 0 e 4px (rilievo M5) ed e la seconda deroga voluta, insieme alle card della home.
 - **L emblema non si ridisegna**: si usano solo gli asset ufficiali del Comitato.
 
-**Una deroga voluta: le card della home.** L audit chiedeva (rilievo M3) di togliere i sei colori di sezione e di rendere tutte le card uguali, con fondo chiaro e un filo rosso. La versione conforme e stata fatta e poi ritirata su richiesta: la home torna alle card monocrome a tutto campo, una per sezione, col loro colore e il sollevamento in hover. E una scelta di chi usa il portale tutti i giorni, non una svista — chi riprende in mano l audit sappia che quel punto resta aperto di proposito.
+**Due deroghe volute: le forme.** Gli angoli stondati e le card colorate della home sono stati riportati com erano dopo aver visto il risultato conforme. Il portale si usa tutti i giorni e chi lo usa li ha voluti indietro: i rilievi M3 e M5 restano aperti di proposito.
+
+**Le card della home.** L audit chiedeva (rilievo M3) di togliere i sei colori di sezione e di rendere tutte le card uguali, con fondo chiaro e un filo rosso. La versione conforme e stata fatta e poi ritirata su richiesta: la home torna alle card monocrome a tutto campo, una per sezione, col loro colore e il sollevamento in hover. E una scelta di chi usa il portale tutti i giorni, non una svista — chi riprende in mano l audit sappia che quel punto resta aperto di proposito.
 
 Restano da completare quattro interventi dell audit dell 11/09/2026, tutti fermi sugli asset ufficiali che il Comitato deve fornire in `assets/brand/` e `assets/icons/ifrc/`:
 
