@@ -806,6 +806,89 @@ tr.str-inattivo td{opacity:.6}
   .dir-cal-mese b{min-width:7.5em;font-size:15px}
 }
 
+/* ============================================================
+   SEZIONE ANALISI — CENTRI DI COSTO
+   ============================================================ */
+
+/* Il filtro di periodo sta sopra a tutto e non dentro una toolbar con
+   altri controlli: è la premessa di ogni numero della pagina, non uno
+   dei filtri. */
+.an-periodo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin:18px 0 16px}
+.an-periodo label{font-size:13px;font-weight:600;color:var(--ink-soft)}
+.an-periodo select{padding:7px 10px}
+.an-periodo-nota{font-size:12.5px;color:var(--ink-soft)}
+.an-nota{margin-top:16px}
+.an-nota .hint{font-size:13px;line-height:1.5}
+.an-lavoro{display:flex;align-items:center;gap:8px;font-size:13px;font-weight:600;color:var(--ink-soft)}
+.an-lavoro select{font-weight:400}
+
+/* Una riga per attività: chi a sinistra, i tre numeri a destra. Non una
+   tabella, perché le colonne dei numeri devono poter scendere sotto il
+   nome quando lo schermo è stretto — e una tabella, lì, si sarebbe
+   messa a scorrere di lato. */
+.cc-lista{display:flex;flex-direction:column;gap:10px}
+.cc-riga{display:grid;grid-template-columns:1fr repeat(3,minmax(96px,auto)) auto;gap:14px;align-items:center;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:14px 16px}
+.cc-riga:hover{border-color:var(--ink-soft)}
+.cc-riga.chiusa{background:var(--bg)}
+.cc-chi{min-width:0;cursor:pointer}
+.cc-nome{font-weight:600;line-height:1.35;overflow-wrap:anywhere}
+.cc-sotto{color:var(--ink-soft);font-size:12.5px;margin-top:2px}
+.cc-num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.cc-num .e{display:block;font-size:11px;font-weight:700;text-transform:uppercase;
+  letter-spacing:.03em;color:var(--ink-soft)}
+.cc-num.entrate b{color:var(--ok)}
+.cc-num.uscite b{color:var(--warn)}
+.cc-num.saldo b{font-size:15.5px}
+.cc-num.saldo.neg b{color:var(--danger)}
+.cc-azioni{display:flex;gap:4px;white-space:nowrap}
+
+/* Il conto di una singola attività: entrate e uscite affiancate, perché
+   il senso di quella pagina è il confronto fra le due. */
+.cc-colonne{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start}
+.cc-voci{display:flex;flex-direction:column;gap:8px}
+.cc-voce{display:grid;grid-template-columns:1fr auto auto;gap:12px;align-items:center;
+  padding-bottom:8px;border-bottom:1px solid var(--line)}
+.cc-voce:last-child{border-bottom:0;padding-bottom:0}
+.cc-voce-nome{font-weight:600;font-size:13.5px;overflow-wrap:anywhere}
+.cc-voce-sotto{color:var(--ink-soft);font-size:12px;margin-top:1px}
+.cc-voce-euro{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.cc-voce-nota{display:block;font-size:11px;color:var(--ink-soft)}
+.cc-voce-azioni{display:flex;gap:2px}
+.cc-chiusa{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px;color:var(--ink-soft)}
+.cc-chiusa input{margin-top:3px;flex:none}
+
+/* Da attribuire: la riga è un piccolo modulo, perché il gesto si fa lì
+   senza aprire niente — è lo stesso motivo per cui la spunta degli
+   impegni sta nell'elenco. */
+.att-lista{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.att-riga{display:grid;grid-template-columns:1fr 150px auto;gap:12px;align-items:center;
+  background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px}
+.att-riga:hover{border-color:var(--ink-soft)}
+.att-chi{min-width:0}
+.att-nome{font-weight:600;display:flex;align-items:center;gap:8px;flex-wrap:wrap;overflow-wrap:anywhere}
+.att-sotto{color:var(--ink-soft);font-size:12.5px;margin-top:2px}
+.att-quota input{text-align:right}
+
+/* Il blocco dentro la scheda della fattura: stessa forma dei pagamenti,
+   che gli sta appena sopra. */
+.imp-lista{display:flex;flex-direction:column;gap:4px}
+.imp-nuova{display:grid;grid-template-columns:1fr 130px auto;gap:10px;align-items:end;margin-top:12px}
+
+@media (max-width:900px){
+  .cc-colonne{grid-template-columns:1fr}
+}
+@media (max-width:640px){
+  .cc-riga{grid-template-columns:1fr 1fr;row-gap:10px}
+  .cc-chi{grid-column:1/-1}
+  .cc-num{text-align:left}
+  .cc-num.saldo{text-align:right}
+  .cc-azioni{grid-column:2;justify-content:flex-end}
+  .att-riga{grid-template-columns:1fr auto}
+  .att-chi{grid-column:1/-1}
+  .imp-nuova{grid-template-columns:1fr}
+}
+
 /* In stampa il rosso passa al Pantone 485 (#CC0000): e' lo stesso colore
    d'identita', nel valore previsto per la carta. Tutto il resto del foglio
    usa gia' var(--cri-red), quindi basta ridefinire il token. */

@@ -344,6 +344,10 @@ async function route() {
       const { renderDirettore } = await import('./direttore/sezione.js');
       return await disegna(z => renderDirettore(z, ctx, sub, param));
     }
+    if (sezione.id === 'analisi') {
+      const { renderAnalisi } = await import('./analisi/sezione.js');
+      return await disegna(z => renderAnalisi(z, ctx, sub, param));
+    }
     if (sezione.id !== 'scadenziario') return await disegna(z => renderSezioneVuota(z, ctx, sezione));
 
     if (sub === 'impostazioni') await disegna(z => renderImpostazioni(z, ctx));

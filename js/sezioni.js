@@ -170,15 +170,15 @@ export const SEZIONI = [
     colore: '#5b21b6',
     ombra: 'rgba(91,33,182,.22)',
     tipo: 'interna',
-    home: '#/analisi',
+    home: '#/analisi/centri',
+    // Analisi è nata per avere più sottosezioni: i centri di costo sono la
+    // prima. Le prossime si aggiungono qui e in js/analisi/sezione.js.
+    menu: [
+      { id: 'centri', icon: '🎯', label: 'Centri di costo', attivoAnche: ['centro'] },
+      { id: 'da-attribuire', icon: '📥', label: 'Da attribuire' },
+    ],
+    tour: () => import('./tour/analisi.js'),
     icona: ICONE.analisi,
-    // Ancora da costruire: niente `menu` e niente `tour`, e il router le
-    // serve la pagina "in costruzione". Il flag non è una nota per chi
-    // legge — è quello che esenta la sezione dai controlli di
-    // test/tour.prove.mjs, che a ogni altra sezione chiedono un copione e
-    // pagine vere dietro le voci di menu. Toglierlo quando arriva il
-    // contenuto è il modo per farsi ricordare dalle prove cosa manca.
-    inSviluppo: true,
   },
 ];
 

@@ -10,7 +10,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
 | **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
 | **Direttore** | attiva: gli impegni della direzione, ordinati per urgenza, importanza e scadenza |
-| **Analisi** | **in costruzione**: la sezione esiste, il permesso si assegna, il contenuto è da definire |
+| **Analisi** | attiva: i centri di costo — entrate e uscite della singola attività, lette dalle fatture |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 
@@ -152,15 +152,30 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 
 ## Sezione Analisi
 
-**In costruzione.** La sezione esiste già per intero come *contenitore* — card nella home, rotta `#/analisi`, permesso assegnabile da *Utenti e autorizzazioni* con ruolo admin od operatore, riga in `public.sezioni` — ma il contenuto è ancora da decidere: chi entra trova la pagina «in costruzione» del portale.
+Analisi legge insieme quello che le altre sezioni scrivono, per rispondere a domande che oggi richiedono di aprire quattro sezioni e sommare a mano. È nata per avere **più sottosezioni**: la prima sono i centri di costo.
 
-L'idea di partenza è leggere insieme quello che le altre sezioni scrivono — spesa e incassi delle fatture, trasporti e assistenze svolti, corsi erogati, ore dei dipendenti — per rispondere a domande che oggi richiedono di aprire quattro sezioni e sommare a mano.
+### Centri di costo
 
-Il modo previsto dal codice per una sezione non ancora costruita è il flag **`inSviluppo: true`** in [`js/sezioni.js`](js/sezioni.js): niente `menu` e niente `tour`, e il router serve `renderSezioneVuota`. Non è una nota per chi legge, è quello che esenta la sezione dai controlli di [`test/tour.prove.mjs`](test/tour.prove.mjs), che a ogni altra sezione chiedono un copione e pagine vere dietro ogni voce di menu. **Quando arriverà il contenuto si toglie quel flag**, e sono le prove a ricordare cosa manca.
+«Quell'attività quanto è costata e quanto ha reso?» I soldi ci sono già tutti — nelle fatture passive (uscite) e attive (entrate) — ma nessuno diceva **a quale attività** appartengono. Un *centro di costo* è quell'attività: un corso, un'assistenza a un evento, un mezzo, un servizio.
 
-Un punto da decidere il giorno in cui la sezione avrà dei dati: le policy RLS delle altre sezioni riservano i loro dati a chi ha *quella* sezione, quindi il permesso `analisi` da solo non aprirà nulla. O chi deve vedere i numeri delle fatture ha anche lo scadenziario, oppure quei numeri passano da viste o funzioni `security definer` scritte apposta. È una scelta da fare con il contenuto sotto gli occhi.
+Una fattura si **ripartisce**: una bolletta da 1.000 € può valere 600 € su un corso e 400 € su un'assistenza, ed è il caso normale, non l'eccezione. La quota è in euro e non in percentuale, perché quello che si sa avendo il documento in mano è «di questi 1.000, 600 sono del corso» — una percentuale sarebbe una divisione fatta a mano, col suo arrotondamento, e i totali smetterebbero di tornare. La somma delle quote non può superare l'importo della fattura, e **a impedirlo è un trigger sul database**, non il browser: due persone che imputano la stessa fattura nello stesso momento non si vedono fra loro.
 
-Richiede [`supabase/patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql) (la sola riga in `public.sezioni`; nessuna tabella di dati).
+Si attribuisce da **due posti**, che sono lo stesso gesto in due momenti del lavoro:
+- dalla **scheda della fattura** nello scadenziario, mentre la si registra col documento in mano — è lì che si sa davvero a che cosa apparteneva quella fattura di materiale didattico;
+- da **Analisi → Da attribuire**, che elenca tutto quello che nessuna attività ha ancora preso in carico. È la pagina che rende usabile la sezione il primo giorno: senza, i centri di costo funzionerebbero solo per le fatture registrate da domani in poi. La quota parte già compilata con quanto resta, e in cima si sceglie **un'attività di lavoro** valida per tutte le righe, perché l'arretrato si smaltisce un'attività alla volta.
+
+Tre cose da sapere per leggere bene questi numeri, tutte scritte in testa a [`js/analisi/calc.js`](js/analisi/calc.js):
+1. **Si contano le fatture, non i pagamenti.** La fattura di dicembre pagata a marzo è un costo di dicembre, che è il momento in cui l'attività l'ha generata. Quanto sia stato effettivamente pagato è la domanda di cassa, e la risponde lo scadenziario.
+2. **Le note di credito abbassano le quote in proporzione.** 1.000 € ripartiti 600/400 e poi stornati per 100 valgono 540 e 360: la nota di credito non dice su quale delle due ricade, e spalmarla è l'unica ripartizione che non inventa un'informazione che nessuno ha dato. Se invece si sa dove ricade, la strada giusta è correggere le quote.
+3. **Una fattura può restare fuori da ogni attività**, o esserlo in parte: sono le spese generali, e non sono un errore. Per questo la somma delle righe **non è il bilancio del Comitato**, e un riquadro in cima dice quante fatture stanno ancora fuori. Le regole sono fissate una per una da [`test/centri-costo.prove.mjs`](test/centri-costo.prove.mjs).
+
+L'anagrafica delle attività la tiene l'**admin della sezione**: è un piano dei conti, non un elenco che si allunga mentre si registra una fattura — se il nome fosse libero, dopo un anno ci sarebbero «Fiera del Mare», «fiera del mare» e «Fiera Mare 2026», cioè tre conti al posto di uno. Un'attività conclusa si **chiude** invece di eliminarla: resta leggibile nei conti e sparisce dalle tendine.
+
+**Permessi — da sapere prima di assegnare la sezione.** Analisi vive dei dati dello scadenziario, quindi la patch estende `puo_leggere()` (la funzione da cui passano tutte le policy di lettura delle fatture) a chi ha la sezione Analisi: **dare Analisi a una persona significa farle leggere tutte le fatture del Comitato**, passive e attive. `puo_scrivere()` non cambia — da Analisi non si modifica nessuna fattura.
+
+La sezione ha il suo **tour guidato** (il pulsante 🎓): nove passi fra il quadro d'insieme e l'arretrato, il copione sta in [`js/tour/analisi.js`](js/tour/analisi.js).
+
+Richiede [`supabase/patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql) (la sezione nel portale) e poi [`supabase/patch-2026-09-15-centri-di-costo.sql`](supabase/patch-2026-09-15-centri-di-costo.sql) (le due tabelle, il trigger e i permessi).
 
 ## 1. Crea il progetto Supabase
 
@@ -202,7 +217,9 @@ Richiede [`supabase/patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-ana
 >
 > **[`patch-2026-09-11-impegni-direttore.sql`](supabase/patch-2026-09-11-impegni-direttore.sql)** crea `impegni_direttore`, la tabella della sezione Direttore, con le policy che la riservano a chi ha quella sezione. Va dopo la patch qui sopra, che crea la sezione stessa.
 >
-> **[`patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql)** aggiunge la sezione *Analisi* a `public.sezioni`, come la patch del Direttore e per la stessa ragione: senza, la card compare nella home ma il permesso non si può assegnare. Nessuna tabella di dati — la sezione è ancora un segnaposto.
+> **[`patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql)** aggiunge la sezione *Analisi* a `public.sezioni`, come la patch del Direttore e per la stessa ragione: senza, la card compare nella home ma il permesso non si può assegnare.
+>
+> **[`patch-2026-09-15-centri-di-costo.sql`](supabase/patch-2026-09-15-centri-di-costo.sql)** crea `centri_costo` e `imputazioni`, il trigger che impedisce di attribuire più dell'importo di una fattura e le policy delle due tabelle. Va **dopo** la patch qui sopra, che crea la sezione. Estende anche `puo_leggere()`: da qui in avanti chi ha la sezione *Analisi* legge le fatture (solo in lettura — vedi *Sezione Analisi*).
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -314,6 +331,12 @@ js/direttore/calc.js            livelli, scadenze, punteggio dell’elenco e gri
 js/direttore/views/impegni.js   l’elenco, i quattro numeri in testa e la spunta rapida
 js/direttore/views/impegno.js   la scheda: titolo, i due livelli, scadenza e dettagli
 js/direttore/views/calendario.js  il mese delle scadenze e il dettaglio del giorno scelto
+js/analisi/                    sezione Analisi: i numeri delle altre sezioni, letti insieme
+js/analisi/calc.js              conti dei centri di costo (quote, note di credito, periodi)
+js/analisi/views/centri.js      il quadro d’insieme: una riga per attività
+js/analisi/views/centro.js      il conto di una singola attività, fattura per fattura
+js/analisi/views/daAttribuire.js  le fatture che nessuna attività ha ancora preso in carico
+js/analisi/imputazioniFattura.js  il blocco «Centri di costo» dentro la scheda di una fattura
 js/lib/carta.js                 legge la carta intestata .dotx (immagini e testi)
 js/lib/docxBlocchi.js           dai blocchi al .docx, sostituendo il corpo del modello
 js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF

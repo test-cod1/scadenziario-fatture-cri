@@ -74,6 +74,7 @@ export async function apriEditor(id, ctx, onSaved) {
         <div class="field"><label>Note</label><textarea id="f-note" rows="2">${esc(rec.note || '')}</textarea></div>
         <div id="pag-zone"></div>
         <div id="note-credito-zone"></div>
+        <div id="centri-zone"></div>
         <div id="err" style="color:var(--danger);font-size:13px"></div>
       </div>
       <div class="col" id="preview-col" style="display:none">
@@ -97,6 +98,16 @@ export async function apriEditor(id, ctx, onSaved) {
     disegnaPagamentiENote();
   }
   if (id) disegnaPagamentiENote();
+
+  // A quale attività appartiene questa spesa (sezione Analisi). Si carica
+  // solo aprendo una fattura già salvata: una quota ha bisogno di una
+  // fattura a cui attaccarsi, e il modulo non pesa su chi ne sta
+  // registrando una nuova.
+  if (id) {
+    import('../analisi/imputazioniFattura.js').then(({ renderImputazioni }) =>
+      renderImputazioni(body.querySelector('#centri-zone'),
+        { fatturaId: rec.id, attiva: false, importo: rec.importo }));
+  }
 
   // Suggerisce i fornitori già usati mentre si scrive, per non ritrovarsi
   // due grafie dello stesso soggetto (vedi collegaAutocompletamento).
