@@ -32,10 +32,10 @@ export async function renderPortaleUtenti(view, ctx) {
         <div class="field"><label>Email</label><input type="text" id="nu-email" placeholder="nome@cri.it" autocomplete="off"></div>
         <div class="field"><label>Nome (opzionale)</label><input type="text" id="nu-nome" autocomplete="off"></div>
       </div>
-      <div class="perm-nuovo">
+      <div class="perm-griglia">
         ${SEZIONI.map(s => `<div class="field">
-          <label>${esc(s.label)}</label>
-          <select data-nuova-sezione="${s.id}">${opzioni('')}</select>
+          <label for="nu-${s.id}">${esc(s.label)}</label>
+          <select id="nu-${s.id}" data-nuova-sezione="${s.id}">${opzioni('')}</select>
         </div>`).join('')}
       </div>
       <button class="btn primary" id="nu-crea" style="margin-top:12px">Crea utente</button>
@@ -46,7 +46,7 @@ export async function renderPortaleUtenti(view, ctx) {
       <h3 style="margin:0 0 4px">Utenti del portale</h3>
       <p class="hint" style="margin:0 0 14px">Chi si registra da solo nasce <b>In attesa</b>: non entra da nessuna parte finché non gli assegni almeno una sezione.
       L'<b>operatore</b> usa la sezione, l'<b>admin</b> ne gestisce anche le impostazioni. Il ruolo di <b>super admin</b> (accesso completo a tutto, compresa questa pagina) si assegna solo dal database.</p>
-      <div class="tbl-wrap" id="utenti-zone"><div class="spinner" style="margin:20px auto"></div></div>
+      <div id="utenti-zone"><div class="spinner" style="margin:20px auto"></div></div>
     </div></div>
   </div>`);
   view.appendChild(wrap);
@@ -153,29 +153,37 @@ async function rinomina(u, tr, sonoIo) {
   });
 }
 
+// Un blocco per utente, non una riga di tabella. Con una colonna per
+// sezione la tabella cresceva a ogni sezione nuova: alla settima (Analisi)
+// usciva dalla pagina e per dare un permesso bisognava scorrere di lato,
+// perdendo di vista la colonna dei nomi — cioè la sola cosa che dice a CHI
+// lo stai dando. Qui le tendine dei permessi vanno a capo da sole e il nome
+// di chi stai autorizzando resta sopra, sempre visibile.
 function renderTabellaUtenti(zona, utenti, ctx, ricarica) {
   if (!utenti.length) { zona.replaceChildren(el('<div class="empty-state"><div class="big">👤</div><p>Nessun utente.</p></div>')); return; }
-  const table = el(`<table class="tbl perm-tbl"><thead><tr>
-    <th>Utente</th><th>Stato</th>${SEZIONI.map(s => `<th>${esc(s.label)}</th>`).join('')}
-  </tr></thead><tbody></tbody></table>`);
-  const tbody = table.querySelector('tbody');
+  const elenco = el('<div class="utenti"></div>');
 
   for (const u of utenti) {
     const sonoIo = u.id === ctx.user.id;
     const superAdmin = u.ruolo === 'super_admin';
-    const tr = el(`<tr>
-      <td>
-        <div style="font-weight:600">
-          <span data-nome>${esc(u.nome || '—')}</span>${sonoIo ? ' <span class="chip">tu</span>' : ''}
-          <button class="btn ghost sm" data-rinomina title="Cambia il nome visualizzato">✏️</button>
+    const tr = el(`<div class="utente">
+      <div class="utente-testa">
+        <div class="utente-chi">
+          <div class="utente-nome">
+            <span data-nome>${esc(u.nome || '—')}</span>${sonoIo ? ' <span class="chip">tu</span>' : ''}
+            <button class="btn ghost sm" data-rinomina title="Cambia il nome visualizzato">✏️</button>
+          </div>
+          <div class="muted" style="font-size:12.5px">${esc(u.email || '—')}</div>
         </div>
-        <div class="muted" style="font-size:12.5px">${esc(u.email || '—')}</div>
-      </td>
-      <td data-stato></td>
+        <div class="utente-stato" data-stato></div>
+      </div>
       ${superAdmin
-        ? `<td colspan="${SEZIONI.length}" class="muted" style="font-style:italic">accesso completo a tutte le sezioni</td>`
-        : SEZIONI.map(s => `<td><select data-sezione="${s.id}" style="min-width:120px">${opzioni(u.sezioni[s.id] || '')}</select></td>`).join('')}
-    </tr>`);
+        ? '<p class="muted" style="font-style:italic;margin:4px 0 0">Accesso completo a tutte le sezioni.</p>'
+        : `<div class="perm-griglia">${SEZIONI.map(s => `<div class="field">
+            <label for="perm-${esc(u.id)}-${s.id}">${esc(s.label)}</label>
+            <select id="perm-${esc(u.id)}-${s.id}" data-sezione="${s.id}">${opzioni(u.sezioni[s.id] || '')}</select>
+          </div>`).join('')}</div>`}
+    </div>`);
 
     tr.querySelector('[data-rinomina]').addEventListener('click', () => rinomina(u, tr, sonoIo));
 
@@ -218,9 +226,9 @@ function renderTabellaUtenti(zona, utenti, ctx, ricarica) {
       });
     });
 
-    tbody.appendChild(tr);
+    elenco.appendChild(tr);
   }
-  zona.replaceChildren(table);
+  zona.replaceChildren(elenco);
 }
 
 // Stato di portale: un utente "sospeso" (ruolo in_attesa) non entra da nessuna

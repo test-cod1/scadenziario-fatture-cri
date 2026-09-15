@@ -381,8 +381,29 @@ tr.scaduta:hover td{background:#fbdcdd}
 /* Voce presente solo nella barra in basso del telefono (vedi più sotto). */
 .solo-mobile{display:none!important}
 
-.perm-nuovo{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}
-.perm-tbl td{vertical-align:top}
+/* I permessi di una persona: una tendina per sezione, in una griglia che va
+   a capo da sola. Le sezioni sono destinate a diventare altre, e finché
+   erano le colonne di una tabella ognuna in più allargava la pagina —
+   alla settima si scorreva di lato per assegnare un permesso, perdendo di
+   vista il nome di chi lo stava ricevendo. La stessa griglia serve il form
+   "Aggiungi un utente" e il blocco di ogni utente già esistente. */
+.perm-griglia{display:grid;grid-template-columns:repeat(auto-fit,minmax(165px,1fr));gap:12px}
+.perm-griglia .field{margin-bottom:0}
+
+.utenti{display:flex;flex-direction:column}
+.utente{padding:16px 0;border-top:1px solid var(--line)}
+.utenti>.utente:first-child{border-top:0;padding-top:4px}
+.utente-testa{display:flex;align-items:flex-start;justify-content:space-between;gap:16px;
+  flex-wrap:wrap;margin-bottom:12px}
+.utente-nome{font-weight:600}
+/* Stato e azioni stanno a destra del nome e restano insieme: "Sospendi" ed
+   "Elimina" riguardano la persona, non una singola sezione. */
+.utente-stato{display:flex;flex-direction:column;align-items:flex-end;gap:4px;text-align:right}
+
+@media(max-width:560px){
+  .utente-testa{flex-direction:column;gap:10px}
+  .utente-stato{align-items:flex-start;text-align:left}
+}
 
 @media(max-width:820px){
   .home-grid{grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:14px}
@@ -396,7 +417,7 @@ tr.scaduta:hover td{background:#fbdcdd}
   .solo-mobile{display:flex!important}
   .nav-bloccata{flex-direction:column;gap:2px;flex:1;padding:6px 4px;font-size:10.5px;text-align:center}
   .nav-bloccata .ic{font-size:19px;width:auto}
-  .perm-nuovo{grid-template-columns:1fr}
+  .perm-griglia{grid-template-columns:repeat(auto-fit,minmax(150px,1fr))}
 }
 
 /* Il nome del portale è più lungo di quello di una singola sezione: senza
