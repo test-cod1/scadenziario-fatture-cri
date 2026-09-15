@@ -24,4 +24,5 @@ export const ID_SEZIONI = [
   'assistenze',
   'straordinari',
   'direttore',
+  'analisi',
 ];

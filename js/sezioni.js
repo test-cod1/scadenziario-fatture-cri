@@ -36,6 +36,11 @@ const ICONE = {
   direttore: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="12" y="3" width="12" height="9" rx="2"/><path d="M18 12v6M8 24v-6h20v6"/>
     <rect x="2" y="24" width="12" height="9" rx="2"/><rect x="22" y="24" width="12" height="9" rx="2"/></svg>`,
+  // Tre colonne e la linea dell'andamento che ci passa sopra: il disegno
+  // di un'analisi, non di un singolo grafico a torta — che avrebbe
+  // promesso una pagina sola invece di una sezione.
+  analisi: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M5 4v27h27"/><path d="M11 25v-6M18 25v-12M25 25v-9"/><path d="M10 13 17 7l5 4 8-6"/></svg>`,
 };
 
 export const SEZIONI = [
@@ -153,6 +158,27 @@ export const SEZIONI = [
     ],
     tour: () => import('./tour/direttore.js'),
     icona: ICONE.direttore,
+  },
+  {
+    id: 'analisi',
+    label: 'Analisi',
+    descrizione: 'I numeri del Comitato letti insieme: cosa dicono i dati delle altre sezioni.',
+    emoji: '📊',
+    // Un viola profondo, non acceso: le card della home sono tutte scure
+    // tranne quella rossa dello scadenziario, che è l'unico colore
+    // dell'Associazione e deve restare la sola a spiccare.
+    colore: '#5b21b6',
+    ombra: 'rgba(91,33,182,.22)',
+    tipo: 'interna',
+    home: '#/analisi',
+    icona: ICONE.analisi,
+    // Ancora da costruire: niente `menu` e niente `tour`, e il router le
+    // serve la pagina "in costruzione". Il flag non è una nota per chi
+    // legge — è quello che esenta la sezione dai controlli di
+    // test/tour.prove.mjs, che a ogni altra sezione chiedono un copione e
+    // pagine vere dietro le voci di menu. Toglierlo quando arriva il
+    // contenuto è il modo per farsi ricordare dalle prove cosa manca.
+    inSviluppo: true,
   },
 ];
 

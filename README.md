@@ -10,6 +10,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
 | **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
 | **Direttore** | attiva: gli impegni della direzione, ordinati per urgenza, importanza e scadenza |
+| **Analisi** | **in costruzione**: la sezione esiste, il permesso si assegna, il contenuto è da definire |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 
@@ -149,6 +150,18 @@ Le pagine della sezione:
 La sezione ha il suo **tour guidato** (il pulsante 🎓): diciotto passi che attraversano registro, scheda di registrazione, riepilogo, dipendenti e impostazioni — il copione sta in [`js/tour/straordinari.js`](js/tour/straordinari.js). Passa davvero dalla scheda di una registrazione nuova, ma non salva nulla.
 Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di menu della sezione) e, subito dopo, `supabase/patch-2026-09-05-dipendenti.sql`, che rinomina l'anagrafica da *autisti* a *dipendenti* — il registro serve per tutto il personale, non solo per chi guida — e carica l'elenco delle 19 persone in servizio al 05/09/2026. Poi `supabase/patch-2026-09-05-dipendenti-essenziali.sql`, che toglie dall'anagrafica matricola, telefono e ore di contratto.
 
+## Sezione Analisi
+
+**In costruzione.** La sezione esiste già per intero come *contenitore* — card nella home, rotta `#/analisi`, permesso assegnabile da *Utenti e autorizzazioni* con ruolo admin od operatore, riga in `public.sezioni` — ma il contenuto è ancora da decidere: chi entra trova la pagina «in costruzione» del portale.
+
+L'idea di partenza è leggere insieme quello che le altre sezioni scrivono — spesa e incassi delle fatture, trasporti e assistenze svolti, corsi erogati, ore dei dipendenti — per rispondere a domande che oggi richiedono di aprire quattro sezioni e sommare a mano.
+
+Il modo previsto dal codice per una sezione non ancora costruita è il flag **`inSviluppo: true`** in [`js/sezioni.js`](js/sezioni.js): niente `menu` e niente `tour`, e il router serve `renderSezioneVuota`. Non è una nota per chi legge, è quello che esenta la sezione dai controlli di [`test/tour.prove.mjs`](test/tour.prove.mjs), che a ogni altra sezione chiedono un copione e pagine vere dietro ogni voce di menu. **Quando arriverà il contenuto si toglie quel flag**, e sono le prove a ricordare cosa manca.
+
+Un punto da decidere il giorno in cui la sezione avrà dei dati: le policy RLS delle altre sezioni riservano i loro dati a chi ha *quella* sezione, quindi il permesso `analisi` da solo non aprirà nulla. O chi deve vedere i numeri delle fatture ha anche lo scadenziario, oppure quei numeri passano da viste o funzioni `security definer` scritte apposta. È una scelta da fare con il contenuto sotto gli occhi.
+
+Richiede [`supabase/patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql) (la sola riga in `public.sezioni`; nessuna tabella di dati).
+
 ## 1. Crea il progetto Supabase
 
 1. Vai su [supabase.com](https://supabase.com) → New project (regione **EU**, es. Frankfurt).
@@ -188,6 +201,8 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 > **[`patch-2026-09-11-direttore.sql`](supabase/patch-2026-09-11-direttore.sql)** aggiunge la sezione *Direttore* a `public.sezioni`. Senza, la card compare nella home ma il permesso non si può assegnare, perché quella tabella è la chiave esterna di `autorizzazioni` — ed è esattamente il caso che la pagina *Utenti e autorizzazioni* segnala da sé con un avviso.
 >
 > **[`patch-2026-09-11-impegni-direttore.sql`](supabase/patch-2026-09-11-impegni-direttore.sql)** crea `impegni_direttore`, la tabella della sezione Direttore, con le policy che la riservano a chi ha quella sezione. Va dopo la patch qui sopra, che crea la sezione stessa.
+>
+> **[`patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql)** aggiunge la sezione *Analisi* a `public.sezioni`, come la patch del Direttore e per la stessa ragione: senza, la card compare nella home ma il permesso non si può assegnare. Nessuna tabella di dati — la sezione è ancora un segnaposto.
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
