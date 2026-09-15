@@ -117,3 +117,80 @@ export function totali(impegni, da = oggiISO()) {
   }
   return t;
 }
+
+// ---------- il mese, per il calendario ----------
+//  Il calendario guarda le stesse scadenze dell'elenco da un'altra
+//  angolazione: non «cosa pesa di più», ma «come sono distribuite nel
+//  tempo». Serve a vedere la settimana ingorgata prima di prenderci un
+//  altro impegno — una cosa che un elenco ordinato per peso non dice.
+//
+//  Un mese si scrive 'YYYY-MM': stessa forma degli <input type="month">,
+//  si ordina come stringa e non porta con sé nessun fuso orario.
+
+const MESI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno',
+  'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
+
+export const GIORNI_SETTIMANA = ['lunedì', 'martedì', 'mercoledì', 'giovedì', 'venerdì', 'sabato', 'domenica'];
+
+export function meseDi(iso) { return String(iso || '').slice(0, 7); }
+
+export function meseValido(mese) { return /^\d{4}-(0[1-9]|1[0-2])$/.test(String(mese || '')); }
+
+// Avanti o indietro di qualche mese, contando in mesi assoluti: sommare
+// giorni a una data avrebbe fatto saltare il 31 gennaio direttamente a
+// marzo, che è il classico modo di perdere un mese navigando.
+export function spostaMese(mese, delta) {
+  const [a, m] = String(mese).split('-').map(Number);
+  const tot = a * 12 + (m - 1) + delta;
+  return `${String(Math.floor(tot / 12)).padStart(4, '0')}-${String((tot % 12) + 1).padStart(2, '0')}`;
+}
+
+export function nomeMese(mese) {
+  const [a, m] = String(mese).split('-').map(Number);
+  return `${MESI[m - 1]} ${a}`;
+}
+
+// Come si legge una data intera, per il titolo del giorno scelto.
+export function nomeGiorno(iso) {
+  const [a, m, g] = String(iso).split('-').map(Number);
+  const d = new Date(Date.UTC(a, m - 1, g));
+  return `${GIORNI_SETTIMANA[(d.getUTCDay() + 6) % 7]} ${g} ${MESI[m - 1]} ${a}`;
+}
+
+// Le caselle del mese, in righe da sette a partire dal LUNEDÌ: prima i
+// giorni del mese precedente che chiudono la prima settimana, poi il
+// mese, poi quelli che aprono la successiva. Tutto in UTC, come il resto
+// del file: con l'ora locale il 26 ottobre avrebbe due volte la stessa
+// casella o nessuna.
+export function grigliaMese(mese, oggi = oggiISO()) {
+  const [a, m] = String(mese).split('-').map(Number);
+  // getUTCDay() mette la domenica a 0; qui la settimana comincia di lunedì.
+  const scarto = (new Date(Date.UTC(a, m - 1, 1)).getUTCDay() + 6) % 7;
+  const caselle = [];
+  for (let i = 0; i < 42; i++) {
+    const d = new Date(Date.UTC(a, m - 1, 1 - scarto + i));
+    const iso = d.toISOString().slice(0, 10);
+    caselle.push({ iso, giorno: d.getUTCDate(), nelMese: iso.slice(0, 7) === mese, oggi: iso === oggi });
+  }
+  // Sei righe bastano sempre e quasi mai servono: l'ultima si toglie
+  // quando è tutta del mese dopo, così il calendario non si porta dietro
+  // una riga che non dice niente.
+  while (caselle.length > 35 && !caselle.slice(-7).some(c => c.nelMese)) caselle.length -= 7;
+  return caselle;
+}
+
+// Gli impegni raccolti per giorno di scadenza, già nell'ordine
+// dell'elenco: dentro una casella larga poche righe conta quale si vede
+// per prima. Quelli senza scadenza non stanno in nessuna casella — non
+// sono «di oggi», sono «non datati», e si contano a parte.
+export function perGiorno(impegni, da = oggiISO()) {
+  const mappa = new Map();
+  for (const i of impegni || []) {
+    if (!i.scadenza) continue;
+    const k = String(i.scadenza).slice(0, 10);
+    if (!mappa.has(k)) mappa.set(k, []);
+    mappa.get(k).push(i);
+  }
+  for (const righe of mappa.values()) righe.splice(0, righe.length, ...ordina(righe, da));
+  return mappa;
+}

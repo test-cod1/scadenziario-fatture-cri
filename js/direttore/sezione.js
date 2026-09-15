@@ -16,7 +16,15 @@ export async function renderDirettore(view, ctx, sub, param) {
     go: ctx.go,
   };
 
-  if (sub === 'nuovo') return renderImpegno(view, null, ctxD);
+  // Il calendario si carica solo quando lo si apre: chi usa la sezione per
+  // l'elenco non si porta dietro la griglia del mese.
+  if (sub === 'calendario') {
+    const { renderCalendario } = await import('./views/calendario.js');
+    return renderCalendario(view, ctxD, param);
+  }
+  // Il parametro di «nuovo» è la data da cui si arriva: si clicca un giorno
+  // sul calendario e la scheda si apre con quella scadenza già scritta.
+  if (sub === 'nuovo') return renderImpegno(view, null, ctxD, param);
   if (sub === 'impegno' && param) return renderImpegno(view, param, ctxD);
   return renderImpegni(view, ctxD);
 }

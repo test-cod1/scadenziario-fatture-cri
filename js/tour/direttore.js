@@ -36,6 +36,17 @@ export function passi() {
       testo: 'La prima tendina decide cosa vedere: le cose da fare (come si apre la pagina), i fatti, o tutto. Le altre due filtrano per urgenza e importanza, e la ricerca guarda anche nei dettagli.',
     },
     {
+      hash: '#/direttore/calendario',
+      selettore: '.dir-cal',
+      titolo: 'Le stesse scadenze, sul calendario',
+      testo: 'L\'elenco dice cosa pesa di più, ma non come sono distribuite le cose nel tempo. Qui sì: il mese fa vedere a colpo d\'occhio la settimana già ingorgata — quella in cui è meglio non prendere altri impegni. Rosso pieno vuol dire già scaduto.',
+    },
+    {
+      selettore: '.dir-cal-giorno',
+      titolo: 'Il giorno scelto',
+      testo: 'Cliccando una casella, qui sotto compare per esteso che cosa scade quel giorno: si dà la spunta senza perdere di vista il mese, e con «Impegno in questa data» se ne annota uno nuovo con la scadenza già scritta.',
+    },
+    {
       hash: '#/direttore/nuovo',
       selettore: '#f-titolo',
       titolo: 'Scrivere un impegno',

@@ -148,6 +148,7 @@ export const SEZIONI = [
     home: '#/direttore/impegni',
     menu: [
       { id: 'impegni', icon: '🗒️', label: 'Impegni', attivoAnche: ['impegno'] },
+      { id: 'calendario', icon: '📅', label: 'Calendario' },
       { id: 'nuovo', icon: '➕', label: 'Nuovo impegno' },
     ],
     tour: () => import('./tour/direttore.js'),

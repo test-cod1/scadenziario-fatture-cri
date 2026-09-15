@@ -16,9 +16,20 @@ const BOZZA = {
   scadenza: '', fatto: false,
 };
 
-export async function renderImpegno(view, id, ctx) {
+// Una data da cui partire: arriva dal calendario, dove si è cliccato un
+// giorno per aggiungerci qualcosa. Viene dall'indirizzo, quindi la si
+// guarda bene prima di scriverla in un campo.
+const dataValida = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !Number.isNaN(Date.parse(s));
+
+export async function renderImpegno(view, id, ctx, data) {
   const nuovo = !id;
-  let rec = nuovo ? { ...BOZZA } : await store.get(id);
+  // Salvando si torna da dove si è arrivati: chi apre la scheda da una
+  // casella del calendario vuole rivedere il mese con dentro la cosa
+  // appena scritta, non l'elenco.
+  const daCalendario = nuovo && dataValida(data);
+  const BOZZA_QUI = daCalendario ? { ...BOZZA, scadenza: data } : BOZZA;
+  const ritorno = daCalendario ? `#/direttore/calendario/${data.slice(0, 7)}` : '#/direttore/impegni';
+  let rec = nuovo ? { ...BOZZA_QUI } : await store.get(id);
   let sporco = false;
 
   const editor = el(`<div class="dir-editor">
@@ -29,7 +40,7 @@ export async function renderImpegno(view, id, ctx) {
                    : esc(rec.titolo)}</p>
       </div>
       <div class="actions">
-        <a class="btn" href="#/direttore/impegni">← Elenco</a>
+        <a class="btn" href="${esc(ritorno)}">${daCalendario ? '← Calendario' : '← Elenco'}</a>
         ${nuovo ? '<button class="btn" data-salva-nuovo title="Salva e prepara subito un altro impegno">💾 Salva e nuovo</button>' : ''}
         <button class="btn primary" data-salva>💾 Salva</button>
       </div>
@@ -196,12 +207,14 @@ export async function renderImpegno(view, id, ctx) {
     sporco = false;
     toast(nuovo ? 'Impegno aggiunto' : 'Modifiche salvate', 'ok');
     if (poiNuovo) {
-      rec = { ...BOZZA };
+      // La data resta: da una casella del calendario si annotano spesso due
+      // o tre cose per lo stesso giorno, una dopo l'altra.
+      rec = { ...BOZZA_QUI };
       riempi();
       campi.titolo.focus();
       return;
     }
-    ctx.go('#/direttore/impegni');
+    ctx.go(ritorno);
   }
 
   editor.querySelector('[data-salva]').addEventListener('click', () => salva(false));

@@ -86,9 +86,17 @@ In testa alla pagina ci sono quattro numeri — da fare, scaduti, in scadenza en
 
 Nella scheda l'unica cosa obbligatoria è **che cosa c'è da fare** — un impegno che non si riesce ad annotare in dieci secondi non viene annotato affatto. Man mano che si scelgono i livelli, una riga in fondo dice in che parte dell'elenco comparirà, così non si deve indovinare l'effetto delle tre scelte.
 
+### Il calendario
+
+L'elenco risponde a «cosa faccio adesso»; il **Calendario** risponde all'altra domanda, quella che viene prima di prendere un impegno nuovo: «quella settimana com'è messa?». Sono due sguardi sugli stessi dati e nessuno dei due sostituisce l'altro — un elenco ordinato per peso non fa vedere dove le scadenze si accumulano.
+
+Il mese è una griglia che comincia dal **lunedì**; ogni casella porta i titoli in scadenza quel giorno, colorati come nell'elenco (rosso pieno = già scaduto), e oltre tre righe riassume con «+n altri». Sotto c'è il **giorno scelto**, scritto per esteso: lì si legge tutto quello che scade, si dà la **spunta** senza perdere di vista la settimana e si annota un impegno con la scadenza già compilata (*Impegno in questa data*, che al salvataggio riporta al mese). Sul telefono, dove nella casella non ci starebbe un titolo, restano il numero e dei **pallini** colorati: dicono comunque dove le cose si ammassano, e il dettaglio si legge nel giorno scelto.
+
+Gli impegni **fatti** non compaiono se non li si chiede (una spunta nella barra): il mese serve a vedere cosa viene. Quelli **senza scadenza** non hanno una casella in cui stare, e una riga in fondo lo dice — altrimenti un mese vuoto si leggerebbe come «non c'è niente da fare». Le frecce sfogliano i mesi senza cambiare pagina, ma l'indirizzo con il mese (`#/direttore/calendario/2026-10`) resta valido in entrata. Le regole della griglia — mesi che cominciano di domenica, cambi d'ora, anni bisestili, passaggi d'anno — sono fissate da [`test/calendario.prove.mjs`](test/calendario.prove.mjs).
+
 Gli impegni sono **condivisi fra chi ha accesso alla sezione**, come i dati di tutte le altre: Direttore è la scrivania della direzione, non l'agenda privata di una persona.
 
-La sezione ha il suo **tour guidato** (il pulsante 🎓): undici passi fra elenco e scheda, il copione sta in [`js/tour/direttore.js`](js/tour/direttore.js).
+La sezione ha il suo **tour guidato** (il pulsante 🎓): tredici passi fra elenco, calendario e scheda, il copione sta in [`js/tour/direttore.js`](js/tour/direttore.js).
 
 Richiede [`supabase/patch-2026-09-11-direttore.sql`](supabase/patch-2026-09-11-direttore.sql) (la sezione nel portale) e [`supabase/patch-2026-09-11-impegni-direttore.sql`](supabase/patch-2026-09-11-impegni-direttore.sql) (la tabella degli impegni, con le sue policy).
 
@@ -287,9 +295,10 @@ js/formazione/calc.js           catalogo dei corsi, listino/prezzo riservato, sc
 js/formazione/lib/documento.js  il preventivo dei corsi come blocchi (tabella, attestazioni, sede)
 js/formazione/views/preventivo.js  editor: destinatario, corsi, sede, IVA e sconti
 js/direttore/                  sezione Direttore: gli impegni della direzione
-js/direttore/calc.js            livelli, scadenze e il punteggio con cui si ordina l’elenco
+js/direttore/calc.js            livelli, scadenze, punteggio dell’elenco e griglia del mese
 js/direttore/views/impegni.js   l’elenco, i quattro numeri in testa e la spunta rapida
 js/direttore/views/impegno.js   la scheda: titolo, i due livelli, scadenza e dettagli
+js/direttore/views/calendario.js  il mese delle scadenze e il dettaglio del giorno scelto
 js/lib/carta.js                 legge la carta intestata .dotx (immagini e testi)
 js/lib/docxBlocchi.js           dai blocchi al .docx, sostituendo il corpo del modello
 js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF

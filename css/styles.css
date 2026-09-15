@@ -713,6 +713,78 @@ tr.str-inattivo td{opacity:.6}
   .dir-livelli{flex-direction:column}
 }
 
+/* ---------- Direttore: il calendario delle scadenze ----------
+   Il mese è una griglia di sette colonne, non una tabella: le caselle
+   devono poter crescere in altezza con quello che contengono, e una
+   tabella avrebbe allungato tutta la riga per la casella più piena. */
+.dir-cal-barra{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:18px 0 12px}
+.dir-cal-mese{display:flex;align-items:center;gap:6px}
+.dir-cal-mese b{min-width:9.5em;text-align:center;font-size:16px;text-transform:capitalize}
+.dir-cal-fatti{display:flex;align-items:center;gap:6px;color:var(--ink-soft);font-size:13px;cursor:pointer}
+.dir-cal-fatti input{margin:0}
+
+.dir-cal{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+.dir-cal-testa,.dir-cal-celle{display:grid;grid-template-columns:repeat(7,1fr)}
+.dir-cal-testa div{padding:8px 6px;text-align:center;font-size:12px;font-weight:700;
+  color:var(--ink-soft);background:var(--bg);border-bottom:1px solid var(--line);text-transform:uppercase}
+.dir-cal-testa .festivo{color:var(--cri-red-dark)}
+.dir-cal-testa abbr{text-decoration:none}
+
+.dir-cal-gio{min-height:104px;min-width:0;padding:6px;cursor:pointer;display:flex;flex-direction:column;gap:3px;
+  border-right:1px solid var(--line);border-bottom:1px solid var(--line);background:var(--card)}
+/* Senza questo i titoli non si accorciano: dentro uno <span> lasciato
+   inline la larghezza della casella non fa da limite, e una riga lunga
+   usciva a scrivere sopra il giorno accanto. */
+.dir-cal-gio .voci{display:flex;flex-direction:column;gap:2px;min-width:0;overflow:hidden}
+.dir-cal-celle>.dir-cal-gio:nth-child(7n){border-right:0}
+.dir-cal-gio:hover{background:var(--bg)}
+.dir-cal-gio .n{font-size:13px;font-weight:700;color:var(--ink-soft);line-height:1.2}
+/* I giorni della coda del mese prima e di quello dopo ci sono — servono a
+   chiudere la settimana — ma non devono farsi contare: restano in grigio. */
+.dir-cal-gio.fuori{background:var(--bg)}
+.dir-cal-gio.fuori .n,.dir-cal-gio.fuori .dir-cal-voce{opacity:.45}
+.dir-cal-gio.oggi .n{background:var(--cri-red);color:#fff;border-radius:999px;
+  width:22px;height:22px;display:grid;place-items:center}
+.dir-cal-gio.scelto{box-shadow:0 0 0 2px var(--info) inset}
+
+.dir-cal-voce{display:block;font-size:11.5px;font-weight:600;line-height:1.3;padding:2px 5px;
+  border-radius:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+  background:var(--bg);color:var(--ink-soft)}
+.dir-cal-voce.liv-alta{background:var(--danger-soft);color:var(--danger)}
+.dir-cal-voce.liv-media{background:var(--info-soft);color:var(--info)}
+.dir-cal-voce.liv-bassa{background:var(--bg);color:var(--ink-soft)}
+.dir-cal-voce.scaduta{background:var(--danger);color:#fff}
+.dir-cal-voce.fatta{background:var(--ok-soft);color:var(--ok);text-decoration:line-through}
+.dir-cal-altri{display:block;font-size:11px;color:var(--ink-soft);padding:1px 5px}
+/* I pallini sono la stessa informazione ridotta all'osso: servono solo
+   dove la casella è larga un dito, quindi a schermo grande non ci sono. */
+.dir-cal-gio .pallini{display:none;gap:3px;flex-wrap:wrap}
+.dir-cal-gio .pallini i{width:6px;height:6px;border-radius:999px;background:var(--ink-soft)}
+.dir-cal-gio .pallini i.liv-alta{background:var(--danger)}
+.dir-cal-gio .pallini i.liv-media{background:var(--info)}
+.dir-cal-gio .pallini i.scaduta{background:var(--danger)}
+.dir-cal-gio .pallini i.fatta{background:var(--ok)}
+
+.dir-cal-giorno{margin-top:18px}
+.dir-cal-giorno-testa{display:flex;align-items:center;justify-content:space-between;
+  gap:12px;flex-wrap:wrap;margin-bottom:10px}
+/* «Martedì 15 settembre», non «Martedì 15 Settembre»: in italiano il mese
+   è minuscolo, quindi si alza solo la prima lettera della riga. */
+.dir-cal-giorno-testa h2{margin:0;font-size:16px}
+.dir-cal-giorno-testa h2::first-letter{text-transform:uppercase}
+.dir-cal-invito{color:var(--ink-soft);font-size:13.5px;margin:10px 0}
+.dir-cal-coda{margin-top:14px}
+
+@media (max-width:760px){
+  /* Sul telefono nella casella non ci sta un titolo: restano il numero e
+     i pallini, e quello che c'è scritto si legge nel giorno scelto. */
+  .dir-cal-gio{min-height:56px;padding:5px 3px;align-items:center;gap:4px}
+  .dir-cal-gio .n{font-size:12.5px}
+  .dir-cal-gio .voci,.dir-cal-altri{display:none}
+  .dir-cal-gio .pallini{display:flex;justify-content:center}
+  .dir-cal-mese b{min-width:7.5em;font-size:15px}
+}
+
 /* In stampa il rosso passa al Pantone 485 (#CC0000): e' lo stesso colore
    d'identita', nel valore previsto per la carta. Tutto il resto del foglio
    usa gia' var(--cri-red), quindi basta ridefinire il token. */
