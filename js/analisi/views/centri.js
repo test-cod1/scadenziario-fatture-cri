@@ -47,7 +47,6 @@ export async function renderCentri(view, ctx) {
   }
 
   const docs = documenti(dati.passive, dati.attive);
-  const perFattura = imputazioniPerFattura(dati.imputazioni);
 
   const barra = barraPeriodo(anni(docs), stato, disegna);
   const stats = el('<div class="grid stats" style="margin:0 0 20px"></div>');
@@ -67,6 +66,12 @@ export async function renderCentri(view, ctx) {
   }
 
   function disegna() {
+    // La mappa si rifà ad ogni disegno e non una volta sola all'apertura:
+    // eliminando un centro le sue quote spariscono, e le fatture che aveva
+    // preso in carico tornano scoperte. Con una mappa tenuta da parte, il
+    // riquadro «Fuori dalle attività» continuava a dire «tutto attribuito»
+    // mentre tre fatture erano appena tornate libere.
+    const perFattura = imputazioniPerFattura(dati.imputazioni);
     const righe = quadro(dati.centri, docs, dati.imputazioni, stato);
     const complessivi = righe.reduce((t, r) => ({
       entrate: t.entrate + r.entrate, uscite: t.uscite + r.uscite,
@@ -85,7 +90,8 @@ export async function renderCentri(view, ctx) {
       // Il quarto riquadro è il più importante della pagina: dice quanta
       // parte dei soldi del Comitato questi conti NON stanno guardando.
       cardCliccabile(fuori.documenti ? '' : 'ok', 'Fuori dalle attività', String(fuori.documenti),
-        fuori.documenti ? 'fatture da attribuire — clicca' : 'tutto attribuito',
+        fuori.documenti === 0 ? 'tutto attribuito'
+          : fuori.documenti === 1 ? 'fattura da attribuire — clicca' : 'fatture da attribuire — clicca',
         fuori.documenti ? () => ctx.go('#/analisi/da-attribuire') : null),
     );
 
@@ -104,10 +110,12 @@ export async function renderCentri(view, ctx) {
 
     clear(nota);
     if (fuori.documenti) {
+      const quante = fuori.documenti === 1
+        ? 'C’è <b>una fattura</b> ancora non attribuita (o attribuita solo in parte)'
+        : `Ci sono <b>${fuori.documenti} fatture</b> ancora non attribuite (o attribuite solo in parte)`;
       nota.appendChild(el(`<p class="hint"><b>Attenzione a come si leggono questi numeri.</b>
-        Ci sono ${fuori.documenti} fatture ancora non attribuite (o attribuite solo in parte), per
-        ${fmtEuro(fuori.entrate)} di entrate e ${fmtEuro(fuori.uscite)} di uscite: il totale qui sopra
-        è quello delle attività seguite, non il bilancio del Comitato.
+        ${quante}, per ${fmtEuro(fuori.entrate)} di entrate e ${fmtEuro(fuori.uscite)} di uscite:
+        il totale qui sopra è quello delle attività seguite, non il bilancio del Comitato.
         <a href="#/analisi/da-attribuire">Vedi che cosa manca</a>.</p>`));
     } else {
       nota.appendChild(el('<p class="hint">Tutte le fatture del periodo sono attribuite a un\'attività.</p>'));
@@ -156,9 +164,11 @@ export async function renderCentri(view, ctx) {
       // che se ne va, e da fuori il pulsante è identico a quello di un
       // centro vuoto.
       const quante = vociDi(c.id, docs, dati.imputazioni).length;
-      const avviso = quante
-        ? `Eliminare «${c.nome}»? Le ${quante} attribuzioni fatte su questa attività vanno perse (le fatture restano tutte, tornano solo a non essere attribuite).`
-        : `Eliminare «${c.nome}»? Non ha nessuna fattura attribuita.`;
+      const avviso = quante === 0
+        ? `Eliminare «${c.nome}»? Non ha nessuna fattura attribuita.`
+        : quante === 1
+          ? `Eliminare «${c.nome}»? L’unica attribuzione fatta su questa attività va persa (la fattura resta dov’è, torna solo a non essere attribuita).`
+          : `Eliminare «${c.nome}»? Le ${quante} attribuzioni fatte su questa attività vanno perse (le fatture restano tutte, tornano solo a non essere attribuite).`;
       if (!await confirmDialog(avviso, { danger: true, okLabel: 'Elimina' })) return;
       try { await storeCentri.remove(c.id); }
       catch (e) { toast('Eliminazione non riuscita: ' + e.message, 'err'); return; }

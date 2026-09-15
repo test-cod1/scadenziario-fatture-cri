@@ -105,9 +105,13 @@ export async function renderImputazioni(node, { fatturaId, attiva, importo }) {
       return;
     }
     if (!scegliibili.length) {
-      corpo.appendChild(el(`<p class="hint" style="margin:10px 0 0">Le attività aperte sono già tutte
-        attribuite su questa fattura: correggi una quota qui sopra, o apri un’altra attività in
-        <b>Analisi</b>.</p>`));
+      // Due situazioni diverse con lo stesso sintomo, e due rimedi diversi:
+      // dire «sono già tutte attribuite» a chi ha semplicemente tutte le
+      // attività concluse lo manda a cercare quote che non esistono.
+      const nessunaAperta = !elenco.some(c => !c.chiuso);
+      corpo.appendChild(el(`<p class="hint" style="margin:10px 0 0">${nessunaAperta
+        ? 'Tutte le attività sono concluse, e a un’attività conclusa non si attribuiscono fatture nuove: riaprine una in <b>Analisi</b>.'
+        : 'Le attività aperte sono già tutte attribuite su questa fattura: correggi una quota qui sopra, o apri un’altra attività in <b>Analisi</b>.'}</p>`));
       return;
     }
 

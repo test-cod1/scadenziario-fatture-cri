@@ -84,9 +84,10 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
   // A quale attività appartiene questo incasso (sezione Analisi). Vedi il
   // commento gemello in js/views/fattura.js.
   if (id) {
-    import('../analisi/imputazioniFattura.js').then(({ renderImputazioni }) =>
-      renderImputazioni(body.querySelector('#centri-zone'),
-        { fatturaId: rec.id, attiva: true, importo: rec.importo }));
+    import('../analisi/imputazioniFattura.js')
+      .then(({ renderImputazioni }) => renderImputazioni(body.querySelector('#centri-zone'),
+        { fatturaId: rec.id, attiva: true, importo: rec.importo }))
+      .catch(e => console.warn('[centri di costo] blocco non caricato:', e));
   }
 
   body.querySelector('#file-in').addEventListener('change', async (e) => {

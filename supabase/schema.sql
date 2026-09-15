@@ -1565,6 +1565,43 @@ create trigger imputazioni_controlla
   before insert or update on public.imputazioni
   for each row execute function public.trg_imputazioni_controlla();
 
+-- L'invariante si può violare da due lati: alzando una quota (sopra) o
+-- abbassando la fattura. Senza questo, una fattura registrata per errore a
+-- 1000 € e attribuita tutta a un'attività, poi corretta a 500, lasciava il
+-- centro di costo a contarne 1000 per sempre e senza un avviso.
+create or replace function public.trg_fatture_importo_imputato()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  gia_imputato numeric(12,2);
+begin
+  if new.importo >= old.importo then return new; end if;
+
+  if tg_table_name = 'fatture' then
+    select coalesce(sum(importo), 0) into gia_imputato
+      from public.imputazioni where fattura_id = new.id;
+  else
+    select coalesce(sum(importo), 0) into gia_imputato
+      from public.imputazioni where fattura_attiva_id = new.id;
+  end if;
+
+  if gia_imputato > new.importo + 0.005 then
+    raise exception 'Questa fattura è attribuita a centri di costo per % €: non può scendere a % €. Correggi prima le attribuzioni, in fondo alla scheda.',
+      to_char(gia_imputato, 'FM999999990.00'), to_char(new.importo, 'FM999999990.00');
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists fatture_importo_imputato on public.fatture;
+create trigger fatture_importo_imputato
+  before update of importo on public.fatture
+  for each row execute function public.trg_fatture_importo_imputato();
+
+drop trigger if exists fatture_attive_importo_imputato on public.fatture_attive;
+create trigger fatture_attive_importo_imputato
+  before update of importo on public.fatture_attive
+  for each row execute function public.trg_fatture_importo_imputato();
+
 -- ---------- ROW LEVEL SECURITY ----------
 -- I centri si leggono anche dallo scadenziario, perché è lì che si
 -- attribuisce una fattura mentre la si registra. Crearli e chiuderli è

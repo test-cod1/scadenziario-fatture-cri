@@ -148,7 +148,52 @@ create trigger imputazioni_controlla
   before insert or update on public.imputazioni
   for each row execute function public.trg_imputazioni_controlla();
 
--- ---------- 5. Permessi ----------
+-- ---------- 5. E nemmeno abbassando l'importo della fattura ----------
+-- L'invariante è «le quote non superano la fattura», e si può violare da
+-- due lati: alzando una quota (lo impedisce il trigger qui sopra) oppure
+-- ABBASSANDO la fattura. Senza questo, una fattura registrata per errore a
+-- 1000 € e attribuita tutta a un'attività, poi corretta a 500, lasciava il
+-- centro di costo a contarne 1000 — per sempre e senza un avviso, perché
+-- dal lato delle imputazioni non era cambiato niente.
+--
+-- Il messaggio dice dove si rimedia: il blocco «Centri di costo» sta in
+-- fondo alla stessa scheda in cui si sta correggendo l'importo.
+create or replace function public.trg_fatture_importo_imputato()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  gia_imputato numeric(12,2);
+begin
+  -- Alzare l'importo non può rompere niente: si esce subito, così le
+  -- correzioni normali non pagano una lettura in più.
+  if new.importo >= old.importo then return new; end if;
+
+  if tg_table_name = 'fatture' then
+    select coalesce(sum(importo), 0) into gia_imputato
+      from public.imputazioni where fattura_id = new.id;
+  else
+    select coalesce(sum(importo), 0) into gia_imputato
+      from public.imputazioni where fattura_attiva_id = new.id;
+  end if;
+
+  if gia_imputato > new.importo + 0.005 then
+    raise exception 'Questa fattura è attribuita a centri di costo per % €: non può scendere a % €. Correggi prima le attribuzioni, in fondo alla scheda.',
+      to_char(gia_imputato, 'FM999999990.00'), to_char(new.importo, 'FM999999990.00');
+  end if;
+  return new;
+end;
+$$;
+
+drop trigger if exists fatture_importo_imputato on public.fatture;
+create trigger fatture_importo_imputato
+  before update of importo on public.fatture
+  for each row execute function public.trg_fatture_importo_imputato();
+
+drop trigger if exists fatture_attive_importo_imputato on public.fatture_attive;
+create trigger fatture_attive_importo_imputato
+  before update of importo on public.fatture_attive
+  for each row execute function public.trg_fatture_importo_imputato();
+
+-- ---------- 6. Permessi ----------
 alter table public.centri_costo enable row level security;
 alter table public.imputazioni  enable row level security;
 

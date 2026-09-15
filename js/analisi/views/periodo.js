@@ -12,6 +12,15 @@
 import { el, esc } from '../../lib/ui.js';
 
 export function barraPeriodo(anniDisponibili, stato, onChange) {
+  // L'anno di partenza lo propone chi chiama — di solito quello in corso —
+  // ma se in archivio non c'è nemmeno una fattura di quell'anno, l'opzione
+  // non esiste e il <select> ripiega da solo su «Tutti gli anni». Lo stato,
+  // che nessuno correggeva, continuava però a filtrare quell'anno: a
+  // gennaio, col solo archivio dell'anno prima, la pagina mostrava tutti
+  // zeri sostenendo di non filtrare niente. Qui si allineano i due.
+  if (stato.anno && !anniDisponibili.includes(stato.anno)) stato.anno = '';
+  Object.assign(stato, intervallo(stato.anno));
+
   const barra = el(`<div class="an-periodo">
     <label for="f-anno">Periodo</label>
     <select id="f-anno">

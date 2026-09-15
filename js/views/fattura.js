@@ -104,9 +104,13 @@ export async function apriEditor(id, ctx, onSaved) {
   // fattura a cui attaccarsi, e il modulo non pesa su chi ne sta
   // registrando una nuova.
   if (id) {
-    import('../analisi/imputazioniFattura.js').then(({ renderImputazioni }) =>
-      renderImputazioni(body.querySelector('#centri-zone'),
-        { fatturaId: rec.id, attiva: false, importo: rec.importo }));
+    import('../analisi/imputazioniFattura.js')
+      .then(({ renderImputazioni }) => renderImputazioni(body.querySelector('#centri-zone'),
+        { fatturaId: rec.id, attiva: false, importo: rec.importo }))
+      // Offline e con quel file non ancora in cache l'import fallisce: la
+      // scheda deve restare usabile, ma il motivo va scritto da qualche
+      // parte invece di uscire come promise rifiutata senza gestore.
+      .catch(e => console.warn('[centri di costo] blocco non caricato:', e));
   }
 
   // Suggerisce i fornitori già usati mentre si scrive, per non ritrovarsi

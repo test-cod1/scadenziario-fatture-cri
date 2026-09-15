@@ -48,12 +48,18 @@ export async function renderDaAttribuire(view, ctx) {
   const aperti = dati.centri.filter(c => !c.chiuso);
   let perFattura = imputazioniPerFattura(dati.imputazioni);
 
-  if (!dati.centri.length) {
+  // Non basta che esista un centro: deve essercene uno APERTO, perché è da
+  // quelli che si sceglie. Con tutte le attività concluse — cosa che
+  // succede a fine anno — la pagina si disegnava con la tendina vuota e
+  // ogni clic su «Attribuisci» finiva in un errore, senza che niente
+  // dicesse che bisognava riaprire o creare un'attività.
+  if (!aperti.length) {
     clear(zona);
     zona.appendChild(el(`<div class="empty-state"><div class="big">🎯</div>
-      <p><b>Prima servono le attività</b></p>
-      <p>Non c’è ancora nessun centro di costo a cui attribuire una fattura.<br>
-      <a href="#/analisi/centri">Creane uno</a> e torna qui.</p></div>`));
+      <p><b>${dati.centri.length ? 'Nessuna attività aperta' : 'Prima servono le attività'}</b></p>
+      <p>${dati.centri.length
+        ? 'Le attività ci sono ma sono tutte concluse, e a un’attività conclusa non si attribuiscono fatture nuove.<br>Riaprine una o creane un’altra in <a href="#/analisi/centri">Centri di costo</a>.'
+        : 'Non c’è ancora nessun centro di costo a cui attribuire una fattura.<br><a href="#/analisi/centri">Creane uno</a> e torna qui.'}</p></div>`));
     return;
   }
 

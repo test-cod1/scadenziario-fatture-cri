@@ -146,7 +146,12 @@ export const imputazioni = {
 //    fanno lo stesso lavoro.
 function vestiErrore(error) {
   const m = String(error?.message || '');
-  if (/quote attribuite/i.test(m)) return new Error(m.replace(/^.*?:\s*/, ''));
+  // Il messaggio del trigger arriva già scritto per essere letto e si passa
+  // intero. Prima se ne tagliava la parte fino al primo «:» per togliere un
+  // prefisso tecnico che non c'è mai stato: siccome nel messaggio i due
+  // punti cadono dopo «…e la fattura è di 1000,00 €», all'utente restava
+  // solo la coda della frase, senza le due cifre che servivano a capirla.
+  if (/quote attribuite/i.test(m)) return new Error(m);
   if (error?.code === '23505') {
     return new Error('Questa fattura è già attribuita a questo centro: correggi la quota che c’è invece di aggiungerne una seconda.');
   }
