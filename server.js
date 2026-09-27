@@ -39,7 +39,7 @@ let HEADER_SICUREZZA = {};
 const NON_SERVIBILI = [
   '.dev.vars', '.env', '.git', '.wrangler', 'node_modules',
   'supabase', 'functions', 'tools', 'server.js', 'worker.js', 'wrangler.jsonc',
-  'package.json', 'package-lock.json', '.assetsignore', '.gitignore',
+  'package.json', 'package-lock.json', '.assetsignore', '.gitignore', 'dist',
 ];
 function nonServibile(relativo) {
   const primoPezzo = relativo.split(path.sep)[0];

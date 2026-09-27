@@ -22,3 +22,5 @@ README.md
 .assetsignore
 test/
 backup/
+# Uscita della build per Pages (tools/build-pages.mjs): ricostruita a ogni deploy.
+dist/

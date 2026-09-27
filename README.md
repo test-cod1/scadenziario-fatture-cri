@@ -293,6 +293,25 @@ Il campo `name` in [`wrangler.jsonc`](wrangler.jsonc) è anche il sottodominio p
 2. in Supabase → Authentication → URL Configuration aggiorna la **Site URL** e aggiungi il nuovo indirizzo ai **Redirect URLs** (`https://amministrazione.jacopo-ravaiolicri.workers.dev/**`), altrimenti il link di reset password non funziona;
 3. verifica che il nuovo indirizzo funzioni e solo allora elimina il vecchio Worker dalla dashboard Cloudflare.
 
+### Pubblicazione su Pages e dominio amministrazione.crigenova.it
+
+Il portale deve stare su `https://amministrazione.crigenova.it`, ma il DNS di crigenova.it è gestito da Aruba e non da Cloudflare: un **Worker** accetta un dominio personalizzato solo se la zona è su Cloudflare, mentre un progetto **Pages** lo accetta anche con un semplice CNAME dal DNS esterno. Per questo lo stesso repo si pubblica anche come progetto Pages, **`amministrazione-crigenova`** (`https://amministrazione-crigenova.pages.dev` — `amministrazione.pages.dev` era già preso da altri). Il Worker resta attivo finché il dominio nuovo non funziona.
+
+Cosa c'è nel repo per Pages:
+- [`functions/_middleware.js`](functions/_middleware.js): su Pages fa il lavoro di `worker.js` — intestazioni di sicurezza e `no-cache` su ogni risposta, 405 sul metodo sbagliato, 404 in JSON sulle `/api/*` inesistenti (senza, Pages risponderebbe con index.html e stato 200). Le `/api/*` Pages le trova da solo dai file in `functions/api/`.
+- [`functions/_lib/rotte.js`](functions/_lib/rotte.js) e [`functions/_lib/sicurezza.js`](functions/_lib/sicurezza.js): elenco delle route e intestazioni, usati sia da `worker.js` sia dal middleware, così le due pubblicazioni escono identiche. Un endpoint nuovo si aggiunge in `rotte.js`.
+- [`tools/build-pages.mjs`](tools/build-pages.mjs): copia in `dist/` solo i file del sito, escludendo quello che elenca `.assetsignore` (lo stesso elenco del Worker). Pubblicando la radice del repo finirebbero scaricabili anche `supabase/`, `test/`, questo README.
+
+Creazione del progetto (una volta sola, dalla dashboard Cloudflare → Workers & Pages → Create → **Pages** → Connect to Git):
+1. repository `scadenziario-fatture-cri`, branch `main`, nome progetto **`amministrazione-crigenova`**;
+2. Framework preset *None*, **Build command** `node tools/build-pages.mjs`, **Build output directory** `dist`, root directory vuota;
+3. Settings → Variables and Secrets: gli stessi secret del Worker (`GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ORS_KEY`) — non si ereditano. In Settings → Runtime la compatibility date `2026-08-28`, come in `wrangler.jsonc`;
+4. Custom domains → **Set up a custom domain** → `amministrazione.crigenova.it`, **prima** che il gestore del DNS aggiunga il record (col record ma senza questo passaggio il dominio risponde con errore 522);
+5. al gestore di crigenova.it si chiede un solo record: `CNAME amministrazione → amministrazione-crigenova.pages.dev`;
+6. quando il dominio risponde: in Supabase → Authentication → URL Configuration **Site URL** `https://amministrazione.crigenova.it` e nei **Redirect URLs** `https://amministrazione.crigenova.it/**` (altrimenti il reset password porta al vecchio indirizzo). Controllo: `curl -D - -o /dev/null https://amministrazione.crigenova.it/js/app.js` deve mostrare `Content-Security-Policy`.
+
+Cambiando indirizzo cambia l'origine del sito: chi entra dal dominio nuovo deve rifare il login, e chi aveva installato l'app sul telefono deve reinstallarla da lì. Solo dopo che tutti usano il dominio nuovo si può eliminare il Worker (e con lui `worker.js` e `wrangler.jsonc`).
+
 ## Gestire gli utenti dall'app
 
 Tutto avviene in **Utenti e autorizzazioni** (voce in fondo alla barra laterale, visibile solo al super admin).
