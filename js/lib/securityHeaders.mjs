@@ -19,7 +19,11 @@
 //     le nostre /api/*;
 //   - style-src consente gli stili inline perché le viste usano attributi
 //     style="..." su molti elementi;
-//   - niente script inline: la stampa PDF è avviata dal codice del sito.
+//   - niente script inline: la stampa PDF è avviata dal codice del sito;
+//   - frame-src 'self' blob:: l'anteprima della fattura appena scelta è un
+//     <iframe> su un URL blob: creato in pagina (renderAnteprimaFile, in
+//     js/lib/documenti.js). Senza questa riga valeva default-src 'self', che
+//     i blob: non li comprende, e il riquadro mostrava "contenuti bloccati".
 // ============================================================
 const CSP = [
   "default-src 'self'",
@@ -28,6 +32,7 @@ const CSP = [
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
   "connect-src 'self' https://*.supabase.co",
+  "frame-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
