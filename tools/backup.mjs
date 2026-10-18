@@ -31,13 +31,15 @@ const URL_SUPABASE = 'https://xmfqozojjplccnnttwxu.supabase.co';
 // esplicito che una scoperta automatica che un giorno salta qualcosa in
 // silenzio.
 const TABELLE = {
-  'Portale': ['profili', 'sezioni', 'autorizzazioni'],
+  'Portale': ['profili', 'sezioni', 'autorizzazioni', 'registro'],
   'Scadenziario — fatture passive': ['fatture', 'pagamenti', 'note_credito', 'note_credito_righe', 'proposte_pagamento', 'log_modifiche', 'impostazioni'],
   'Scadenziario — fatture attive': ['fatture_attive', 'incassi', 'note_credito_attive', 'note_credito_attive_righe', 'log_modifiche_attive'],
   'Trasporti lunghi': ['preventivi', 'impostazioni_trasferte'],
   'Assistenze sanitarie': ['preventivi_assistenze', 'clienti_assistenze', 'impostazioni_assistenze'],
   'Formazione esterna': ['preventivi_formazione', 'clienti_formazione', 'impostazioni_formazione'],
   'Straordinari': ['straordinari', 'dipendenti_straordinari', 'impostazioni_straordinari'],
+  'Direttore': ['impegni_direttore'],
+  'Analisi': ['centri_costo', 'imputazioni'],
 };
 
 // Chiavi da .dev.vars, stesso formato dei secret di Cloudflare (come fa

@@ -1,4 +1,4 @@
-import { proposte } from '../data/store.js';
+import { proposte, fatture } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, parseEuro } from '../lib/ui.js';
 import { METODI } from '../lib/xmlFattura.js';
 import { confermaSeSuperaResiduo } from '../lib/documenti.js';
@@ -146,7 +146,7 @@ function apriConfermaProposta(proposta, fattura, ctx, ricarica) {
     const data_pagamento = body.querySelector('#cp-data').value;
     if (!importo || importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
     if (!data_pagamento) { err.textContent = 'Indica la data del pagamento.'; return; }
-    if (fattura._residuo !== undefined && !await confermaSeSuperaResiduo(importo, fattura._residuo)) return;
+    if (fattura._residuo !== undefined && !await confermaSeSuperaResiduo(importo, fattura._residuo, () => fatture.get(proposta.fattura_id))) return;
     const btn = footer.querySelector('#cp-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Conferma…';
     try {

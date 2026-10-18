@@ -34,7 +34,8 @@ export function isXmlFatturaElettronica(filename, text) {
   return /FatturaElettronica/i.test(text.slice(0, 2000));
 }
 
-// Ritorna { fornitore, numero_fattura, data_fattura, importo, scadenza, metodo_pagamento, note }
+// Ritorna { fornitore, numero_fattura, data_fattura, importo, scadenza, metodo_pagamento, note,
+//          tipo_documento, nota_credito, riferimento }
 // oppure lancia un errore descrittivo se il documento non è nel formato atteso.
 export function parseFatturaXml(xmlText) {
   const parser = new DOMParser();
@@ -61,6 +62,8 @@ export function parseFatturaXml(xmlText) {
     }
   }
 
+  const partita_iva = identificativoFiscale(cedente);
+
   const datiGen = tag(body, 'DatiGeneraliDocumento');
   const numero_fattura = datiGen ? txt(datiGen, 'Numero') : '';
   const data_fattura = datiGen ? txt(datiGen, 'Data') : '';
@@ -84,7 +87,8 @@ export function parseFatturaXml(xmlText) {
     return a.scadenza.localeCompare(b.scadenza);
   });
 
-  const importo = calcolaImporto(body, datiGen, rate);
+  const fiscali = datiFiscali(body, datiGen, calcolaImporto(body, datiGen, rate), 'pagare');
+  const importo = fiscali.importo;
 
   // Se l'XML non riporta rate di pagamento con scadenza, si lascia vuoto:
   // l'app applica poi lo scadenzario di default configurato in Impostazioni.
@@ -92,7 +96,7 @@ export function parseFatturaXml(xmlText) {
   const modPagTag = allTags(body, 'ModalitaPagamento')[0];
   const metodo_pagamento = modPagTag ? traduciModalita(modPagTag.textContent.trim()) : '';
 
-  const avvisi = [];
+  const avvisi = [...fiscali.avvisi];
   // Un file può contenere un LOTTO di più fatture (più FatturaElettronicaBody):
   // qui se ne legge una sola, ed è giusto che chi carica lo sappia.
   if (corpi.length > 1) {
@@ -111,12 +115,16 @@ export function parseFatturaXml(xmlText) {
 
   return {
     fornitore: fornitore || null,
+    partita_iva,
     numero_fattura: numero_fattura || null,
     data_fattura: data_fattura || null,
     importo,
     scadenza: scadenza || null,
     metodo_pagamento: metodo_pagamento || null,
     note: note || null,
+    tipo_documento: fiscali.tipo_documento,
+    nota_credito: fiscali.nota_credito,
+    riferimento: fiscali.riferimento,
   };
 }
 
@@ -150,6 +158,8 @@ export function parseFatturaAttivaXml(xmlText) {
     }
   }
 
+  const partita_iva = identificativoFiscale(cessionario);
+
   const datiGen = tag(body, 'DatiGeneraliDocumento');
   const numero_fattura = datiGen ? txt(datiGen, 'Numero') : '';
   const data_fattura = datiGen ? txt(datiGen, 'Data') : '';
@@ -170,11 +180,12 @@ export function parseFatturaAttivaXml(xmlText) {
     return a.scadenza.localeCompare(b.scadenza);
   });
 
-  const importo = calcolaImporto(body, datiGen, rate);
+  const fiscali = datiFiscali(body, datiGen, calcolaImporto(body, datiGen, rate), 'incassare');
+  const importo = fiscali.importo;
   const modPagTag = allTags(body, 'ModalitaPagamento')[0];
   const metodo_pagamento = modPagTag ? traduciModalita(modPagTag.textContent.trim()) : '';
 
-  const avvisi = [];
+  const avvisi = [...fiscali.avvisi];
   if (corpi.length > 1) {
     avvisi.push("ATTENZIONE: il file contiene " + corpi.length + " fatture (lotto); qui è stata letta solo la prima.");
   }
@@ -190,11 +201,15 @@ export function parseFatturaAttivaXml(xmlText) {
 
   return {
     cliente: cliente || null,
+    partita_iva,
     numero_fattura: numero_fattura || null,
     data_fattura: data_fattura || null,
     importo,
     metodo_pagamento: metodo_pagamento || null,
     note: note || null,
+    tipo_documento: fiscali.tipo_documento,
+    nota_credito: fiscali.nota_credito,
+    riferimento: fiscali.riferimento,
   };
 }
 
@@ -248,6 +263,67 @@ function calcolaImporto(body, datiGen, rate) {
 
   const daRate = rate.reduce((s, r) => s + (r.importo || 0), 0);
   return daRate > 0 ? arrotonda(daRate) : null;
+}
+
+// ------------------------------------------------------------
+//  Partita IVA (o codice fiscale) della controparte
+// ------------------------------------------------------------
+//  Il nome si scrive in mille modi ("ENEL S.P.A.", "Enel SpA"): la partita
+//  IVA no. Serve al controllo dei doppioni e a raggruppare il Report per
+//  soggetto vero. Si legge IdFiscaleIVA (paese + codice, es. IT01234567890);
+//  chi non ce l'ha — un privato, un ente senza P.IVA — ha il codice fiscale.
+export function identificativoFiscale(nodo) {
+  if (!nodo) return null;
+  const iva = tag(nodo, 'IdFiscaleIVA');
+  if (iva) {
+    const codice = txt(iva, 'IdCodice').replace(/\s+/g, '').toUpperCase();
+    if (codice) return (txt(iva, 'IdPaese').trim().toUpperCase() || 'IT') + codice;
+  }
+  const cf = txt(nodo, 'CodiceFiscale').replace(/\s+/g, '').toUpperCase();
+  return cf || null;
+}
+
+// ------------------------------------------------------------
+//  Tipo di documento, ritenuta d'acconto e split payment
+// ------------------------------------------------------------
+//  Due cose che prima si ignoravano, e che facevano nascere record sbagliati:
+//  - TipoDocumento TD04/TD08 è una NOTA DI CREDITO: registrata come fattura
+//    diventava un debito (o un credito) in più, con importo positivo, al posto
+//    dello storno che è. Qui la si riconosce, e la vista la manda alla
+//    registrazione delle note di credito invece di salvarla come fattura.
+//  - La ritenuta d'acconto (DatiRitenuta) e l'IVA in split payment
+//    (EsigibilitaIVA = "S") non passano dal fornitore: il totale del documento
+//    è il lordo, ma si paga (o si incassa) il netto. Salvando il lordo la
+//    fattura restava per sempre "pagata parziale", con un residuo che nessuno
+//    deve. L'importo proposto è quindi quello dovuto, e la nota dice da dove
+//    viene, col totale del documento.
+const TIPI_NOTA_CREDITO = new Set(['TD04', 'TD08']);
+
+function datiFiscali(body, datiGen, totale, verbo) {
+  const tipo_documento = datiGen ? txt(datiGen, 'TipoDocumento') : '';
+  const nota_credito = TIPI_NOTA_CREDITO.has(tipo_documento);
+  const collegata = tag(body, 'DatiFattureCollegate');
+  const riferimento = collegata ? txt(collegata, 'IdDocumento') : '';
+
+  const ritenuta = arrotonda((datiGen ? allTags(datiGen, 'DatiRitenuta') : [])
+    .reduce((s, r) => s + (numero(txt(r, 'ImportoRitenuta')) || 0), 0));
+  const ivaSplit = arrotonda(allTags(body, 'DatiRiepilogo')
+    .filter(r => txt(r, 'EsigibilitaIVA').toUpperCase() === 'S')
+    .reduce((s, r) => s + (numero(txt(r, 'Imposta')) || 0), 0));
+
+  let importo = totale;
+  const avvisi = [];
+  if (totale && (ritenuta > 0 || ivaSplit > 0)) {
+    const dovuto = arrotonda(totale - ritenuta - ivaSplit);
+    if (dovuto > 0) {
+      importo = dovuto;
+      const voci = [];
+      if (ritenuta > 0) voci.push(`ritenuta d'acconto ${ritenuta.toFixed(2)}€`);
+      if (ivaSplit > 0) voci.push(`IVA in split payment ${ivaSplit.toFixed(2)}€`);
+      avvisi.push(`Totale documento ${totale.toFixed(2)}€, meno ${voci.join(' e ')}: importo da ${verbo} ${dovuto.toFixed(2)}€.`);
+    }
+  }
+  return { tipo_documento: tipo_documento || null, nota_credito, riferimento: riferimento || null, importo, avvisi };
 }
 
 // Nel tracciato FatturaPA i decimali usano il punto, ma qualche gestionale

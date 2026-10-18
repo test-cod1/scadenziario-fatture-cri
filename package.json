@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "node server.js",
     "test": "node test/esegui.mjs",
+    "lint": "npx --yes eslint@9.39.5 .",
     "backup": "node tools/backup.mjs"
   }
 }

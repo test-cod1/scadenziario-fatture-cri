@@ -18,17 +18,20 @@ const SCHEMA = {
   type: 'OBJECT',
   properties: {
     fornitore: { type: 'STRING', description: 'Nome del fornitore/emittente della fattura' },
+    partita_iva: { type: 'STRING', description: 'Partita IVA (con prefisso del paese, es. IT01234567890) o, se manca, codice fiscale della controparte indicata sopra' },
     numero_fattura: { type: 'STRING', description: 'Numero della fattura' },
     data_fattura: { type: 'STRING', description: 'Data di emissione della fattura, formato YYYY-MM-DD' },
     importo: { type: 'NUMBER', description: 'Importo totale della fattura (numero, punto decimale, senza simbolo di valuta)' },
     scadenza: { type: 'STRING', description: 'Data di scadenza del pagamento, formato YYYY-MM-DD. Se non indicata nel documento, ometti il campo: non inventarla.' },
     metodo_pagamento: { type: 'STRING', description: 'Modalità di pagamento se indicata: bonifico, RIBA, RID, contanti, altro' },
     note: { type: 'STRING', description: 'Eventuali dettagli utili non altrimenti catalogabili (es. rate/acconti indicati nel documento)' },
+    nota_credito: { type: 'BOOLEAN', description: 'true se il documento è una NOTA DI CREDITO (storno di una fattura precedente, tipo documento TD04/TD08), altrimenti false' },
+    riferimento: { type: 'STRING', description: 'Solo per le note di credito: numero della fattura che il documento storna, se indicato' },
   },
   required: ['fornitore', 'importo'],
 };
 
-const PROMPT = `Sei un assistente contabile. Analizza il documento allegato (fattura fornitore) ed estrai i campi richiesti secondo lo schema JSON fornito. Usa il formato data YYYY-MM-DD. Se un campo non è presente nel documento, omettilo o lascialo vuoto: non inventare valori. Per l'importo usa sempre il totale finale del documento (IVA inclusa). Per metodo_pagamento restituisci SOLO una di queste parole, senza codici né altro testo: bonifico, RIBA, RID, contanti, altro.`;
+const PROMPT = `Sei un assistente contabile. Analizza il documento allegato (fattura fornitore) ed estrai i campi richiesti secondo lo schema JSON fornito. Usa il formato data YYYY-MM-DD. Se un campo non è presente nel documento, omettilo o lascialo vuoto: non inventare valori. Per l'importo usa sempre il totale finale del documento (IVA inclusa). Per metodo_pagamento restituisci SOLO una di queste parole, senza codici né altro testo: bonifico, RIBA, RID, contanti, altro. Se il documento indica una ritenuta d'acconto o l'IVA in split payment (scissione dei pagamenti), in "importo" metti la cifra effettivamente da pagare (totale meno ritenuta e/o IVA scissa) e scrivi in "note" il totale del documento e le voci sottratte.`;
 
 export async function onRequestPost(context) {
   const { request, env } = context;

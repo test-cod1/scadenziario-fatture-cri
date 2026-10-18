@@ -22,6 +22,7 @@ const OPZIONI = { danger: true, okLabel: 'Esci senza salvare' };
 
 let stato = null;        // { nodo, cSporco } dell'editor in pagina
 let guardia = false;     // c'è una nostra voce di cronologia in cima?
+let hrefGuardia = '';    // l'indirizzo su cui la voce è stata messa
 let chiedendo = false;   // dialogo già aperto: non se ne aprono due
 
 // La sorveglianza vale solo per l'editor ancora in pagina: quando il router
@@ -43,6 +44,7 @@ export function ciSonoModificheNonSalvate() {
 export function armaGuardiaIndietro() {
   if (guardia || !attivo()) return;
   history.pushState(null, '', location.href);
+  hrefGuardia = location.href;
   guardia = true;
 }
 
@@ -79,6 +81,13 @@ export function sorvegliaUscita(nodo, cSporco) {
 function onIndietro() {
   if (!guardia) return;          // voce non nostra: il router faccia il suo lavoro
   guardia = false;
+  // Il tasto "indietro" consuma la nostra voce e lascia l'indirizzo com'era.
+  // Se l'indirizzo è un altro, invece, è l'editor stesso che sta cambiando
+  // pagina dopo aver salvato (ctx.go, location.hash: anche quello fa scattare
+  // popstate). Tornare indietro qui riportava l'utente sull'editor appena
+  // salvato — o su un editor "nuovo" vuoto — in ogni editor che non chiamava
+  // smettiDiSorvegliare() prima di navigare, cioè quasi tutti.
+  if (location.href !== hrefGuardia) return;
   if (!ciSonoModificheNonSalvate()) {
     // Salvato nel frattempo (o editor già chiuso): il tasto "indietro"
     // dev'essere andato indietro davvero, non consumare la nostra voce e
@@ -112,12 +121,12 @@ function abbandona() {
   guardia = false;
 }
 
-// Da chiamare dopo un salvataggio riuscito, PRIMA di cambiare pagina da
-// codice (ctx.go, location.hash): smonta la sorveglianza e la voce di
-// cronologia della guardia. Senza, la navigazione fatta dall'editor viene
-// scambiata per un "indietro" — assegnare location.hash dopo una pushState
-// fa scattare anche popstate — e onIndietro riporta l'utente sull'editor
-// appena salvato, come se il salvataggio non avesse cambiato pagina.
+// Smonta la sorveglianza dell'editor in pagina (per esempio dopo un
+// salvataggio). Un tempo andava chiamata per forza prima di ogni ctx.go:
+// assegnare location.hash dopo una pushState fa scattare anche popstate, e
+// onIndietro scambiava la navigazione dell'editor per un "indietro". Ora
+// onIndietro la riconosce da sé (l'indirizzo è cambiato), quindi chiamarla
+// è solo una pulizia in più.
 export function smettiDiSorvegliare() {
   abbandona();
 }

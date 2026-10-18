@@ -307,12 +307,15 @@ export const fatture = {
   // spazi iniziali/finali sfuggirebbero al controllo. Serve comunque un
   // filtro grezzo lato query (ilike, jolly disabilitati) per non scaricare
   // l'intera tabella fatture ad ogni salvataggio.
-  async trovaDuplicato({ fornitore, numero_fattura }, escludiId) {
+  // Stesso numero e stesso soggetto: la partita IVA quando c'è su entrambe,
+  // altrimenti il nome (stessa regola di lib/soggetti.js, ripetuta qui per
+  // non aggiungere un modulo a quelli che servono all'avvio).
+  async trovaDuplicato({ fornitore, numero_fattura, partita_iva }, escludiId) {
     if (!numero_fattura || !fornitore) return null;   // senza numero non si può parlare di duplicato
     const norm = (v) => String(v || "").trim().toLowerCase().split(" ").filter(Boolean).join(" ");
     const sb = await sbClient();
     const { data, error } = await sb.from("fatture")
-      .select("id, fornitore, numero_fattura, data_fattura, importo")
+      .select("id, fornitore, partita_iva, numero_fattura, data_fattura, importo")
       .ilike("numero_fattura", numero_fattura.trim().replace(/[%_]/g, m => '\\' + m))
       // Il limite era 20, e su una numerazione ordinaria non bastava: i
       // fornitori piccoli numerano le fatture 1, 2, 3…, quindi le righe con
@@ -323,7 +326,8 @@ export const fatture = {
       .limit(1000);
     if (error) throw error;
     const cercato = norm(fornitore);
-    return (data || []).find(f => f.id !== escludiId && norm(f.numero_fattura) === norm(numero_fattura) && norm(f.fornitore) === cercato) || null;
+    const stessoSoggetto = (f) => (partita_iva && f.partita_iva) ? f.partita_iva === partita_iva : norm(f.fornitore) === cercato;
+    return (data || []).find(f => f.id !== escludiId && norm(f.numero_fattura) === norm(numero_fattura) && stessoSoggetto(f)) || null;
   },
   async remove(id) {
     const sb = await sbClient();
@@ -591,16 +595,25 @@ export const proposte = {
       throw errPag;
     }
     const { error: errLink } = await sb.from('proposte_pagamento').update({ pagamento_id: pag.id }).eq('id', proposta.id);
-    if (errLink) throw errLink;
+    // A questo punto il pagamento ESISTE: un errore generico qui faceva
+    // credere che non fosse stato registrato, e lo si registrava una seconda
+    // volta a mano. Manca solo il collegamento, e lo si dice.
+    if (errLink) throw new Error('Il pagamento è stato registrato, ma non collegato alla proposta: non registrarlo di nuovo. (' + errLink.message + ')');
     return pag;
   },
+  // Solo una proposta ancora in attesa si può rifiutare, come per confermare:
+  // senza la condizione sullo stato, un admin con la pagina vecchia poteva
+  // segnare "rifiutata" una proposta già confermata (col pagamento già
+  // registrato), e l'operatore la riproponeva — un pagamento doppio.
   async rifiutare(id, motivo, decisore) {
     const sb = await sbClient();
     const { data: u } = await sb.auth.getUser();
-    const { error } = await sb.from('proposte_pagamento')
+    const { data: rifiutate, error } = await sb.from('proposte_pagamento')
       .update({ stato: 'rifiutata', decisa_da: u?.user?.id, decisa_da_nome: decisore?.nome || null, decisa_il: new Date().toISOString(), motivo_rifiuto: motivo || null })
-      .eq('id', id);
+      .eq('id', id).eq('stato', 'proposta')
+      .select('id');
     if (error) throw error;
+    if (!rifiutate || !rifiutate.length) throw new Error('Questa proposta è già stata gestita nel frattempo (da un altro admin, o in un\'altra scheda).');
   },
 };
 

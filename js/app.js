@@ -227,6 +227,17 @@ function disegnaNav(sezioneId, sottoSezione, sub) {
     const a = el('<a href="#/portale/utenti"><span class="ic">👥</span><span class="txt">Utenti e autorizzazioni</span></a>');
     a.classList.toggle('active', sezioneId === null && sub === 'utenti');
     navImp.appendChild(a);
+    const r = el('<a href="#/portale/registro"><span class="ic">📜</span><span class="txt">Registro modifiche</span></a>');
+    r.classList.toggle('active', sezioneId === null && sub === 'registro');
+    navImp.appendChild(r);
+  }
+
+  // Promemoria email: solo per chi vede almeno una delle sezioni che ne
+  // mandano (scadenze dello scadenziario, impegni del Direttore).
+  if (ruoloIn(currentUser, 'scadenziario') || ruoloIn(currentUser, 'direttore')) {
+    const p = el('<a href="#/portale/promemoria"><span class="ic">🔔</span><span class="txt">Promemoria email</span></a>');
+    p.classList.toggle('active', sezioneId === null && sub === 'promemoria');
+    navImp.appendChild(p);
   }
 }
 
@@ -270,7 +281,13 @@ async function route() {
     view.appendChild(zona);
     const ctx = { user: currentUser, go: (h) => { location.hash = h; } };
     try {
-      if (primo === 'portale') await renderPortaleUtenti(zona, ctx);
+      if (primo === 'portale' && sub === 'promemoria') {
+        const { renderPromemoria } = await import('./views/promemoria.js');
+        await renderPromemoria(zona, { ...ctx, puoScadenziario: !!ruoloIn(currentUser, 'scadenziario'), puoDirettore: !!ruoloIn(currentUser, 'direttore') });
+      } else if (primo === 'portale' && sub === 'registro') {
+        const { renderRegistroPortale } = await import('./views/registroPortale.js');
+        await renderRegistroPortale(zona, ctx);
+      } else if (primo === 'portale') await renderPortaleUtenti(zona, ctx);
       else await renderHome(zona, ctx);
     } catch (e) { if (my === _routeSeq) mostraErrore(zona, e); }
     return;

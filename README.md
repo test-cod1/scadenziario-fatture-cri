@@ -312,6 +312,45 @@ Creazione del progetto (una volta sola, dalla dashboard Cloudflare → Workers &
 
 Cambiando indirizzo cambia l'origine del sito: chi entra dal dominio nuovo deve rifare il login, e chi aveva installato l'app sul telefono deve reinstallarla da lì. Solo dopo che tutti usano il dominio nuovo si può eliminare il Worker (e con lui `worker.js` e `wrangler.jsonc`).
 
+### Patch del 18/10/2026 (da eseguire nel SQL Editor, PRIMA di pubblicare il codice)
+
+- [`patch-2026-10-18-partita-iva.sql`](supabase/patch-2026-10-18-partita-iva.sql): la colonna `partita_iva` su fatture passive e attive. **Va eseguita prima del deploy**: il codice nuovo la scrive quando carica un XML, e senza la colonna il salvataggio delle fatture caricate fallirebbe.
+- [`patch-2026-10-18-stato-e-autori.sql`](supabase/patch-2026-10-18-stato-e-autori.sql): lo stato di una fattura passiva lo calcola sempre il database da pagamenti e note di credito (un operatore non può più segnarla «pagata» da sé); una proposta di pagamento nasce solo «in attesa», e nome dell'autore e di chi decide li scrive il database; `created_by` non si può più falsificare.
+- [`patch-2026-10-18-registro.sql`](supabase/patch-2026-10-18-registro.sql): il registro modifiche unico, vedi sotto.
+- [`patch-2026-10-18-promemoria.sql`](supabase/patch-2026-10-18-promemoria.sql): le preferenze dei promemoria email, più (commentato in fondo) il timer giornaliero da attivare a mano.
+
+Sono idempotenti e `schema.sql` le contiene già (tranne il timer, che dipende dal token).
+
+### Registro modifiche del portale
+
+Ogni inserimento, modifica o cancellazione, in **tutte** le sezioni — preventivi, impegni, centri di costo, straordinari, permessi degli utenti, oltre alle fatture — finisce nella tabella `registro`, scritta da un trigger del database: chi, quando, su quale riga, e per le modifiche i campi cambiati con il valore di prima e di dopo. Lo legge solo il super admin, dalla voce **📜 Registro modifiche** del menu; nessuno lo può modificare o cancellare via API. Si conserva tre anni. I due registri storici dello scadenziario (Impostazioni → Registro) restano come sono.
+
+### Promemoria email (facoltativi)
+
+Ognuno li accende per sé dalla voce **🔔 Promemoria email** del menu (c'è per chi vede lo Scadenziario o il Direttore): ogni mattina o il lunedì, con quanti giorni d'anticipo, e su cosa — fatture passive in scadenza o scadute, fatture attive non incassate da oltre 90 giorni, impegni del Direttore. Si riceve solo quello che riguarda le sezioni a cui si ha accesso, e se non c'è niente da segnalare l'email non parte. Finché una persona non li accende, non riceve nulla.
+
+Per farli funzionare servono tre cose, una volta sola:
+
+1. **Un servizio di invio email.** [Resend](https://resend.com) o [Brevo](https://www.brevo.com), entrambi con un piano gratuito sufficiente. Il mittente va verificato presso il servizio: con Resend si verifica il dominio, con Brevo basta confermare un indirizzo.
+2. **I secret del progetto Pages** (Settings → Variables and Secrets):
+   - `RESEND_API_KEY`, oppure `BREVO_API_KEY`;
+   - `PROMEMORIA_MITTENTE`, ad esempio `Amministrazione CRI Genova <amministrazione@crigenova.it>`;
+   - `PROMEMORIA_TOKEN`, una stringa lunga e casuale (ad esempio l'output di `node -e "console.log(crypto.randomUUID()+crypto.randomUUID())"`);
+   - facoltativo: `PORTALE_URL`, se diverso da `https://amministrazione.crigenova.it`.
+3. **Il timer giornaliero.** Pages non ha un cron suo, quindi è Supabase a chiamare `/api/promemoria` ogni mattina:
+   - abilitare le estensioni `pg_cron` e `pg_net`;
+   - eseguire il blocco commentato in fondo a `patch-2026-10-18-promemoria.sql`, con lo stesso `PROMEMORIA_TOKEN` al posto di `<TOKEN>`.
+
+Dalla pagina dei promemoria il pulsante **Mandami una prova adesso** spedisce subito l'email a chi lo preme, anche quando non c'è niente in scadenza: è il modo per controllare che servizio e mittente siano configurati bene. Il limite è di dieci prove al giorno per persona.
+
+### Controllo statico del codice
+
+```bash
+npm run lint
+```
+
+Lancia ESLint (scaricato al volo con `npx`, il progetto resta senza dipendenze; configurazione in [`eslint.config.mjs`](eslint.config.mjs)). Cerca soprattutto **variabili usate ma mai dichiarate**, l'errore che le prove non vedono quando nessuna carica quel file: il 18/10/2026 ne ha trovata una che bloccava la schermata per impostare la password. Gli errori vanno sempre corretti; gli avvisi (variabili inutilizzate) sono pulizia. Fra le prove di `npm test` ce n'è poi una, [`test/import.prove.mjs`](test/import.prove.mjs), che controlla che ogni nome importato esista davvero nel modulo da cui lo si prende.
+
 ## Gestire gli utenti dall'app
 
 Tutto avviene in **Utenti e autorizzazioni** (voce in fondo alla barra laterale, visibile solo al super admin).

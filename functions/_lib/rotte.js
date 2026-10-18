@@ -14,6 +14,8 @@ import { onRequestGet as geocodeGet } from '../api/geocode.js';
 import { onRequestPost as routePost } from '../api/route.js';
 import { onRequestGet as prezzoItaliaGet } from '../api/prezzo-italia.js';
 import { onRequestGet as prezzoEuGet } from '../api/prezzo-eu.js';
+import { onRequestPost as promemoriaPost } from '../api/promemoria.js';
+import { onRequestPost as promemoriaProvaPost } from '../api/promemoria-prova.js';
 
 export const ROUTES = {
   '/api/estrai-fattura': { POST: estraiFatturaPost },
@@ -26,6 +28,10 @@ export const ROUTES = {
   '/api/route': { POST: routePost },
   '/api/prezzo-italia': { GET: prezzoItaliaGet },
   '/api/prezzo-eu': { GET: prezzoEuGet },
+  // Promemoria email: il primo lo chiama il timer del database, il secondo
+  // l'utente dalla pagina Promemoria (email di prova a sé stesso).
+  '/api/promemoria': { POST: promemoriaPost },
+  '/api/promemoria-prova': { POST: promemoriaProvaPost },
 };
 
 // Risposta per un metodo non previsto su una route esistente. Senza, la

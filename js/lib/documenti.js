@@ -44,10 +44,33 @@ export function nuovoIdFattura() {
 // errore di battitura (un importo con uno zero di troppo) altrimenti registra
 // un "sovrapagamento" che sparisce silenziosamente, perché il residuo resta
 // clampato a 0 (vedi withResiduo nei data layer) invece di segnalare l'anomalia.
-export async function confermaSeSuperaResiduo(importo, residuo) {
-  if (importo <= residuo) return true;
+// `rileggi` (facoltativo): funzione che ricarica la fattura dal database.
+// Le finestre di pagamento lavorano sulla riga caricata quando si è aperta la
+// pagina: se nel frattempo un collega ha già registrato il saldo, il residuo
+// a schermo è vecchio e il secondo pagamento passava senza alcun avviso.
+// Con `rileggi` il confronto si fa sul residuo vero di adesso, e se è
+// cambiato lo si dice.
+export async function confermaSeSuperaResiduo(importo, residuo, rileggi) {
+  let attuale = residuo;
+  let cambiato = false;
+  if (rileggi) {
+    try {
+      const fresca = await rileggi();
+      if (fresca && Number.isFinite(fresca._residuo)) {
+        cambiato = Math.abs(fresca._residuo - residuo) > 0.005;
+        attuale = fresca._residuo;
+      }
+    } catch { /* rilettura non riuscita: si confronta con il residuo che si ha */ }
+  }
+  const premessa = cambiato
+    ? `Nel frattempo la fattura è stata aggiornata: il residuo era ${fmtEuro(residuo)}, ora è ${fmtEuro(attuale)}. `
+    : '';
+  if (importo <= attuale + 0.005) {
+    if (!cambiato) return true;
+    return confirmDialog(premessa + `Registrare comunque ${fmtEuro(importo)}?`, { okLabel: 'Registra' });
+  }
   return confirmDialog(
-    `L'importo (${fmtEuro(importo)}) supera il residuo della fattura (${fmtEuro(residuo)}). Registrare comunque?`,
+    premessa + `L'importo (${fmtEuro(importo)}) supera il residuo della fattura (${fmtEuro(attuale)}). Registrare comunque?`,
     { danger: true, okLabel: 'Registra comunque' });
 }
 

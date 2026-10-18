@@ -202,7 +202,7 @@ export function apriIncassoRapido(rec, ctx, onSaved) {
     const data_incasso = body.querySelector('#qp-data').value;
     if (!importo || importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
     if (!data_incasso) { err.textContent = 'Indica la data dell\'incasso.'; return; }
-    if (!await confermaSeSuperaResiduo(importo, rec._residuo)) return;
+    if (!await confermaSeSuperaResiduo(importo, rec._residuo, () => fattureAttive.get(rec.id))) return;
     const btn = footer.querySelector('#qp-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
     try {
@@ -285,7 +285,7 @@ function renderIncassi(node, rec, ctx, onChange) {
       const importo = parseEuro(f.querySelector('#p-importo').value);
       const data_incasso = f.querySelector('#p-data').value;
       if (!importo || importo <= 0 || !data_incasso) { toast('Inserisci data e importo validi', 'err'); return; }
-      if (!await confermaSeSuperaResiduo(importo, rec._residuo)) return;
+      if (!await confermaSeSuperaResiduo(importo, rec._residuo, () => fattureAttive.get(rec.id))) return;
       const btn = f.querySelector('#p-save'); const old = btn.innerHTML;
       btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
       try {
@@ -335,16 +335,18 @@ function renderNoteCreditoAttive(node, rec, ctx, onChange) {
 // ============================================================
 //  Nuova nota di credito emessa — può stornare più fatture attive insieme.
 // ============================================================
-export function apriNuovaNotaCreditoAttiva(ctx, onSaved, fatturaPreselezionata) {
+// `iniziali` (facoltativo): campi già letti da un XML di nota di credito,
+// come in apriNuovaNotaCredito delle passive.
+export function apriNuovaNotaCreditoAttiva(ctx, onSaved, fatturaPreselezionata, iniziali = {}) {
   const body = el(`<div>
     <div class="form-row three">
-      <div class="field"><label>Numero</label><input type="text" id="nc-numero"></div>
-      <div class="field"><label>Data</label><input type="date" id="nc-data" value="${todayISO()}"></div>
-      <div class="field"><label>Note</label><input type="text" id="nc-note"></div>
+      <div class="field"><label>Numero</label><input type="text" id="nc-numero" value="${esc(iniziali.numero || '')}"></div>
+      <div class="field"><label>Data</label><input type="date" id="nc-data" value="${esc(iniziali.data || todayISO())}"></div>
+      <div class="field"><label>Note</label><input type="text" id="nc-note" value="${esc(iniziali.note || '')}"></div>
     </div>
     <div id="nc-pinned"></div>
     <div class="field"><label>Altre fatture stornate da questa nota</label>
-      <input type="text" id="nc-cerca" placeholder="Cerca cliente o numero fattura…">
+      <input type="text" id="nc-cerca" placeholder="Cerca cliente o numero fattura…" value="${esc(iniziali.cerca || '')}">
     </div>
     <div id="nc-elenco" style="max-height:320px;overflow-y:auto;margin-top:8px"><div class="spinner sm"></div></div>
     <div class="residuo-box" style="margin-top:10px"><span>Fatture selezionate: <b id="nc-n-selezionate">0</b></span><span>Totale storno: <b id="nc-tot-selezionato">€ 0,00</b></span></div>
@@ -417,9 +419,13 @@ export function apriNuovaNotaCreditoAttiva(ctx, onSaved, fatturaPreselezionata) 
       for (const f of righeMostrate.slice(0, 200)) elenco.appendChild(creaRigaFattura(f, false));
     }
 
-    disegnaElenco('');
+    disegnaElenco(body.querySelector('#nc-cerca').value);
     aggiornaRiepilogo();
     body.querySelector('#nc-cerca').addEventListener('input', debounce(e => disegnaElenco(e.target.value), 200));
+  }).catch(e => {
+    const elenco = body.querySelector('#nc-elenco');
+    clear(elenco);
+    elenco.appendChild(el(`<div style="color:var(--danger);font-size:13px">Elenco delle fatture non caricato: ${esc(e.message)}</div>`));
   });
 
   footer.querySelector('#nc-save').addEventListener('click', async () => {
@@ -565,13 +571,39 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
       if (estratti.importo !== null && estratti.importo !== undefined) box.querySelector('.i-importo').value = testoDecimale(estratti.importo);
       if (estratti.metodo_pagamento) box.querySelector('.i-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) box.querySelector('.i-note').value = estratti.note;
+      if (estratti.nota_credito) mostraComeNotaCredito(estratti);
     }).catch(err => {
       status.textContent = '⚠️ errore di lettura';
       box.querySelector('.u-errore-zona').appendChild(bannerErroreLettura(err.message));
     });
 
+    // Un TD04/TD08 è uno storno, non un credito in più (vedi apriUpload delle
+    // passive): si spegne il salvataggio come fattura e si apre la nota di
+    // credito già compilata.
+    function mostraComeNotaCredito(estratti) {
+      status.textContent = 'Nota di credito — da registrare come storno';
+      const salva = box.querySelector('.i-save');
+      salva.disabled = true;
+      salva.title = 'Una nota di credito non si registra come fattura';
+      const banner = el(`<div class="banner warn" style="margin-bottom:10px"><div class="bi">↩️</div><div>
+        <b>Questo documento è una nota di credito${estratti.tipo_documento ? ` (${esc(estratti.tipo_documento)})` : ''}</b>
+        <div class="small">Non va registrato come fattura da incassare: si registra come storno della fattura a cui si riferisce${estratti.riferimento ? ` (n. ${esc(estratti.riferimento)})` : ''}.</div>
+        <button type="button" class="btn primary sm" style="margin-top:8px">↩️ Registra come nota di credito</button>
+      </div></div>`);
+      banner.querySelector('button').addEventListener('click', () => {
+        apriNuovaNotaCreditoAttiva(ctx, () => { salvateAlmenoUna = true; completaCorrente(); }, null, {
+          numero: estratti.numero_fattura,
+          data: estratti.data_fattura,
+          note: [estratti.cliente, estratti.importo != null ? `totale ${testoDecimale(estratti.importo)} €` : ''].filter(Boolean).join(' · '),
+          cerca: estratti.riferimento || estratti.cliente || '',
+        });
+      });
+      box.querySelector('.u-errore-zona').appendChild(banner);
+    }
+
     box.querySelector('.i-skip').addEventListener('click', () => completaCorrente());
     box.querySelector('.i-save').addEventListener('click', async () => {
+      if (estrattiCorrenti.nota_credito) return;
       const payload = {
         cliente: box.querySelector('.i-cliente').value.trim(),
         numero_fattura: box.querySelector('.i-numero').value.trim() || null,
@@ -579,6 +611,7 @@ export function apriUploadAttive(ctx, onSaved, fileIniziali) {
         importo: parseEuro(box.querySelector('.i-importo').value),
         metodo_incasso: box.querySelector('.i-metodo').value || null,
         note: box.querySelector('.i-note').value.trim() || null,
+        partita_iva: estrattiCorrenti.partita_iva || null,
       };
       const err = box.querySelector('.i-err'); err.textContent = '';
       if (!payload.cliente || !payload.importo || payload.importo <= 0) { err.textContent = 'Compila almeno cliente e importo.'; return; }

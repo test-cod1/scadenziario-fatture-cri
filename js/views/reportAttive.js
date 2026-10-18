@@ -1,5 +1,6 @@
 import { fattureAttive } from '../data/storeAttive.js';
 import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile, cellaCsv } from '../lib/ui.js';
+import { raggruppaPerSoggetto } from '../lib/soggetti.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const FILTRO_CLIENTE_KEY = 'reportAttive:filtroCliente';
@@ -141,19 +142,20 @@ function renderStats(node, righe) {
 }
 
 // Raggruppa per cliente (l'ordine lo decide poi `ordina`, in base
-// all'intestazione su cui l'utente ha cliccato).
+// all'intestazione su cui l'utente ha cliccato). Il cliente è il soggetto,
+// non la grafia del nome: con la partita IVA le grafie diverse fanno una
+// riga sola (vedi lib/soggetti.js).
 function perCliente(righe) {
-  const mappa = new Map();
-  for (const f of righe) {
-    const chiave = f.cliente || '—';
-    const g = mappa.get(chiave) || { cliente: chiave, n: 0, fatturato: 0, incassato: 0, stornato: 0, residuo: 0, giorni: [] };
-    g.n++; g.fatturato += Number(f.importo || 0); g.incassato += f._incassato; g.stornato += (f._stornato || 0); g.residuo += f._residuo;
-    const gi = giorniIncasso(f);
-    if (gi !== null) g.giorni.push(gi);
-    mappa.set(chiave, g);
-  }
-  for (const g of mappa.values()) g.giorniMedi = media(g.giorni);
-  return [...mappa.values()];
+  return raggruppaPerSoggetto(righe, 'cliente').map(s => {
+    const g = { cliente: s.nome, partita_iva: s.partita_iva, n: 0, fatturato: 0, incassato: 0, stornato: 0, residuo: 0, giorni: [] };
+    for (const f of s.righe) {
+      g.n++; g.fatturato += Number(f.importo || 0); g.incassato += f._incassato; g.stornato += (f._stornato || 0); g.residuo += f._residuo;
+      const gi = giorniIncasso(f);
+      if (gi !== null) g.giorni.push(gi);
+    }
+    g.giorniMedi = media(g.giorni);
+    return g;
+  });
 }
 
 // Ordina un array di gruppi (fornitori/clienti) secondo {campo, dir}. Vedi

@@ -190,10 +190,14 @@ create table if not exists public.fatture (
   metodo_pagamento text,          -- bonifico / riba / rid / contanti / altro
   note text,
   estratta_da_ai boolean default false,
+  -- Partita IVA (o codice fiscale) del fornitore, letta dall'XML o dall'AI:
+  -- riconosce lo stesso soggetto scritto in modi diversi (patch 2026-10-18).
+  partita_iva text,
   created_by uuid references auth.users(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+create index if not exists idx_fatture_partita_iva on public.fatture(partita_iva);
 create index if not exists idx_fatture_data on public.fatture(data_fattura);
 create index if not exists idx_fatture_scadenza on public.fatture(scadenza);
 create index if not exists idx_fatture_stato on public.fatture(stato);
@@ -304,33 +308,33 @@ create trigger on_nota_credito_riga_change
   after insert or update or delete on public.note_credito_righe
   for each row execute procedure public.trg_note_credito_righe_ricalcola();
 
--- Se cambia l'importo della fattura, lo stato va ricalcolato confrontandolo
--- con pagamenti e note di credito già registrati: senza questo trigger,
--- correggendo l'importo di una fattura già saldata lo stato sarebbe rimasto
--- 'pagata' e la fattura sarebbe sparita da "Da pagare", dagli alert e dai
--- totali pur avendo residuo.
+-- Lo stato si ricalcola SEMPRE da pagamenti e note di credito, a ogni
+-- INSERT e UPDATE: quello mandato dal client non conta. Prima lo faceva solo
+-- al cambio d'importo, e un operatore (che i pagamenti non li può scrivere)
+-- poteva segnare "pagata" una fattura con una PATCH sulla colonna stato.
+-- Ricalcolarlo anche al cambio d'importo serve poi a non lasciare "pagata"
+-- una fattura il cui importo è stato corretto verso l'alto.
 create or replace function public.trg_fatture_stato()
 returns trigger language plpgsql security definer set search_path = public as $$
 declare v_pagato numeric(12,2); v_stornato numeric(12,2);
 begin
-  if new.importo is distinct from old.importo then
-    select coalesce(sum(importo),0) into v_pagato
-      from public.pagamenti where fattura_id = new.id;
-    select coalesce(sum(importo),0) into v_stornato
-      from public.note_credito_righe where fattura_id = new.id;
-    new.stato := case
-      when (v_pagato + v_stornato) <= 0           then 'da_pagare'
-      when (v_pagato + v_stornato) <  new.importo then 'pagata_parziale'
-      when v_stornato >= new.importo              then 'stornata'
-      else                                              'pagata'
-    end;
-  end if;
+  select coalesce(sum(importo),0) into v_pagato
+    from public.pagamenti where fattura_id = new.id;
+  select coalesce(sum(importo),0) into v_stornato
+    from public.note_credito_righe where fattura_id = new.id;
+  new.stato := case
+    when (v_pagato + v_stornato) <= 0           then 'da_pagare'
+    when (v_pagato + v_stornato) <  new.importo then 'pagata_parziale'
+    when v_stornato >= new.importo              then 'stornata'
+    else                                              'pagata'
+  end;
   return new;
 end; $$;
 
 drop trigger if exists on_fattura_importo_change on public.fatture;
-create trigger on_fattura_importo_change
-  before update on public.fatture
+drop trigger if exists on_fattura_stato on public.fatture;
+create trigger on_fattura_stato
+  before insert or update on public.fatture
   for each row execute procedure public.trg_fatture_stato();
 
 -- updated_at va aggiornata a ogni modifica: il solo default now() la lasciava
@@ -615,12 +619,17 @@ create policy note_credito_righe_write on public.note_credito_righe for all
 -- Lettura: l'admin vede tutte le proposte, l'operatore solo le proprie.
 drop policy if exists proposte_read on public.proposte_pagamento;
 create policy proposte_read on public.proposte_pagamento for select
-  using (public.e_admin() or proposta_da = auth.uid());
+  using (public.e_admin() or (proposta_da = auth.uid() and public.puo_leggere()));
 -- Creazione: chiunque possa scrivere (admin/operatore) può proporre, ma solo
 -- a proprio nome (non si può proporre "per conto di" un collega).
 drop policy if exists proposte_insert on public.proposte_pagamento;
 create policy proposte_insert on public.proposte_pagamento for insert
-  with check (public.puo_scrivere() and proposta_da = auth.uid());
+  with check (
+    public.puo_scrivere() and proposta_da = auth.uid()
+    and stato = 'proposta'
+    and decisa_da is null and decisa_da_nome is null and decisa_il is null
+    and motivo_rifiuto is null and pagamento_id is null
+  );
 -- Conferma/rifiuto: solo l'admin può cambiare stato/esito di una proposta.
 drop policy if exists proposte_update_admin on public.proposte_pagamento;
 create policy proposte_update_admin on public.proposte_pagamento for update
@@ -629,7 +638,7 @@ create policy proposte_update_admin on public.proposte_pagamento for update
 -- attesa (non più se l'admin l'ha già confermata o rifiutata).
 drop policy if exists proposte_delete_own on public.proposte_pagamento;
 create policy proposte_delete_own on public.proposte_pagamento for delete
-  using (proposta_da = auth.uid() and stato = 'proposta');
+  using (proposta_da = auth.uid() and stato = 'proposta' and public.puo_scrivere());
 drop policy if exists proposte_delete_admin on public.proposte_pagamento;
 create policy proposte_delete_admin on public.proposte_pagamento for delete
   using (public.e_admin());
@@ -671,10 +680,13 @@ create table if not exists public.fatture_attive (
   -- puramente informativo, aggiornato a mano da chi invia il sollecito.
   data_sollecito date,
   estratta_da_ai boolean default false,
+  -- Partita IVA (o codice fiscale) del cliente: vedi la colonna gemella di fatture.
+  partita_iva text,
   created_by uuid references auth.users(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
 );
+create index if not exists idx_fatture_attive_partita_iva on public.fatture_attive(partita_iva);
 create index if not exists idx_fatture_attive_data on public.fatture_attive(data_fattura);
 create index if not exists idx_fatture_attive_stato on public.fatture_attive(stato);
 create index if not exists idx_fatture_attive_cliente on public.fatture_attive(cliente);
@@ -1623,3 +1635,175 @@ drop policy if exists imputazioni_write on public.imputazioni;
 create policy imputazioni_write on public.imputazioni for all to authenticated
   using (public.accede_a('analisi') or public.accede_a('scadenziario'))
   with check (public.accede_a('analisi') or public.accede_a('scadenziario'));
+
+-- ============================================================
+--  Autori e decisori scritti dal database, non dal client
+--  (vedi patch-2026-10-18-stato-e-autori.sql)
+-- ============================================================
+create or replace function public.trg_proposte_autori()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is null then return new; end if;   -- service role: import, ripristino
+  if tg_op = 'INSERT' then
+    new.proposta_da := auth.uid();
+    select p.nome into new.proposta_da_nome from public.profili p where p.id = auth.uid();
+    new.proposta_da_email := coalesce(auth.jwt() ->> 'email', new.proposta_da_email);
+  else
+    new.proposta_da := old.proposta_da;
+    new.proposta_da_nome := old.proposta_da_nome;
+    new.proposta_da_email := old.proposta_da_email;
+    if new.stato is distinct from old.stato then
+      new.decisa_da := auth.uid();
+      select p.nome into new.decisa_da_nome from public.profili p where p.id = auth.uid();
+      new.decisa_il := now();
+    end if;
+  end if;
+  return new;
+end; $$;
+
+drop trigger if exists on_proposta_autori on public.proposte_pagamento;
+create trigger on_proposta_autori
+  before insert or update on public.proposte_pagamento
+  for each row execute procedure public.trg_proposte_autori();
+
+-- 3. Autore delle righe ---------------------------------------------------
+create or replace function public.trg_forza_autore()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if tg_op = 'INSERT' then
+    if auth.uid() is not null then new.created_by := auth.uid(); end if;
+  else
+    new.created_by := old.created_by;
+  end if;
+  return new;
+end; $$;
+
+do $$
+declare t text;
+begin
+  foreach t in array array['fatture','pagamenti','note_credito','fatture_attive','incassi','note_credito_attive'] loop
+    execute format('drop trigger if exists on_%1$s_autore on public.%1$I', t);
+    execute format('create trigger on_%1$s_autore before insert or update on public.%1$I
+                    for each row execute procedure public.trg_forza_autore()', t);
+  end loop;
+end $$;
+
+revoke all on function public.trg_forza_autore() from public, anon, authenticated;
+revoke all on function public.trg_proposte_autori() from public, anon, authenticated;
+
+-- ============================================================
+--  Registro modifiche unico (vedi patch-2026-10-18-registro.sql)
+-- ============================================================
+create table if not exists public.registro (
+  id bigint generated always as identity primary key,
+  created_at timestamptz not null default now(),
+  tabella text not null,
+  riga_id text,
+  azione text not null check (azione in ('inserimento','modifica','cancellazione')),
+  campi text[],          -- per le modifiche: i campi cambiati
+  prima jsonb,
+  dopo jsonb,
+  utente_id uuid,
+  utente_email text,
+  utente_nome text
+);
+create index if not exists idx_registro_created on public.registro(created_at desc);
+create index if not exists idx_registro_riga on public.registro(tabella, riga_id);
+create index if not exists idx_registro_utente on public.registro(utente_id);
+
+alter table public.registro enable row level security;
+drop policy if exists registro_sa_read on public.registro;
+create policy registro_sa_read on public.registro for select using (public.e_super_admin());
+
+create or replace function public.pulisci_registro()
+returns void language sql security definer set search_path = public as $$
+  delete from public.registro where created_at < now() - interval '3 years';
+$$;
+
+create or replace function public.trg_registro()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v_prima jsonb := case when tg_op <> 'INSERT' then to_jsonb(old) end;
+  v_dopo  jsonb := case when tg_op <> 'DELETE' then to_jsonb(new) end;
+  v_riga  jsonb := coalesce(v_dopo, v_prima);
+  v_campi text[];
+  v_email text; v_nome text;
+begin
+  if tg_op = 'UPDATE' then
+    select array_agg(k order by k) into v_campi
+      from jsonb_object_keys(v_dopo) k
+     where k <> 'updated_at' and (v_prima -> k) is distinct from (v_dopo -> k);
+    if v_campi is null then return null; end if;
+  end if;
+
+  select email, nome into v_email, v_nome from public.log_utente_info();
+
+  insert into public.registro (tabella, riga_id, azione, campi, prima, dopo, utente_id, utente_email, utente_nome)
+  values (
+    tg_table_name,
+    coalesce(v_riga ->> 'id', concat_ws(':', v_riga ->> 'utente_id', v_riga ->> 'sezione')),
+    case tg_op when 'INSERT' then 'inserimento' when 'UPDATE' then 'modifica' else 'cancellazione' end,
+    v_campi, v_prima, v_dopo, auth.uid(), v_email, v_nome
+  );
+
+  -- Pulizia: solo quando c'è davvero qualcosa di scaduto (con l'indice su
+  -- created_at il controllo costa una lettura).
+  if exists (select 1 from public.registro where created_at < now() - interval '3 years') then
+    perform public.pulisci_registro();
+  end if;
+  return null;
+end; $$;
+
+do $$
+declare t text;
+begin
+  foreach t in array array[
+    'profili','autorizzazioni',
+    'fatture','pagamenti','note_credito','note_credito_righe','impostazioni','proposte_pagamento',
+    'fatture_attive','incassi','note_credito_attive','note_credito_attive_righe',
+    'preventivi','impostazioni_trasferte',
+    'preventivi_assistenze','clienti_assistenze','impostazioni_assistenze',
+    'preventivi_formazione','clienti_formazione','impostazioni_formazione',
+    'dipendenti_straordinari','straordinari','impostazioni_straordinari',
+    'impegni_direttore','centri_costo','imputazioni'
+  ] loop
+    if to_regclass('public.' || t) is not null then
+      execute format('drop trigger if exists on_%1$s_registro on public.%1$I', t);
+      execute format('create trigger on_%1$s_registro after insert or update or delete on public.%1$I
+                      for each row execute procedure public.trg_registro()', t);
+    end if;
+  end loop;
+end $$;
+
+revoke all on function public.trg_registro() from public, anon, authenticated;
+revoke all on function public.pulisci_registro() from public, anon, authenticated;
+
+-- ============================================================
+--  Promemoria email facoltativi (vedi patch-2026-10-18-promemoria.sql,
+--  che contiene anche il timer pg_cron da attivare a mano)
+-- ============================================================
+create table if not exists public.notifiche_preferenze (
+  utente_id uuid primary key references auth.users(id) on delete cascade,
+  attive boolean not null default false,
+  frequenza text not null default 'settimanale' check (frequenza in ('giornaliera', 'settimanale')),
+  giorni_anticipo integer not null default 7 check (giorni_anticipo between 1 and 60),
+  fatture_passive boolean not null default true,
+  crediti_attive boolean not null default true,
+  impegni boolean not null default true,
+  ultimo_invio date,
+  updated_at timestamptz not null default now()
+);
+
+alter table public.notifiche_preferenze enable row level security;
+drop policy if exists notifiche_proprie_read on public.notifiche_preferenze;
+create policy notifiche_proprie_read on public.notifiche_preferenze for select
+  using (utente_id = auth.uid() or public.e_super_admin());
+drop policy if exists notifiche_proprie_insert on public.notifiche_preferenze;
+create policy notifiche_proprie_insert on public.notifiche_preferenze for insert
+  with check (utente_id = auth.uid());
+drop policy if exists notifiche_proprie_update on public.notifiche_preferenze;
+create policy notifiche_proprie_update on public.notifiche_preferenze for update
+  using (utente_id = auth.uid()) with check (utente_id = auth.uid());
+drop policy if exists notifiche_proprie_delete on public.notifiche_preferenze;
+create policy notifiche_proprie_delete on public.notifiche_preferenze for delete
+  using (utente_id = auth.uid());

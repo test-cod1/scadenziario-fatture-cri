@@ -110,12 +110,14 @@ export const fattureAttive = {
   // Vedi il commento gemello in store.js: il confronto sul numero fattura è
   // normalizzato in JavaScript (non un .eq esatto lato Postgres, che sarebbe
   // case-sensitive), con un ilike come filtro grezzo lato query.
-  async trovaDuplicato({ cliente, numero_fattura }, escludiId) {
+  // Il soggetto si riconosce dalla partita IVA quando c'è su entrambe le
+  // fatture, altrimenti dal nome (come in store.js).
+  async trovaDuplicato({ cliente, numero_fattura, partita_iva }, escludiId) {
     if (!numero_fattura || !cliente) return null;
     const norm = (v) => String(v || "").trim().toLowerCase().split(" ").filter(Boolean).join(" ");
     const sb = await sbClient();
     const { data, error } = await sb.from("fatture_attive")
-      .select("id, cliente, numero_fattura, data_fattura, importo")
+      .select("id, cliente, partita_iva, numero_fattura, data_fattura, importo")
       .ilike("numero_fattura", numero_fattura.trim().replace(/[%_]/g, m => '\\' + m))
       // Vedi il commento gemello in store.js: con .limit(20) il duplicato vero
       // poteva restare fuori dalle righe scaricate e l'avviso non compariva.
@@ -123,7 +125,8 @@ export const fattureAttive = {
       .limit(1000);
     if (error) throw error;
     const cercato = norm(cliente);
-    return (data || []).find(f => f.id !== escludiId && norm(f.numero_fattura) === norm(numero_fattura) && norm(f.cliente) === cercato) || null;
+    const stessoSoggetto = (f) => (partita_iva && f.partita_iva) ? f.partita_iva === partita_iva : norm(f.cliente) === cercato;
+    return (data || []).find(f => f.id !== escludiId && norm(f.numero_fattura) === norm(numero_fattura) && stessoSoggetto(f)) || null;
   },
   async remove(id) {
     const sb = await sbClient();

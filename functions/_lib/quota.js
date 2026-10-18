@@ -33,6 +33,9 @@ export const LIMITI = {
   'geocode': 400,
   'route': 200,
   'prezzo-eu': 60,
+  // Email di prova dei promemoria: ogni invio consuma la quota del servizio
+  // email del Comitato (e finisce nella casella di chi la chiede).
+  'promemoria-prova': 10,
 };
 
 // Restituisce { ok: true } se la chiamata può procedere, altrimenti

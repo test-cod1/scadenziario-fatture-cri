@@ -1,5 +1,6 @@
 import { fatture } from '../data/store.js';
 import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile, cellaCsv } from '../lib/ui.js';
+import { raggruppaPerSoggetto } from '../lib/soggetti.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const FILTRO_FORNITORE_KEY = 'report:filtroFornitore';
@@ -147,19 +148,20 @@ function renderStats(node, righe) {
 }
 
 // Raggruppa per fornitore (l'ordine lo decide poi `ordina`, in base
-// all'intestazione su cui l'utente ha cliccato).
+// all'intestazione su cui l'utente ha cliccato). Il fornitore è il soggetto,
+// non la grafia del nome: con la partita IVA "ENEL S.P.A." ed "Enel SpA"
+// fanno una riga sola (vedi lib/soggetti.js).
 function perFornitore(righe) {
-  const mappa = new Map();
-  for (const f of righe) {
-    const chiave = f.fornitore || '—';
-    const g = mappa.get(chiave) || { fornitore: chiave, n: 0, fatturato: 0, pagato: 0, stornato: 0, residuo: 0, giorni: [] };
-    g.n++; g.fatturato += Number(f.importo || 0); g.pagato += f._pagato; g.stornato += (f._stornato || 0); g.residuo += f._residuo;
-    const gp = giorniPagamento(f);
-    if (gp !== null) g.giorni.push(gp);
-    mappa.set(chiave, g);
-  }
-  for (const g of mappa.values()) g.giorniMedi = media(g.giorni);
-  return [...mappa.values()];
+  return raggruppaPerSoggetto(righe, 'fornitore').map(s => {
+    const g = { fornitore: s.nome, partita_iva: s.partita_iva, n: 0, fatturato: 0, pagato: 0, stornato: 0, residuo: 0, giorni: [] };
+    for (const f of s.righe) {
+      g.n++; g.fatturato += Number(f.importo || 0); g.pagato += f._pagato; g.stornato += (f._stornato || 0); g.residuo += f._residuo;
+      const gp = giorniPagamento(f);
+      if (gp !== null) g.giorni.push(gp);
+    }
+    g.giorniMedi = media(g.giorni);
+    return g;
+  });
 }
 
 // Ordina un array di gruppi (fornitori/clienti) secondo {campo, dir}. Il
