@@ -1,8 +1,9 @@
 import { fatture, pagamenti, noteCredito, impostazioni, proposte, svuotaCacheNomi } from '../data/store.js';
 import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, todayISO, sommaGiorniISO, parseEuro, debounce } from '../lib/ui.js';
 import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, parseFatturaXml, METODI } from '../lib/xmlFattura.js';
-import { renderAnteprimaFile, bannerErroreLettura, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento, aggiornaDopo } from '../lib/documenti.js';
+import { renderAnteprimaFile, bannerErroreLettura, bannerAbbinamento, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento, aggiornaDopo } from '../lib/documenti.js';
 import { CAMPO_DECIMALE, testoDecimale, testoDecimaleOVuoto } from '../lib/importi.js';
+import { abbinaNotaCredito } from '../lib/soggetti.js';
 
 export { METODI };
 
@@ -416,8 +417,9 @@ function renderNoteCredito(node, rec, ctx, onChange) {
 //  manuale a sé stante (nessuna fattura preselezionata).
 // ============================================================
 // `iniziali` (facoltativo): campi già letti da un XML di nota di credito —
-// numero, data, note e il testo con cui partire nella ricerca della fattura
-// stornata (vedi apriUpload).
+// numero, data, note, il testo con cui partire nella ricerca e, per
+// l'abbinamento automatico, le fatture collegate con importo, partita IVA e
+// nome del fornitore (vedi apriUpload e abbinaNotaCredito).
 export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata, iniziali = {}) {
   const body = el(`<div>
     <div class="form-row three">
@@ -425,6 +427,7 @@ export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata, inizia
       <div class="field"><label>Data</label><input type="date" id="nc-data" value="${esc(iniziali.data || todayISO())}"></div>
       <div class="field"><label>Note</label><input type="text" id="nc-note" value="${esc(iniziali.note || '')}"></div>
     </div>
+    <div id="nc-abbinamento"></div>
     <div id="nc-pinned"></div>
     <div class="field"><label>Altre fatture stornate da questa nota</label>
       <input type="text" id="nc-cerca" placeholder="Cerca fornitore o numero fattura…" value="${esc(iniziali.cerca || '')}">
@@ -499,7 +502,21 @@ export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata, inizia
       body.querySelector('#nc-pinned').appendChild(creaRigaFattura(fatturaPreselezionata, true));
       aggiornaRiepilogo();
     }
-    const apribili = tutte.filter(f => f.stato !== 'stornata' && f.id !== fatturaPreselezionata?.id);
+    // Nota letta da XML: le fatture che dichiara di stornare si spuntano da
+    // sole, con l'importo della nota (vedi abbinaNotaCredito).
+    const abbinate = new Set();
+    if (iniziali.collegate?.length) {
+      const esito = abbinaNotaCredito({ fatture: tutte, collegate: iniziali.collegate, partita_iva: iniziali.partita_iva, nome: iniziali.nome, campoNome: 'fornitore', importo: iniziali.importo });
+      for (const a of esito.abbinate) {
+        selezionate.set(a.fattura.id, a.importo);
+        abbinate.add(a.fattura.id);
+        body.querySelector('#nc-pinned').appendChild(creaRigaFattura(a.fattura, true));
+      }
+      body.querySelector('#nc-abbinamento').appendChild(bannerAbbinamento(esito));
+      if (esito.abbinate.length) body.querySelector('#nc-cerca').value = '';
+      aggiornaRiepilogo();
+    }
+    const apribili = tutte.filter(f => f.stato !== 'stornata' && f.id !== fatturaPreselezionata?.id && !abbinate.has(f.id));
 
     function disegnaElenco(filtro) {
       const elenco = body.querySelector('#nc-elenco');
@@ -709,6 +726,10 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
           data: estratti.data_fattura,
           note: [estratti.fornitore, estratti.importo != null ? `totale ${testoDecimale(estratti.importo)} €` : ''].filter(Boolean).join(' · '),
           cerca: estratti.riferimento || estratti.fornitore || '',
+          collegate: estratti.collegate,
+          partita_iva: estratti.partita_iva,
+          nome: estratti.fornitore,
+          importo: estratti.importo,
         });
       });
       box.querySelector('.u-errore-zona').appendChild(banner);

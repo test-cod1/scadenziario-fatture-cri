@@ -130,6 +130,26 @@ export function collegaAutocompletamento(input, caricaNomi) {
   }).catch(() => { /* senza suggerimenti il campo resta comunque utilizzabile */ });
 }
 
+// Cosa ha fatto l'abbinamento automatico di una nota di credito letta da XML
+// (abbinaNotaCredito in lib/soggetti.js): quali fatture ha spuntato, e quali
+// fra quelle dichiarate nel documento vanno scelte a mano, e perché.
+export function bannerAbbinamento({ abbinate, mancanti, ambigue }) {
+  const righe = [];
+  if (abbinate.length) {
+    righe.push('Abbinata in automatico a ' + abbinate.map(a =>
+      `n. <span style="font-weight:700">${esc(a.fattura.numero_fattura || '—')}</span> (${fmtEuro(a.importo)})`).join(', ') + '. Controlla gli importi prima di registrare.');
+    const oltre = abbinate.filter(a => a.importo > (Number(a.fattura._residuo) || 0) + 0.005);
+    if (oltre.length) righe.push('Lo storno supera il residuo di ' + oltre.map(a => 'n. ' + esc(a.fattura.numero_fattura || '—')).join(', ') + ': la fattura risulterà pagata più del dovuto.');
+  }
+  if (mancanti.length) righe.push(`Non trovata fra le fatture registrate: n. ${mancanti.map(esc).join(', ')}. Cercala qui sotto.`);
+  if (ambigue.length) righe.push(`Più fatture con il numero ${ambigue.map(esc).join(', ')}: scegli tu quella giusta qui sotto.`);
+  const tutto = abbinate.length && !mancanti.length && !ambigue.length;
+  return el(`<div class="banner ${tutto ? 'ok' : 'warn'}" style="margin-bottom:10px">
+    <div class="bi">${tutto ? '🔗' : '🔎'}</div>
+    <div class="small">${righe.join('<br>')}</div>
+  </div>`);
+}
+
 // Errore di lettura (quota AI esaurita, formato non riconosciuto, ecc.):
 // un banner ben visibile invece di una riga di testo grigia, che passava
 // facilmente inosservata mescolata agli altri messaggi di stato.

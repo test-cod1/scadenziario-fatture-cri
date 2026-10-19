@@ -125,6 +125,7 @@ export function parseFatturaXml(xmlText) {
     tipo_documento: fiscali.tipo_documento,
     nota_credito: fiscali.nota_credito,
     riferimento: fiscali.riferimento,
+    collegate: fiscali.collegate,
   };
 }
 
@@ -210,6 +211,7 @@ export function parseFatturaAttivaXml(xmlText) {
     tipo_documento: fiscali.tipo_documento,
     nota_credito: fiscali.nota_credito,
     riferimento: fiscali.riferimento,
+    collegate: fiscali.collegate,
   };
 }
 
@@ -302,8 +304,12 @@ const TIPI_NOTA_CREDITO = new Set(['TD04', 'TD08']);
 function datiFiscali(body, datiGen, totale, verbo) {
   const tipo_documento = datiGen ? txt(datiGen, 'TipoDocumento') : '';
   const nota_credito = TIPI_NOTA_CREDITO.has(tipo_documento);
-  const collegata = tag(body, 'DatiFattureCollegate');
-  const riferimento = collegata ? txt(collegata, 'IdDocumento') : '';
+  // Le fatture che il documento dichiara di stornare: una nota di credito può
+  // riferirsi a più fatture (un blocco DatiFattureCollegate per ognuna).
+  const collegate = allTags(body, 'DatiFattureCollegate')
+    .map(c => ({ numero: txt(c, 'IdDocumento'), data: txt(c, 'Data') || null }))
+    .filter(c => c.numero);
+  const riferimento = collegate.map(c => c.numero).join(', ');
 
   const ritenuta = arrotonda((datiGen ? allTags(datiGen, 'DatiRitenuta') : [])
     .reduce((s, r) => s + (numero(txt(r, 'ImportoRitenuta')) || 0), 0));
@@ -323,7 +329,7 @@ function datiFiscali(body, datiGen, totale, verbo) {
       avvisi.push(`Totale documento ${totale.toFixed(2)}€, meno ${voci.join(' e ')}: importo da ${verbo} ${dovuto.toFixed(2)}€.`);
     }
   }
-  return { tipo_documento: tipo_documento || null, nota_credito, riferimento: riferimento || null, importo, avvisi };
+  return { tipo_documento: tipo_documento || null, nota_credito, riferimento: riferimento || null, collegate, importo, avvisi };
 }
 
 // Nel tracciato FatturaPA i decimali usano il punto, ma qualche gestionale
