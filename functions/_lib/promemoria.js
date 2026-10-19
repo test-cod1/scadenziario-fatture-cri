@@ -6,7 +6,10 @@
 //  quello che riguarda le sezioni a cui ha accesso:
 //    - Scadenziario: fatture passive ancora da pagare scadute o in scadenza
 //      entro N giorni, e fatture attive non incassate da più di 90 giorni;
-//    - Direttore: impegni non fatti scaduti o in scadenza entro N giorni.
+//    - Direttore: impegni non fatti scaduti o in scadenza entro N giorni;
+//    - Scadenze: quelle non fatte già passate o entrate nel loro preavviso
+//      (ognuna ha il suo: per un contratto servono settimane, per un bollo
+//      un giorno).
 //  Se non c'è niente da segnalare non parte nessuna email: un promemoria
 //  che arriva anche vuoto smette presto di essere letto.
 //
@@ -52,7 +55,7 @@ export function residuo(f, campoVersamenti, campoStorni) {
 export function selezionaPerUtente(pref, accessi, dati, oggi) {
   const limite = sommaGiorni(oggi, Number(pref.giorni_anticipo) || 7);
   const vecchie = sommaGiorni(oggi, -GIORNI_CREDITO);
-  const out = { passive: [], attive: [], impegni: [] };
+  const out = { passive: [], attive: [], impegni: [], scadenze: [] };
   if (accessi.has('scadenziario') && pref.fatture_passive) {
     out.passive = (dati.passive || [])
       .filter(f => f.scadenza && f.scadenza <= limite && f._residuo > 0.005)
@@ -67,6 +70,11 @@ export function selezionaPerUtente(pref, accessi, dati, oggi) {
     out.impegni = (dati.impegni || [])
       .filter(i => !i.fatto && i.scadenza && i.scadenza <= limite)
       .sort((a, b) => a.scadenza.localeCompare(b.scadenza));
+  }
+  if (accessi.has('scadenze') && pref.scadenze !== false) {
+    out.scadenze = (dati.scadenze || [])
+      .filter(s => !s.fatta && s.data_scadenza && s.data_scadenza <= sommaGiorni(oggi, Number(s.preavviso_giorni) || 0))
+      .sort((a, b) => a.data_scadenza.localeCompare(b.data_scadenza));
   }
   return out;
 }
@@ -84,11 +92,13 @@ function quando(scadenza, oggi) {
 // Testo e HTML dell'email. `vuoto` = niente da dire: l'email non si manda.
 export function componiPromemoria({ nome, oggi, sel, indirizzo }) {
   const { passive, attive, impegni } = sel;
-  const vuoto = !passive.length && !attive.length && !impegni.length;
+  const scadenze = sel.scadenze || [];
+  const vuoto = !passive.length && !attive.length && !impegni.length && !scadenze.length;
   const pezzi = [];
   if (passive.length) pezzi.push(`${passive.length} ${passive.length === 1 ? 'fattura da pagare' : 'fatture da pagare'}`);
   if (attive.length) pezzi.push(`${attive.length} ${attive.length === 1 ? 'credito da sollecitare' : 'crediti da sollecitare'}`);
   if (impegni.length) pezzi.push(`${impegni.length} ${impegni.length === 1 ? 'impegno' : 'impegni'}`);
+  if (scadenze.length) pezzi.push(`${scadenze.length} ${scadenze.length === 1 ? 'scadenza' : 'scadenze'}`);
   const oggetto = vuoto ? 'Promemoria: nulla in scadenza' : 'Promemoria: ' + pezzi.join(', ');
 
   const blocchi = [];
@@ -103,6 +113,10 @@ export function componiPromemoria({ nome, oggi, sel, indirizzo }) {
   if (impegni.length) blocchi.push({
     titolo: 'Impegni del Direttore', link: '#/direttore/impegni',
     righe: impegni.map(i => [i.titolo, quando(i.scadenza, oggi) + (i.importanza === 'alta' ? ' · importante' : ''), i.scadenza < oggi]),
+  });
+  if (scadenze.length) blocchi.push({
+    titolo: 'Scadenze', link: '#/scadenze/elenco',
+    righe: scadenze.map(s => [`${s.titolo}${s.riferimento ? ' · ' + s.riferimento : ''}${s.categoria ? ' (' + s.categoria + ')' : ''}`, quando(s.data_scadenza, oggi), s.data_scadenza < oggi]),
   });
 
   const saluto = `Buongiorno${nome ? ' ' + nome : ''},`;
@@ -177,19 +191,22 @@ async function tutteLeRighe(base, headers, percorso) {
 }
 
 // Legge solo quello che serve a chi deve ricevere qualcosa.
-export async function leggiDati(base, serviceKey, { passive, attive, impegni, giorniMax, oggi }) {
+export async function leggiDati(base, serviceKey, { passive, attive, impegni, scadenze, giorniMax, oggi }) {
   const headers = { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` };
   const limite = sommaGiorni(oggi, giorniMax);
   const vecchie = sommaGiorni(oggi, -GIORNI_CREDITO);
-  const [p, a, i] = await Promise.all([
+  const [p, a, i, s] = await Promise.all([
     passive ? tutteLeRighe(base, headers, `fatture?select=id,fornitore,numero_fattura,scadenza,importo,pagamenti(importo),note_credito_righe(importo)&stato=in.(da_pagare,pagata_parziale)&scadenza=lte.${limite}&order=id`) : [],
     attive ? tutteLeRighe(base, headers, `fatture_attive?select=id,cliente,numero_fattura,data_fattura,importo,incassi(importo),note_credito_attive_righe(importo)&stato=in.(da_incassare,incassata_parziale)&data_fattura=lte.${vecchie}&order=id`) : [],
     impegni ? tutteLeRighe(base, headers, `impegni_direttore?select=id,titolo,scadenza,importanza,urgenza,fatto&fatto=eq.false&scadenza=lte.${limite}&order=id`) : [],
+    // Il preavviso arriva a un anno: si legge fin lì e si filtra per ognuna.
+    scadenze ? tutteLeRighe(base, headers, `scadenze?select=id,titolo,categoria,riferimento,data_scadenza,preavviso_giorni,fatta&fatta=eq.false&data_scadenza=lte.${sommaGiorni(oggi, 365)}&order=id`) : [],
   ]);
   return {
     passive: p.map(f => ({ ...f, _residuo: residuo(f, 'pagamenti', 'note_credito_righe') })),
     attive: a.map(f => ({ ...f, _residuo: residuo(f, 'incassi', 'note_credito_attive_righe') })),
     impegni: i,
+    scadenze: s,
   };
 }
 
@@ -197,7 +214,7 @@ export async function leggiDati(base, serviceKey, { passive, attive, impegni, gi
 // sospesi, in attesa e chi ha ancora la password provvisoria non vedono nulla.
 export function accessiDi(profilo, autorizzazioni) {
   if (!profilo || profilo.deve_cambiare_password) return new Set();
-  if (profilo.ruolo === 'super_admin') return new Set(['scadenziario', 'direttore']);
+  if (profilo.ruolo === 'super_admin') return new Set(['scadenziario', 'direttore', 'scadenze']);
   if (profilo.ruolo !== 'utente') return new Set();
   return new Set(autorizzazioni.filter(a => a.utente_id === profilo.id).map(a => a.sezione));
 }

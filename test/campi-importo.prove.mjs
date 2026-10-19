@@ -22,6 +22,7 @@ const INTERI_AMMESSI = {
   'js/trasporti/views/preventivo.js': ['id="persone"', 'id="pastiPersona"', 'id="notti"', 'id="camere"'],
   'js/views/impostazioni.js': ['id="giorni"'],                            // giorni di scadenza
   'js/views/promemoria.js': ['id="giorni"'],                              // giorni di anticipo
+  'js/scadenze/views/scheda.js': ['id="f-preavviso"'],                    // giorni di preavviso
 };
 
 function fileJs(dir, out = []) {

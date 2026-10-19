@@ -99,7 +99,7 @@ export async function renderPreventivo(view, id, ctx) {
   const cItin = card('', `
     <div class="form-row three">
       <div class="field"><label>Mezzo</label><select id="mezzo">
-        ${imp.mezzi.map(m => `<option value="${m.id}" ${prev.input.mezzoId===m.id?'selected':''}>${esc(m.nome)} — ${fmtNum(m.consumo,1)} km/l</option>`).join('')}
+        ${imp.mezzi.map(m => `<option value="${esc(m.id)}" ${prev.input.mezzoId===m.id?'selected':''}>${esc(m.nome)} — ${fmtNum(m.consumo,1)} km/l</option>`).join('')}
       </select><div class="hint" id="mezzo-hint"></div></div>
       <div class="field"><label>Alimentazione</label><select id="alim">
         <option value="diesel">Gasolio (diesel)</option>
@@ -119,8 +119,8 @@ export async function renderPreventivo(view, id, ctx) {
   // ================= SEZIONE 3: EQUIPAGGIO E PASTI =================
   const cEq = card('Equipaggio e pasti', `
     <div class="form-row three">
-      <div class="field"><label>Persone in squadra</label><input type="number" min="0" id="persone" value="${prev.input.persone}"></div>
-      <div class="field"><label>Pasti a persona</label><input type="number" min="0" id="pastiPersona" value="${prev.input.pastiPersona}"></div>
+      <div class="field"><label>Persone in squadra</label><input type="number" min="0" id="persone" value="${esc(prev.input.persone ?? '')}"></div>
+      <div class="field"><label>Pasti a persona</label><input type="number" min="0" id="pastiPersona" value="${esc(prev.input.pastiPersona ?? '')}"></div>
       <div class="field"><label>Costo a pasto (€)</label><input ${CAMPO_DECIMALE} id="pastoCosto" value="${testoDecimale(prev.input.pastoCosto)}"></div>
     </div>`);
   main.appendChild(cEq);
@@ -128,8 +128,8 @@ export async function renderPreventivo(view, id, ctx) {
   // ================= SEZIONE 4: PERNOTTAMENTO =================
   const cPern = card('Pernottamento', `
     <div class="form-row three">
-      <div class="field"><label>Notti</label><input type="number" min="0" id="notti" value="${prev.input.notti}"></div>
-      <div class="field"><label>N. camere</label><input type="number" min="0" id="camere" value="${prev.input.camere}"></div>
+      <div class="field"><label>Notti</label><input type="number" min="0" id="notti" value="${esc(prev.input.notti ?? '')}"></div>
+      <div class="field"><label>N. camere</label><input type="number" min="0" id="camere" value="${esc(prev.input.camere ?? '')}"></div>
       <div class="field"><label>€ a camera / notte</label><input ${CAMPO_DECIMALE} id="prezzoCameraNotte" value="${testoDecimale(prev.input.prezzoCameraNotte)}"></div>
     </div>
     <div class="field"><label>€ a persona / notte (opzionale, alternativo alle camere)</label><input ${CAMPO_DECIMALE} id="prezzoPersonaNotte" value="${testoDecimale(prev.input.prezzoPersonaNotte)}"></div>`);

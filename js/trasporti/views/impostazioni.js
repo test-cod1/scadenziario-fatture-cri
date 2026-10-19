@@ -123,7 +123,7 @@ export async function renderImpostazioni(view, ctx) {
     Object.entries(prezzi).sort((a,b) => a[1].nome.localeCompare(b[1].nome)).forEach(([iso, row]) => {
       if (q && !row.nome.toLowerCase().includes(q)) return;
       const tr = el(`<tr>
-        <td class="fuel-country">${flag(iso)} ${esc(row.nome)} <span class="mini">${iso}</span></td>
+        <td class="fuel-country">${flag(iso)} ${esc(row.nome)} <span class="mini">${esc(iso)}</span></td>
         <td><input class="fuel-price" ${CAMPO_DECIMALE} value="${testoDecimale(row.diesel)}"></td>
         <td><input class="fuel-price" ${CAMPO_DECIMALE} value="${testoDecimale(row.benzina)}"></td>
       </tr>`);

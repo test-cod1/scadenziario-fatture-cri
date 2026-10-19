@@ -25,4 +25,5 @@ export const ID_SEZIONI = [
   'straordinari',
   'direttore',
   'analisi',
+  'scadenze',
 ];

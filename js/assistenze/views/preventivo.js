@@ -294,7 +294,7 @@ export async function renderPreventivo(view, id, ctx) {
         <td><input type="text" class="ora" value="${esc(r.dalle || '')}" style="width:86px" aria-label="dalle"></td>
         <td><input type="text" class="ora" value="${esc(r.alle || '')}" style="width:86px" aria-label="alle"></td>
         <td class="ore money">${fmtOre(oreTurno(r))}</td>
-        ${prev.voci.map(v => `<td style="text-align:center"><input type="number" min="0" step="1" style="width:70px" data-voce="${esc(v.id)}" value="${r.qta?.[v.id] ?? ''}"></td>`).join('')}
+        ${prev.voci.map(v => `<td style="text-align:center"><input type="number" min="0" step="1" style="width:70px" data-voce="${esc(v.id)}" value="${esc(r.qta?.[v.id] ?? '')}"></td>`).join('')}
         <td><input type="text" class="nota" value="${esc(r.note || '')}" placeholder="—"></td>
         <td style="text-align:right"><button class="btn ghost sm" title="Rimuovi turno" aria-label="Rimuovi turno">✕</button></td>
       </tr>`);

@@ -93,7 +93,7 @@ export async function renderDashboard(view, ctx) {
       const tr = el(`<tr>
         <td><b>${esc(p.cliente || '—')}</b></td>
         <td>${esc(p.oggetto || '—')}</td>
-        <td>${giorno ? fmtData(giorno) : '<span class="muted">da definire</span>'}</td>
+        <td>${giorno ? esc(fmtData(giorno)) : '<span class="muted">da definire</span>'}</td>
         <td>${(p.calendario || []).length}</td>
         <td class="money">${fmtEuro(p.totale)}</td>
         <td><select data-stato style="min-width:118px">${STATI.map(s =>

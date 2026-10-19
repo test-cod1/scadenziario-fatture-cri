@@ -101,6 +101,27 @@ La sezione ha il suo **tour guidato** (il pulsante 🎓): tredici passi fra elen
 
 Richiede [`supabase/patch-2026-09-11-direttore.sql`](supabase/patch-2026-09-11-direttore.sql) (la sezione nel portale) e [`supabase/patch-2026-09-11-impegni-direttore.sql`](supabase/patch-2026-09-11-impegni-direttore.sql) (la tabella degli impegni, con le sue policy).
 
+### Le idee, anche da Telegram
+
+La pagina **💡 Idee** raccoglie le idee annotate al volo: una riga scritta come viene, da sistemare dopo. Ogni idea ha uno stato (nuova, in valutazione, approvata, realizzata, scartata) e quelle buone diventano un **impegno** con un clic: titolo dalla prima riga, testo intero nei dettagli, e l'idea resta collegata all'impegno.
+
+Le idee vengono quando si è in giro, quindi si possono mandare anche **scrivendo al bot Telegram del portale**. Ognuno collega il proprio Telegram dalla pagina Idee («Collega Telegram»): il portale genera un codice monouso valido 15 minuti e un link `t.me/<bot>?start=CODICE`; aperto dal telefono, il bot abbina quella chat alla persona. Da lì ogni messaggio al bot diventa un'idea a suo nome; `/idee` mostra le ultime, `/scollega` stacca il collegamento. Il bot accetta solo chat private, solo da chi ha (ancora) accesso alla sezione Direttore, e solo da Telegram (il webhook controlla un segreto nell'intestazione).
+
+Per attivarlo, una volta sola:
+1. su Telegram, con [@BotFather](https://t.me/BotFather): `/newbot`, un nome e uno username che finisce in `bot`; si ottiene il **token**;
+2. nei secret del progetto Pages: `TELEGRAM_BOT_TOKEN` (il token) e `TELEGRAM_WEBHOOK_SECRET` (una stringa casuale di 16-256 caratteri fra lettere, cifre, `_` e `-`, per esempio l'output di `node -e "console.log(crypto.randomUUID().replaceAll('-',''))"`);
+3. un super admin apre Direttore → Idee e preme **⚙️ Webhook**: il portale dice a Telegram dove mandare i messaggi e imposta il menu dei comandi. Va ripetuto solo se cambia il dominio.
+
+Richiede [`supabase/patch-2026-10-19-idee-telegram.sql`](supabase/patch-2026-10-19-idee-telegram.sql). Il codice sta in [`js/direttore/views/idee.js`](js/direttore/views/idee.js), [`functions/api/telegram.js`](functions/api/telegram.js) e [`functions/_lib/telegram.js`](functions/_lib/telegram.js); le prove in [`test/telegram.prove.mjs`](test/telegram.prove.mjs) fanno girare il webhook su un database finto.
+
+## Sezione Scadenze
+
+Tutto quello che scade e non è una fattura né un impegno della direzione: polizze e bolli dei mezzi, revisioni, contratti e abbonamenti, certificazioni, corsi obbligatori da ripetere, adempimenti. La **categoria è libera** — si sceglie fra quelle già usate e alcune classiche, o se ne scrive una nuova — così si può segnare una scadenza di qualunque tipo senza aspettare che qualcuno aggiunga una voce a un elenco.
+
+Ogni scadenza ha un **preavviso** in giorni: da lì in poi è «in preavviso», cambia colore e — per chi ha acceso i promemoria email — entra nell'email del mattino. Il preavviso è di ciascuna, perché per rinnovare un contratto servono settimane e per pagare un bollo un giorno. Le scadenze possono **ripetersi** (ogni mese, tre mesi, anno, due, cinque…): segnandone una fatta, nasce da sola la successiva, alla stessa data del periodo dopo — o all'ultimo giorno del mese, se quel giorno non c'è. Per cinque secondi l'avviso in basso permette di annullare, e la successiva sparisce.
+
+Legge e scrive chi ha accesso alla sezione; elimina l'admin della sezione, o chi ha appena creato la scadenza (nei primi 15 minuti, per gli errori di battitura). Richiede [`supabase/patch-2026-10-19-scadenze.sql`](supabase/patch-2026-10-19-scadenze.sql); i calcoli (ricorrenze, preavviso) stanno in [`js/scadenze/calc.js`](js/scadenze/calc.js) e sono fissati da [`test/scadenze.prove.mjs`](test/scadenze.prove.mjs).
+
 ## Sezione Trasporti lunghi
 
 Preventivi per i trasporti sanitari fuori Genova: si indica il mezzo, si scrivono le tappe (indirizzi cercati con OpenRouteService, che calcola anche i km del percorso reale) e l'app somma carburante, pedaggi esteri, pasti, pernottamenti e personale sanitario, confrontando la spesa viva con l'addebito al cliente.
@@ -320,6 +341,13 @@ Cambiando indirizzo cambia l'origine del sito: chi entra dal dominio nuovo deve 
 - [`patch-2026-10-18-promemoria.sql`](supabase/patch-2026-10-18-promemoria.sql): le preferenze dei promemoria email, più (commentato in fondo) il timer giornaliero da attivare a mano.
 
 Sono idempotenti e `schema.sql` le contiene già (tranne il timer, che dipende dal token).
+
+### Patch del 19/10/2026 (da eseguire nel SQL Editor, PRIMA di pubblicare il codice)
+
+- [`patch-2026-10-19-scadenze.sql`](supabase/patch-2026-10-19-scadenze.sql): la sezione Scadenze (riga in `sezioni`, tabella `scadenze`, policy) e la voce «Scadenze» nei promemoria email. Va eseguita **dopo** quelle del 18/10: aggancia il registro modifiche e l'autore forzato se ci sono.
+- [`patch-2026-10-19-idee-telegram.sql`](supabase/patch-2026-10-19-idee-telegram.sql): le idee del Direttore e i collegamenti Telegram.
+
+Dopo averle eseguite, la sezione Scadenze va assegnata alle persone dalla pagina Utenti e autorizzazioni, come le altre.
 
 ### Registro modifiche del portale
 

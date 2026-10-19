@@ -41,6 +41,10 @@ const ICONE = {
   // promesso una pagina sola invece di una sezione.
   analisi: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M5 4v27h27"/><path d="M11 25v-6M18 25v-12M25 25v-9"/><path d="M10 13 17 7l5 4 8-6"/></svg>`,
+  // Una clessidra: il tempo che passa verso una data, che è tutto quello
+  // che una scadenza è — di qualunque tipo sia.
+  scadenze: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M9 3h18M9 33h18"/><path d="M11 3c0 8 14 9 14 15S11 25 11 33"/><path d="M25 3c0 8-14 9-14 15s14 7 14 15"/><path d="M14 29h8"/></svg>`,
 };
 
 export const SEZIONI = [
@@ -145,7 +149,7 @@ export const SEZIONI = [
   {
     id: 'direttore',
     label: 'Direttore',
-    descrizione: 'Gli impegni della direzione, per urgenza, importanza e scadenza.',
+    descrizione: 'Gli impegni della direzione, per urgenza, importanza e scadenza, e le idee da valutare.',
     emoji: '🧭',
     colore: '#1e40af',
     ombra: 'rgba(30,64,175,.22)',
@@ -154,6 +158,7 @@ export const SEZIONI = [
     menu: [
       { id: 'impegni', icon: '🗒️', label: 'Impegni', attivoAnche: ['impegno'] },
       { id: 'calendario', icon: '📅', label: 'Calendario' },
+      { id: 'idee', icon: '💡', label: 'Idee' },
       { id: 'nuovo', icon: '➕', label: 'Nuovo impegno' },
     ],
     tour: () => import('./tour/direttore.js'),
@@ -179,6 +184,24 @@ export const SEZIONI = [
     ],
     tour: () => import('./tour/analisi.js'),
     icona: ICONE.analisi,
+  },
+  {
+    id: 'scadenze',
+    label: 'Scadenze',
+    descrizione: 'Assicurazioni, bolli, revisioni, contratti, certificazioni: tutto quello che scade, per tempo.',
+    emoji: '⏰',
+    // Un ambra scuro: la sezione è un promemoria, e il colore lo dice senza
+    // confondersi con il rosso dello scadenziario.
+    colore: '#92400e',
+    ombra: 'rgba(146,64,14,.22)',
+    tipo: 'interna',
+    home: '#/scadenze/elenco',
+    menu: [
+      { id: 'elenco', icon: '⏰', label: 'Scadenze', attivoAnche: ['scadenza'] },
+      { id: 'nuova', icon: '➕', label: 'Nuova scadenza' },
+    ],
+    tour: () => import('./tour/scadenze.js'),
+    icona: ICONE.scadenze,
   },
 ];
 

@@ -38,6 +38,8 @@ const TABELLE = {
   impegni_direttore: ['Direttore', 'Impegno'],
   centri_costo: ['Analisi', 'Centro di costo'],
   imputazioni: ['Analisi', 'Imputazione'],
+  idee_direttore: ['Direttore', 'Idea'],
+  scadenze: ['Scadenze', 'Scadenza'],
 };
 const SEZIONI = [...new Set(Object.values(TABELLE).map(([s]) => s))];
 

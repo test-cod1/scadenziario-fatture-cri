@@ -71,6 +71,7 @@ export async function onRequestPost(context) {
       passive: serve('scadenziario', 'fatture_passive'),
       attive: serve('scadenziario', 'crediti_attive'),
       impegni: serve('direttore', 'impegni'),
+      scadenze: destinatari.some(d => d.accessi.has('scadenze') && d.pref.scadenze !== false),
       giorniMax: Math.max(7, ...destinatari.map(d => Number(d.pref.giorni_anticipo) || 7)),
       oggi,
     });

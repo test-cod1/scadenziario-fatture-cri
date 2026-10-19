@@ -24,6 +24,10 @@ export async function renderDirettore(view, ctx, sub, param) {
   }
   // Il parametro di «nuovo» è la data da cui si arriva: si clicca un giorno
   // sul calendario e la scheda si apre con quella scadenza già scritta.
+  if (sub === 'idee') {
+    const { renderIdee } = await import('./views/idee.js');
+    return renderIdee(view, ctxD);
+  }
   if (sub === 'nuovo') return renderImpegno(view, null, ctxD, param);
   if (sub === 'impegno' && param) return renderImpegno(view, param, ctxD);
   return renderImpegni(view, ctxD);

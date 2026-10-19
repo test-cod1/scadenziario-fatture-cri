@@ -11,14 +11,17 @@ export function esc(s) {
 export function clear(node) { while (node.firstChild) node.removeChild(node.firstChild); }
 
 // ---------- Formatting ----------
+// Una data che non si legge torna com'è, ma protetta: questi risultati
+// finiscono dentro HTML, e un campo libero (un jsonb scritto via API) non
+// deve poterci mettere dei tag.
 export function fmtDate(iso) {
   if (!iso) return '—';
-  const d = new Date(iso + 'T00:00:00'); if (isNaN(d)) return iso;
+  const d = new Date(iso + 'T00:00:00'); if (isNaN(d)) return esc(iso);
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 export function fmtDateTime(iso) {
   if (!iso) return '—';
-  const d = new Date(iso); if (isNaN(d)) return iso;
+  const d = new Date(iso); if (isNaN(d)) return esc(iso);
   return d.toLocaleDateString('it-IT', { day: '2-digit', month: '2-digit', year: 'numeric' }) + ' ' +
     d.toLocaleTimeString('it-IT', { hour: '2-digit', minute: '2-digit' });
 }

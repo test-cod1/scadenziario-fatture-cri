@@ -293,7 +293,7 @@ export async function renderPreventivo(view, id, ctx) {
         </div>
         <div class="form-row">
           <div class="field"><label>N. discenti</label>
-            <input type="number" min="0" step="1" data-k="discenti" value="${r.discenti ?? ''}" placeholder="da definire"></div>
+            <input type="number" min="0" step="1" data-k="discenti" value="${esc(r.discenti ?? '')}" placeholder="da definire"></div>
           <div class="field"><label>Attestazione rilasciata</label>
             <input type="text" data-k="attestato" value="${esc(r.attestato || '')}"></div>
         </div>

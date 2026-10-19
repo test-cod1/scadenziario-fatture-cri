@@ -1,7 +1,7 @@
 // ============================================================
 //  Cloudflare Function — Promemoria di prova, a sé stessi
 //  Endpoint: POST /api/promemoria-prova
-//  Body:     { giorni_anticipo, fatture_passive, crediti_attive, impegni }
+//  Body:     { giorni_anticipo, fatture_passive, crediti_attive, impegni, scadenze }
 //            (le scelte a schermo, anche se non ancora salvate)
 //  Risposta: { ok: true, email, vuoto }
 //
@@ -29,10 +29,8 @@ export async function onRequestPost(context) {
     fatture_passive: body?.fatture_passive !== false,
     crediti_attive: body?.crediti_attive !== false,
     impegni: body?.impegni !== false,
+    scadenze: body?.scadenze !== false,
   };
-
-  const quota = await consumaQuota(request, env, 'promemoria-prova');
-  if (!quota.ok) return json(errore429('promemoria-prova', quota), 429);
 
   const base = env.SUPABASE_URL || SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;
@@ -45,11 +43,19 @@ export async function onRequestPost(context) {
     ]);
     const profilo = profili?.[0];
     const accessi = accessiDi(profilo, autorizzazioni || []);
+    // Prima di spendere la quota del servizio email: un account sospeso, in
+    // attesa o con la password provvisoria ha ancora un token valido, ma
+    // nessuna sezione — e per lui il tetto giornaliero non conta (la
+    // funzione consuma_quota non lo registra), quindi va fermato qui.
+    if (!accessi.size) return json({ error: 'Il tuo account non ha accesso a nessuna sezione che manda promemoria.' }, 403);
     if (!profilo?.email) return json({ error: 'Profilo senza email.' }, 400);
+    const quota = await consumaQuota(request, env, 'promemoria-prova');
+    if (!quota.ok) return json(errore429('promemoria-prova', quota), 429);
     const dati = await leggiDati(base, key, {
       passive: accessi.has('scadenziario') && pref.fatture_passive,
       attive: accessi.has('scadenziario') && pref.crediti_attive,
       impegni: accessi.has('direttore') && pref.impegni,
+      scadenze: accessi.has('scadenze') && pref.scadenze,
       giorniMax: giorni, oggi,
     });
     const sel = selezionaPerUtente(pref, accessi, dati, oggi);

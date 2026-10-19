@@ -85,5 +85,20 @@ prova('sospesi, in attesa e password provvisoria: nessuna sezione', () => {
   uguale([...accessiDi({ id: 'u', ruolo: 'utente' }, aut)], ['scadenziario']);
   uguale(accessiDi({ id: 'u', ruolo: 'in_attesa' }, aut).size, 0);
   uguale(accessiDi({ id: 'u', ruolo: 'utente', deve_cambiare_password: true }, aut).size, 0);
-  uguale([...accessiDi({ id: 's', ruolo: 'super_admin' }, [])].sort(), ['direttore', 'scadenziario']);
+  uguale([...accessiDi({ id: 's', ruolo: 'super_admin' }, [])].sort(), ['direttore', 'scadenze', 'scadenziario']);
+});
+
+prova('scadenze: entrano quando sono nel loro preavviso, ognuna col suo', () => {
+  const d = { scadenze: [
+    { titolo: 'Polizza', data_scadenza: '2026-11-15', preavviso_giorni: 30, fatta: false },   // fra 26 giorni, preavviso 30: sì
+    { titolo: 'Bollo', data_scadenza: '2026-11-15', preavviso_giorni: 7, fatta: false },      // preavviso 7: non ancora
+    { titolo: 'Revisione', data_scadenza: '2026-10-01', preavviso_giorni: 0, fatta: false },  // già passata: sì
+    { titolo: 'Fatta', data_scadenza: '2026-10-01', preavviso_giorni: 0, fatta: true },
+  ] };
+  const sel = selezionaPerUtente(pref(), new Set(['scadenze']), d, MARTEDI);
+  uguale(sel.scadenze.map(s => s.titolo), ['Revisione', 'Polizza']);
+  uguale(selezionaPerUtente(pref({ scadenze: false }), new Set(['scadenze']), d, MARTEDI).scadenze.length, 0);
+  uguale(selezionaPerUtente(pref(), new Set(['direttore']), d, MARTEDI).scadenze.length, 0, 'senza la sezione, niente');
+  const e = componiPromemoria({ nome: '', oggi: MARTEDI, sel: { passive: [], attive: [], impegni: [], scadenze: sel.scadenze }, indirizzo: 'https://x' });
+  uguale(e.oggetto, 'Promemoria: 2 scadenze');
 });

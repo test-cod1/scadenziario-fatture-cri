@@ -233,8 +233,8 @@ function disegnaNav(sezioneId, sottoSezione, sub) {
   }
 
   // Promemoria email: solo per chi vede almeno una delle sezioni che ne
-  // mandano (scadenze dello scadenziario, impegni del Direttore).
-  if (ruoloIn(currentUser, 'scadenziario') || ruoloIn(currentUser, 'direttore')) {
+  // mandano (scadenziario, impegni del Direttore, Scadenze).
+  if (ruoloIn(currentUser, 'scadenziario') || ruoloIn(currentUser, 'direttore') || ruoloIn(currentUser, 'scadenze')) {
     const p = el('<a href="#/portale/promemoria"><span class="ic">🔔</span><span class="txt">Promemoria email</span></a>');
     p.classList.toggle('active', sezioneId === null && sub === 'promemoria');
     navImp.appendChild(p);
@@ -283,7 +283,7 @@ async function route() {
     try {
       if (primo === 'portale' && sub === 'promemoria') {
         const { renderPromemoria } = await import('./views/promemoria.js');
-        await renderPromemoria(zona, { ...ctx, puoScadenziario: !!ruoloIn(currentUser, 'scadenziario'), puoDirettore: !!ruoloIn(currentUser, 'direttore') });
+        await renderPromemoria(zona, { ...ctx, puoScadenziario: !!ruoloIn(currentUser, 'scadenziario'), puoDirettore: !!ruoloIn(currentUser, 'direttore'), puoScadenze: !!ruoloIn(currentUser, 'scadenze') });
       } else if (primo === 'portale' && sub === 'registro') {
         const { renderRegistroPortale } = await import('./views/registroPortale.js');
         await renderRegistroPortale(zona, ctx);
@@ -360,6 +360,10 @@ async function route() {
     if (sezione.id === 'direttore') {
       const { renderDirettore } = await import('./direttore/sezione.js');
       return await disegna(z => renderDirettore(z, ctx, sub, param));
+    }
+    if (sezione.id === 'scadenze') {
+      const { renderScadenze } = await import('./scadenze/sezione.js');
+      return await disegna(z => renderScadenze(z, ctx, sub, param));
     }
     if (sezione.id === 'analisi') {
       const { renderAnalisi } = await import('./analisi/sezione.js');

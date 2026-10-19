@@ -38,7 +38,8 @@ const TABELLE = {
   'Assistenze sanitarie': ['preventivi_assistenze', 'clienti_assistenze', 'impostazioni_assistenze'],
   'Formazione esterna': ['preventivi_formazione', 'clienti_formazione', 'impostazioni_formazione'],
   'Straordinari': ['straordinari', 'dipendenti_straordinari', 'impostazioni_straordinari'],
-  'Direttore': ['impegni_direttore'],
+  'Direttore': ['impegni_direttore', 'idee_direttore', 'telegram_collegamenti'],
+  'Scadenze': ['scadenze'],
   'Analisi': ['centri_costo', 'imputazioni'],
 };
 

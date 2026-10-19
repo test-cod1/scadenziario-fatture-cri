@@ -16,6 +16,9 @@ import { onRequestGet as prezzoItaliaGet } from '../api/prezzo-italia.js';
 import { onRequestGet as prezzoEuGet } from '../api/prezzo-eu.js';
 import { onRequestPost as promemoriaPost } from '../api/promemoria.js';
 import { onRequestPost as promemoriaProvaPost } from '../api/promemoria-prova.js';
+import { onRequestPost as telegramPost } from '../api/telegram.js';
+import { onRequestGet as telegramStatoGet } from '../api/telegram-stato.js';
+import { onRequestPost as telegramConfiguraPost } from '../api/telegram-configura.js';
 
 export const ROUTES = {
   '/api/estrai-fattura': { POST: estraiFatturaPost },
@@ -32,6 +35,11 @@ export const ROUTES = {
   // l'utente dalla pagina Promemoria (email di prova a sé stesso).
   '/api/promemoria': { POST: promemoriaPost },
   '/api/promemoria-prova': { POST: promemoriaProvaPost },
+  // Bot Telegram delle idee del Direttore: il webhook lo chiama Telegram,
+  // gli altri due la pagina Idee.
+  '/api/telegram': { POST: telegramPost },
+  '/api/telegram-stato': { GET: telegramStatoGet },
+  '/api/telegram-configura': { POST: telegramConfiguraPost },
 };
 
 // Risposta per un metodo non previsto su una route esistente. Senza, la

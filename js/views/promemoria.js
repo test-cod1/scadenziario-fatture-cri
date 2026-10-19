@@ -9,7 +9,7 @@ import { el, esc, toast } from '../lib/ui.js';
 //  e se non c'è niente da segnalare l'email non parte.
 // ============================================================
 
-const PREDEFINITE = { attive: false, frequenza: 'settimanale', giorni_anticipo: 7, fatture_passive: true, crediti_attive: true, impegni: true };
+const PREDEFINITE = { attive: false, frequenza: 'settimanale', giorni_anticipo: 7, fatture_passive: true, crediti_attive: true, impegni: true, scadenze: true };
 
 async function sb() { const { getSupabase } = await import('../lib/supabase.js'); return getSupabase(); }
 
@@ -52,6 +52,7 @@ export async function renderPromemoria(view, ctx) {
         ${casella('fatture_passive', 'Fatture passive da pagare', 'Scadute o in scadenza entro i giorni di anticipo.', ctx.puoScadenziario)}
         ${casella('crediti_attive', 'Crediti da sollecitare', 'Fatture attive non ancora incassate a più di 90 giorni dall\'emissione.', ctx.puoScadenziario)}
         ${casella('impegni', 'Impegni del Direttore', 'Non ancora fatti, scaduti o in scadenza entro i giorni di anticipo.', ctx.puoDirettore)}
+        ${casella('scadenze', 'Scadenze', 'Già passate, o entrate nel loro preavviso (ognuna ha il suo, scritto nella scheda).', ctx.puoScadenze)}
         <p class="hint" style="margin-top:10px">Se un giorno non c'è niente da segnalare, l'email non arriva.</p>
       </div>
       <div style="display:flex;gap:10px;flex-wrap:wrap;margin-top:16px">
@@ -76,6 +77,7 @@ export async function renderPromemoria(view, ctx) {
     fatture_passive: $('fatture_passive') ? $('fatture_passive').checked : pref.fatture_passive,
     crediti_attive: $('crediti_attive') ? $('crediti_attive').checked : pref.crediti_attive,
     impegni: $('impegni') ? $('impegni').checked : pref.impegni,
+    scadenze: $('scadenze') ? $('scadenze').checked : pref.scadenze,
   });
 
   $('salva').addEventListener('click', async () => {
