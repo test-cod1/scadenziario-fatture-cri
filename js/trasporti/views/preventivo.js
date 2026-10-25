@@ -4,7 +4,7 @@ import { CONFIG } from '../config.js';
 import { geocode, route, RoutingError } from '../lib/routing.js';
 import { prezzoRiferimento, paeseDaIso } from '../data/fuel-prices.js';
 import { stampaPreventivo, anteprimaPreventivo } from '../lib/stampa.js';
-import { el, clear, esc, fmtEuro, fmtNum, fmtKm, fmtDate, toast, debounce, confirmDialog } from '../lib/ui.js';
+import { el, clear, esc, fmtEuro, fmtNum, fmtKm, fmtDate, toast, debounce, confirmDialog, parseEuro } from '../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 import { CAMPO_DECIMALE, testoDecimale, testoDecimaleOVuoto, leggiDecimaleO0 } from '../../lib/importi.js';
 
@@ -242,7 +242,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   $('#prezzoCarb').value = testoDecimale(prev.input.prezzoCarburante);
   $('#prezzoCarb').addEventListener('input', e => {
-    prev.input.prezzoCarburante = num(e.target.value);
+    prev.input.prezzoCarburante = prezzoUnitario(e.target.value);
     prezzoAuto = false; $('#badge-auto').style.display = 'none'; recalc();
   });
 
@@ -319,7 +319,11 @@ export async function renderPreventivo(view, id, ctx) {
     return {
       ...prev,
       titolo: prev.titolo || titoloDaDestinazione(),
-      input: { ...prev.input, partenza: prev.partenza, _documento: documento },
+      // I flag del totale automatico dei sanitari vanno passati freschi: il
+      // documento scrive "ore × tariffa" solo se il totale è davvero quello
+      // (27/09/2026), e in prev.input c'è il valore dell'ultimo salvataggio.
+      input: { ...prev.input, partenza: prev.partenza, _documento: documento,
+        _medicoTotAuto: medicoTotAuto, _infermiereTotAuto: infermiereTotAuto },
     };
   }
 
@@ -404,7 +408,7 @@ export async function renderPreventivo(view, id, ctx) {
       recalc();
     });
     controls.querySelector('#tariffaKm').addEventListener('input', e => {
-      prev.input.tariffaKm = num(e.target.value); recalc();
+      prev.input.tariffaKm = prezzoUnitario(e.target.value); recalc();
     });
     controls.querySelector('#tariffa-preset').addEventListener('click', e => {
       const b = e.target.closest('[data-t]'); if (!b) return;
@@ -806,14 +810,28 @@ export async function renderPreventivo(view, id, ctx) {
 // ================= autocomplete geocoding =================
 function attachAutocomplete(input, box, onSelect) {
   let items = [], sel = -1;
+  // Numero dell'ultima ricerca partita (27/09/2026). Le risposte del
+  // geocoder non arrivano per forza nell'ordine delle domande: scrivendo
+  // "Tori" e poi "Torino", la risposta lenta a "Tori" poteva arrivare dopo e
+  // sostituire l'elenco giusto, e con Invio si sceglieva un indirizzo che
+  // non era quello scritto. Ogni risposta che non è dell'ultima ricerca si
+  // butta; hide() conta come una ricerca nuova, così un risultato in ritardo
+  // non ripopola un elenco già chiuso.
+  let ricerca = 0;
   const run = debounce(async () => {
     const q = input.value.trim();
     if (q.length < 3) { hide(); return; }
+    const questa = ++ricerca;
+    // Mentre si cerca, l'elenco vecchio non è più selezionabile con Invio.
+    items = []; sel = -1;
     box.style.display = 'block'; box.innerHTML = '<div class="empty">Ricerca…</div>';
     try {
-      items = await geocode(q, { size: 6 });
+      const trovati = await geocode(q, { size: 6 });
+      if (questa !== ricerca) return;
+      items = trovati; sel = -1;
       draw();
     } catch (e) {
+      if (questa !== ricerca) return;
       box.innerHTML = `<div class="empty">⚠️ ${esc(e.message || 'ricerca non disponibile')}</div>`;
     }
   }, 350);
@@ -826,7 +844,7 @@ function attachAutocomplete(input, box, onSelect) {
     }));
   }
   function choose(i) { const it = items[i]; if (it) onSelect(it); hide(); }
-  function hide() { box.style.display = 'none'; sel = -1; }
+  function hide() { box.style.display = 'none'; sel = -1; ricerca++; }
   input.addEventListener('input', run);
   input.addEventListener('keydown', e => {
     if (box.style.display === 'none') return;
@@ -842,6 +860,9 @@ function attachAutocomplete(input, box, onSelect) {
 function emptyTappa() { return { label: '', lon: null, lat: null, iso2: null, iso3: null, paese: null }; }
 function tabella(imp) { return imp.prezziCustom || undefined; }
 function num(v) { return leggiDecimaleO0(v); }
+// Per i prezzi a unità (€/l del carburante, €/km): "1.859" è 1,859 €/l come
+// lo pubblica il MIMIT, non 1859 — vedi parseEuro in js/lib/ui.js.
+function prezzoUnitario(v) { return parseEuro(v, { prezzoUnitario: true }) ?? 0; }
 function shorten(s) { return String(s).split(',')[0].trim(); }
 function defaultPartenza() {
   return {

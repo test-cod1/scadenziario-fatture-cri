@@ -18,6 +18,12 @@ const path = require('path');
 
 const ROOT = __dirname;
 const PORT = process.env.PORT || 4323;
+// Solo da questo computer. In ascolto su tutte le interfacce (com'era fino
+// al 27/09/2026) il server rispondeva a chiunque sulla stessa rete Wi-Fi, e
+// chiunque poteva chiedergli, per esempio, i file di backup/ con fatture e
+// profili veri. Per provarlo da un telefono sulla stessa rete, di proposito:
+//   PowerShell:  $env:HOST="0.0.0.0"; node server.js
+const HOST = process.env.HOST || '127.0.0.1';
 
 // Chiavi dal file .dev.vars (stesso formato dei secret di Cloudflare): quelle
 // già presenti nell'ambiente hanno la precedenza.
@@ -34,16 +40,21 @@ try {
 // fossero, una violazione della CSP verrebbe scoperta solo dopo il deploy.
 let HEADER_SICUREZZA = {};
 
-// File e cartelle che non fanno parte del sito e non vanno mai serviti:
-// stesso elenco di .assetsignore (che svolge questo ruolo in produzione).
-const NON_SERVIBILI = [
-  '.dev.vars', '.env', '.git', '.wrangler', 'node_modules',
-  'supabase', 'functions', 'tools', 'server.js', 'worker.js', 'wrangler.jsonc',
-  'package.json', 'package-lock.json', '.assetsignore', '.gitignore', 'dist',
-];
+// File e cartelle che non fanno parte del sito e non vanno mai serviti.
+// L'elenco è quello di .assetsignore, letto da lì come fa la build di Pages
+// (tools/build-pages.mjs): prima era una copia scritta a mano, rimasta senza
+// backup/, test/ e README.md. Il confronto è in minuscolo perché su Windows
+// il disco non distingue: "/Supabase/schema.sql" apriva lo stesso file di
+// "/supabase/schema.sql" e aggirava il controllo.
+const NON_SERVIBILI = new Set([
+  '.dev.vars', '.env', '.git', '.wrangler', 'node_modules', 'dist', 'backup',
+  ...fs.readFileSync(path.join(ROOT, '.assetsignore'), 'utf8')
+    .split(/\r?\n/).map(r => r.trim()).filter(r => r && !r.startsWith('#'))
+    .map(r => r.replace(/\/$/, '')),
+].map(v => v.toLowerCase()));
 function nonServibile(relativo) {
-  const primoPezzo = relativo.split(path.sep)[0];
-  return NON_SERVIBILI.includes(primoPezzo) || primoPezzo.startsWith('.');
+  const primoPezzo = relativo.split(path.sep)[0].toLowerCase();
+  return NON_SERVIBILI.has(primoPezzo) || primoPezzo.startsWith('.');
 }
 
 const TYPES = {
@@ -56,7 +67,7 @@ const TYPES = {
 const server = http.createServer(async (req, res) => {
   const u = new URL(req.url, `http://${req.headers.host}`);
 
-  if (API[u.pathname]) return apiFunction(req, res, u.pathname);
+  if (u.pathname.startsWith('/api/')) return apiFunction(req, res, u.pathname);
 
   let p = decodeURIComponent(u.pathname);
   if (p === '/') p = '/index.html';
@@ -77,10 +88,11 @@ const server = http.createServer(async (req, res) => {
     res.end(data);
   });
 });
-import('./js/lib/securityHeaders.mjs').then(({ HEADER_SICUREZZA: h }) => {
+Promise.all([import('./js/lib/securityHeaders.mjs'), import('./functions/_lib/rotte.js')]).then(([{ HEADER_SICUREZZA: h }, rotte]) => {
   HEADER_SICUREZZA = h;
+  ROTTE = rotte;
   const stato = (n) => `${n} ${process.env[n] ? 'presente' : 'ASSENTE'}`;
-  server.listen(PORT, () => console.log(
+  server.listen(PORT, HOST, () => console.log(
     `Server attivo su http://localhost:${PORT}  (${stato('GEMINI_API_KEY')}, ${stato('SUPABASE_SERVICE_ROLE_KEY')}, ${stato('ORS_KEY')})`));
 });
 
@@ -93,15 +105,10 @@ import('./js/lib/securityHeaders.mjs').then(({ HEADER_SICUREZZA: h }) => {
 //  le stesse API standard del web disponibili in Node: si costruisce una
 //  Request, si chiama l'handler e si riversa la Response nella risposta HTTP.
 // ============================================================
-const API = {
-  '/api/estrai-fattura': './functions/api/estrai-fattura.js',
-  '/api/estrai-fattura-attiva': './functions/api/estrai-fattura-attiva.js',
-  '/api/crea-utente': './functions/api/crea-utente.js',
-  '/api/geocode': './functions/api/geocode.js',
-  '/api/route': './functions/api/route.js',
-  '/api/prezzo-italia': './functions/api/prezzo-italia.js',
-  '/api/prezzo-eu': './functions/api/prezzo-eu.js',
-};
+// L'elenco delle route è quello di produzione (functions/_lib/rotte.js,
+// caricato all'avvio): prima ce n'era una copia qui, e /api/elimina-utente
+// in locale non esisteva.
+let ROTTE = null;
 
 // La cache edge di Cloudflare (usata da /api/prezzo-italia per non riscaricare
 // l'elenco dei distributori ad ogni richiesta) in Node non esiste: qui si
@@ -120,11 +127,14 @@ function leggiCorpo(req) {
 }
 
 async function apiFunction(req, res, pathname) {
-  const mod = await import(API[pathname]);
-  const handler = req.method === 'POST' ? mod.onRequestPost
-    : req.method === 'GET' ? mod.onRequestGet : null;
+  const route = ROTTE.ROUTES[pathname];
+  if (!route) {
+    res.writeHead(404, { 'Content-Type': 'application/json' });
+    return res.end(JSON.stringify({ error: 'Endpoint inesistente.' }));
+  }
+  const handler = route[req.method];
   if (!handler) {
-    res.writeHead(405, { 'Content-Type': 'application/json' });
+    res.writeHead(405, { 'Content-Type': 'application/json', Allow: Object.keys(route).join(', ') });
     return res.end(JSON.stringify({ error: 'Metodo non ammesso.' }));
   }
   const corpo = ['GET', 'HEAD'].includes(req.method) ? undefined : await leggiCorpo(req);

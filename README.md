@@ -47,6 +47,51 @@ Si divide a sua volta in due parti indipendenti, selezionabili come due schede d
 
 Le due sezioni hanno tabelle, dati e permessi separati: nulla di quanto inserito in una compare nell'altra.
 
+### Clienti (solo sulle attive)
+
+Il nome del cliente è un campo di testo libero, e va bene così: una fattura si registra col documento in mano, non scegliendo da un'anagrafica che qualcuno deve tenere aggiornata. Il prezzo di quella libertà è che in tre anni e in quattro mani lo stesso ente finisce scritto in tre modi — «FONDAZIONE L'ANCORA ONLUS», «FONDAZIONE L'ANCORA ETS», «FONDAZIONE L'ANCORA» — e **ogni conto per cliente si spezza in tre**. Il più falsato è quello che serve di più, la concentrazione del fatturato: due clienti da 50 al posto di uno da 100 fanno sembrare il Comitato meno dipendente di quanto è.
+
+**Fatture Attive → Clienti** è il posto dove quel prezzo si paga tutto insieme, una volta ogni tanto. Mostra le grafie che con ogni probabilità sono lo stesso ente e le riscrive uguali. Le regole sono tre, e ognuna dice di sé quanto è sicura (stanno in [`js/lib/nomiClienti.js`](js/lib/nomiClienti.js), fissate da [`test/nomi-clienti.prove.mjs`](test/nomi-clienti.prove.mjs)):
+
+| | quando scatta | esempio |
+|---|---|---|
+| **identico** | stesso nome a meno di maiuscole e spazi | `cooperativa SAN CARLO ONLUS SCS` / `COOPERATIVA SAN CARLO ONLUS SCS` |
+| **probabile** | stesso nome togliendo punteggiatura, spazi e forma giuridica (SRL, ONLUS, ETS, ODV…) | `FONDAZIONE L'ANCORA ONLUS` / `… ETS`, `PETERCOM S.R.L.` / `PETERCOM SRL`, `ATS 35` / `ATS35` |
+| **da vedere** | un nome è l'inizio dell'altro | `PORTO ANTICO` / `PORTO ANTICO DI GENOVA`, `COMUNE DI GENOVA ATS 41` / `… ATS 41 V MUNICIPIO VALPOLCEVERA` |
+
+Solo i gruppi **identici** si spuntano in blocco. Quelli «da vedere» restano uno per uno, con scritto accanto il dubbio: possono essere lo stesso ufficio scritto due volte oppure due centri di spesa distinti, e **il rischio non è simmetrico** — due clienti lasciati separati per sbaglio si correggono in qualsiasi momento, due uniti per sbaglio non si separano più, perché le fatture hanno perso la grafia che li distingueva. Per lo stesso motivo il modulo non accosta mai due nomi per somiglianza: «ATS 41» e «ATS 47» restano due clienti.
+
+Un gruppo porta la certezza del **legame più debole** che lo tiene insieme: tre grafie unite da un «identico» e un «da vedere» sono un gruppo da vedere. La grafia proposta è quella già usata di più (a pari uso, la più completa), ma si può scrivere qualsiasi altra, e il pulsante ↑ accanto a ogni variante la promuove a nome del gruppo. In fondo c'è l'elenco completo dei clienti, con la matita per rinominarne uno solo: serve per un refuso che nessuna regola può riconoscere come tale, e per fondere a mano due grafie che le tre regole non hanno accostato (scrivendo il nome di un cliente che esiste già — la pagina avvisa che sta per fondere, non per rinominare).
+
+Unificare **non sposta, non unisce e non cancella nessuna fattura**: riscrive un campo di testo, una grafia alla volta, e il trigger di audit conserva il *prima* di ogni riga — dal registro modifiche si vede sempre com'era scritta. La pagina è in sola lettura per chi non è admin dello scadenziario. Non serve nessuna patch al database.
+
+### Allineare l'archivio al registro di fatturazione
+
+Il registro delle fatture emesse esce dal gestionale di fatturazione come stampa, e ogni tanto lo si riversa qui. Riversarlo di nuovo da capo creerebbe un doppione per ogni fattura già presente, quindi l'operazione non è un import ma un **allineamento**: si tiene quello che c'è, si corregge quello che è cambiato, si inserisce solo quello che manca.
+
+Si fa da riga di comando, e lo stesso comando fa sia il controllo sia l'applicazione:
+
+```
+npm run backup                                              # prima la copia di sicurezza
+npm run allinea-attive -- supabase/registro-<data>.csv      # dice solo che cosa farebbe
+npm run allinea-attive -- supabase/registro-<data>.csv --applica
+```
+
+Il registro è un CSV con intestazione e colonne separate da punto e virgola — *N. fattura ; Data (gg/mm/aaaa) ; Cliente ; Totale documento ; Incassata il* — riconosciute **dal nome e non dalla posizione**, perché un registro con una colonna in più o in ordine diverso è la cosa più probabile che succeda al prossimo riversamento, e contarle a dita farebbe leggere l'importo dalla casella sbagliata. L'ultima colonna è facoltativa: dov'è valorizzata, la fattura risulta incassata **per intero** a quella data, ma solo se non ha già un incasso registrato a mano — quello il registro non lo tocca, perché conosce una data sola e l'importo pieno e ne sa meno di chi l'ha scritto guardando l'estratto conto. Una riga finale di totali viene ignorata. È **lo stesso file che si rilegge a occhio** prima di eseguire: se lo strumento leggesse un formato suo, quello che si è controllato e quello che viene applicato sarebbero due cose diverse. Il nome va passato sempre, senza un valore di ripiego, perché un percorso predefinito farebbe riversare il registro della volta prima a chi si dimentica l'argomento. Serve la service role key in `.dev.vars`, come per `npm run backup`, e senza `--applica` non scrive niente. Il codice sta in [`tools/allinea-fatture-attive.mjs`](tools/allinea-fatture-attive.mjs), le regole in [`tools/allineamento.mjs`](tools/allineamento.mjs).
+
+La chiave con cui si riconosce una fattura è **numero + anno**, non numero + data: in un registro di vendita il numero non si ripete dentro l'anno, mentre le date già in archivio non sono affidabili (la fattura n. 1 risultava al 28/01/2026 e il registro la dà al 14/01/2026). Cercandole per data sarebbero risultate tutte mancanti, e le avremmo inserite una seconda volta — cioè proprio il doppione da evitare.
+
+Tre cose che lo script **non** fa, di proposito:
+- non cancella una riga che ha una storia sua (incassi, note di credito, quote sui centri di costo): fra due doppioni ne resta uno solo se l'altro è vuoto, altrimenti il doppione resta segnalato e lo si decide dall'app, perché unire due storie è una decisione;
+- non abbassa l'importo di una fattura sotto quanto vi risulta già incassato o stornato: lì c'è un errore da capire, e correggerlo di nascosto lo nasconderebbe;
+- non cancella le fatture che stanno in archivio e non nel registro — i numeri mancanti nella serie (annullate, o diventate note di credito) e gli errori di numerazione. Il primo file le elenca sotto «DA CONTROLLARE».
+
+**Le note di credito non sono comprese, ed è voluto.** La stampa del registro le contiene insieme alle fatture, nella stessa numerazione (nel registro al 21/09/2026 sono 13 su 245 documenti), ma non sono fatture: nel portale sono una testata più una riga per ogni fattura stornata, e per collegarle bisogna sapere *quale* fattura stornano. Quel riferimento sulla stampa è testo libero — «a storno totale della fattura 47», «storno totale in riferimento alla Fatt.n.143 NSO n.309 del 25/05 creato erroneamente», e in un caso non c'è affatto — e in più un terzo di esse storna fatture dell'**anno precedente**, che in questo archivio non ci sono. Dedurlo automaticamente vorrebbe dire indovinare su quale fattura scaricare qualche migliaio di euro. Si registrano dall'app, una per una, con l'elenco in [`supabase/note-credito-attive-2026-da-registrare.csv`](supabase/note-credito-attive-2026-da-registrare.csv) accanto: numero, data, cliente, importo e la causale così com'è scritta sul documento.
+
+Attenzione anche a un tranello dell'estrazione, se un domani il registro si rileggerà da un PDF: le note di credito hanno un'**intestazione diversa** («Nota di credito N.» invece di «Fattura N.»), e un estrattore che cerca solo la seconda non le salta — se le mangia, perché il loro totale finisce assegnato alla fattura che le precede. È successo alla prima estrazione di questo registro, e ha prodotto dieci importi sbagliati, tutti credibilissimi.
+
+Gli script sono **rieseguibili**: dalla seconda volta non trovano più niente da fare. Ogni riga toccata finisce nel registro modifiche. La tabella di appoggio si elimina a mano dopo il commit (l'ultima riga del file 2 dice come).
+
 ## Sezione Formazione Esterna
 
 Generatore di preventivi per i **corsi che il Comitato eroga alle aziende**: primo soccorso per i lavoratori designati (gruppo A e gruppo B/C, con i rispettivi aggiornamenti), BLSD e retraining BLSD. Sostituisce la lettera scritta a mano ogni volta, dove i prezzi erano righe discorsive senza somma e mancavano il numero dei discenti, la validità dell'offerta e la riga sull'IVA.
@@ -173,7 +218,7 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 
 ## Sezione Analisi
 
-Analisi legge insieme quello che le altre sezioni scrivono, per rispondere a domande che oggi richiedono di aprire quattro sezioni e sommare a mano. È nata per avere **più sottosezioni**: la prima sono i centri di costo.
+Analisi legge insieme quello che le altre sezioni scrivono, per rispondere a domande che oggi richiedono di aprire quattro sezioni e sommare a mano. È nata per avere **più sottosezioni**: oggi sono i **centri di costo** (a quale attività appartengono i soldi) e il **fatturato** (come stanno andando le fatture emesse).
 
 ### Centri di costo
 
@@ -192,9 +237,26 @@ Tre cose da sapere per leggere bene questi numeri, tutte scritte in testa a [`js
 
 L'anagrafica delle attività la tiene l'**admin della sezione**: è un piano dei conti, non un elenco che si allunga mentre si registra una fattura — se il nome fosse libero, dopo un anno ci sarebbero «Fiera del Mare», «fiera del mare» e «Fiera Mare 2026», cioè tre conti al posto di uno. Un'attività conclusa si **chiude** invece di eliminarla: resta leggibile nei conti e sparisce dalle tendine.
 
+### Fatturato
+
+Lo scadenziario ha già un **Report** delle fatture attive: quanto ha fatturato ogni cliente, e come sono andati i mesi. **Analisi → Fatturato** parte da dove quello finisce, e risponde a quattro domande che lì non si possono porre.
+
+- **Stiamo andando meglio o peggio dell'anno scorso?** Il grafico affianca ogni mese allo stesso mese dell'anno precedente, con il progressivo dell'anno come linea. Un mese da 60.000 € non dice niente finché non si sa che l'anno prima, a quel punto, eravamo a 40.000. Dove l'anno prima non c'era nulla la variazione non si scrive: da zero a qualunque cifra l'aumento è infinito, e «+∞%» non è una notizia.
+- **Da quanti clienti dipendiamo davvero?** La tabella dei clienti porta la **quota cumulata**, e le righe evidenziate sono quelle che insieme fanno l'80% del fatturato: «cinque su quarantatré» è la frase che si porta in Consiglio. Accanto ci sono la quota dei primi 3 e dei primi 10 e l'**indice di Herfindahl** — l'unico dei tre che non dipende da dove si taglia l'elenco, e quindi l'unico confrontabile fra un anno e l'altro quando i clienti cambiano di numero.
+- **Quanto del fatturato è ancora un credito, e da quanto tempo?** L'anzianità si conta **dalla data della fattura**, non dalla scadenza: sulle attive la scadenza spesso non c'è, e un conto che sparisce quando manca un campo facoltativo non serve a niente. Oltre i sei mesi la fascia diventa rossa, e sotto ci sono le dieci fatture aperte da più tempo, cliccabili per aprire la scheda e registrare l'incasso o segnare il sollecito. Il tempo di incasso è mostrato come **distribuzione** e non solo come media: 60 giorni medi possono voler dire «tutti a 60» oppure «metà subito e metà a un anno», e sono due situazioni che si gestiscono in modo diverso.
+- **Quanto di tutto questo sta dentro un centro di costo?** L'ultimo riquadro è il ponte con l'altra pagina della sezione: finché quella quota non è vicina al 100%, i conti dei centri di costo sono una fotografia parziale del fatturato, ed è qui che ci si accorge che lo sono.
+
+Due regole da tenere a mente, scritte in testa a [`js/analisi/fatturato.js`](js/analisi/fatturato.js) e fissate una per una da [`test/fatturato.prove.mjs`](test/fatturato.prove.mjs):
+1. **Fatturato vuol dire emesso, non incassato.** La fattura di luglio incassata a ottobre è fatturato di luglio. L'incassato c'è, ma è un altro numero e sta scritto come tale.
+2. **Lo storno pesa sul mese della fattura, non su quello della nota di credito.** Una fattura di marzo stornata a settembre è fatturato di marzo che non c'è mai stato, non un buco che arriva a settembre: portarla avanti farebbe due mesi falsi al posto di uno vero.
+
+I clienti si raggruppano per nome normalizzato (maiuscole e spazi): «COMUNE DI GENOVA  ATS35» e «Comune di Genova ATS35» sono lo stesso ente, e tenerli separati farebbe risultare la concentrazione più bassa del vero. Si unisce solo ciò che è identico a meno di maiuscole e spaziatura, **mai per somiglianza**: due grafie davvero diverse dello stesso ente restano due righe, e si uniformano da **Scadenziario → Fatture Attive → Clienti**. Le fatture senza data restano dentro ogni periodo — non sono «fuori dall'anno», è una data che manca — e la pagina lo dice in fondo, insieme agli altri buchi nei dati, invece di lasciarlo scoprire. Il pulsante di esportazione produce un CSV con dentro **tutti** i blocchi della pagina, non la sola tabella dei clienti.
+
+Non serve nessuna patch al database: la pagina legge le tabelle che ci sono già.
+
 **Permessi — da sapere prima di assegnare la sezione.** Analisi vive dei dati dello scadenziario, quindi la patch estende `puo_leggere()` (la funzione da cui passano tutte le policy di lettura delle fatture) a chi ha la sezione Analisi: **dare Analisi a una persona significa farle leggere tutte le fatture del Comitato**, passive e attive. `puo_scrivere()` non cambia — da Analisi non si modifica nessuna fattura.
 
-La sezione ha il suo **tour guidato** (il pulsante 🎓): nove passi fra il quadro d'insieme e l'arretrato, il copione sta in [`js/tour/analisi.js`](js/tour/analisi.js).
+La sezione ha il suo **tour guidato** (il pulsante 🎓): undici passi fra il quadro d'insieme, il fatturato e l'arretrato, il copione sta in [`js/tour/analisi.js`](js/tour/analisi.js).
 
 Richiede [`supabase/patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql) (la sezione nel portale) e poi [`supabase/patch-2026-09-15-centri-di-costo.sql`](supabase/patch-2026-09-15-centri-di-costo.sql) (le due tabelle, il trigger e i permessi).
 
@@ -269,6 +331,8 @@ ORS_KEY=la-tua-chiave-openrouteservice
 
 Senza queste chiavi il resto dell'app funziona lo stesso: manca solo la funzione che dipende dalla chiave assente (lettura AI, creazione utenti, ricerca indirizzi e km dei preventivi).
 
+Il server risponde solo da questo computer (`127.0.0.1`): in ascolto su tutta la rete, chiunque sulla stessa Wi-Fi poteva chiedergli i file di `backup/`. Per provarlo da un telefono, di proposito: `$env:HOST="0.0.0.0"; npm run dev`. Non serve mai quello che `.assetsignore` tiene fuori dal sito (backup, test, SQL, README…), a prescindere da maiuscole e minuscole.
+
 ### Le prove automatiche
 
 ```bash
@@ -329,9 +393,18 @@ Creazione del progetto (una volta sola, dalla dashboard Cloudflare → Workers &
 3. Settings → Variables and Secrets: gli stessi secret del Worker (`GEMINI_API_KEY`, `SUPABASE_SERVICE_ROLE_KEY`, `ORS_KEY`) — non si ereditano. In Settings → Runtime la compatibility date `2026-08-28`, come in `wrangler.jsonc`;
 4. Custom domains → **Set up a custom domain** → `amministrazione.crigenova.it`, **prima** che il gestore del DNS aggiunga il record (col record ma senza questo passaggio il dominio risponde con errore 522);
 5. al gestore di crigenova.it si chiede un solo record: `CNAME amministrazione → amministrazione-crigenova.pages.dev`;
-6. quando il dominio risponde: in Supabase → Authentication → URL Configuration **Site URL** `https://amministrazione.crigenova.it` e nei **Redirect URLs** `https://amministrazione.crigenova.it/**` (altrimenti il reset password porta al vecchio indirizzo). Controllo: `curl -D - -o /dev/null https://amministrazione.crigenova.it/js/app.js` deve mostrare `Content-Security-Policy`.
+6. quando il dominio risponde: in Supabase → Authentication → URL Configuration **Site URL** `https://amministrazione.crigenova.it` e nei **Redirect URLs** `https://amministrazione.crigenova.it/**` e `https://amministrazione-crigenova.pages.dev/**` (più quello del Worker finché resta acceso: il link dell'email torna all'indirizzo da cui è stato chiesto, e se non è nell'elenco Supabase ripiega sulla Site URL) (altrimenti il reset password porta al vecchio indirizzo). Controllo: `curl -D - -o /dev/null https://amministrazione.crigenova.it/js/app.js` deve mostrare `Content-Security-Policy`.
+
+**Cache per versione (service worker).** La build di Pages scrive in `dist/sw.js` un'impronta del contenuto del sito e l'elenco dei file dell'avvio (`tools/versione-sw.mjs`). Ogni versione ha la sua cache e i file si servono da lì senza chiedere nulla alla rete: le visite successive non ricontrollano più i file uno per uno (misurato: da 33 richieste a zero). Dopo un deploy il browser trova il service worker nuovo e lo installa accanto al vecchio; se il portale è appena stato aperto e non c'è niente in sospeso si ricarica da solo sulla versione nuova, altrimenti compare l'avviso «È disponibile una versione nuova del portale» con il pulsante *Aggiorna*. In locale (`node server.js`) e sul Worker il segnaposto della versione resta tale e il service worker lavora come prima, sempre dalla rete.
 
 Cambiando indirizzo cambia l'origine del sito: chi entra dal dominio nuovo deve rifare il login, e chi aveva installato l'app sul telefono deve reinstallarla da lì. Solo dopo che tutti usano il dominio nuovo si può eliminare il Worker (e con lui `worker.js` e `wrangler.jsonc`).
+
+### Patch del 27/09/2026 (da eseguire nel SQL Editor)
+
+- [`patch-2026-09-27-somme-periodo.sql`](supabase/patch-2026-09-27-somme-periodo.sql): i totali «Pagato/Incassato questo mese e quest'anno» delle dashboard li calcola il database (una riga invece di tutti i pagamenti del periodo). Senza la patch il sito funziona lo stesso, col calcolo di prima.
+- [`patch-2026-09-27-sicurezza.sql`](supabase/patch-2026-09-27-sicurezza.sql): nessuno può cambiarsi da sé nome ed email (li usava il registro modifiche, che così diventava falsificabile) e il registro prende l'email dal login; la password provvisoria blocca l'accesso ai dati anche via API finché non viene cambiata; `consuma_quota` accetta solo i servizi veri; le funzioni interne non sono più chiamabili via RPC.
+
+Entrambe sono idempotenti e `schema.sql` le contiene già.
 
 ### Patch del 18/10/2026 (da eseguire nel SQL Editor, PRIMA di pubblicare il codice)
 
@@ -419,6 +492,8 @@ js/direttore/views/impegno.js   la scheda: titolo, i due livelli, scadenza e det
 js/direttore/views/calendario.js  il mese delle scadenze e il dettaglio del giorno scelto
 js/analisi/                    sezione Analisi: i numeri delle altre sezioni, letti insieme
 js/analisi/calc.js              conti dei centri di costo (quote, note di credito, periodi)
+js/analisi/fatturato.js         conti del fatturato (concentrazione, anzianità del credito, tempi)
+js/analisi/views/fatturato.js   la pagina del fatturato: andamento, clienti, credito, copertura
 js/analisi/views/centri.js      il quadro d’insieme: una riga per attività
 js/analisi/views/centro.js      il conto di una singola attività, fattura per fattura
 js/analisi/views/daAttribuire.js  le fatture che nessuna attività ha ancora preso in carico
@@ -429,10 +504,12 @@ js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF
 js/lib/numeri.js                importo in lettere e arrotondamento ai centesimi
 js/lib/importi.js               i campi con i decimali: la virgola si può scrivere e incollare
 js/lib/rubrica.js               la rubrica (elenco, scheda, riquadro di scelta), una volta sola
+js/lib/nomiClienti.js           quando due nomi sono lo stesso ente (usato da Clienti e da Fatturato)
 js/lib/zip.js                   zip minimale (scrittura e lettura): serve a .xlsx e .docx
 js/vendor/supabase-js-*.js      il client Supabase, dentro il progetto e non su una CDN
 test/                          le prove automatiche (npm test)
 tools/backup.mjs               la copia di sicurezza del database (npm run backup)
+tools/allinea-fatture-attive.mjs  allinea le fatture emesse al registro di fatturazione
 assets/carta-intestata.dotx    modello Word ufficiale del Comitato
 js/trasporti/                  sezione Trasporti lunghi: preventivi trasporti sanitari
 js/trasporti/calc.js            il calcolo del preventivo (spesa reale, addebito, margine)
@@ -456,6 +533,7 @@ js/views/report.js              report/statistiche fatture passive (per fornitor
 js/views/dashboardAttive.js     dashboard fatture attive
 js/views/fatturaAttiva.js       editor fattura attiva (incl. sollecito di pagamento)
 js/views/reportAttive.js        report/statistiche fatture attive (per cliente + andamento mensile)
+js/views/clientiAttive.js       le grafie dei nomi cliente e la pagina che le unifica
 js/views/registroModifiche.js   registro modifiche unificato (passive+attive), dentro Impostazioni
 js/views/impostazioni.js        impostazioni dello scadenziario e registro modifiche (admin di sezione)
 manifest.json                  manifest PWA (nome, icone, tema) — abilita "Aggiungi a schermata Home"

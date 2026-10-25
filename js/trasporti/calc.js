@@ -10,6 +10,7 @@
 // ============================================================
 
 import { FUEL_DATA_DATE } from './data/fuel-prices.js';
+import { centesimi } from '../lib/numeri.js';
 
 // ---- Impostazioni di default (modificabili in app) ---------------------
 export const DEFAULT_IMPOSTAZIONI = {
@@ -107,30 +108,36 @@ export function calcola(input, imp = DEFAULT_IMPOSTAZIONI) {
   const isDiesel = (input.alimentazione || mezzo.alimentazione) === 'diesel';
 
   // --- Pasti (sezione disattivabile: conta solo se pastiOn) ---
-  const pasti = input.pastiOn ? n(input.persone) * n(input.pastiPersona) * n(input.pastoCosto) : 0;
+  const pasti = input.pastiOn ? centesimi(n(input.persone) * n(input.pastiPersona) * n(input.pastoCosto)) : 0;
 
   // --- Pernottamento (sezione disattivabile: conta solo se pernottamentoOn) ---
-  const pernCamere = input.pernottamentoOn ? n(input.notti) * n(input.camere) * n(input.prezzoCameraNotte) : 0;
-  const pernPersone = input.pernottamentoOn ? n(input.notti) * n(input.persone) * n(input.prezzoPersonaNotte) : 0;
-  const pernottamento = pernCamere + pernPersone;
+  const pernCamere = input.pernottamentoOn ? centesimi(n(input.notti) * n(input.camere) * n(input.prezzoCameraNotte)) : 0;
+  const pernPersone = input.pernottamentoOn ? centesimi(n(input.notti) * n(input.persone) * n(input.prezzoPersonaNotte)) : 0;
+  const pernottamento = centesimi(pernCamere + pernPersone);
 
   // --- Sanitari (Medico + Infermiere): sezione disattivabile, ogni ruolo
   // scelto indipendentemente (uno solo, entrambi, o nessuno anche a sezione attiva) ---
-  const medico = (input.sanitariOn && input.medicoOn) ? n(input.medico) : 0;
-  const infermiere = (input.sanitariOn && input.infermiereOn) ? n(input.infermiere) : 0;
-  const sanitari = medico + infermiere;
+  const medico = (input.sanitariOn && input.medicoOn) ? centesimi(n(input.medico)) : 0;
+  const infermiere = (input.sanitariOn && input.infermiereOn) ? centesimi(n(input.infermiere)) : 0;
+  const sanitari = centesimi(medico + infermiere);
   // In Italia niente pedaggi (CRI esente): contano solo se estero attivo.
-  const pedaggi = input.estero ? n(input.pedaggi) : 0;
+  const pedaggi = input.estero ? centesimi(n(input.pedaggi)) : 0;
   // Materiale di consumo (sezione disattivabile: conta solo se materialeOn)
-  const materiale = input.materialeOn ? (input.materiale || []).reduce((s, r) => s + n(r.importo), 0) : 0;
+  const materiale = input.materialeOn ? centesimi((input.materiale || []).reduce((s, r) => s + centesimi(n(r.importo)), 0)) : 0;
 
   // --- SPESA REALE (costo vivo) ---
   const spesaReale = carburante + pasti + pernottamento + sanitari + pedaggi + materiale;
 
   // --- ADDEBITO (km × tariffa + tutte le voci attive) ---
-  const addebitoKm = km * n(input.tariffaKm);
-  const passthrough = pasti + pernottamento + sanitari + pedaggi + materiale;
-  const addebito = addebitoKm + passthrough;
+  // Ogni voce che il documento stampa si arrotonda al centesimo PRIMA di
+  // sommarla (27/09/2026): 437,5 km × 1,23 €/km fa 538,125, che stampato
+  // diventa 538,13 ma nel totale entrava intero, e le righe della tabella
+  // non tornavano più con il "Totale" scritto sotto. Le voci a rimborso
+  // (pasti, pernottamento, sanitari, pedaggi, materiale) sono già arrotondate
+  // dove nascono; il carburante resta esatto, perché non finisce nel documento.
+  const addebitoKm = centesimi(km * n(input.tariffaKm));
+  const passthrough = centesimi(pasti + pernottamento + sanitari + pedaggi + materiale);
+  const addebito = centesimi(addebitoKm + passthrough);
 
   const margine = addebito - spesaReale;
 

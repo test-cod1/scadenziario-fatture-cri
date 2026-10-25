@@ -3,7 +3,9 @@ import { el, clear, esc, toast } from '../lib/ui.js';
 
 const BRAND = `<div class="brand"><div class="logo">✚</div><div><b>Amministrazione</b><span>Croce Rossa Italiana — Comitato di Genova</span></div></div>`;
 
-export function renderLogin(app, onDone) {
+// `avviso`: una riga da mostrare sopra il modulo (per esempio un link di
+// reset password scaduto, vedi boot() in js/app.js).
+export function renderLogin(app, onDone, { avviso = '' } = {}) {
   clear(app);
   const wrap = el(`<div class="login-wrap"><div class="login">
     ${BRAND}
@@ -17,6 +19,7 @@ export function renderLogin(app, onDone) {
   collegaTogglePassword(wrap);
 
   const err = wrap.querySelector('#err');
+  if (avviso) err.textContent = avviso;
   async function doLogin(email, pw) {
     err.textContent = '';
     try { await auth.signIn(email, pw); onDone(); }

@@ -1,9 +1,9 @@
 import { fattureAttive } from '../data/storeAttive.js';
 import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile, cellaCsv } from '../lib/ui.js';
+import { FILTRO_CLIENTE_KEY } from '../lib/filtriReport.js';
 import { raggruppaPerSoggetto } from '../lib/soggetti.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-const FILTRO_CLIENTE_KEY = 'reportAttive:filtroCliente';
 
 export async function renderReportAttive(view, ctx) {
   let tutte = [];
@@ -303,4 +303,3 @@ function esportaClientiCSV(gruppi) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-export { FILTRO_CLIENTE_KEY };

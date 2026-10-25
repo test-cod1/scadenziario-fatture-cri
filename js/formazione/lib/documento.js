@@ -88,11 +88,26 @@ export function costruisciBlocchi(prev, imp) {
     piede: piedeTabella(r, intestazioni.length, testi),
   });
 
-  blocchi.push({
-    t: 'p',
-    testo: `Importo complessivo: ${euro(r.totale)} (euro ${inLettere(r.totale)}).`,
-    grassetto: true,
-  });
+  // Con dei corsi "da definire" il totale calcolato non è l'importo del
+  // preventivo (27/09/2026): se nessun corso ha i discenti non si scrive
+  // nessuna cifra complessiva — valgono i prezzi a persona, come promette
+  // l'editor —; se ne manca solo qualcuno, la cifra resta ma dichiarata
+  // parziale, e in lettere, perché è comunque un importo che si firma.
+  if (r.senzaTotale) {
+    blocchi.push({ t: 'p', testo: testoSenzaTotale(prev, r), grassetto: true });
+  } else if (r.daDefinire) {
+    blocchi.push({
+      t: 'p',
+      testo: `Importo parziale: ${euro(r.totale)} (euro ${inLettere(r.totale)}), esclusi i corsi con numero di discenti da definire, per i quali vale il prezzo a discente indicato.`,
+      grassetto: true,
+    });
+  } else {
+    blocchi.push({
+      t: 'p',
+      testo: `Importo complessivo: ${euro(r.totale)} (euro ${inLettere(r.totale)}).`,
+      grassetto: true,
+    });
+  }
   const rigaIva = r.conIva ? testi.iva_soggetto : (prev.regime_iva === 'esente' ? testi.iva_esente : '');
   if (rigaIva) blocchi.push({ t: 'p', testo: rigaIva });
 
@@ -148,21 +163,51 @@ function piedeTabella(r, colonne, testi) {
     celle: [etichetta, ...Array(colonne - 2).fill(''), importo],
     forte,
   });
+  const voceTrasferta = testi.voce_trasferta || 'Trasferta presso la sede del committente';
 
+  // Nessun corso coi discenti: niente totali, sconti né IVA in cifre — sarebbero
+  // calcolati sulla sola trasferta, o su zero. Resta la trasferta, che è un
+  // importo fisso e si somma comunque; lo sconto concordato lo scrive a parole
+  // il paragrafo sotto la tabella.
+  if (r.senzaTotale) {
+    if (r.trasferta > 0) righe.push(riga(voceTrasferta, euro(r.trasferta)));
+    return righe;
+  }
+
+  // Con qualche corso da definire, ogni totale è un totale parziale e lo dice.
+  const p = r.daDefinire ? ' parziale' : '';
   if (r.trasferta > 0) {
-    righe.push(riga('Totale corsi', euro(r.totaleCorsi)));
-    righe.push(riga(testi.voce_trasferta || 'Trasferta presso la sede del committente', euro(r.trasferta)));
+    righe.push(riga('Totale corsi' + p, euro(r.totaleCorsi)));
+    righe.push(riga(voceTrasferta, euro(r.trasferta)));
   }
   if (r.sconto > 0) {
-    righe.push(riga('Totale', euro(r.totaleLordo)));
+    righe.push(riga('Totale' + p, euro(r.totaleLordo)));
     for (const s of r.sconti) righe.push(riga(etichettaSconto(s), '− ' + euro(s.importo)));
   }
   if (r.conIva) {
-    righe.push(riga('Imponibile', euro(r.imponibile)));
+    righe.push(riga('Imponibile' + p, euro(r.imponibile)));
     righe.push(riga(`IVA ${ALIQUOTA_IVA}%`, euro(r.iva)));
   }
-  righe.push(riga(righe.length ? 'Totale da corrispondere' : 'Totale', euro(r.totale), true));
+  const finale = righe.length ? 'Totale da corrispondere' : 'Totale';
+  righe.push(riga(r.daDefinire ? `${finale} (parziale, esclusi i corsi da definire)` : finale, euro(r.totale), true));
   return righe;
+}
+
+// La frase che prende il posto dell'importo complessivo quando nessun corso
+// ha ancora i discenti. Lo sconto concordato va comunque detto: tacerlo
+// vorrebbe dire che, a numeri noti, il cliente si ritrova un prezzo diverso
+// da quello che ricorda di aver pattuito.
+function testoSenzaTotale(prev, r) {
+  let t = 'Gli importi sono indicati a discente: l\'importo complessivo sarà determinato sul numero effettivo dei partecipanti';
+  const perc = Math.min(Math.max(Number(prev?.sconto_percentuale) || 0, 0), 100);
+  const valore = Math.max(Number(prev?.sconto_valore) || 0, 0);
+  const sconti = [
+    perc > 0 ? `lo sconto del ${num(perc, perc % 1 ? 1 : 0)}%` : '',
+    valore > 0 ? `uno sconto di ${euro(valore)}` : '',
+  ].filter(Boolean);
+  if (r.trasferta > 0) t += ', più la trasferta indicata in tabella';
+  if (sconti.length) t += `; sul totale si applicherà ${sconti.join(' e ')}`;
+  return t + '.';
 }
 
 // Come si legge uno sconto nel documento: la percentuale va scritta,

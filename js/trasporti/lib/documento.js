@@ -124,8 +124,13 @@ export function costruisciBlocchi(prev, imp) {
   voce('Percorrenza', `${num(inp.kmTotali, 1)} km × ${euro(inp.tariffaKm)}/km`, r.addebitoKm);
   voce('Pasti', `${num(inp.persone)} × ${num(inp.pastiPersona)} × ${euro(inp.pastoCosto)}`, r.pasti);
   voce('Pernottamento', `${num(inp.notti)} ${Number(inp.notti) === 1 ? 'notte' : 'notti'}`, r.pernottamento);
-  voce('Medico', inp.medicoOre ? `${num(inp.medicoOre, 1)} h × ${euro(inp.medicoOraria)}/h` : '', r.medico);
-  voce('Infermiere', inp.medicoOre ? `${num(inp.medicoOre, 1)} h × ${euro(inp.infermiereOraria)}/h` : '', r.infermiere);
+  // "ore × tariffa" solo se il totale è quello calcolato (27/09/2026): un
+  // totale corretto a mano (un forfait concordato) accanto a "12 h × 50 €/h"
+  // mostrava al cliente una moltiplicazione che non tornava con l'importo.
+  const orario = (auto, oraria) => (auto !== false && inp.medicoOre)
+    ? `${num(inp.medicoOre, 1)} h × ${euro(oraria)}/h` : '';
+  voce('Medico', orario(inp._medicoTotAuto, inp.medicoOraria), r.medico);
+  voce('Infermiere', orario(inp._infermiereTotAuto, inp.infermiereOraria), r.infermiere);
   voce('Pedaggi e vignette (estero)', '', r.pedaggi);
   if (inp.materialeOn) {
     for (const m of (inp.materiale || [])) {
@@ -167,9 +172,23 @@ export function costruisciBlocchi(prev, imp) {
   return { blocchi, calcolo: r };
 }
 
+// "AAAA-MM-GG" nel fuso di chi usa l'app, come la data stampata da fmtData.
+function dataLocaleISO(iso) {
+  if (!iso) return '';
+  if (String(iso).length === 10) return String(iso);
+  const d = new Date(iso);
+  if (isNaN(d)) return String(iso).slice(0, 10);
+  const due = (x) => String(x).padStart(2, '0');
+  return `${d.getFullYear()}-${due(d.getMonth() + 1)}-${due(d.getDate())}`;
+}
+
 // Nome del file (PDF o Word) proposto al salvataggio.
 export function nomeFile(prev, estensione) {
-  const data = documentoDi(prev).data_documento || (prev.created_at || '').slice(0, 10);
+  // La data di creazione è un istante UTC: tagliata a 10 caratteri, un
+  // preventivo creato alle 00:30 del 7 (le 22:30 UTC del 6) finiva in un file
+  // datato il giorno prima di quello scritto nel documento. Si usa la data
+  // locale, la stessa che fmtData stampa nel corpo (27/09/2026).
+  const data = documentoDi(prev).data_documento || dataLocaleISO(prev.created_at);
   const pezzi = ['Preventivo trasporto', prev.cliente || prev.titolo, data].filter(Boolean);
   return pezzi.join(' - ').replace(/[\\/:*?"<>|]/g, '-') + '.' + estensione;
 }

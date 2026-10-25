@@ -180,3 +180,92 @@ prova('il .docx è un file valido, con dentro il modello del Comitato', async ()
   vero(doc.includes('<w:sectPr'), 'senza le proprietà di sezione si perdono margini e piè di pagina');
   vero(nome.endsWith('.docx'));
 });
+
+// ------------------------------------------------------------------
+gruppo('Documento — casi limite (27/09/2026)');
+
+prova('formazione: con un corso da definire il totale è dichiarato parziale', async () => {
+  const { htmlPreventivo } = await mod('/js/formazione/lib/stampa.js');
+  const { DEFAULT_IMPOSTAZIONI } = await mod('/js/formazione/calc.js');
+  const prev = {
+    cliente: 'Prova s.r.l.', data_documento: '2026-09-06', regime_iva: 'esente',
+    righe: [
+      { id: 'blsd', nome: 'Corso BLSD', durata: '5 ore', discenti: null, listino: 60, prezzo: 60 },
+      { id: 'ps', nome: 'Primo soccorso', durata: '12 ore', discenti: 5, listino: 100, prezzo: 100 },
+    ],
+  };
+  const t = soloTesto(await htmlPreventivo(prev, DEFAULT_IMPOSTAZIONI));
+  falso(t.includes('Importo complessivo'), 'un totale senza il BLSD non è l\'importo complessivo');
+  vero(t.includes('Importo parziale: 500,00'), 'manca l\'importo parziale');
+  vero(/parziale, esclusi i corsi da definire/.test(t), 'il piede della tabella deve dirlo');
+});
+
+prova('formazione: senza nessun numero di discenti non si stampa nessun totale', async () => {
+  const { htmlPreventivo } = await mod('/js/formazione/lib/stampa.js');
+  const { DEFAULT_IMPOSTAZIONI } = await mod('/js/formazione/calc.js');
+  const prev = {
+    cliente: 'Prova s.r.l.', data_documento: '2026-09-06', sconto_percentuale: 10,
+    righe: [{ id: 'blsd', nome: 'Corso BLSD', durata: '5 ore', discenti: null, listino: 60, prezzo: 60 }],
+  };
+  const t = soloTesto(await htmlPreventivo(prev, DEFAULT_IMPOSTAZIONI));
+  falso(t.includes('zero/00'), 'niente "euro zero/00"');
+  falso(t.includes('Importo complessivo'));
+  vero(t.includes('numero effettivo dei partecipanti'));
+  vero(t.includes('sconto del 10%'), 'lo sconto concordato va comunque scritto');
+});
+
+prova('trasporti: "ore × tariffa" solo se il totale del medico non è stato corretto a mano', async () => {
+  const { htmlPreventivo } = await mod('/js/trasporti/lib/stampa.js');
+  const { DEFAULT_IMPOSTAZIONI } = await mod('/js/trasporti/calc.js');
+  const auto = soloTesto(await htmlPreventivo(tPrev, DEFAULT_IMPOSTAZIONI));
+  vero(/12,0 h × 50,00/.test(auto), 'col totale automatico il dettaglio orario serve');
+  const aMano = { ...tPrev, input: { ...tPrev.input, medico: 450, _medicoTotAuto: false } };
+  const t = soloTesto(await htmlPreventivo(aMano, DEFAULT_IMPOSTAZIONI));
+  falso(/12,0 h × 50,00/.test(t), '12 h × 50 € accanto a 450 € non torna');
+  vero(t.includes('450,00'));
+});
+
+prova('trasporti: il nome del file usa la data locale, come il documento', async () => {
+  const { nomeFile, fmtData } = await mod('/js/trasporti/lib/documento.js');
+  const created_at = '2026-09-06T22:30:00Z';
+  const d = new Date(created_at);
+  const locale = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  const nome = nomeFile({ cliente: 'Galliera', created_at, input: {} }, 'pdf');
+  uguale(nome, `Preventivo trasporto - Galliera - ${locale}.pdf`);
+  uguale(fmtData(created_at), locale.split('-').reverse().join('/'));
+});
+
+prova('assistenze: il calendario sta nella pagina anche con dieci voci', async () => {
+  const { costruisciBlocchi } = await mod('/js/assistenze/lib/documento.js');
+  const { DEFAULT_IMPOSTAZIONI } = await mod('/js/assistenze/calc.js');
+  const voci = Array.from({ length: 10 }, (_, i) => ({ id: 'v' + i, nome: 'Voce ' + i, tipo: 'oraria', prezzo: 10 }));
+  const qta = Object.fromEntries(voci.map(v => [v.id, 1]));
+  const prev = { cliente: 'Prova', voci, calendario: [{ data: '2026-10-10', dalle: '09:00', alle: '12:00', qta }] };
+  const { blocchi } = costruisciBlocchi(prev, DEFAULT_IMPOSTAZIONI);
+  const cal = blocchi.filter(b => b.t === 'tabella').at(-1);
+  const somma = cal.larghezze.reduce((s, w) => s + w, 0);
+  vero(Math.abs(somma - 100) < 0.1, `le colonne sommano a ${somma}%, non a 100`);
+});
+
+prova('i caratteri di controllo non finiscono nel Word né nell\'Excel', async () => {
+  const { generaDocx } = await mod('/js/formazione/lib/docx.js');
+  const { DEFAULT_IMPOSTAZIONI } = await mod('/js/formazione/calc.js');
+  const sporco = { ...fPrev, cliente: 'Omnia\u0001 Service\u000B s.r.l.\u001F', note: 'riga\u0008 con\tun tab' };
+  const { blob } = await generaDocx(sporco, DEFAULT_IMPOSTAZIONI);
+  const doc = vociZip(Buffer.from(await blob.arrayBuffer()))['word/document.xml'].toString('utf8');
+  falso(/[\u0000-\u0008\u000B\u000C\u000E-\u001F]/.test(doc), 'un carattere di controllo rende il .docx illeggibile');
+  vero(doc.includes('Omnia Service s.r.l.'), 'il testo attorno resta');
+
+  const { escXml } = await mod('/js/lib/xlsx.js');
+  uguale(escXml('A\u0001B & <C>\tD\nE'), 'AB &amp; &lt;C&gt;\tD\nE');
+});
+
+prova('gli a capo scritti a mano restano a capo nel Word', async () => {
+  const { generaDocx } = await mod('/js/formazione/lib/docx.js');
+  const { DEFAULT_IMPOSTAZIONI } = await mod('/js/formazione/calc.js');
+  // La premessa delle impostazioni arriva al documento come un blocco solo.
+  const imp = { ...DEFAULT_IMPOSTAZIONI, testi: { ...DEFAULT_IMPOSTAZIONI.testi, premessa: 'prima riga\nseconda riga' } };
+  const { blob } = await generaDocx(fPrev, imp);
+  const doc = vociZip(Buffer.from(await blob.arrayBuffer()))['word/document.xml'].toString('utf8');
+  vero(doc.includes('>prima riga</w:t><w:br/><w:t xml:space="preserve">seconda riga<'), 'le due righe non sono separate da un a capo');
+});

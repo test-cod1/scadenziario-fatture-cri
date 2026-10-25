@@ -79,3 +79,24 @@ prova('le policy delle tabelle nuove esistono anche in schema.sql', () => {
   }
   uguale([...new Set(mancanti)], [], 'tabelle in schema.sql rimaste senza policy');
 });
+
+// Il corpo delle funzioni SQL sta fra due $$. Fino al 27/09/2026 tre
+// funzioni di schema.sql (ruolo_sezione, consuma_quota, pulisci_consumi_api)
+// si aprivano con "as $" e si chiudevano con "$;": un $ da solo è un errore di
+// sintassi, quindi ricostruire il database da schema.sql si fermava lì. Il
+// database in uso non se ne accorgeva, perché quelle funzioni c'erano già.
+// Probabile origine: una sostituzione fatta con String.replace, dove "$$"
+// nel testo di rimpiazzo diventa "$".
+prova('i corpi delle funzioni sono chiusi fra $$, non fra $ singoli', () => {
+  for (const nome of ['schema.sql', ...patch]) {
+    const sql = fs.readFileSync(path.join(CARTELLA, nome), 'utf8');
+    const righe = sql.split(/\r?\n/);
+    const sbagliate = righe
+      .map((r, i) => ({ r, n: i + 1 }))
+      .filter(({ r }) => /\bas \$\s*$/.test(r) || /^\s*\$;\s*$/.test(r))
+      .map(({ n }) => n);
+    uguale(sbagliate.join(', '), '', `${nome}: righe con un $ singolo`);
+    const aperture = (sql.match(/\$\$/g) || []).length;
+    uguale(aperture % 2, 0, `${nome}: numero dispari di $$`);
+  }
+});

@@ -24,7 +24,10 @@ export async function onRequestPost(context) {
 
   let body;
   try { body = await request.json(); } catch { return json({ error: 'Body non valido.' }, 400); }
-  const coordinates = body.coordinates;
+  // `body?.`: il JSON "null" è valido e request.json() lo restituisce così
+  // com'è; leggerne un campo mandava la function in eccezione (sul Worker
+  // l'errore 1101, senza nemmeno le intestazioni di sicurezza).
+  const coordinates = body?.coordinates;
   if (!Array.isArray(coordinates) || coordinates.length < 2 || coordinates.length > 25) {
     return json({ error: 'Servono tra 2 e 25 coordinate.' }, 400);
   }
@@ -40,7 +43,7 @@ export async function onRequestPost(context) {
   if (!quota.ok) return json(errore429('route', quota), 429);
 
   const payload = { coordinates };
-  if (body.avoidTolls) payload.options = { avoid_features: ['tollways'] };
+  if (body?.avoidTolls) payload.options = { avoid_features: ['tollways'] };
 
   let res;
   try {

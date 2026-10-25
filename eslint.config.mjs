@@ -31,7 +31,7 @@ const globali = (elenco) => Object.fromEntries(elenco.map(n => [n, 'readonly']))
 
 const REGOLE = {
   'no-undef': 'error',
-  'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_' }],
+  'no-unused-vars': ['warn', { args: 'none', caughtErrors: 'none', varsIgnorePattern: '^_', ignoreRestSiblings: true }],
   'no-redeclare': 'error',
   'no-dupe-keys': 'error',
   'no-dupe-args': 'error',

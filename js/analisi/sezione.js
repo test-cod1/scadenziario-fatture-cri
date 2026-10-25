@@ -23,6 +23,10 @@ export async function renderAnalisi(view, ctx, sub, param) {
     const { renderCentro } = await import('./views/centro.js');
     return renderCentro(view, param, ctxA);
   }
+  if (sub === 'fatturato') {
+    const { renderFatturato } = await import('./views/fatturato.js');
+    return renderFatturato(view, ctxA);
+  }
   if (sub === 'da-attribuire') {
     const { renderDaAttribuire } = await import('./views/daAttribuire.js');
     return renderDaAttribuire(view, ctxA);

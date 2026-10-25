@@ -1,10 +1,14 @@
 import { impostazioni } from '../data/store.js';
-import { DEFAULT_IMPOSTAZIONI } from '../calc.js';
 import { FUEL_PRICES, FUEL_DATA_DATE } from '../data/fuel-prices.js';
 import { getAccessToken } from '../../lib/supabase.js';
-import { el, clear, esc, toast, fmtNum, fmtDate } from '../lib/ui.js';
+import { el, clear, esc, toast, fmtDate, parseEuro } from '../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 import { CAMPO_DECIMALE, testoDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
+
+// Prezzi a unità (€/l, €/km): un punto solo è il decimale, perché "1.859" è
+// come il MIMIT scrive 1,859 €/l — letto con la regola delle migliaia degli
+// importi diventava 1859 €/l (27/09/2026). Vedi parseEuro in js/lib/ui.js.
+const prezzoUnitario = (v) => parseEuro(v, { prezzoUnitario: true }) ?? 0;
 
 // Paesi UE coperti da /api/prezzo-eu (Weekly Oil Bulletin): gli altri restano
 // modificabili solo a mano, non esiste una fonte gratuita equivalente.
@@ -102,8 +106,8 @@ export async function renderImpostazioni(view, ctx) {
     </div>`);
   pagina.appendChild(cPar);
   cPar.querySelector('#pastoCosto').addEventListener('input', e => imp.pastoCosto = leggiDecimaleO0(e.target.value));
-  cPar.querySelector('#tariffaKm').addEventListener('input', e => imp.tariffaKm = leggiDecimaleO0(e.target.value));
-  cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = leggiDecimaleO0(e.target.value));
+  cPar.querySelector('#tariffaKm').addEventListener('input', e => imp.tariffaKm = prezzoUnitario(e.target.value));
+  cPar.querySelector('#pedaggiEsteroKm').addEventListener('input', e => imp.pedaggiEsteroKm = prezzoUnitario(e.target.value));
   cPar.querySelector('#medicoTariffaOraria').addEventListener('input', e => imp.medicoTariffaOraria = leggiDecimaleO0(e.target.value));
   cPar.querySelector('#infermiereTariffaOraria').addEventListener('input', e => imp.infermiereTariffaOraria = leggiDecimaleO0(e.target.value));
 
@@ -128,8 +132,8 @@ export async function renderImpostazioni(view, ctx) {
         <td><input class="fuel-price" ${CAMPO_DECIMALE} value="${testoDecimale(row.benzina)}"></td>
       </tr>`);
       const [d, b] = tr.querySelectorAll('input');
-      d.addEventListener('input', () => row.diesel = leggiDecimaleO0(d.value));
-      b.addEventListener('input', () => row.benzina = leggiDecimaleO0(b.value));
+      d.addEventListener('input', () => row.diesel = prezzoUnitario(d.value));
+      b.addEventListener('input', () => row.benzina = prezzoUnitario(b.value));
       fuelBody.appendChild(tr);
     });
   }

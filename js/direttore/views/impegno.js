@@ -201,8 +201,7 @@ export async function renderImpegno(view, id, ctx, data) {
   async function salva(poiNuovo) {
     const da = raccogli();
     if (!da.titolo) { toast('Scrivi che cosa c’è da fare', 'err'); campi.titolo.focus(); return; }
-    let salvato;
-    try { salvato = await store.save(da); }
+    try { await store.save(da); }
     catch (e) { toast('Salvataggio non riuscito: ' + e.message, 'err'); return; }
     sporco = false;
     toast(nuovo ? 'Impegno aggiunto' : 'Modifiche salvate', 'ok');

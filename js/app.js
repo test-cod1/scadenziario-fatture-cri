@@ -4,20 +4,88 @@ import { SEZIONI, getSezione, ruoloIn, paginaIniziale } from './sezioni.js';
 import { renderLogin, renderResetPassword } from './views/auth.js';
 import { renderHome } from './views/home.js';
 import { renderSezioneVuota, renderSezioneEsterna } from './views/sezioneVuota.js';
-import { renderPortaleUtenti } from './views/portaleUtenti.js';
-import { renderDashboard } from './views/dashboard.js';
-import { renderReport } from './views/report.js';
-import { renderProposte } from './views/proposte.js';
-import { renderImpostazioni } from './views/impostazioni.js';
-import { renderDashboardAttive } from './views/dashboardAttive.js';
-import { renderReportAttive } from './views/reportAttive.js';
-import { startTour } from './lib/tour.js';
 import { ciSonoModificheNonSalvate } from './lib/uscita.js';
+
+// Le viste dello scadenziario, la pagina utenti e il tour NON si importano
+// qui in cima: si caricano con import() quando si apre la loro pagina, come
+// già le altre sezioni. Importate staticamente si portavano dietro l'editor
+// delle fatture, la lettura degli XML e l'export Excel (zip compreso): 20
+// moduli e ~284 KB scaricati e valutati prima di poter disegnare perfino il
+// login, mentre alla home ne servono 9. Misurato il 27/09/2026: l'ultimo
+// modulo arrivava a 2,7 s e solo allora partiva il controllo della sessione.
+const VISTE_SCADENZIARIO = {
+  impostazioni: () => import('./views/impostazioni.js').then(m => m.renderImpostazioni),
+  report: () => import('./views/report.js').then(m => m.renderReport),
+  proposte: () => import('./views/proposte.js').then(m => m.renderProposte),
+  fatture: () => import('./views/dashboard.js').then(m => m.renderDashboard),
+  reportAttive: () => import('./views/reportAttive.js').then(m => m.renderReportAttive),
+  clientiAttive: () => import('./views/clientiAttive.js').then(m => m.renderClientiAttive),
+  fattureAttive: () => import('./views/dashboardAttive.js').then(m => m.renderDashboardAttive),
+};
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/sw.js').catch(() => {});
+    navigator.serviceWorker.register('/sw.js').then(gestisciAggiornamenti).catch(() => {});
   });
+}
+
+// Aggiornamenti del sito pubblicato. Il service worker serve ogni versione
+// dalla sua cache (vedi sw.js): dopo un deploy quella nuova si installa in
+// background e resta in attesa finché la pagina non le dice di subentrare.
+// - Se la novità arriva appena aperto il portale e non c'è niente in
+//   sospeso, si passa subito: la pagina si ricarica da sola ed è come aver
+//   aperto direttamente la versione nuova.
+// - Altrimenti (si sta lavorando, magari con un editor aperto) compare un
+//   avviso con il pulsante "Aggiorna": ricaricare da soli potrebbe portare
+//   via una finestra aperta o un filtro appena impostato.
+// Il browser ricontrolla sw.js a ogni apertura; per chi tiene il portale
+// aperto tutto il giorno lo si chiede anche ogni ora.
+const APERTO_ALLE = Date.now();
+function gestisciAggiornamenti(reg) {
+  // Alla prima installazione non c'è niente da aggiornare: il service worker
+  // prende il controllo della pagina già aperta, e ricaricarla sarebbe
+  // inutile.
+  const eraControllata = !!navigator.serviceWorker.controller;
+  let ricaricata = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (!eraControllata || ricaricata) return;
+    // Può essere stata un'altra scheda a dare il via all'aggiornamento: se
+    // in questa c'è un lavoro in corso non la si ricarica di forza, si
+    // chiede di farlo appena salvato.
+    if (ciSonoModificheNonSalvate()) return avvisoAggiornamento(null);
+    ricaricata = true;
+    location.reload();
+  });
+  const proponi = (worker) => {
+    if (!worker || !eraControllata) return;
+    const appenaAperto = Date.now() - APERTO_ALLE < 15000;
+    if (appenaAperto && !ciSonoModificheNonSalvate()) worker.postMessage('attiva');
+    else avvisoAggiornamento(worker);
+  };
+  if (reg.waiting) proponi(reg.waiting);
+  reg.addEventListener('updatefound', () => {
+    const nuovo = reg.installing;
+    nuovo?.addEventListener('statechange', () => { if (nuovo.state === 'installed') proponi(nuovo); });
+  });
+  setInterval(() => reg.update().catch(() => {}), 60 * 60 * 1000);
+}
+
+function avvisoAggiornamento(worker) {
+  if (document.querySelector('.avviso-aggiornamento')) return;
+  const avviso = el(`<div class="avviso-aggiornamento" role="status"
+      style="position:fixed;left:50%;bottom:20px;transform:translateX(-50%);z-index:9999;display:flex;gap:12px;align-items:center;background:#1c2024;color:#fff;padding:10px 12px 10px 16px;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.25);font-size:14px;max-width:calc(100vw - 32px)">
+    <span>È disponibile una versione nuova del portale.</span>
+    <button class="btn primary" type="button">Aggiorna</button>
+  </div>`);
+  avviso.querySelector('button').addEventListener('click', async () => {
+    if (ciSonoModificheNonSalvate() && !await confirmDialog(
+      'Aggiornando, le modifiche non salvate andranno perse. Vuoi aggiornare lo stesso?',
+      { danger: true, okLabel: 'Aggiorna' })) return;
+    // Senza worker l'aggiornamento è già avvenuto (da un'altra scheda):
+    // resta solo da ricaricare.
+    if (worker) worker.postMessage('attiva'); else location.reload();
+  });
+  document.body.appendChild(avviso);
 }
 
 const app = document.getElementById('app');
@@ -28,6 +96,16 @@ let currentUser = null;
 let sezioneCorrente = null;
 
 async function boot() {
+  // Link dell'email (reset password, invito) scaduto o già usato: Supabase
+  // rimanda qui con #error=…&error_code=otp_expired. Prima si vedeva il
+  // login e basta, senza capire perché il link "non funzionasse".
+  const erroreLink = new URLSearchParams(location.hash.replace(/^#\/?/, '')).get('error_code');
+  const avvisoLink = erroreLink
+    ? (erroreLink === 'otp_expired'
+      ? "Il link dell'email è scaduto o è già stato usato: richiedine uno nuovo con «Password dimenticata?»."
+      : "Il link dell'email non è valido: richiedine uno nuovo con «Password dimenticata?».")
+    : '';
+  if (erroreLink) history.replaceState(null, '', location.pathname);
   const match = location.hash.match(/type=(recovery|invite|signup)/);
   const isInvite = match && match[1] !== 'recovery';
   const isSetPassword = !!match;
@@ -37,7 +115,7 @@ async function boot() {
     return;
   }
   if (!currentUser) {
-    renderLogin(app, async () => { currentUser = await auth.current(); await startApp(); });
+    renderLogin(app, async () => { currentUser = await auth.current(); await startApp(); }, { avviso: avvisoLink });
     return;
   }
   await startApp();
@@ -95,6 +173,9 @@ function navItemsAttive() {
   return [
     { id: 'fatture', icon: '💶', label: 'Fatture' },
     { id: 'report', icon: '📊', label: 'Report' },
+    // I clienti stanno solo sotto le attive: il nome del fornitore, sulle
+    // passive, arriva dalla fattura ricevuta e non lo scriviamo noi.
+    { id: 'clienti', icon: '🏛️', label: 'Clienti' },
   ];
 }
 
@@ -147,7 +228,7 @@ function renderShell() {
       if (ciSonoModificheNonSalvate() && !await confirmDialog(
         'Il tutorial cambia pagina: le modifiche non salvate andranno perse. Vuoi avviarlo lo stesso?',
         { danger: true, okLabel: 'Avvia il tutorial' })) return;
-      const { passi } = await sezione.tour();
+      const [{ passi }, { startTour }] = await Promise.all([sezione.tour(), import('./lib/tour.js')]);
       startTour(passi({ user: { ...currentUser, ruolo: ruoloIn(currentUser, sezione.id) } }));
     });
     document.body.appendChild(fab);
@@ -283,11 +364,17 @@ async function route() {
     try {
       if (primo === 'portale' && sub === 'promemoria') {
         const { renderPromemoria } = await import('./views/promemoria.js');
+        if (my !== _routeSeq) return;
         await renderPromemoria(zona, { ...ctx, puoScadenziario: !!ruoloIn(currentUser, 'scadenziario'), puoDirettore: !!ruoloIn(currentUser, 'direttore'), puoScadenze: !!ruoloIn(currentUser, 'scadenze') });
       } else if (primo === 'portale' && sub === 'registro') {
         const { renderRegistroPortale } = await import('./views/registroPortale.js');
+        if (my !== _routeSeq) return;
         await renderRegistroPortale(zona, ctx);
-      } else if (primo === 'portale') await renderPortaleUtenti(zona, ctx);
+      } else if (primo === 'portale') {
+        const { renderPortaleUtenti } = await import('./views/portaleUtenti.js');
+        if (my !== _routeSeq) return;
+        await renderPortaleUtenti(zona, ctx);
+      }
       else await renderHome(zona, ctx);
     } catch (e) { if (my === _routeSeq) mostraErrore(zona, e); }
     return;
@@ -371,14 +458,12 @@ async function route() {
     }
     if (sezione.id !== 'scadenziario') return await disegna(z => renderSezioneVuota(z, ctx, sezione));
 
-    if (sub === 'impostazioni') await disegna(z => renderImpostazioni(z, ctx));
-    else if (sottoSezione === 'attive') {
-      if (sub === 'report') await disegna(z => renderReportAttive(z, ctx));
-      else await disegna(z => renderDashboardAttive(z, ctx));
-    }
-    else if (sub === 'report') await disegna(z => renderReport(z, ctx));
-    else if (sub === 'proposte') await disegna(z => renderProposte(z, ctx));
-    else await disegna(z => renderDashboard(z, ctx));
+    const vista = sub === 'impostazioni' ? 'impostazioni'
+      : sottoSezione === 'attive'
+        ? (sub === 'report' ? 'reportAttive' : sub === 'clienti' ? 'clientiAttive' : 'fattureAttive')
+        : (sub === 'report' || sub === 'proposte' ? sub : 'fatture');
+    const render = await VISTE_SCADENZIARIO[vista]();
+    await disegna(z => render(z, ctx));
   } catch (e) {
     // L'errore di una rotta ormai superata non deve cancellare la pagina che
     // l'utente sta già guardando.

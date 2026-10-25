@@ -1,6 +1,8 @@
 // ============================================================
 //  DATA LAYER — Supabase: auth, fatture, pagamenti, log, storage PDF
 // ============================================================
+import { residuoFattura } from '../lib/numeri.js';
+
 async function sbClient() { const { getSupabase } = await import('../lib/supabase.js'); return getSupabase(); }
 async function sbProfile(sb, userId) {
   const { data } = await sb.from('profili').select('*').eq('id', userId).single();
@@ -377,9 +379,9 @@ export async function nomiNoti(tabella, colonna) {
 }
 
 function withResiduo(f) {
-  const pagato = (f.pagamenti || []).reduce((s, p) => s + Number(p.importo || 0), 0);
-  const stornato = (f.note_credito_righe || []).reduce((s, n) => s + Number(n.importo || 0), 0);
-  return { ...f, _pagato: pagato, _stornato: stornato, _residuo: Math.max(0, Number(f.importo || 0) - pagato - stornato) };
+  // In centesimi interi: vedi residuoFattura in js/lib/numeri.js.
+  const { versato, stornato, residuo } = residuoFattura(f.importo, f.pagamenti || [], f.note_credito_righe || []);
+  return { ...f, _pagato: versato, _stornato: stornato, _residuo: residuo };
 }
 
 // ---------------------------------------------------------------
@@ -475,20 +477,27 @@ export const pagamenti = {
   //  righe, quindi superati i 1000 pagamenti nel periodo la somma risultava
   //  più bassa del vero — in silenzio, senza alcun errore visibile. È lo
   //  stesso difetto già corretto per l'elenco fatture.
+  //  Dal 27/09/2026 la somma la fa il database (somma_pagamenti, vedi
+  //  supabase/patch-2026-09-27-somme-periodo.sql): una riga sola invece di
+  //  tutte quelle del periodo. Finché la patch non è stata eseguita la
+  //  funzione non esiste (PGRST202) e si ripiega sul calcolo qui sotto.
   async sommaPeriodo(da, a) {
     const sb = await sbClient();
+    const { data: somma, error: errRpc } = await sb.rpc('somma_pagamenti', { p_da: da, p_a: a });
+    if (!errRpc) return Number(somma) || 0;
+    if (errRpc.code !== 'PGRST202') throw errRpc;
     const BLOCCO = 1000;
-    let totale = 0;
+    let centesimi = 0;
     for (let inizio = 0; ; inizio += BLOCCO) {
       const { data, error } = await sb.from('pagamenti').select('importo')
         .gte('data_pagamento', da).lte('data_pagamento', a)
         .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
         .range(inizio, inizio + BLOCCO - 1);
       if (error) throw error;
-      totale = data.reduce((s, p) => s + Number(p.importo || 0), totale);
+      centesimi = data.reduce((s, p) => s + Math.round(Number(p.importo || 0) * 100), centesimi);
       if (data.length < BLOCCO) break;
     }
-    return totale;
+    return centesimi / 100;
   },
 };
 

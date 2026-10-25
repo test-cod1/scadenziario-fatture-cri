@@ -35,14 +35,16 @@ export async function onRequestGet(context) {
   if (!quota.ok) return json(errore429('geocode', quota), 429);
 
   const api = new URL('https://api.openrouteservice.org/geocode/search');
-  api.searchParams.set('api_key', env.ORS_KEY);
   api.searchParams.set('text', text);
   api.searchParams.set('size', size);
   // privilegia risultati europei ma senza escludere gli altri
   api.searchParams.set('boundary.country', 'IT,FR,DE,AT,CH,SI,ES,PT,BE,NL,LU,HR,HU,CZ,SK,PL,DK,SE,NO,FI,GR,RO,BG,IE,GB,EE,LV,LT,SM,AD,MC,RS,BA,ME,MK,AL');
 
   let res;
-  try { res = await fetch(api.toString(), { headers: { 'Accept': 'application/json' } }); }
+  // La chiave va nell'intestazione Authorization (come già in /api/route) e
+  // non nell'indirizzo: un indirizzo finisce nei log di chi lo attraversa,
+  // compresa l'osservabilità di Cloudflare.
+  try { res = await fetch(api.toString(), { headers: { 'Accept': 'application/json', 'Authorization': env.ORS_KEY } }); }
   catch (e) { return json({ error: 'OpenRouteService non raggiungibile.' }, 502); }
   if (!res.ok) return json({ error: `Geocoding non riuscito (${res.status}).` }, res.status);
   const data = await res.json();

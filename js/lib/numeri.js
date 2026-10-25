@@ -56,4 +56,36 @@ export function inLettere(importo) {
 
 // Arrotonda ai centesimi: senza, la somma di più righe può lasciare code di
 // virgola (0,30000000000000004) che poi si vedono nel documento.
-export function centesimi(n) { return Math.round((Number(n) || 0) * 100) / 100; }
+//
+// Il ×100 si ripulisce a 15 cifre significative prima di arrotondare
+// (27/09/2026): in virgola mobile 5,75 × 0,22 fa 1,2649999999999999, che per
+// cento dà 126,49999999999999 e Math.round portava a 1,26 — un centesimo in
+// meno di quello che fa la moltiplicazione a mano (1,265 → 1,27), su un'IVA
+// stampata in un preventivo. Quindici cifre sono quelle che un double tiene
+// sempre esatte: la coda dell'errore sparisce, l'importo vero no. Il segno si
+// tratta a parte, così −1,265 diventa −1,27 e non −1,26 (Math.round
+// arrotonda i ,5 negativi verso lo zero).
+export function centesimi(n) {
+  const x = Number(n) || 0;
+  if (!Number.isFinite(x)) return x;
+  const cent = Math.round(Number((Math.abs(x) * 100).toPrecision(15)));
+  // Niente −0: toLocaleString lo stamperebbe "-0,00 €".
+  return x < 0 && cent ? -cent / 100 : cent / 100;
+}
+
+// Pagato (o incassato), stornato e residuo di una fattura, sommati in
+// centesimi INTERI. In virgola mobile 115,54 − 100 − 15,54 fa 1,42e-14 e non
+// 0: la fattura saldata restava "aperta" nell'interfaccia, e il campo del
+// nuovo pagamento si precompilava con "1,4210854715202004e-14", che letto
+// come importo diventava 1,42 €. Capitava in circa una fattura su quindici
+// fra quelle pagate in due rate.
+export function residuoFattura(importo, versamenti = [], storni = []) {
+  const cent = (n) => Math.round((Number(n) || 0) * 100);
+  const versato = versamenti.reduce((s, r) => s + cent(r.importo), 0);
+  const stornato = storni.reduce((s, r) => s + cent(r.importo), 0);
+  return {
+    versato: versato / 100,
+    stornato: stornato / 100,
+    residuo: Math.max(0, cent(importo) - versato - stornato) / 100,
+  };
+}

@@ -180,6 +180,7 @@ export const SEZIONI = [
     // prima. Le prossime si aggiungono qui e in js/analisi/sezione.js.
     menu: [
       { id: 'centri', icon: '🎯', label: 'Centri di costo', attivoAnche: ['centro'] },
+      { id: 'fatturato', icon: '📈', label: 'Fatturato' },
       { id: 'da-attribuire', icon: '📥', label: 'Da attribuire' },
     ],
     tour: () => import('./tour/analisi.js'),

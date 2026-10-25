@@ -127,11 +127,14 @@ $$;
 -- Tutte le policy del portale passano da questa funzione, quindi la
 -- regola sta scritta una volta sola.
 create or replace function public.ruolo_sezione(p_sezione text)
-returns text language sql stable security definer set search_path = public as $
+returns text language sql stable security definer set search_path = public as $$
   select case
     when not exists (
       select 1 from public.profili p
        where p.id = auth.uid() and p.ruolo in ('super_admin', 'utente')
+         -- password provvisoria non ancora cambiata: nessun ruolo, anche
+         -- via API (patch-2026-09-27-sicurezza.sql)
+         and not p.deve_cambiare_password
     ) then null
     when exists (
       select 1 from public.profili p
@@ -140,7 +143,7 @@ returns text language sql stable security definer set search_path = public as $
     else (select a.ruolo from public.autorizzazioni a
            where a.utente_id = auth.uid() and a.sezione = p_sezione)
   end;
-$;
+$$;
 
 create or replace function public.accede_a(p_sezione text)
 returns boolean language sql stable security definer set search_path = public as $$
@@ -383,7 +386,10 @@ create index if not exists idx_log_created on public.log_modifiche(created_at de
 
 create or replace function public.log_utente_info()
 returns table(email text, nome text) language sql stable security definer set search_path = public as $$
-  select p.email, p.nome from public.profili p where p.id = auth.uid();
+  -- L'email dal token di accesso, non dal profilo: vedi
+  -- patch-2026-09-27-sicurezza.sql.
+  select coalesce(auth.jwt() ->> 'email', p.email), p.nome
+    from public.profili p where p.id = auth.uid();
 $$;
 
 create or replace function public.trg_fatture_log()
@@ -517,8 +523,10 @@ create policy prof_admin_read on public.profili for select using (public.e_super
 drop policy if exists prof_update_self on public.profili;
 create policy prof_update_self on public.profili for update
   using (id = auth.uid())
-  with check (id = auth.uid() and (ruolo, deve_cambiare_password) = (
-    select p.ruolo, p.deve_cambiare_password from public.profili p where p.id = auth.uid()));
+  -- Anche email e nome restano quelli che sono: li usa il registro
+  -- modifiche (patch-2026-09-27-sicurezza.sql).
+  with check (id = auth.uid() and (ruolo, deve_cambiare_password, email, nome) = (
+    select p.ruolo, p.deve_cambiare_password, p.email, p.nome from public.profili p where p.id = auth.uid()));
 -- Il super admin gestisce i profili dei colleghi dall'app (Impostazioni >
 -- Utenti e autorizzazioni): abilitare chi è rimasto 'in_attesa', correggere un
 -- nome. Non può però togliersi da solo il ruolo di super admin: senza questa
@@ -566,22 +574,29 @@ create policy consumi_self on public.consumi_api for select
 -- lettura nella stessa istruzione, altrimenti due schede aperte in
 -- parallelo leggevano lo stesso numero e il tetto si aggirava.
 create or replace function public.consuma_quota(p_endpoint text)
-returns integer language sql volatile security definer set search_path = public as $
+returns integer language sql volatile security definer set search_path = public as $$
   insert into public.consumi_api (utente_id, giorno, endpoint, conteggio)
-  values (auth.uid(), current_date, p_endpoint, 1)
+  select auth.uid(), current_date, p_endpoint, 1
+   -- solo i servizi con un tetto (functions/_lib/quota.js) e solo per chi
+   -- ha un profilo attivo (patch-2026-09-27-sicurezza.sql)
+   where p_endpoint in ('estrai-fattura', 'geocode', 'route', 'prezzo-eu', 'promemoria-prova')
+     and exists (select 1 from public.profili p
+                  where p.id = auth.uid() and p.ruolo in ('super_admin', 'utente'))
   on conflict (utente_id, giorno, endpoint)
     do update set conteggio = public.consumi_api.conteggio + 1
   returning conteggio;
-$;
-revoke all on function public.consuma_quota(text) from public;
+$$;
+revoke all on function public.consuma_quota(text) from public, anon;
 grant execute on function public.consuma_quota(text) to authenticated;
 
 -- Le righe vecchie non servono: si tengono due mesi, per poter guardare
 -- indietro se qualcuno segnala di essere stato bloccato.
 create or replace function public.pulisci_consumi_api()
-returns void language sql volatile security definer set search_path = public as $
+returns void language sql volatile security definer set search_path = public as $$
   delete from public.consumi_api where giorno < current_date - 60;
-$;
+$$;
+-- Solo per chi amministra il database: non è una RPC.
+revoke all on function public.pulisci_consumi_api() from public, anon, authenticated;
 drop policy if exists autor_sa_read on public.autorizzazioni;
 create policy autor_sa_read on public.autorizzazioni for select using (public.e_super_admin());
 drop policy if exists autor_sa_write on public.autorizzazioni;
@@ -1636,6 +1651,37 @@ drop policy if exists imputazioni_write on public.imputazioni;
 create policy imputazioni_write on public.imputazioni for all to authenticated
   using (public.accede_a('analisi') or public.accede_a('scadenziario'))
   with check (public.accede_a('analisi') or public.accede_a('scadenziario'));
+
+-- ------------------------------------------------------------
+--  Totali di pagamenti e incassi per periodo (dashboard dello
+--  scadenziario): la somma la fa Postgres invece del browser. SECURITY
+--  INVOKER, quindi passa dalle stesse policy RLS della lettura diretta.
+--  Arrivate con patch-2026-09-27-somme-periodo.sql.
+-- ------------------------------------------------------------
+create or replace function public.somma_pagamenti(p_da date, p_a date)
+returns numeric language sql stable set search_path = public as $$
+  select coalesce(sum(importo), 0) from public.pagamenti
+  where data_pagamento between p_da and p_a;
+$$;
+
+create or replace function public.somma_incassi(p_da date, p_a date)
+returns numeric language sql stable set search_path = public as $$
+  select coalesce(sum(importo), 0) from public.incassi
+  where data_incasso between p_da and p_a;
+$$;
+
+-- Solo per chi ha fatto l'accesso: per un anonimo le policy non
+-- restituirebbero comunque righe, ma non c'è motivo di esporgli la funzione.
+revoke execute on function public.somma_pagamenti(date, date) from public, anon;
+revoke execute on function public.somma_incassi(date, date) from public, anon;
+grant execute on function public.somma_pagamenti(date, date) to authenticated;
+grant execute on function public.somma_incassi(date, date) to authenticated;
+
+-- Le funzioni che ricalcolano lo stato delle fatture le chiamano solo i
+-- trigger, che girano già come proprietario: via RPC non servono a nessuno
+-- (patch-2026-09-27-sicurezza.sql).
+revoke all on function public.ricalcola_stato_fattura(uuid) from public, anon, authenticated;
+revoke all on function public.ricalcola_stato_fattura_attiva(uuid) from public, anon, authenticated;
 
 -- ============================================================
 --  Autori e decisori scritti dal database, non dal client

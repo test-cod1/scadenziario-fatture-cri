@@ -801,6 +801,7 @@ tr.str-inattivo td{opacity:.6}
 .dir-cal-invito{color:var(--ink-soft);font-size:13.5px;margin:10px 0}
 .dir-cal-coda{margin-top:14px}
 
+
 @media (max-width:760px){
   /* Sul telefono nella casella non ci sta un titolo: restano il numero e
      i pallini, e quello che c'è scritto si legge nel giorno scelto. */
@@ -880,6 +881,55 @@ tr.str-inattivo td{opacity:.6}
 .imp-lista{display:flex;flex-direction:column;gap:4px}
 .imp-nuova{display:grid;grid-template-columns:1fr 130px auto;gap:10px;align-items:end;margin-top:12px}
 
+/* ------------------------------------------------------------
+   ANALISI — FATTURATO
+   Una colonna di riquadri, non due: ogni blocco è la premessa del
+   successivo (quanto → da chi → quanto resta da incassare), e affiancarli
+   avrebbe invitato a leggerli in ordine sparso.
+   ------------------------------------------------------------ */
+.fat-corpo{display:flex;flex-direction:column;gap:18px}
+
+/* La spiegazione sotto ogni riquadro: è parte del dato, non una nota a
+   piè di pagina, perché questi numeri finiscono in una relazione e chi li
+   legge lì non avrà nessuno accanto a dire come vanno intesi. */
+.fat-spiega{border-top:1px solid var(--line);font-size:12.5px;line-height:1.55;color:var(--ink-soft)}
+.fat-spiega b{color:var(--ink)}
+
+/* I numeri-chiave di un blocco, grandi ma non quanto le stat in cima:
+   sono il titolo del riquadro, non il titolo della pagina. */
+.fat-conc{display:flex;flex-wrap:wrap;gap:26px;margin-bottom:4px}
+.fat-conc-v{display:flex;flex-direction:column;min-width:0}
+.fat-conc-v b{font-size:22px;font-weight:800;letter-spacing:-.01em;font-variant-numeric:tabular-nums}
+.fat-conc-v span{font-size:12.5px;color:var(--ink-soft);margin-top:1px}
+
+/* Le fasce (anzianità del credito, tempi di incasso): etichetta, barra,
+   valore. La barra è proporzionale alla fascia più alta e non al totale —
+   serve a confrontare le fasce fra loro, che è l'unica lettura utile. */
+.fat-fascia{display:grid;grid-template-columns:110px 1fr minmax(92px,auto) minmax(78px,auto);
+  gap:12px;align-items:center;padding:6px 0;font-size:13px}
+.fat-fascia+.fat-fascia{border-top:1px solid var(--line)}
+.fat-fascia-e{color:var(--ink-soft)}
+.fat-fascia-b{background:var(--bg);border-radius:999px;height:9px;overflow:hidden}
+.fat-fascia-b i{display:block;height:100%;border-radius:999px;background:var(--warn);min-width:2px}
+.fat-fascia-b i.ok{background:var(--ok)}
+.fat-fascia b{text-align:right;font-variant-numeric:tabular-nums}
+.fat-fascia-n{color:var(--ink-soft);font-size:12px;text-align:right}
+/* Oltre i sei mesi il credito non è più "in attesa": si segnala. */
+.fat-fascia.allarme .fat-fascia-b i{background:var(--danger)}
+.fat-fascia.allarme b{color:var(--danger)}
+
+.fat-sottotitolo{font-weight:700;font-size:13px;margin:4px 0 10px}
+.fat-sotto{display:block;font-size:11.5px;color:var(--ink-soft);margin-top:1px}
+.fat-legenda{display:flex;gap:16px;align-items:center;flex-wrap:wrap;
+  margin-bottom:10px;font-size:12.5px;color:var(--ink-soft)}
+
+/* Le righe dei clienti che, sommate, fanno l'80% del fatturato: sono la
+   parte da cui il Comitato dipende davvero, e vanno distinte a colpo
+   d'occhio dalla coda. Un filo rosso a sinistra, non un fondo colorato:
+   la tabella resta leggibile anche stampata in bianco e nero. */
+.fat-dentro80 td:first-child{box-shadow:inset 3px 0 0 var(--cri-red)}
+.fat-cum{color:var(--ink-soft)}
+
 @media (max-width:900px){
   .cc-colonne{grid-template-columns:1fr}
 }
@@ -892,6 +942,52 @@ tr.str-inattivo td{opacity:.6}
   .att-riga{grid-template-columns:1fr auto}
   .att-chi{grid-column:1/-1}
   .imp-nuova{grid-template-columns:1fr}
+  /* Sul telefono l'etichetta della fascia va a capo da sola: tenerla in
+     una colonna fissa da 110px lasciava alla barra due centimetri. */
+  .fat-fascia{grid-template-columns:1fr auto;row-gap:3px}
+  .fat-fascia-e{order:1}
+  .fat-fascia b{order:2}
+  .fat-fascia-n{order:3;grid-column:1;text-align:left}
+  .fat-fascia-b{order:4;grid-column:1/-1}
+  .fat-conc{gap:18px}
+}
+
+/* ============================================================
+   SCADENZIARIO — CLIENTI (grafie doppie da unificare)
+   ============================================================ */
+
+.cli-gruppi{display:flex;flex-direction:column;gap:14px}
+
+/* Un riquadro per gruppo, col bordo sinistro che ripete il colore della
+   certezza: si distingue quello da spuntare al volo da quello da leggere
+   ancora prima di arrivare all'etichetta. */
+.cli-gruppo{border:1px solid var(--line);border-radius:var(--radius);padding:12px 14px;background:var(--bg)}
+.cli-gruppo.cli-identico{border-left:4px solid var(--ok)}
+.cli-gruppo.cli-probabile{border-left:4px solid var(--warn)}
+.cli-gruppo.cli-da-vedere{border-left:4px solid var(--danger)}
+.cli-testa{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px}
+.cli-peso{font-size:12.5px;color:var(--ink-soft)}
+
+.cli-varianti{display:flex;flex-direction:column;gap:2px}
+.cli-variante{display:grid;grid-template-columns:auto 1fr auto auto auto;gap:10px;align-items:center;
+  padding:5px 0;font-size:13.5px}
+.cli-variante+.cli-variante{border-top:1px solid var(--line)}
+.cli-nome{font-weight:600;overflow-wrap:anywhere}
+.cli-n,.cli-imp,.cli-ult{color:var(--ink-soft);font-size:12.5px;white-space:nowrap;
+  font-variant-numeric:tabular-nums;text-align:right}
+
+.cli-dubbio{font-size:12.5px;line-height:1.5;color:var(--ink-soft);margin:10px 0 0;
+  padding:8px 10px;border-radius:8px;background:var(--danger-soft)}
+.cli-azione{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center;margin-top:12px}
+.cli-eti{font-size:12.5px;font-weight:600;color:var(--ink-soft);white-space:nowrap}
+.cli-rinomina{text-align:right;white-space:nowrap}
+
+@media (max-width:640px){
+  .cli-variante{grid-template-columns:auto 1fr;row-gap:2px}
+  .cli-nome{grid-column:2}
+  .cli-n,.cli-imp,.cli-ult{grid-column:2;text-align:left}
+  .cli-azione{grid-template-columns:1fr}
+  .cli-eti{margin-bottom:-4px}
 }
 
 /* In stampa il rosso passa al Pantone 485 (#CC0000): e' lo stesso colore

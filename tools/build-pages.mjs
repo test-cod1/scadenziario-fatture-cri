@@ -11,9 +11,10 @@
 //  (functions/ resta nella radice: Pages la cerca lì, non in dist/)
 // ============================================================
 
-import { cpSync, existsSync, readdirSync, readFileSync, rmSync } from 'node:fs';
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { impronta, fileAvvio, scriviVersione } from './versione-sw.mjs';
 
 const radice = fileURLToPath(new URL('..', import.meta.url));
 const uscita = join(radice, 'dist');
@@ -44,3 +45,17 @@ if (!copiati.includes('index.html')) {
   process.exit(1);
 }
 console.log(`build-pages: copiati in dist/ ${copiati.join(', ')}`);
+
+// Service worker con la versione di questo deploy e i file dell'avvio (vedi
+// sw.js e tools/versione-sw.mjs). Senza, il sito pubblicato funzionerebbe
+// lo stesso, ma in modalità sviluppo: ogni visita ricontrollerebbe ogni file.
+const versione = impronta(uscita);
+const avvio = fileAvvio(readFileSync(join(uscita, 'index.html'), 'utf8'));
+const mancanti = avvio.filter(u => u !== '/' && !existsSync(join(uscita, u)));
+if (mancanti.length) {
+  console.error(`build-pages: index.html chiede file che non esistono: ${mancanti.join(', ')}`);
+  process.exit(1);
+}
+const sw = join(uscita, 'sw.js');
+writeFileSync(sw, scriviVersione(readFileSync(sw, 'utf8'), versione, avvio));
+console.log(`build-pages: service worker versione ${versione}, ${avvio.length} file dell'avvio in cache`);

@@ -24,7 +24,14 @@ import { creaZip } from './zip.js';
 // errore tecnico. Come in docx.js, l'helper resta locale al file che lo usa.
 const u8 = (s) => new TextEncoder().encode(s);
 
-function escXml(s) { return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'); }
+// Come in docxBlocchi.js: i caratteri di controllo non sono XML valido, e un
+// solo U+0001 in una descrizione di fattura faceva dire a Excel che il file
+// andava "riparato", perdendo il foglio (27/09/2026). Tab, a capo e ritorno
+// carrello invece sono ammessi e restano.
+const CONTROLLO = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
+export function escXml(s) {
+  return String(s).replace(CONTROLLO, '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
 
 function letteraColonna(i) {
   let s = ''; i++;

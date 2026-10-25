@@ -84,9 +84,54 @@ export function giorniDelMese(mese) {
   for (let g = 1; g <= n; g++) {
     const iso = `${mese}-${String(g).padStart(2, '0')}`;
     const dow = new Date(iso + 'T00:00:00Z').getUTCDay();   // 0 = domenica
-    giorni.push({ iso, numero: g, dow, festivo: dow === 0 || dow === 6 });
+    const nomeFesta = festa(iso);
+    giorni.push({ iso, numero: g, dow, festivo: dow === 0 || dow === 6 || !!nomeFesta, festa: nomeFesta });
   }
   return giorni;
+}
+
+// ------------------------------------------------------------
+//  Festività
+// ------------------------------------------------------------
+//  Prima "festivo" voleva dire solo sabato o domenica: Natale di mercoledì
+//  o Pasquetta comparivano come giorni feriali nella griglia e nella stampa.
+//  Qui le feste nazionali, Pasqua e Pasquetta calcolate, e il patrono di
+//  Genova (San Giovanni Battista, 24 giugno). San Francesco (4 ottobre) è
+//  di nuovo festa nazionale dal 2026 (legge 151/2025).
+const FESTE_FISSE = {
+  '01-01': 'Capodanno', '01-06': 'Epifania', '04-25': 'Festa della Liberazione',
+  '05-01': 'Festa del Lavoro', '06-02': 'Festa della Repubblica',
+  '06-24': 'San Giovanni Battista (patrono di Genova)', '08-15': 'Ferragosto',
+  '11-01': 'Ognissanti', '12-08': 'Immacolata', '12-25': 'Natale', '12-26': 'Santo Stefano',
+};
+
+// Pasqua gregoriana (algoritmo di Meeus/Jones/Butcher): ritorna 'AAAA-MM-GG'.
+export function pasqua(anno) {
+  const a = anno % 19, b = Math.floor(anno / 100), c = anno % 100;
+  const d = Math.floor(b / 4), e = b % 4, f = Math.floor((b + 8) / 25);
+  const g = Math.floor((b - f + 1) / 3);
+  const h = (19 * a + b - d - g + 15) % 30;
+  const i = Math.floor(c / 4), k = c % 4;
+  const l = (32 + 2 * e + 2 * i - h - k) % 7;
+  const m = Math.floor((a + 11 * h + 22 * l) / 451);
+  const mese = Math.floor((h + l - 7 * m + 114) / 31);
+  const giorno = ((h + l - 7 * m + 114) % 31) + 1;
+  return `${anno}-${String(mese).padStart(2, '0')}-${String(giorno).padStart(2, '0')}`;
+}
+
+// Nome della festa che cade in quella data, oppure null.
+export function festa(iso) {
+  if (!iso) return null;
+  const anno = Number(iso.slice(0, 4));
+  const md = iso.slice(5, 10);
+  if (FESTE_FISSE[md]) return FESTE_FISSE[md];
+  if (md === '10-04' && anno >= 2026) return 'San Francesco d\'Assisi';
+  const p = pasqua(anno);
+  if (iso === p) return 'Pasqua';
+  const lunedi = new Date(p + 'T00:00:00Z');
+  lunedi.setUTCDate(lunedi.getUTCDate() + 1);
+  if (iso === lunedi.toISOString().slice(0, 10)) return 'Lunedì dell\'Angelo';
+  return null;
 }
 export function etichettaMese(mese) {
   const [y, m] = mese.split('-').map(Number);

@@ -12,6 +12,26 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <meta name="apple-mobile-web-app-title" content="Amministrazione CRI Genova" />
   <link rel="stylesheet" href="css/styles.css" />
+  <!--
+    Pre-caricamento: senza un bundler il browser scopre i moduli uno livello
+    alla volta (app.js → store.js → …), e la libreria Supabase solo quando
+    store.js la chiede. Qui li chiede tutti subito, in parallelo, così il
+    controllo della sessione non aspetta più la fine della catena.
+    L'elenco è quello dei moduli importati staticamente da js/app.js, più il
+    caricatore di Supabase: se cambia, lo segnala test/avvio.prove.mjs.
+  -->
+  <link rel="preload" as="script" href="/js/vendor/supabase-js-2.112.3.js" />
+  <link rel="modulepreload" href="/js/lib/supabase.js" />
+  <link rel="modulepreload" href="/js/config.js" />
+  <link rel="modulepreload" href="/js/data/store.js" />
+  <link rel="modulepreload" href="/js/lib/numeri.js" />
+  <link rel="modulepreload" href="/js/lib/ui.js" />
+  <link rel="modulepreload" href="/js/sezioni.js" />
+  <link rel="modulepreload" href="/js/sezioniIds.js" />
+  <link rel="modulepreload" href="/js/views/auth.js" />
+  <link rel="modulepreload" href="/js/views/home.js" />
+  <link rel="modulepreload" href="/js/views/sezioneVuota.js" />
+  <link rel="modulepreload" href="/js/lib/uscita.js" />
 </head>
 <body>
   <div id="app">

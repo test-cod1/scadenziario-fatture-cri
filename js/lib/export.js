@@ -13,6 +13,9 @@ const COLS = [
   { header: 'Scadenza', tipo: 'data', get: r => r.scadenza },
   { header: 'Stato', tipo: 'testo', get: r => statoLabel(r.stato) },
   { header: 'Pagato', tipo: 'valuta', get: r => r._pagato },
+  // Senza lo stornato, con le note di credito Importo − Pagato non dava il
+  // Residuo e il foglio sembrava sbagliato.
+  { header: 'Stornato', tipo: 'valuta', get: r => r._stornato || 0 },
   { header: 'Residuo', tipo: 'valuta', get: r => r._residuo },
   { header: 'Metodo', tipo: 'testo', get: r => r.metodo_pagamento || '' },
   { header: 'Note', tipo: 'testo', get: r => r.note || '' },
@@ -87,6 +90,7 @@ const COLS_ATTIVE = [
   { header: 'Importo', tipo: 'valuta', get: r => r.importo },
   { header: 'Stato', tipo: 'testo', get: r => statoLabelAttiva(r.stato) },
   { header: 'Incassato', tipo: 'valuta', get: r => r._incassato },
+  { header: 'Stornato', tipo: 'valuta', get: r => r._stornato || 0 },
   { header: 'Residuo', tipo: 'valuta', get: r => r._residuo },
   { header: 'Ultimo sollecito', tipo: 'data', get: r => r.data_sollecito },
   { header: 'Metodo', tipo: 'testo', get: r => r.metodo_incasso || '' },

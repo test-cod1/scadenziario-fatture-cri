@@ -98,11 +98,20 @@ export function costruisciBlocchi(prev, imp) {
     // pagina anche con tutto il tariffario attivo. Con molte voci il corpo si
     // rimpicciolisce, altrimenti date e orari finirebbero spezzati a metà.
     const quotaVoci = Math.max(6, Math.round(46 / Math.max(vociUsate.length, 1)));
+    const grezze = [15, 8, 8, 9, ...vociUsate.map(() => quotaVoci), Math.max(10, 60 - quotaVoci * vociUsate.length)];
+    // I minimi (6 a voce, 10 per le note) con nove voci o più portano la
+    // somma oltre 100 — 104 con nove, 110 con dieci — e la tabella usciva dal
+    // margine destro della pagina (27/09/2026). Si riportano le proporzioni
+    // a 100: le colonne restano nel rapporto voluto, solo un po' più strette.
+    const sommaGrezze = grezze.reduce((s, w) => s + w, 0);
+    const larghezze = sommaGrezze > 100
+      ? grezze.map(w => Math.round(w * 10000 / sommaGrezze) / 100)
+      : grezze;
     blocchi.push({
       t: 'tabella',
       intestazioni: ['Data', 'Dalle', 'Alle', 'Durata', ...vociUsate.map(v => v.nome), 'Note'],
       allineamenti: ['sx', 'centro', 'centro', 'dx', ...vociUsate.map(() => 'centro'), 'sx'],
-      larghezze: [15, 8, 8, 9, ...vociUsate.map(() => quotaVoci), Math.max(10, 60 - quotaVoci * vociUsate.length)],
+      larghezze,
       compatta: vociUsate.length >= 3,
       righe: r.righe.map(riga => [
         fmtData(riga.data),

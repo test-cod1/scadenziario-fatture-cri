@@ -70,7 +70,7 @@ export async function renderRiepilogo(view, ctx) {
 
     // ---------- la griglia ----------
     const intestazione = giorni.map(g =>
-      `<th class="${g.festivo ? 'fest' : ''}" title="${esc(fmtGiorno(g.iso))}">
+      `<th class="${g.festivo ? 'fest' : ''}" title="${esc(fmtGiorno(g.iso) + (g.festa ? ' · ' + g.festa : ''))}">
         <span class="dow">${['do', 'lu', 'ma', 'me', 'gi', 've', 'sa'][g.dow]}</span>${g.numero}</th>`).join('');
 
     const tabella = el(`<div class="card"><div class="tbl-wrap"><table class="str-griglia">

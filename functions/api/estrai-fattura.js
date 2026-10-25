@@ -63,7 +63,7 @@ export async function onRequestPost(context) {
   const quota = await consumaQuota(request, env, 'estrai-fattura');
   if (!quota.ok) return json(errore429('estrai-fattura', quota), 429);
 
-  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODELLO_GEMINI}:generateContent?key=${env.GEMINI_API_KEY}`;
+  const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/${MODELLO_GEMINI}:generateContent`;
   const payload = {
     contents: [{
       parts: [
@@ -82,7 +82,9 @@ export async function onRequestPost(context) {
   try {
     res = await fetch(apiUrl, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      // La chiave nell'intestazione e non nell'indirizzo (?key=…), che finisce
+      // nei log di chi lo attraversa, compresa l'osservabilità di Cloudflare.
+      headers: { 'Content-Type': 'application/json', 'x-goog-api-key': env.GEMINI_API_KEY },
       body: JSON.stringify(payload),
     });
   } catch {

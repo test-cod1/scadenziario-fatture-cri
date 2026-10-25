@@ -163,9 +163,21 @@ export function calcola(prev) {
   const conIva = prev.regime_iva === 'soggetto';
   const iva = conIva ? centesimi(imponibile * ALIQUOTA_IVA / 100) : 0;
 
+  // I corsi col numero di discenti ancora da definire (27/09/2026). Nel
+  // totale valgono zero, e fin qui era giusto; ma il documento stampava
+  // quel totale come se fosse l'importo complessivo: BLSD "da definire" più
+  // 5 × 100 € di primo soccorso diventava "Importo complessivo: 500,00 €",
+  // con il BLSD sparito senza dirlo — e con tutti i corsi da definire
+  // "0,00 € (euro zero/00)". Il conteggio serve al documento per scrivere
+  // un totale PARZIALE, dichiarato come tale, o per non scriverne nessuno.
+  const daDefinire = righe.filter(r => !r.discenti).length;
+
   return {
     righe, totaleCorsi, trasferta, totaleLordo, sconti, sconto,
     imponibile, conIva, iva,
+    daDefinire,
+    // Nessun corso ha ancora un numero di discenti: di totale non ce n'è.
+    senzaTotale: righe.length > 0 && daDefinire === righe.length,
     totale: centesimi(imponibile + iva),
     discenti: righe.reduce((s, r) => s + r.discenti, 0),
     risparmio: centesimi(righe.reduce((s, r) => s + r.risparmio, 0)),

@@ -45,15 +45,19 @@ export async function onRequestGet(context) {
     return json({ error: 'Non sei autorizzato ad accedere ai trasporti lunghi: chiedi a un amministratore del portale.' }, 403);
   }
 
-  // Tetto giornaliero per persona: la quota esterna e' di tutto il
-  // Comitato, non di chi la sta spendendo (vedi _lib/quota.js).
-  const quota = await consumaQuota(request, env, 'prezzo-eu');
-  if (!quota.ok) return json(errore429('prezzo-eu', quota), 429);
-
+  // Prima la cache, poi la quota: una risposta già pronta non tocca il
+  // servizio esterno, e contarla nel tetto giornaliero (com'era fino al
+  // 27/09/2026) bloccava chi apriva più volte le impostazioni senza aver
+  // consumato niente.
   const cache = caches.default;
   const cacheKey = new Request(new URL(request.url).origin + '/api/prezzo-eu');
   const cached = await cache.match(cacheKey);
   if (cached) return cached;
+
+  // Tetto giornaliero per persona: la quota esterna e' di tutto il
+  // Comitato, non di chi la sta spendendo (vedi _lib/quota.js).
+  const quota = await consumaQuota(request, env, 'prezzo-eu');
+  if (!quota.ok) return json(errore429('prezzo-eu', quota), 429);
 
   let xlsxUrl;
   try {

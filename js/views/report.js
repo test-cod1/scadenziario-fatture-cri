@@ -1,9 +1,9 @@
 import { fatture } from '../data/store.js';
 import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile, cellaCsv } from '../lib/ui.js';
+import { FILTRO_FORNITORE_KEY } from '../lib/filtriReport.js';
 import { raggruppaPerSoggetto } from '../lib/soggetti.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
-const FILTRO_FORNITORE_KEY = 'report:filtroFornitore';
 
 export async function renderReport(view, ctx) {
   let tutte = [];
@@ -320,4 +320,3 @@ function esportaFornitoriCSV(gruppi) {
   setTimeout(() => URL.revokeObjectURL(url), 2000);
 }
 
-export { FILTRO_FORNITORE_KEY };

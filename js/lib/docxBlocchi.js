@@ -24,7 +24,13 @@ const TIPO_MODELLO = 'application/vnd.openxmlformats-officedocument.wordprocessi
 const TIPO_DOCUMENTO = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml';
 const MIME_DOCX = 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
 
-const esc = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+// I caratteri di controllo (tranne tab, a capo e ritorno carrello) non sono
+// ammessi in XML 1.0 nemmeno come entità: uno solo, arrivato incollando da un
+// PDF o da un gestionale, e Word rifiuta il file come "danneggiato"
+// (27/09/2026). Si tolgono: nel testo non si vedrebbero comunque.
+const CONTROLLO = /[\u0000-\u0008\u000B\u000C\u000E-\u001F]/g;
+export const esc = (s) => String(s ?? '').replace(CONTROLLO, '')
+  .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 const testo = new TextDecoder();
 const byte = (s) => new TextEncoder().encode(s);
 
@@ -112,7 +118,10 @@ function paragrafo(t, { grassetto, dimensione = 22, allineamento, colore, spazio
     (maiuscoletto ? '<w:caps/>' : '') +
     (colore ? `<w:color w:val="${colore}"/>` : '') +
     `<w:sz w:val="${dimensione}"/><w:szCs w:val="${dimensione}"/></w:rPr>`;
-  return `<w:p>${pPr}<w:r>${rPr}<w:t xml:space="preserve">${esc(t)}</w:t></w:r></w:p>`;
+  // Gli a capo del testo diventano <w:br/>: dentro <w:t> Word li ignora, e una
+  // premessa scritta su più righe nelle impostazioni usciva tutta di seguito.
+  const righe = String(t).split(/\r?\n/).map(r => `<w:t xml:space="preserve">${esc(r)}</w:t>`).join('<w:br/>');
+  return `<w:p>${pPr}<w:r>${rPr}${righe}</w:r></w:p>`;
 }
 
 function tabellaXml(b) {

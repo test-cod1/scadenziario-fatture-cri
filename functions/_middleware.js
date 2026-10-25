@@ -28,5 +28,15 @@ export async function onRequest(context) {
     ), 'api');
   }
 
-  return conSicurezza(await context.next(), api ? 'api' : 'asset');
+  const res = await context.next();
+  // Un FILE che non esiste (un modulo rinominato da un deploy e chiesto da
+  // una scheda rimasta aperta, un'icona sbagliata): Pages risponde con
+  // index.html e stato 200, il ripiego pensato per le pagine. Il browser
+  // riceveva HTML al posto di un .js ("MIME type" nell'errore) e il service
+  // worker rischiava di salvarlo. Si risponde 404, come fa il Worker.
+  const chiedeUnFile = /\.[a-z0-9]+$/i.test(pathname) && !/\.html?$/i.test(pathname);
+  if (!api && chiedeUnFile && (res.headers.get('Content-Type') || '').includes('text/html')) {
+    return conSicurezza(new Response('Not found', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } }));
+  }
+  return conSicurezza(res, api ? 'api' : 'asset');
 }

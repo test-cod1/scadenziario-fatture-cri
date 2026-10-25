@@ -1,9 +1,22 @@
 import { fatture, pagamenti, proposte } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast, rendiCliccabile, todayISO, sommaGiorniISO, fineMeseISO, parseEuro } from '../lib/ui.js';
-import { exportXLSX, exportPDF } from '../lib/export.js';
-import { apriEditor, apriUpload, apriPagamentoRapido, apriProponiPagamento, apriNuovaNotaCredito } from './fattura.js';
-import { FILTRO_FORNITORE_KEY } from './report.js';
+import { FILTRO_FORNITORE_KEY } from '../lib/filtriReport.js';
 import { CAMPO_DECIMALE } from '../lib/importi.js';
+
+// L'editor della fattura (con la lettura degli XML e l'anteprima dei file) e
+// l'export Excel/PDF (con il generatore xlsx e lo zip) si caricano al primo
+// clic che li usa, non all'apertura dell'elenco: sono la parte più pesante
+// dello scadenziario e chi apre la pagina solo per guardare non li usa.
+// Le funzioni qui sotto hanno gli stessi nomi di quelle di fattura.js, così
+// i punti che le chiamano non cambiano.
+const daEditor = (nome) => (...argomenti) => import('./fattura.js')
+  .then(m => m[nome](...argomenti))
+  .catch(e => toast('Impossibile aprire la fattura: ' + e.message, 'err'));
+const apriEditor = daEditor('apriEditor');
+const apriUpload = daEditor('apriUpload');
+const apriPagamentoRapido = daEditor('apriPagamentoRapido');
+const apriProponiPagamento = daEditor('apriProponiPagamento');
+const apriNuovaNotaCredito = daEditor('apriNuovaNotaCredito');
 
 const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata', stornata: 'Stornata' };
 const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok', stornata: 'info' };
@@ -29,18 +42,22 @@ function confiniPeriodoCorrente() {
 }
 
 export async function renderDashboard(view, ctx) {
-  let tutte = [], pagatoMese = 0, pagatoAnno = 0, contaArchivio = 0;
+  let tutte = [], pagatoMese = 0, pagatoAnno = 0, contaArchivio = 0, proposteInAttesa = new Map();
   try {
     const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
-    [tutte, pagatoMese, pagatoAnno, contaArchivio] = await Promise.all([
+    // Le proposte in attesa partono insieme alle altre letture: prima
+    // aspettavano che fossero finite tutte, un giro di rete in più a ogni
+    // apertura. caricaProposteInAttesa non fallisce mai (in caso di errore
+    // restituisce un elenco vuoto), quindi non può far cadere le altre.
+    [tutte, pagatoMese, pagatoAnno, contaArchivio, proposteInAttesa] = await Promise.all([
       fatture.listAperte(),
       pagamenti.sommaPeriodo(inizioMese, fineMese),
       pagamenti.sommaPeriodo(inizioAnno, fineAnno),
       fatture.contaArchivio(),
+      caricaProposteInAttesa(),
     ]);
   }
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
-  let proposteInAttesa = await caricaProposteInAttesa();
   let archivioCaricato = false;
   let archivio = [];   // fatture chiuse di anni precedenti, caricate su richiesta (vedi caricaArchivio)
 
@@ -267,13 +284,13 @@ export async function renderDashboard(view, ctx) {
       const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
       // Niente `let contaArchivio` qui: dichiararlo di nuovo mascherava quello
       // esterno, che restava fermo al valore del primo caricamento.
-      [tutte, pagatoMese, pagatoAnno, contaArchivio] = await Promise.all([
+      [tutte, pagatoMese, pagatoAnno, contaArchivio, proposteInAttesa] = await Promise.all([
         fatture.listAperte(),
         pagamenti.sommaPeriodo(inizioMese, fineMese),
         pagamenti.sommaPeriodo(inizioAnno, fineAnno),
         fatture.contaArchivio(),
+        caricaProposteInAttesa(),
       ]);
-      proposteInAttesa = await caricaProposteInAttesa();
       // L'archivio va riletto se era già stato scaricato, non solo se il
       // pannello è aperto: da quando ricerca ed export lo usano, può essere in
       // memoria anche a pannello chiuso.
@@ -302,17 +319,21 @@ export async function renderDashboard(view, ctx) {
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });
-  collegaExport('#exp-csv', exportXLSX);
-  collegaExport('#exp-pdf', exportPDF);
+  collegaExport('#exp-csv', 'exportXLSX');
+  collegaExport('#exp-pdf', 'exportPDF');
 
   // L'export può dover prima scaricare l'archivio: si disabilita il pulsante
-  // nel frattempo, così non si generano due file per un doppio click.
+  // nel frattempo, così non si generano due file per un doppio click. Il
+  // modulo dell'export si scarica in parallelo alle righe.
   function collegaExport(selettore, esporta) {
     const btn = wrap.querySelector(selettore);
     btn.addEventListener('click', async () => {
       const old = btn.innerHTML;
       btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Preparazione…';
-      try { esporta(await righeDaEsportare()); }
+      try {
+        const [righe, modulo] = await Promise.all([righeDaEsportare(), import('../lib/export.js')]);
+        modulo[esporta](righe);
+      }
       catch (e) { toast('Errore nell\'export: ' + e.message, 'err'); }
       finally { btn.disabled = false; btn.innerHTML = old; }
     });

@@ -114,11 +114,19 @@ export function calcola(prev) {
       if (v.tipo !== 'fissa') agg.ore += qta * ore;
       agg.importo += importo;
     }
-    return { ...r, ore, dettaglio, importo: importoRiga };
+    return { ...r, ore, dettaglio, importo: centesimi(importoRiga) };
   });
 
-  const riepilogo = [...perVoce.values()].filter(v => v.importo > 0 || v.quantita > 0);
-  const totaleLordo = centesimi(righe.reduce((s, r) => s + r.importo, 0));
+  // Il totale è la somma delle righe del RIEPILOGO già arrotondate al
+  // centesimo, perché sono quelle che il documento stampa una sotto l'altra
+  // (27/09/2026). Sommando gli importi esatti, due voci da 25 €/h per 20
+  // minuti davano 8,33 + 8,33 in tabella e 16,67 nel totale. Ogni voce si
+  // arrotonda una volta sola, sul complessivo dei turni: è "ore complessive
+  // × prezzo/ora" come si legge nella riga.
+  const riepilogo = [...perVoce.values()]
+    .map(v => ({ ...v, importo: centesimi(v.importo) }))
+    .filter(v => v.importo > 0 || v.quantita > 0);
+  const totaleLordo = centesimi(riepilogo.reduce((s, v) => s + v.importo, 0));
   const sconti = calcolaSconti(prev, totaleLordo);
   const sconto = centesimi(sconti.reduce((s, x) => s + x.importo, 0));
   return { righe, riepilogo, totaleLordo, sconti, sconto, totale: centesimi(totaleLordo - sconto) };

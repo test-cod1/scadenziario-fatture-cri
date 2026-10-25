@@ -14,7 +14,7 @@ import { caricaTutto, centri as storeCentri, imputazioni as storeImputazioni } f
 import { documenti, vociDi, totaliDi, anni } from '../calc.js';
 import { el, clear, esc, toast, fmtEuro, fmtDate, confirmDialog, openModal } from '../../lib/ui.js';
 import { CAMPO_DECIMALE, testoDecimale, leggiDecimale } from '../../lib/importi.js';
-import { barraPeriodo, intervallo, nomePeriodo } from './periodo.js';
+import { barraPeriodo, nomePeriodo } from './periodo.js';
 import { apriSchedaCentro } from './scheda.js';
 import { periodoDi } from './centri.js';
 

@@ -233,7 +233,15 @@ export function cellaCsv(valore) {
 // Qui si individua esplicitamente il separatore decimale (il più a destra fra
 // virgola e punto, con le regole tipiche di entrambe le notazioni) e si
 // trattano tutti gli altri come separatori delle migliaia.
-export function parseEuro(s) {
+//
+// `prezzoUnitario` (27/09/2026) è per i prezzi a unità — €/litro, €/km —
+// che non arrivano mai alle migliaia ma hanno spesso TRE decimali: i prezzi
+// del carburante del MIMIT si pubblicano come "1.859". Con la regola delle
+// migliaia quel valore diventava 1859 €/l, e il carburante del preventivo
+// mille volte tanto. Con l'opzione un punto solo è sempre il decimale; per
+// gli importi in euro la regola resta com'era, perché lì "2.500" sono
+// davvero duemilacinquecento.
+export function parseEuro(s, { prezzoUnitario = false } = {}) {
   if (s === null || s === undefined || s === "") return null;
   if (typeof s === "number") return Number.isFinite(s) ? s : null;
 
@@ -254,7 +262,7 @@ export function parseEuro(s) {
     const cifreDopo = clean.length - iPunto - 1;
     // Un solo punto seguito da esattamente tre cifre ("2.500") in un importo
     // scritto all'italiana indica le migliaia, non i decimali.
-    decimale = (unico && cifreDopo !== 3) ? iPunto : -1;
+    decimale = (unico && (prezzoUnitario || cifreDopo !== 3)) ? iPunto : -1;
   }
 
   const intero = (decimale >= 0 ? clean.slice(0, decimale) : clean).replace(/[.,]/g, "");

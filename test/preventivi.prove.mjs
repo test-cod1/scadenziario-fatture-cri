@@ -134,3 +134,36 @@ prova('l\'addebito è km per tariffa più le voci a rimborso, e il margine è la
   circa(r.margine, r.addebito - r.spesaReale, 0.001);
   vero(r.margine > 0, 'con questi numeri il servizio non è in perdita');
 });
+
+// ------------------------------------------------------------------
+gruppo('Arrotondamenti — le righe tornano col totale');
+
+prova('formazione: conta i corsi coi discenti da definire', () => {
+  const parziale = formazione.calcola({ righe: [corso('blsd', null, 60, 60), corso('ps', 5, 100, 100)] });
+  uguale(parziale.daDefinire, 1);
+  uguale(parziale.senzaTotale, false);
+  const nessuno = formazione.calcola({ righe: [corso('blsd', null, 60, 60)] });
+  uguale(nessuno.senzaTotale, true);
+  uguale(formazione.calcola({ righe: [corso('ps', 5, 100, 100)] }).daDefinire, 0);
+});
+
+prova('assistenze: il totale è la somma delle righe del riepilogo arrotondate', () => {
+  // Due voci da 25 €/h per 20 minuti: 8,333… ciascuna. Stampate sono 8,33 +
+  // 8,33, e il totale deve essere 16,66, non 16,67.
+  const r = assistenze.calcola({
+    voci: [
+      { id: 'a', nome: 'Ambulanza', tipo: 'oraria', prezzo: 25 },
+      { id: 'b', nome: 'Squadra', tipo: 'oraria', prezzo: 25 },
+    ],
+    calendario: [{ data: '2026-10-10', dalle: '10:00', alle: '10:20', qta: { a: 1, b: 1 } }],
+  });
+  uguale(r.riepilogo.map(v => v.importo), [8.33, 8.33]);
+  uguale(r.totaleLordo, 16.66);
+  uguale(r.totale, 16.66);
+});
+
+prova('trasporti: la percorrenza si arrotonda prima di entrare nel totale', () => {
+  const r = trasporti.calcola({ kmTotali: 437.5, mezzoId: 'ambulanza', prezzoCarburante: 1.75, tariffaKm: 1.23 }, impT);
+  uguale(r.addebitoKm, 538.13);
+  uguale(r.addebito, 538.13);
+});

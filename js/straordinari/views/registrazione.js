@@ -7,7 +7,7 @@
 //  campo, non memoria di qualcuno.
 // ============================================================
 import { straordinari } from '../data/store.js';
-import { TIPI, durataOre, parseOre, fmtOre, tipoDi, nominativo, meseDi } from '../calc.js';
+import { TIPI, durataOre, parseOre, fmtOre, tipoDi, nominativo, meseDi, festa } from '../calc.js';
 import { el, esc, toast, confirmDialog, todayISO, fmtGiorno } from '../lib/ui.js';
 import { collegaOrologio } from '../../lib/orologio.js';
 import { sorvegliaUscita, armaGuardiaIndietro, smettiDiSorvegliare } from '../../lib/uscita.js';
@@ -186,9 +186,11 @@ export async function renderRegistrazione(view, id, ctx) {
     const hint = editor.querySelector('[data-giorno]');
     if (!campi.data.value) { hint.textContent = ''; hint.classList.remove('avviso'); return; }
     const d = new Date(campi.data.value + 'T00:00:00');
-    const festivo = d.getDay() === 0 || d.getDay() === 6;
+    const nomeFesta = festa(campi.data.value);
+    const weekend = d.getDay() === 0 || d.getDay() === 6;
     const futuro = campi.data.value > todayISO();
-    hint.textContent = fmtGiorno(campi.data.value) + (festivo ? ' · sabato/domenica' : '') +
+    hint.textContent = fmtGiorno(campi.data.value) +
+      (nomeFesta ? ' · festivo: ' + nomeFesta : weekend ? ' · sabato/domenica' : '') +
       (futuro ? ' · data futura' : '');
     hint.classList.toggle('avviso', futuro);
   }

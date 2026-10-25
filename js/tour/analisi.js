@@ -41,6 +41,17 @@ export function passi(ctx) {
       testo: 'L\'elenco lo tiene l\'amministratore della sezione: è un piano dei conti, non una lista che si allunga mentre si registra una fattura. Se il nome fosse libero, fra un anno ci sarebbero tre grafie della stessa attività e tre conti al posto di uno.',
     }] : []),
     {
+      hash: '#/analisi/fatturato',
+      selettore: '.grid.stats',
+      titolo: 'Il fatturato',
+      testo: 'La seconda pagina guarda le sole fatture emesse, e le guarda da lontano: quanto abbiamo fatturato nel periodo, quanto ne è già entrato e quanto è ancora un credito. Fatturato vuol dire emesso, non incassato: la fattura di luglio incassata a ottobre è fatturato di luglio, e l\'incassato è il riquadro accanto.',
+    },
+    {
+      selettore: '.fat-corpo .card:nth-child(2)',
+      titolo: 'Da chi dipendiamo',
+      testo: 'Le righe evidenziate sono i clienti che insieme fanno l\'80% del fatturato. È il numero da portare in Consiglio: se sono tre su quaranta, perdere una convenzione non è un contrattempo ma un problema di sostenibilità. Sotto, il credito aperto è diviso per anzianità — oltre i sei mesi diventa rosso, e le dieci fatture più vecchie sono in elenco con il link per aprirle.',
+    },
+    {
       hash: '#/analisi/da-attribuire',
       selettore: '.att-lista',
       titolo: 'Attribuire le fatture',

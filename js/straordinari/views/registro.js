@@ -144,7 +144,6 @@ export async function renderRegistro(view, ctx) {
   }
 
   function rigaTabella(r) {
-    const t = tipoDi(r.tipo);
     const ore = oreConSegno(r);
     const tr = el(`<tr>
       <td>${esc(fmtGiorno(r.data))}</td>

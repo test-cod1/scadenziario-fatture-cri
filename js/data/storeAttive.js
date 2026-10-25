@@ -4,6 +4,8 @@
 //  quel file, adattata al lessico "cliente/incasso" invece di
 //  "fornitore/pagamento".
 // ============================================================
+import { residuoFattura } from '../lib/numeri.js';
+
 async function sbClient() { const { getSupabase } = await import('../lib/supabase.js'); return getSupabase(); }
 
 // ---------------------------------------------------------------
@@ -139,6 +141,37 @@ export const fattureAttive = {
     const { nomiNoti } = await import('./store.js');
     return nomiNoti('fatture_attive', 'cliente');
   },
+  // Riscrive il nome del cliente su TUTTE le fatture che portano una certa
+  // grafia: è il gesto della pagina «Clienti», che unifica le grafie doppie
+  // dello stesso ente.
+  //
+  // Il confronto è esatto (.eq) e non normalizzato: chi chiama passa le
+  // grafie una per una, così quello che si sta per cambiare è esattamente
+  // quello che l'utente ha visto in elenco. Una .ilike o un confronto
+  // "a meno di maiuscole" lato database avrebbe potuto prendere anche righe
+  // che in quell'elenco non c'erano.
+  //
+  // Non serve nessuna cautela per l'audit: il trigger on_fatture_attive_log
+  // scrive una riga per ogni fattura toccata, con il prima e il dopo. È
+  // quello che rende l'operazione rimediabile, ed è anche il motivo per cui
+  // si rinomina una grafia alla volta e non tutte insieme.
+  async rinominaCliente(vecchio, nuovo) {
+    const nome = String(nuovo || '').trim();
+    if (!nome) throw new Error('Il nome del cliente non può restare vuoto.');
+    if (nome === vecchio) return [];
+    const sb = await sbClient();
+    const q = sb.from('fatture_attive')
+      .update({ cliente: nome, updated_at: new Date().toISOString() });
+    // Il cliente mai scritto è NULL, e `cliente = NULL` in SQL non è vero
+    // per nessuna riga: quelle fatture si prendono solo con IS NULL.
+    const { data, error } = await (vecchio === null || vecchio === undefined
+      ? q.is('cliente', null)
+      : q.eq('cliente', vecchio))
+      .select('id');
+    if (error) throw error;
+    return data || [];
+  },
+
   // Aggiorna solo la data dell'ultimo sollecito inviato al cliente: azione
   // rapida dalla dashboard, non passa per il resto dell'editor.
   async segnaSollecito(id, data_sollecito) {
@@ -150,9 +183,9 @@ export const fattureAttive = {
 };
 
 function withResiduo(f) {
-  const incassato = (f.incassi || []).reduce((s, p) => s + Number(p.importo || 0), 0);
-  const stornato = (f.note_credito_attive_righe || []).reduce((s, n) => s + Number(n.importo || 0), 0);
-  return { ...f, _incassato: incassato, _stornato: stornato, _residuo: Math.max(0, Number(f.importo || 0) - incassato - stornato) };
+  // In centesimi interi: vedi residuoFattura in js/lib/numeri.js.
+  const { versato, stornato, residuo } = residuoFattura(f.importo, f.incassi || [], f.note_credito_attive_righe || []);
+  return { ...f, _incassato: versato, _stornato: stornato, _residuo: residuo };
 }
 
 // ---------------------------------------------------------------
@@ -214,20 +247,25 @@ export const incassi = {
   // intervallo di date, di qualunque fattura anche se ormai archiviata.
   //  Scorre a blocchi come list(): senza, PostgREST tronca a 1000 righe e la
   //  somma risultava più bassa del vero senza alcun errore visibile.
+  // Somma fatta dal database quando c'è somma_incassi, altrimenti qui:
+  // vedi il commento gemello in store.js (pagamenti.sommaPeriodo).
   async sommaPeriodo(da, a) {
     const sb = await sbClient();
+    const { data: somma, error: errRpc } = await sb.rpc('somma_incassi', { p_da: da, p_a: a });
+    if (!errRpc) return Number(somma) || 0;
+    if (errRpc.code !== 'PGRST202') throw errRpc;
     const BLOCCO = 1000;
-    let totale = 0;
+    let centesimi = 0;
     for (let inizio = 0; ; inizio += BLOCCO) {
       const { data, error } = await sb.from('incassi').select('importo')
         .gte('data_incasso', da).lte('data_incasso', a)
         .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
         .range(inizio, inizio + BLOCCO - 1);
       if (error) throw error;
-      totale = data.reduce((s, p) => s + Number(p.importo || 0), totale);
+      centesimi = data.reduce((s, p) => s + Math.round(Number(p.importo || 0) * 100), centesimi);
       if (data.length < BLOCCO) break;
     }
-    return totale;
+    return centesimi / 100;
   },
 };
 

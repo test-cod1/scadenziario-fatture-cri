@@ -1,10 +1,20 @@
 import { fattureAttive, incassi } from '../data/storeAttive.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, rendiCliccabile, toast, todayISO, fineMeseISO, parseEuro } from '../lib/ui.js';
 import { impostazioni } from '../data/store.js';
-import { exportXLSXAttive, exportPDFAttive } from '../lib/export.js';
-import { apriEditorAttiva, apriUploadAttive, apriIncassoRapido, apriNuovaNotaCreditoAttiva, apriSollecitoRapido } from './fatturaAttiva.js';
-import { FILTRO_CLIENTE_KEY } from './reportAttive.js';
+import { FILTRO_CLIENTE_KEY } from '../lib/filtriReport.js';
 import { CAMPO_DECIMALE } from '../lib/importi.js';
+
+// Editor della fattura attiva ed export si caricano al primo clic che li
+// usa, non all'apertura dell'elenco: stesso motivo della dashboard delle
+// passive (vedi js/views/dashboard.js).
+const daEditor = (nome) => (...argomenti) => import('./fatturaAttiva.js')
+  .then(m => m[nome](...argomenti))
+  .catch(e => toast('Impossibile aprire la fattura: ' + e.message, 'err'));
+const apriEditorAttiva = daEditor('apriEditorAttiva');
+const apriUploadAttive = daEditor('apriUploadAttive');
+const apriIncassoRapido = daEditor('apriIncassoRapido');
+const apriNuovaNotaCreditoAttiva = daEditor('apriNuovaNotaCreditoAttiva');
+const apriSollecitoRapido = daEditor('apriSollecitoRapido');
 
 const STATO_LABEL = { da_incassare: 'Da incassare', incassata_parziale: 'Incassata parz.', incassata: 'Incassata', stornata: 'Stornata' };
 const STATO_CHIP = { da_incassare: 'warn', incassata_parziale: 'red', incassata: 'ok', stornata: 'info' };
@@ -135,6 +145,9 @@ export async function renderDashboardAttive(view, ctx) {
       archivio = await fattureAttive.listArchivio();
       archivioCaricato = true;
       disegnaArchivio();
+      // Caricato da un filtro, il titolo del pannello deve dire subito quante
+      // archiviate rientrano: refreshTable l'aveva aggiornato prima dell'arrivo.
+      aggiornaConteggioArchivio();
     } catch (e) {
       clear(zona);
       zona.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore: ${esc(e.message)}</p></div>`));
@@ -148,8 +161,14 @@ export async function renderDashboardAttive(view, ctx) {
     renderTable(wrap.querySelector('#archivio-zone'), applyFilters(archivio), ctx, ricarica);
   }
 
+  // `soloIncassateMese` conta come filtro: la card «Incassato questo mese»
+  // somma anche gli incassi di fatture già archiviate (chiuse di anni
+  // prima, saldate questo mese), e senza caricare l'archivio il suo clic
+  // mostrava meno fatture di quante ne dicesse il totale. `soloAperte` no:
+  // l'archivio è fatto solo di fatture chiuse, lì non troverebbe niente.
   function filtriAttivi() {
-    return !!(state.q || state.stato || state.da || state.aData || state.importoMin || state.importoMax);
+    return !!(state.q || state.stato || state.da || state.aData || state.importoMin || state.importoMax
+      || state.soloIncassateMese);
   }
 
   // Righe da esportare: sempre tutte quelle che rispettano i filtri, archivio
@@ -273,17 +292,21 @@ export async function renderDashboardAttive(view, ctx) {
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });
-  collegaExport('#exp-csv', exportXLSXAttive);
-  collegaExport('#exp-pdf', exportPDFAttive);
+  collegaExport('#exp-csv', 'exportXLSXAttive');
+  collegaExport('#exp-pdf', 'exportPDFAttive');
 
   // L'export può dover prima scaricare l'archivio: si disabilita il pulsante
-  // nel frattempo, così non si generano due file per un doppio click.
+  // nel frattempo, così non si generano due file per un doppio click. Il
+  // modulo dell'export si scarica in parallelo alle righe.
   function collegaExport(selettore, esporta) {
     const btn = wrap.querySelector(selettore);
     btn.addEventListener('click', async () => {
       const old = btn.innerHTML;
       btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Preparazione…';
-      try { esporta(await righeDaEsportare()); }
+      try {
+        const [righe, modulo] = await Promise.all([righeDaEsportare(), import('../lib/export.js')]);
+        modulo[esporta](righe);
+      }
       catch (e) { toast('Errore nell\'export: ' + e.message, 'err'); }
       finally { btn.disabled = false; btn.innerHTML = old; }
     });

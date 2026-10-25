@@ -137,12 +137,28 @@ ${blocchi.map(bloccoHtml).join('\n')}
 // stampa. Serve per rileggere un preventivo prima di mandarlo, senza dover
 // passare dalla finestra di stampa o scaricare il Word.
 export async function anteprimaDocumento(blocchi, titolo) {
-  apriFinestra(await htmlDocumento(blocchi, titolo));
+  await apriFinestra(blocchi, titolo);
 }
 
-function apriFinestra(html) {
+// La finestra si apre SUBITO, vuota, e il documento ci si scrive dopo
+// (27/09/2026). Prima si apriva solo a carta intestata caricata: Safari
+// concede window.open soltanto finché si è ancora dentro il clic, e dopo
+// l'attesa del .dotx lo considerava un popup non richiesto e lo bloccava —
+// su iPhone e iPad il PDF non usciva mai. Aprire prima e riempire poi va bene
+// anche per gli altri browser. Perché funzioni, fra il clic e questa
+// chiamata non ci devono essere altri await.
+async function apriFinestra(blocchi, titolo) {
   const finestra = window.open('', '_blank');
   if (!finestra) throw new Error('Il browser ha bloccato la finestra: consenti i popup per questo sito.');
+  try { finestra.document.title = 'Preparazione del documento…'; } catch { /* finestra non ancora scrivibile */ }
+  let html;
+  try {
+    html = await htmlDocumento(blocchi, titolo);
+  } catch (e) {
+    // Senza documento non resta una scheda bianca aperta per niente.
+    try { finestra.close(); } catch { /* già chiusa */ }
+    throw e;
+  }
   finestra.document.open();
   finestra.document.write(html);
   finestra.document.close();
@@ -150,7 +166,7 @@ function apriFinestra(html) {
 }
 
 export async function stampaDocumento(blocchi, titolo) {
-  const finestra = apriFinestra(await htmlDocumento(blocchi, titolo));
+  const finestra = await apriFinestra(blocchi, titolo);
 
   // La stampa si lancia da qui e non con uno <script> dentro la pagina
   // generata: la finestra eredita la CSP del portale, che gli script inline
@@ -166,7 +182,9 @@ function bloccoHtml(b) {
   if (b.t === 'titolo') return `<h2>${esc(b.testo)}</h2>`;
   if (b.t === 'p') {
     const classi = [b.piccolo ? 'piccolo' : '', b.allineamento === 'destra' ? 'destra' : ''].filter(Boolean).join(' ');
-    const testo = esc(b.testo);
+    // Gli a capo scritti nelle impostazioni (premessa, avvertenze, chiusura)
+    // restano a capo anche nel documento: in HTML un "\n" è solo uno spazio.
+    const testo = esc(b.testo).replace(/\r?\n/g, '<br>');
     return `<p${classi ? ` class="${classi}"` : ''}>${b.grassetto ? `<b>${testo}</b>` : testo}</p>`;
   }
   if (b.t === 'firma') {

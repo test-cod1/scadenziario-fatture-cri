@@ -1,10 +1,10 @@
 // Importi in lettere, arrotondamenti, lettura e scrittura dei decimali.
 // È la parte che finisce stampata su un documento firmato: se sbaglia qui,
 // sbaglia su carta.
-import { gruppo, prova, uguale, circa, RADICE } from './aiuto.mjs';
+import { gruppo, prova, uguale, vero, RADICE } from './aiuto.mjs';
 import { pathToFileURL } from 'node:url';
 
-const { inLettere, centesimi } = await import(pathToFileURL(RADICE + '/js/lib/numeri.js').href);
+const { inLettere, centesimi, residuoFattura } = await import(pathToFileURL(RADICE + '/js/lib/numeri.js').href);
 const { parseEuro, sommaGiorniISO, fineMeseISO } = await import(pathToFileURL(RADICE + '/js/lib/ui.js').href);
 const { testoDecimale, testoDecimaleOVuoto, leggiDecimale, leggiDecimaleO0 } =
   await import(pathToFileURL(RADICE + '/js/lib/importi.js').href);
@@ -86,4 +86,61 @@ prova('somma i giorni senza scivolare di un giorno per il fuso', () => {
   uguale(sommaGiorniISO('2026-03-28', 1), '2026-03-29', 'cambio dell\'ora legale');
   uguale(sommaGiorniISO('2026-12-31', 1), '2027-01-01');
   uguale(fineMeseISO('2026-02-10'), '2026-02-28');
+});
+
+gruppo('Residuo di una fattura');
+
+prova('una fattura saldata in due rate ha residuo esattamente zero', () => {
+  // 115,54 − 100 − 15,54 in virgola mobile fa 1,42e-14: la fattura restava
+  // "aperta" e il nuovo pagamento si precompilava con 1,42 €.
+  const r = residuoFattura(115.54, [{ importo: 100 }, { importo: 15.54 }]);
+  uguale(r.residuo, 0);
+  uguale(r.versato, 115.54);
+  // Lo stesso su un campione di importi: nessun saldo in due rate lascia code.
+  for (let c = 1; c <= 50000; c += 7) {
+    const tot = c / 100, primo = Math.floor(tot / 2);
+    uguale(residuoFattura(tot, [{ importo: primo }, { importo: String((c - primo * 100) / 100) }]).residuo, 0, `importo ${tot}`);
+  }
+});
+
+prova('pagamenti parziali, note di credito e valori mancanti', () => {
+  const r = residuoFattura('200.10', [{ importo: '50.05' }], [{ importo: 20 }]);
+  uguale(r.residuo, 130.05);
+  uguale(r.stornato, 20);
+  uguale(residuoFattura(null).residuo, 0);
+  uguale(residuoFattura(100, [{ importo: null }]).residuo, 100);
+  // Un pagamento oltre il dovuto non porta il residuo sotto zero.
+  uguale(residuoFattura(100, [{ importo: 120 }]).residuo, 0);
+});
+
+gruppo('Arrotondamento — i mezzi centesimi');
+
+// 27/09/2026: Math.round(x * 100) / 100 perdeva un centesimo quando il
+// prodotto in virgola mobile finiva appena sotto il mezzo centesimo.
+prova('centesimi() arrotonda il mezzo centesimo per eccesso anche dopo una moltiplicazione', () => {
+  uguale(centesimi(5.75 * 0.22), 1.27, 'IVA al 22% su 5,75 €: 1,265 → 1,27');
+  uguale(centesimi(437.5 * 1.23), 538.13, 'km × tariffa: 538,125 → 538,13');
+  uguale(centesimi(1.005), 1.01);
+  uguale(centesimi(8.345), 8.35);
+});
+
+prova('centesimi() tratta i negativi come i positivi e non restituisce −0', () => {
+  uguale(centesimi(-1.265), -1.27);
+  vero(Object.is(centesimi(-0.001), 0), 'un −0 si stamperebbe "-0,00 €"');
+  uguale(centesimi(null), 0);
+  uguale(centesimi('abc'), 0);
+});
+
+gruppo('Prezzi a unità (€/l, €/km)');
+
+prova('con prezzoUnitario un punto solo è sempre il decimale', () => {
+  uguale(parseEuro('1.859', { prezzoUnitario: true }), 1.859, 'prezzo MIMIT del gasolio');
+  uguale(parseEuro('1,859', { prezzoUnitario: true }), 1.859);
+  uguale(parseEuro('1.2', { prezzoUnitario: true }), 1.2);
+  uguale(parseEuro('', { prezzoUnitario: true }), null);
+});
+
+prova('senza opzione gli importi in euro restano letti come prima', () => {
+  uguale(parseEuro('1.859'), 1859, 'per un importo "1.859" sono migliaia');
+  uguale(parseEuro('2.500'), 2500);
 });

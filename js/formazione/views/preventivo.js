@@ -4,7 +4,10 @@ import { etichettaSconto } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO } from '../../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 import { INIZIO_ANNO, dataAmmessa, MSG_DATA } from '../date.js';
-import { CAMPO_DECIMALE, testoDecimale, leggiDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
+import { CAMPO_DECIMALE, testoDecimale, leggiDecimale } from '../../lib/importi.js';
+// Import statico, non import() al clic: la stampa apre una finestra, e Safari
+// la blocca come popup se prima del window.open c'è un'attesa (27/09/2026).
+import { anteprimaPreventivo, stampaPreventivo } from '../lib/stampa.js';
 
 // ============================================================
 //  EDITOR DEL PREVENTIVO DI FORMAZIONE
@@ -485,7 +488,6 @@ export async function renderPreventivo(view, id, ctx) {
 
   view.querySelector('#btn-pdf').addEventListener('click', async () => {
     try {
-      const { stampaPreventivo } = await import('../lib/stampa.js');
       await stampaPreventivo(prev, imp);
     } catch (e) { toast('Stampa non riuscita: ' + e.message, 'err'); }
   });
@@ -502,7 +504,6 @@ export async function renderPreventivo(view, id, ctx) {
 
   view.querySelector('#btn-anteprima').addEventListener('click', async () => {
     try {
-      const { anteprimaPreventivo } = await import('../lib/stampa.js');
       await anteprimaPreventivo(prev, imp);
     } catch (e) { toast('Anteprima non riuscita: ' + e.message, 'err'); }
   });

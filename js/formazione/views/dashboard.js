@@ -1,6 +1,9 @@
 import { preventivi } from '../data/store.js';
 import { fmtData } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO } from '../../lib/ui.js';
+// Import statico, non import() al clic: la stampa apre una finestra, e Safari
+// la blocca come popup se prima del window.open c'è un'attesa (27/09/2026).
+import { stampaPreventivo } from '../lib/stampa.js';
 
 // ============================================================
 //  ELENCO DEI PREVENTIVI DI FORMAZIONE
@@ -152,7 +155,6 @@ export async function renderDashboard(view, ctx) {
 
       tr.querySelector('[data-pdf]').addEventListener('click', async () => {
         try {
-          const { stampaPreventivo } = await import('../lib/stampa.js');
           await stampaPreventivo(p, ctx.imp);
         } catch (e) { toast('Stampa non riuscita: ' + e.message, 'err'); }
       });

@@ -47,3 +47,22 @@ prova('il mese si sposta avanti e indietro senza sbagliare l\'anno', () => {
   uguale(s.meseSpostato('2026-12', 1), '2027-01');
   uguale(s.ultimoGiorno('2028-02'), '2028-02-29', 'anno bisestile');
 });
+
+prova('Pasqua si calcola giusta, anche negli anni difficili', () => {
+  uguale(s.pasqua(2025), '2025-04-20');
+  uguale(s.pasqua(2026), '2026-04-05');
+  uguale(s.pasqua(2027), '2027-03-28');
+  uguale(s.pasqua(2038), '2038-04-25', 'la Pasqua più tardi possibile');
+});
+
+prova('i festivi non sono solo sabato e domenica', () => {
+  const aprile = s.giorniDelMese('2026-04');
+  const giorno = (iso) => aprile.find(g => g.iso === iso);
+  uguale(giorno('2026-04-06').festivo, true, 'Pasquetta (lunedì)');
+  uguale(giorno('2026-04-06').festa, 'Lunedì dell\'Angelo');
+  uguale(giorno('2026-04-07').festivo, false, 'martedì feriale');
+  uguale(s.festa('2026-06-24'), 'San Giovanni Battista (patrono di Genova)');
+  uguale(s.festa('2026-12-25'), 'Natale');
+  uguale(s.festa('2026-10-04'), 'San Francesco d\'Assisi');
+  uguale(s.festa('2025-10-04'), null, 'San Francesco torna festa solo dal 2026');
+});
