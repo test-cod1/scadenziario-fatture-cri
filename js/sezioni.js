@@ -199,6 +199,7 @@ export const SEZIONI = [
     home: '#/scadenze/elenco',
     menu: [
       { id: 'elenco', icon: '⏰', label: 'Scadenze', attivoAnche: ['scadenza'] },
+      { id: 'calendario', icon: '📅', label: 'Calendario' },
       { id: 'nuova', icon: '➕', label: 'Nuova scadenza' },
     ],
     tour: () => import('./tour/scadenze.js'),

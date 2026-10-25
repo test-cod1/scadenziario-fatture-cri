@@ -16,7 +16,7 @@ export async function renderElenco(view, ctx) {
 
   view.appendChild(el(`<div class="page-head">
     <div><h1>Scadenze</h1><p>Assicurazioni, bolli, revisioni, contratti, certificazioni… tutto quello che scade, in ordine di data</p></div>
-    <div class="actions"><a class="btn primary" href="#/scadenze/nuova">➕ Nuova scadenza</a></div>
+    <div class="actions"><a class="btn" href="#/scadenze/calendario">📅 Calendario</a><a class="btn primary" href="#/scadenze/nuova">➕ Nuova scadenza</a></div>
   </div>`));
 
   const stats = el('<div class="grid stats" style="margin:18px 0 20px"></div>');

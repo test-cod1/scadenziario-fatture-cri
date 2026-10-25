@@ -16,9 +16,11 @@ const BOZZA = {
   riferimento: '', responsabile: '', importo: null, note: '', fatta: false,
 };
 
-export async function renderScheda(view, id, ctx) {
+export async function renderScheda(view, id, ctx, dataIniziale) {
   const nuova = !id;
   let rec = nuova ? { ...BOZZA } : await store.get(id);
+  // Arrivando da un giorno del calendario, la data è già scritta.
+  if (nuova && /^\d{4}-\d{2}-\d{2}$/.test(String(dataIniziale || ''))) rec.data_scadenza = dataIniziale;
   // I suggerimenti di categoria: quelle già usate prima, poi le classiche.
   let usate = [];
   try { usate = [...new Set((await store.list()).map(s => s.categoria).filter(Boolean))]; } catch { /* solo suggerimenti */ }

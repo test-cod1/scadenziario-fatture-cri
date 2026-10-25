@@ -801,6 +801,29 @@ tr.str-inattivo td{opacity:.6}
 .dir-cal-invito{color:var(--ink-soft);font-size:13.5px;margin:10px 0}
 .dir-cal-coda{margin-top:14px}
 
+/* ---------- Scadenze: il calendario ----------
+   La griglia è quella del Direttore; cambiano i colori, che seguono lo
+   stato della scadenza come i chip dell'elenco. Le ripetizioni previste
+   sono tratteggiate: non sono ancora righe vere. */
+.dir-cal-voce.sca-scaduta{background:var(--danger);color:#fff}
+.dir-cal-voce.sca-preavviso{background:var(--warn-soft);color:var(--warn)}
+.dir-cal-voce.sca-futura{background:var(--info-soft);color:var(--info)}
+.dir-cal-voce.sca-fatta{background:var(--ok-soft);color:var(--ok);text-decoration:line-through}
+.dir-cal-voce.sca-prevista{background:transparent;color:var(--ink-soft);border:1px dashed var(--line);font-weight:500}
+.dir-cal-gio .pallini i.sca-scaduta{background:var(--danger)}
+.dir-cal-gio .pallini i.sca-preavviso{background:var(--warn)}
+.dir-cal-gio .pallini i.sca-futura{background:var(--info)}
+.dir-cal-gio .pallini i.sca-fatta{background:var(--ok)}
+.dir-cal-gio .pallini i.sca-prevista{background:transparent;border:1px solid var(--ink-soft)}
+.sca-cal-legenda{display:flex;flex-wrap:wrap;gap:6px 16px;margin:0 0 10px;font-size:12px;color:var(--ink-soft)}
+.sca-cal-legenda span{display:inline-flex;align-items:center;gap:6px}
+.sca-cal-legenda i{width:12px;height:12px;border-radius:4px;display:inline-block}
+.sca-cal-legenda i.sca-scaduta{background:var(--danger)}
+.sca-cal-legenda i.sca-preavviso{background:var(--warn-soft);border:1px solid var(--warn)}
+.sca-cal-legenda i.sca-futura{background:var(--info-soft);border:1px solid var(--info)}
+.sca-cal-legenda i.sca-prevista{border:1px dashed var(--ink-soft)}
+.sca-riga-prevista{opacity:.75}
+.sca-riga-prevista .dir-spunta{border-style:dashed;cursor:default}
 
 @media (max-width:760px){
   /* Sul telefono nella casella non ci sta un titolo: restano il numero e
