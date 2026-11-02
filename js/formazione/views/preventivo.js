@@ -1,5 +1,5 @@
-import { preventivi } from '../data/store.js';
-import { calcola, inLettere, rigaDaCorso, oggettoProposto, ALIQUOTA_IVA } from '../calc.js';
+import { preventivi, clienti } from '../data/store.js';
+import { calcola, inLettere, rigaDaCorso, oggettoProposto, nomeBreve, ALIQUOTA_IVA } from '../calc.js';
 import { etichettaSconto } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO } from '../../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
@@ -8,13 +8,16 @@ import { CAMPO_DECIMALE, testoDecimale, leggiDecimale } from '../../lib/importi.
 // Import statico, non import() al clic: la stampa apre una finestra, e Safari
 // la blocca come popup se prima del window.open c'è un'attesa (27/09/2026).
 import { anteprimaPreventivo, stampaPreventivo } from '../lib/stampa.js';
+import { pianificaCorsi } from './corsi.js';
 
 // ============================================================
 //  EDITOR DEL PREVENTIVO DI FORMAZIONE
-//  Quattro blocchi in fila: a chi va il preventivo, quali corsi si propongono
-//  (con quante persone e a che prezzo), dove si tengono, e come si chiude il
-//  conto — sconti, IVA, note. A destra il riepilogo si aggiorna a ogni
-//  modifica.
+//  Cinque passi numerati, nell'ordine in cui si scrive un preventivo: a chi
+//  va, quali corsi (con quante persone e a che prezzo), dove si tengono,
+//  come si chiude il conto — IVA e sconti — e infine i dati del documento.
+//  L'oggetto sta in fondo perché lo propongono i corsi scelti. A destra il
+//  riepilogo si aggiorna a ogni modifica e dice cosa manca prima di
+//  mandarlo.
 //
 //  Il pezzo che conta è quello dei corsi: ogni riga è una copia del corso
 //  preso dal catalogo, e resta modificabile qui dentro. Così il preventivo
@@ -47,7 +50,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   const head = el(`<div class="page-head">
     <div>
-      <h1>${id ? 'Modifica preventivo' : 'Nuovo preventivo'}</h1>
+      <h1>${id ? 'Modifica preventivo' : 'Nuovo preventivo'} <span class="chip" id="salvataggio" hidden></span></h1>
       <p>Corsi di formazione per aziende ed enti</p>
     </div>
     <div class="inline">
@@ -55,31 +58,45 @@ export async function renderPreventivo(view, id, ctx) {
       <button class="btn" id="btn-anteprima">👁 Anteprima</button>
       <button class="btn" id="btn-word">📄 Word</button>
       <button class="btn" id="btn-pdf">🖨️ Stampa / PDF</button>
-      <button class="btn primary" id="btn-save">💾 Salva</button>
+      <button class="btn" id="btn-corsi" hidden title="I corsi da tenere per questo preventivo">📅 Corsi</button>
+      <button class="btn primary" id="btn-save" title="Salva (Ctrl+S)">💾 Salva</button>
     </div>
   </div>`);
   view.appendChild(head);
 
   // Diventa true alla prima modifica e torna false quando si salva: da qui
-  // dipende l'avviso in uscita.
+  // dipendono l'avviso in uscita e l'etichetta accanto al titolo, che dice
+  // senza bisogno di indovinare se quello che si vede è già registrato.
   let sporco = false;
-  const modificato = () => { sporco = true; armaGuardiaIndietro(); };
+  // Lo stato com'è registrato, non come lo si sta scrivendo: i corsi si
+  // pianificano da un preventivo confermato e salvato.
+  let statoSalvato = prev.id ? prev.stato : null;
+  const etichetta = head.querySelector('#salvataggio');
+  function mostraSalvataggio() {
+    head.querySelector('#btn-corsi').hidden = !(prev.id && statoSalvato === 'confermato');
+    etichetta.hidden = !sporco && !prev.id;
+    etichetta.className = 'chip ' + (sporco ? 'warn' : 'ok');
+    etichetta.textContent = sporco ? '● Modifiche non salvate' : '✓ Salvato';
+  }
+  const modificato = () => { sporco = true; armaGuardiaIndietro(); mostraSalvataggio(); };
+  mostraSalvataggio();
 
   const editor = el(`<div class="editor"><div class="col-main"></div><div class="summary"></div></div>`);
   view.appendChild(editor);
   const main = editor.querySelector('.col-main');
   const summary = editor.querySelector('.summary');
 
-  // ---------- destinatario ----------
-  const cDest = card('Destinatario', `
+  // ---------- 1. destinatario ----------
+  const cDest = card(1, 'A chi va', `
     <div class="rubrica-azioni">
       <button class="btn sm" id="btn-rubrica" type="button">📇 Scegli dalla rubrica</button>
       <button class="btn sm" id="btn-salva-cliente" type="button">➕ Salva in rubrica</button>
-      <span class="mini">le aziende si riusano da un preventivo all'altro</span>
+      <span class="mini">oppure inizia a scrivere il nome: le aziende in rubrica vengono suggerite</span>
     </div>
     <div class="form-row">
       <div class="field"><label>Azienda / ente</label>
-        <input type="text" id="cliente" value="${esc(prev.cliente || '')}"></div>
+        <input type="text" id="cliente" list="rubrica-formazione" autocomplete="off" value="${esc(prev.cliente || '')}">
+        <datalist id="rubrica-formazione"></datalist></div>
       <div class="field"><label>Codice fiscale / P.IVA</label><input type="text" id="cliente_cf" value="${esc(prev.cliente_cf || '')}"></div>
     </div>
     <div class="field"><label>Indirizzo</label><input type="text" id="cliente_indirizzo" value="${esc(prev.cliente_indirizzo || '')}"></div>
@@ -90,40 +107,28 @@ export async function renderPreventivo(view, id, ctx) {
     </div>`);
   main.appendChild(cDest);
 
-  // ---------- documento ----------
-  const cDoc = card('Il documento', `
-    <div class="form-row">
-      <div class="field"><label>Oggetto</label>
-        <input type="text" id="oggetto" placeholder="PREVENTIVO CORSI BLSD" value="${esc(prev.oggetto || '')}">
-        <div class="hint">Proposto dai corsi scelti finché non lo riscrivi tu.</div></div>
-      <div class="field"><label>Numero di protocollo</label>
-        <input type="text" id="protocollo" placeholder="lascia vuoto se non serve" value="${esc(prev.protocollo || '')}">
-        <div class="hint">Se lo compili, nel documento compare «Prot. n. …» sopra la data.</div></div>
-    </div>
-    <div class="form-row">
-      <div class="field"><label>Data del documento</label><input type="date" id="data_documento" min="${INIZIO_ANNO}" value="${esc(prev.data_documento || todayISO())}"></div>
-      <div class="field"><label>Stato</label><select id="stato">
-        ${['bozza', 'inviato', 'confermato', 'annullato'].map(s => `<option value="${s}" ${prev.stato === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}
-      </select></div>
-    </div>`);
-  main.appendChild(cDoc);
-
-  // ---------- corsi ----------
-  const cCorsi = card('Corsi proposti', `
-    <p class="hint" style="margin:0 0 12px">Una riga per corso. Il <b>listino</b> è il prezzo pieno e il <b>prezzo riservato</b> quello offerto a questo cliente: nel documento il listino compare solo dove è più alto, come nella formula «euro 60 a discente, per Voi euro 55». Tutto quello che c'è qui arriva dal catalogo ed è modificabile: la modifica vale solo per questo preventivo.</p>
-    <div class="cal-azioni" style="margin:0 0 4px">
-      <select id="scelta-corso" aria-label="Corso da aggiungere">
-        ${imp.corsi.map(c => `<option value="${esc(c.id)}">${esc(c.nome)}</option>`).join('')}
-      </select>
-      <button class="btn sm" id="add-corso" type="button">➕ Aggiungi</button>
-      <span class="mini">oppure</span>
-      <button class="btn sm" id="add-libero" type="button">Corso non in catalogo</button>
+  // ---------- 2. corsi ----------
+  // Il catalogo è un riquadro per corso, non un menu a tendina: si vede
+  // tutto quello che si può proporre, con durata e prezzo, e un clic lo
+  // aggiunge. Il numero sul riquadro dice quante volte è già nel preventivo.
+  const cCorsi = card(2, 'Quali corsi', `
+    <p class="hint" style="margin:0 0 10px">Clicca un corso per aggiungerlo: arriva con durata, attestazione e prezzo di listino, e qui dentro resta tutto modificabile — la modifica vale solo per questo preventivo.</p>
+    <div class="cal-azioni catalogo-corsi">
+      ${imp.corsi.map(c => `<button type="button" class="corso-pick" data-corso="${esc(c.id)}" title="${esc(c.nome)}">
+        <span class="cp-nome">${esc(nomeBreve(c.nome))}</span>
+        <span class="cp-dati">${esc([c.durata, Number(c.prezzo) ? fmtEuro(c.prezzo) + ' a discente' : 'prezzo da impostare'].filter(Boolean).join(' · '))}</span>
+        <span class="cp-conta" hidden></span>
+      </button>`).join('')}
+      <button type="button" class="corso-pick libero" id="add-libero">
+        <span class="cp-nome">✎ Corso fuori catalogo</span>
+        <span class="cp-dati">per una richiesta una tantum</span>
+      </button>
     </div>
     <div id="righe"></div>`);
   main.appendChild(cCorsi);
 
-  // ---------- sede ----------
-  const cSede = card('Sede del corso', `
+  // ---------- 3. sede ----------
+  const cSede = card(3, 'Dove', `
     <div class="form-row">
       <div class="field"><label>Dove si svolge</label>
         <select id="sede_tipo">
@@ -139,13 +144,13 @@ export async function renderPreventivo(view, id, ctx) {
       <div class="hint">Viene aggiunto in coda alla frase sulla sede.</div></div>`);
   main.appendChild(cSede);
 
-  // ---------- iva e sconto ----------
-  main.appendChild(card('IVA e sconti', `
+  // ---------- 4. iva e sconto ----------
+  main.appendChild(card(4, 'IVA e sconti', `
     <div class="field" style="max-width:320px"><label>Regime IVA di questo preventivo</label>
       <select id="regime_iva">${REGIMI.map(([v, l]) =>
         `<option value="${v}" ${(prev.regime_iva || 'nessuno') === v ? 'selected' : ''}>${l}</option>`).join('')}</select>
       <div class="hint">«Nessuna indicazione» stampa solo gli importi, come nei preventivi scritti finora. Le due frasi si cambiano in Impostazioni.</div></div>
-    <p class="hint" style="margin:16px 0 12px">Gli sconti sono facoltativi e utilizzabili anche insieme: la percentuale si calcola sul totale, l'importo fisso si toglie da quello che resta. Sono un'altra cosa rispetto al prezzo riservato di ogni corso — usali per uno sconto sull'intero pacchetto.</p>
+    <p class="hint" style="margin:16px 0 12px">Sconti sull'intero pacchetto, facoltativi e utilizzabili insieme: la percentuale si calcola sul totale, l'importo fisso si toglie da quello che resta. Per abbassare il prezzo di un solo corso usa il suo prezzo riservato.</p>
     <div class="form-row">
       <div class="field"><label>Sconto in percentuale (%)</label>
         <input ${CAMPO_DECIMALE} id="sconto_percentuale" value="${testoDecimale(prev.sconto_percentuale)}" placeholder="0"></div>
@@ -154,8 +159,25 @@ export async function renderPreventivo(view, id, ctx) {
     </div>
     <div class="hint" id="sconto-hint"></div>`));
 
-  // ---------- note ----------
-  main.appendChild(card('Note', `<textarea id="note" rows="3" placeholder="Testo libero, compare nel preventivo prima dei saluti…">${esc(prev.note || '')}</textarea>`));
+  // ---------- 5. documento e note ----------
+  const cDoc = card(5, 'Il documento', `
+    <div class="form-row">
+      <div class="field"><label>Oggetto</label>
+        <input type="text" id="oggetto" placeholder="PREVENTIVO CORSI BLSD" value="${esc(prev.oggetto || '')}">
+        <div class="hint">Proposto dai corsi scelti finché non lo riscrivi tu.</div></div>
+      <div class="field"><label>Numero di protocollo</label>
+        <input type="text" id="protocollo" placeholder="lascia vuoto se non serve" value="${esc(prev.protocollo || '')}">
+        <div class="hint">Se lo compili, nel documento compare «Prot. n. …» sopra la data.</div></div>
+    </div>
+    <div class="form-row">
+      <div class="field"><label>Data del documento</label><input type="date" id="data_documento" min="${INIZIO_ANNO}" value="${esc(prev.data_documento || todayISO())}"></div>
+      <div class="field"><label>Stato</label><select id="stato">
+        ${['bozza', 'inviato', 'confermato', 'annullato'].map(s => `<option value="${s}" ${prev.stato === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}
+      </select></div>
+    </div>
+    <div class="field"><label>Note</label>
+      <textarea id="note" rows="3" placeholder="Testo libero, compare nel preventivo prima dei saluti…">${esc(prev.note || '')}</textarea></div>`);
+  main.appendChild(cDoc);
 
   // ------------------------------------------------------------------
   //  Aggancio dei campi semplici: scrivono direttamente sull'oggetto
@@ -191,10 +213,7 @@ export async function renderPreventivo(view, id, ctx) {
     prev[campo] = input.value;
   }
 
-  cDest.querySelector('#btn-rubrica').addEventListener('click', async () => {
-    const { scegliCliente } = await import('./sceltaCliente.js');
-    const c = await scegliCliente();
-    if (!c) return;
+  function compilaDa(c) {
     scrivi('cliente', c.nome);
     scrivi('cliente_cf', c.cf);
     scrivi('cliente_indirizzo', c.indirizzo);
@@ -207,6 +226,12 @@ export async function renderPreventivo(view, id, ctx) {
     }
     aggiorna();
     toast(`Destinatario compilato da «${c.nome}»`, 'ok');
+  }
+
+  cDest.querySelector('#btn-rubrica').addEventListener('click', async () => {
+    const { scegliCliente } = await import('./sceltaCliente.js');
+    const c = await scegliCliente();
+    if (c) compilaDa(c);
   });
 
   cDest.querySelector('#btn-salva-cliente').addEventListener('click', async () => {
@@ -221,6 +246,39 @@ export async function renderPreventivo(view, id, ctx) {
       referente_telefono: prev.referente_telefono,
     });
   });
+
+  // Suggerimenti mentre si scrive il nome: la rubrica si legge in sottofondo
+  // e finisce in un <datalist>, così il campo resta un campo di testo
+  // qualsiasi — chi scrive un'azienda nuova non trova niente di diverso. Se
+  // il nome scritto (o scelto dai suggerimenti) è esattamente quello di una
+  // scheda, il resto del destinatario si compila da lì, una volta sola per
+  // nome: chi poi corregge l'indirizzo a mano non se lo vede riscrivere.
+  let rubrica = [];
+  let ultimoCompilato = (prev.cliente || '').trim().toLowerCase();
+  clienti.list().then(lista => {
+    rubrica = lista;
+    const dl = cDest.querySelector('#rubrica-formazione');
+    for (const c of lista) dl.appendChild(el(`<option value="${esc(c.nome)}"></option>`));
+  }).catch(() => { /* senza rubrica il campo resta un campo di testo: nessun danno */ });
+  //
+  // Si guarda la scelta dai suggerimenti (che il browser segnala come input
+  // senza tasti, o come «sostituzione») e l'uscita dal campo, non ogni tasto:
+  // scrivendo «ACME SRL» lettera per lettera si passerebbe da «ACME», e se
+  // anche quella è in rubrica il destinatario si compilerebbe con l'azienda
+  // sbagliata a metà parola.
+  const campoCliente = cDest.querySelector('#cliente');
+  function daRubrica() {
+    const nome = campoCliente.value.trim().toLowerCase();
+    if (!nome || nome === ultimoCompilato) return;
+    const c = rubrica.find(x => x.nome.trim().toLowerCase() === nome);
+    if (!c) return;
+    ultimoCompilato = nome;
+    compilaDa(c);
+  }
+  campoCliente.addEventListener('input', (e) => {
+    if (!e.inputType || e.inputType === 'insertReplacementText') daRubrica();
+  });
+  campoCliente.addEventListener('change', daRubrica);
 
   // La data del documento sta fuori dal ciclo qui sopra perché una data
   // troppo indietro va rifiutata: il campo torna al valore di prima invece di
@@ -272,47 +330,61 @@ export async function renderPreventivo(view, id, ctx) {
 
   // ------------------------------------------------------------------
   //  Le righe dei corsi
+  //  In vista restano i numeri che cambiano da un preventivo all'altro —
+  //  quante persone e a che prezzo — con il totale della riga accanto.
+  //  Durata e attestazione arrivano dal catalogo e si toccano di rado:
+  //  stanno sotto, in un pannello che si apre quando serve.
   // ------------------------------------------------------------------
   function disegnaRighe() {
     const zona = cCorsi.querySelector('#righe');
     clear(zona);
+    contaNelCatalogo();
     if (!prev.righe.length) {
-      zona.appendChild(el(`<p class="muted" style="padding:18px 0;text-align:center">
-        Nessun corso: sceglilo qui sopra e premi «Aggiungi».</p>`));
+      zona.appendChild(el(`<p class="muted righe-vuote">Nessun corso ancora: clicca uno dei corsi qui sopra.</p>`));
       return;
     }
 
     prev.righe.forEach((r, i) => {
-      const aZero = !Number(r.prezzo);
-      const riga = el(`<div class="mezzo-row${aZero ? ' senza-prezzo' : ''}">
-        <div class="field"><label>Denominazione del corso</label>
-          <input type="text" data-k="nome" value="${esc(r.nome || '')}"></div>
-        <div class="form-row three">
-          <div class="field"><label>Durata</label><input type="text" data-k="durata" value="${esc(r.durata || '')}" placeholder="es. 12 ore"></div>
+      const libero = String(r.id || '').startsWith('libero-');
+      const riga = el(`<div class="mezzo-row corso-riga">
+        <div class="cr-testa">
+          <span class="cr-num">${i + 1}</span>
+          <input type="text" data-k="nome" class="cr-nome" aria-label="Denominazione del corso" placeholder="Denominazione del corso" value="${esc(r.nome || '')}">
+          <button class="rm btn ghost sm" type="button" title="Togli il corso dal preventivo" aria-label="Togli il corso">✕</button>
+        </div>
+        <div class="cr-numeri">
+          <div class="field"><label>N. discenti</label>
+            <input type="number" min="0" step="1" data-k="discenti" value="${esc(r.discenti ?? '')}" placeholder="da definire"></div>
           <div class="field"><label>Listino a discente (€)</label>
             <input ${CAMPO_DECIMALE} data-k="listino" value="${testoDecimale(r.listino)}" placeholder="0,00"></div>
           <div class="field"><label>Prezzo riservato (€)</label>
             <input ${CAMPO_DECIMALE} data-k="prezzo" value="${testoDecimale(r.prezzo)}" placeholder="0,00"></div>
-        </div>
-        <div class="form-row">
-          <div class="field"><label>N. discenti</label>
-            <input type="number" min="0" step="1" data-k="discenti" value="${esc(r.discenti ?? '')}" placeholder="da definire"></div>
-          <div class="field"><label>Attestazione rilasciata</label>
-            <input type="text" data-k="attestato" value="${esc(r.attestato || '')}"></div>
+          <div class="field cr-importo"><label>Totale riga</label><div class="cr-valore money"></div></div>
         </div>
         <div class="mini riga-totale"></div>
-        <button class="rm btn ghost sm" type="button">✕ Togli il corso</button>
+        <details class="cr-dettagli"${libero && !r.durata ? ' open' : ''}>
+          <summary><span class="cr-freccia" aria-hidden="true">▸</span> Durata e attestazione: <span class="cr-riassunto"></span></summary>
+          <div class="form-row">
+            <div class="field"><label>Durata</label><input type="text" data-k="durata" value="${esc(r.durata || '')}" placeholder="es. 12 ore"></div>
+            <div class="field"><label>Attestazione rilasciata</label>
+              <input type="text" data-k="attestato" value="${esc(r.attestato || '')}" placeholder="es. Rilascio di attestazione"></div>
+          </div>
+        </details>
       </div>`);
 
       const aggiornaTotaleRiga = () => {
         const discenti = Math.max(0, Number(r.discenti) || 0);
         const importo = discenti * (Number(r.prezzo) || 0);
         const risparmio = discenti * Math.max(0, (Number(r.listino) || 0) - (Number(r.prezzo) || 0));
-        riga.querySelector('.riga-totale').innerHTML = discenti
-          ? `Totale riga: <b>${esc(fmtEuro(importo))}</b>` +
-            (risparmio > 0 ? ` · sconto rispetto al listino: ${esc(fmtEuro(risparmio))}` : '')
-          : 'Numero di discenti da definire: nel documento il corso compare col prezzo a persona, senza totale.';
         const manca = !Number(r.prezzo);
+        riga.querySelector('.cr-valore').textContent = discenti ? fmtEuro(importo) : '—';
+        riga.querySelector('.riga-totale').innerHTML = manca
+          ? '<span class="avviso-zero">⚠️ Manca il prezzo: così il corso è a 0 € e non incide sul totale.</span>'
+          : !discenti
+            ? 'Discenti da definire: nel documento il corso compare col prezzo a persona, senza totale.'
+            : risparmio > 0 ? `Sconto rispetto al listino: ${esc(fmtEuro(risparmio))}` : '';
+        riga.querySelector('.cr-riassunto').textContent =
+          [r.durata, r.attestato].filter(Boolean).join(' · ') || 'da compilare';
         riga.classList.toggle('senza-prezzo', manca);
       };
       aggiornaTotaleRiga();
@@ -320,7 +392,18 @@ export async function renderPreventivo(view, id, ctx) {
       riga.querySelectorAll('[data-k]').forEach(input => {
         input.addEventListener('input', () => {
           const k = input.dataset.k;
-          if (k === 'listino' || k === 'prezzo') {
+          if (k === 'listino') {
+            // Finché il prezzo riservato è uguale al listino non è un prezzo
+            // riservato, è il listino ripetuto: correggendo il listino lo si
+            // porta dietro, invece di lasciare un prezzo vecchio che sembra
+            // uno sconto.
+            const nuovo = leggiDecimale(input.value);
+            if ((Number(r.prezzo) || 0) === (Number(r.listino) || 0)) {
+              r.prezzo = nuovo;
+              riga.querySelector('[data-k=prezzo]').value = testoDecimale(nuovo);
+            }
+            r.listino = nuovo;
+          } else if (k === 'prezzo') {
             r[k] = leggiDecimale(input.value);
           } else if (k === 'discenti') {
             r[k] = input.value === '' ? null : Number(input.value) || 0;
@@ -347,6 +430,18 @@ export async function renderPreventivo(view, id, ctx) {
     });
   }
 
+  // Il numerino sui riquadri del catalogo: quante volte quel corso è già nel
+  // preventivo. Evita il doppio clic involontario senza vietarlo.
+  function contaNelCatalogo() {
+    cCorsi.querySelectorAll('.corso-pick[data-corso]').forEach(b => {
+      const n = prev.righe.filter(r => r.id === b.dataset.corso).length;
+      const badge = b.querySelector('.cp-conta');
+      badge.hidden = !n;
+      badge.textContent = n > 1 ? `✓ ×${n}` : '✓';
+      b.classList.toggle('scelto', n > 0);
+    });
+  }
+
   // L'oggetto proposto si ricalcola quando cambia l'elenco dei corsi, ma solo
   // finché non lo si è scritto a mano.
   function proponiOggetto() {
@@ -355,10 +450,17 @@ export async function renderPreventivo(view, id, ctx) {
     campoOggetto.value = prev.oggetto;
   }
 
-  cCorsi.querySelector('#add-corso').addEventListener('click', () => {
-    const scelta = cCorsi.querySelector('#scelta-corso').value;
-    const corso = imp.corsi.find(c => c.id === scelta);
-    if (!corso) { toast('Il catalogo è vuoto: aggiungi i corsi in Impostazioni', 'err'); return; }
+  // Dopo aver aggiunto un corso il cursore va dove serve: sul numero di
+  // discenti, che è la sola cosa che il catalogo non può sapere.
+  function vaiAllUltima(selettore) {
+    const ultima = cCorsi.querySelector('#righe .corso-riga:last-child');
+    ultima?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+    ultima?.querySelector(selettore)?.focus({ preventScroll: true });
+  }
+
+  cCorsi.querySelectorAll('.corso-pick[data-corso]').forEach(b => b.addEventListener('click', () => {
+    const corso = imp.corsi.find(c => c.id === b.dataset.corso);
+    if (!corso) return;
     // Lo stesso corso due volte capita davvero (due edizioni, due gruppi di
     // discenti): non si blocca, ma si avvisa, perché più spesso è un clic di
     // troppo.
@@ -366,7 +468,8 @@ export async function renderPreventivo(view, id, ctx) {
     prev.righe.push(rigaDaCorso(corso));
     proponiOggetto();
     disegnaRighe(); aggiorna();
-  });
+    vaiAllUltima('[data-k=discenti]');
+  }));
 
   cCorsi.querySelector('#add-libero').addEventListener('click', () => {
     prev.righe.push({
@@ -376,7 +479,7 @@ export async function renderPreventivo(view, id, ctx) {
     disegnaRighe(); aggiorna();
     // Il cursore va sul nome della riga appena creata: è l'unico campo che
     // non arriva già compilato.
-    cCorsi.querySelector('#righe .mezzo-row:last-child input[data-k=nome]')?.focus();
+    vaiAllUltima('input[data-k=nome]');
   });
 
   // ------------------------------------------------------------------
@@ -402,7 +505,7 @@ export async function renderPreventivo(view, id, ctx) {
     const box = el(`<div class="tot-box">
       <div class="card-b breakdown">
         ${r.righe.length
-          ? r.righe.map(x => `<div class="b-row"><span class="lbl">${esc(x.nome || 'corso senza nome')}${
+          ? r.righe.map(x => `<div class="b-row"><span class="lbl">${esc(nomeBreve(x.nome))}${
               x.discenti ? ` · ${x.discenti} ${x.discenti === 1 ? 'discente' : 'discenti'}` : ' · discenti da definire'
             }</span><span class="money">${x.discenti ? esc(fmtEuro(x.importo)) : '—'}</span></div>`).join('')
           : '<div class="b-row"><span class="lbl">Nessun corso scelto</span><span class="money">—</span></div>'}
@@ -414,28 +517,55 @@ export async function renderPreventivo(view, id, ctx) {
         ${r.risparmio > 0 ? `<div class="b-row"><span class="lbl">Sconto sul listino già applicato ai corsi</span><span class="money">${fmtEuro(r.risparmio)}</span></div>` : ''}
       </div>
       <div class="row addebito">
-        <div><div class="k">Totale preventivo</div><div class="mini">${r.totale ? 'euro ' + inLettere(r.totale) : 'da compilare'}</div></div>
+        <div><div class="k">${r.daDefinire && !r.senzaTotale ? 'Totale parziale' : 'Totale preventivo'}</div><div class="mini">${r.totale ? 'euro ' + inLettere(r.totale) : 'da compilare'}</div></div>
         <div class="v money">${fmtEuro(r.totale)}</div>
       </div>
     </div>`);
     summary.appendChild(box);
+    summary.appendChild(controlli(r));
 
-    // Basta UN corso senza prezzo per far uscire un preventivo che regala
-    // qualcosa: è il caso della riga aggiunta di fretta fra altre col prezzo
-    // giusto, e da solo non si nota.
-    const senzaPrezzo = prev.righe.filter(x => !Number(x.prezzo));
-    if (senzaPrezzo.length) {
-      const uno = senzaPrezzo.length === 1;
-      summary.appendChild(el(`<div class="banner warn" style="margin-top:12px"><div class="bi">⚠️</div><div>
-        <b>${uno ? 'Un corso senza prezzo' : `${senzaPrezzo.length} corsi senza prezzo`}</b>
-        <div class="small">${esc(senzaPrezzo.map(x => x.nome || 'corso senza nome').join(', '))}: ${uno ? 'è a 0 € e non incide' : 'sono a 0 € e non incidono'}
-        sul totale. Correggi il prezzo nella riga, oppure nel catalogo (Impostazioni) se vale per tutti.</div>
-      </div></div>`));
-    }
+    const salvaQui = el('<button class="btn primary salva-riepilogo" type="button">💾 Salva il preventivo</button>');
+    salvaQui.addEventListener('click', salva);
+    summary.appendChild(salvaQui);
+
     if (!imp.corsi.length) {
-      summary.appendChild(el(`<div class="banner warn" style="margin-top:12px"><div class="bi">⚠️</div><div>
+      summary.appendChild(el(`<div class="banner warn"><div class="bi">⚠️</div><div>
         Il catalogo dei corsi è vuoto: aggiungi i corsi in <b>Impostazioni</b>, così arrivano già compilati con durata, attestazione e prezzo.</div></div>`));
     }
+  }
+
+  // «Prima di inviarlo»: le cose che un preventivo deve avere per uscire,
+  // spuntate man mano. Basta UN corso senza prezzo per mandare un preventivo
+  // che regala qualcosa — è il caso della riga aggiunta di fretta fra altre
+  // col prezzo giusto, e da solo non si nota. I discenti da definire invece
+  // sono legittimi, e compaiono come avviso, non come errore.
+  function controlli(r) {
+    const senzaPrezzo = prev.righe.filter(x => !Number(x.prezzo));
+    const voci = [
+      [prev.cliente ? 'ok' : 'no', prev.cliente ? 'Committente' : 'Manca il committente'],
+      [prev.righe.length ? 'ok' : 'no', prev.righe.length
+        ? `${prev.righe.length} ${prev.righe.length === 1 ? 'corso' : 'corsi'}`
+        : 'Nessun corso scelto'],
+    ];
+    if (prev.righe.length) {
+      voci.push(senzaPrezzo.length
+        ? ['no', `Senza prezzo: ${senzaPrezzo.map(x => x.nome || 'corso senza nome').join(', ')}. Correggilo nella riga, o nel catalogo (Impostazioni) se vale per tutti.`]
+        : ['ok', 'Prezzi di tutti i corsi']);
+      voci.push(r.daDefinire
+        ? ['warn', r.senzaTotale
+          ? 'Discenti da definire: il documento indica il prezzo a persona, senza totale'
+          : `${r.daDefinire} ${r.daDefinire === 1 ? 'corso' : 'corsi'} con discenti da definire: il totale sarà parziale`]
+        : ['ok', `${r.discenti} ${r.discenti === 1 ? 'discente' : 'discenti'} in tutto`]);
+    }
+    if (prev.sede_tipo === 'cliente' && !(prev.sede || '').trim()) {
+      voci.push(['warn', 'Manca l\'indirizzo della sede del committente']);
+    }
+    const icona = { ok: '✓', warn: '!', no: '✕' };
+    const pronto = voci.every(([s]) => s !== 'no');
+    return el(`<div class="card controlli-invio">
+      <div class="card-h">${pronto ? '✓ Pronto per l\'invio' : 'Prima di inviarlo'}</div>
+      <ul class="card-b">${voci.map(([s, t]) => `<li class="ci-${s}"><span class="ci-ico" aria-hidden="true">${icona[s]}</span><span>${esc(t)}</span></li>`).join('')}</ul>
+    </div>`);
   }
 
   // Il primo disegno non è una modifica dell'utente: senza dallUtente:false il
@@ -446,8 +576,15 @@ export async function renderPreventivo(view, id, ctx) {
   // ------------------------------------------------------------------
   //  Azioni
   // ------------------------------------------------------------------
+  let salvataggioInCorso = false;
   async function salva() {
-    if (!prev.cliente) { toast('Manca il committente', 'err'); return null; }
+    if (salvataggioInCorso) return null;
+    if (!prev.cliente) {
+      toast('Manca il committente', 'err');
+      campoCliente.focus();
+      return null;
+    }
+    salvataggioInCorso = true;
     const btn = view.querySelector('#btn-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvo…';
     try {
@@ -468,7 +605,9 @@ export async function renderPreventivo(view, id, ctx) {
       toast('Preventivo salvato', 'ok');
       sporco = false;
       prev.updated_at = salvato.updated_at;
+      statoSalvato = salvato.stato;
       if (!prev.id) { prev.id = salvato.id; ctx.go(`#/formazione/preventivo/${salvato.id}`); }
+      mostraSalvataggio();
       return salvato;
     } catch (e) {
       if (e.conflitto) {
@@ -481,10 +620,28 @@ export async function renderPreventivo(view, id, ctx) {
       }
       toast('Errore nel salvataggio: ' + e.message, 'err');
       return null;
-    } finally { btn.disabled = false; btn.innerHTML = old; }
+    } finally { btn.disabled = false; btn.innerHTML = old; salvataggioInCorso = false; }
   }
 
   view.querySelector('#btn-save').addEventListener('click', salva);
+
+  view.querySelector('#btn-corsi').addEventListener('click', () => {
+    if (sporco) { toast('Salva prima le modifiche: i corsi nascono dal preventivo salvato', 'err'); return; }
+    pianificaCorsi(prev, ctx);
+  });
+
+  // Ctrl+S (Cmd+S sul Mac) salva invece di aprire il "Salva pagina con nome"
+  // del browser, che è quello che chiunque si aspetta in un editor. Il
+  // listener sta sul documento e si toglie da solo la prima volta che scatta
+  // dopo che l'editor è uscito dalla pagina.
+  const scorciatoia = (e) => {
+    if (!editor.isConnected) { document.removeEventListener('keydown', scorciatoia); return; }
+    if ((e.ctrlKey || e.metaKey) && !e.altKey && e.key.toLowerCase() === 's') {
+      e.preventDefault();
+      salva();
+    }
+  };
+  document.addEventListener('keydown', scorciatoia);
 
   view.querySelector('#btn-pdf').addEventListener('click', async () => {
     try {
@@ -530,7 +687,10 @@ function nuovoPreventivo(imp) {
   };
 }
 
-function card(titolo, corpo) {
-  return el(`<div class="card" style="margin-bottom:18px">
-    <div class="card-h">${esc(titolo)}</div><div class="card-b">${corpo}</div></div>`);
+// Il numero davanti al titolo dice l'ordine in cui si compila: chi apre
+// l'editor la prima volta vede subito che sono cinque passi, e quale viene
+// dopo.
+function card(numero, titolo, corpo) {
+  return el(`<div class="card">
+    <div class="card-h"><span><span class="passo-num">${numero}</span>${esc(titolo)}</span></div><div class="card-b">${corpo}</div></div>`);
 }

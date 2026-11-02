@@ -19,6 +19,7 @@ import path from 'node:path';
 const INTERI_AMMESSI = {
   'js/assistenze/views/preventivo.js': ['data-tutti', 'data-voce'],       // quantità per turno
   'js/formazione/views/preventivo.js': ['data-k="discenti"'],             // numero di persone
+  'js/formazione/views/corso.js': ['id="discenti"'],                     // numero di persone
   'js/trasporti/views/preventivo.js': ['id="persone"', 'id="pastiPersona"', 'id="notti"', 'id="camere"'],
   'js/views/impostazioni.js': ['id="giorni"'],                            // giorni di scadenza
   'js/views/promemoria.js': ['id="giorni"'],                              // giorni di anticipo

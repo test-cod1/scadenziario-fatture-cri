@@ -32,36 +32,41 @@ export const DEFAULT_IMPOSTAZIONI = {
   //  attestato  → cosa si rilascia; cambia da corso a corso ed è la riga che
   //               nel preventivo va scritta sotto la tabella
   //  sigla      → serve solo a proporre l'oggetto ("PREVENTIVO CORSI BLSD")
+  //  rinnovo_anni → ogni quanti anni il corso va rifatto: da qui l'elenco
+  //               sa quali aziende ricontattare. Il primo soccorso si
+  //               aggiorna ogni tre anni (D.M. 388/2003); il BLSD resta
+  //               vuoto finché non lo si imposta, perché la cadenza dipende
+  //               dalla delibera regionale e non va indovinata.
   corsi: [
     {
       id: 'ps-a-16', sigla: 'PRIMO SOCCORSO',
       nome: 'Corso di formazione per lavoratori designati addetti al primo soccorso per aziende di "Gruppo A"',
-      durata: '16 ore', attestato: 'Rilascio di attestazione — validità 3 anni', prezzo: 0,
+      durata: '16 ore', attestato: 'Rilascio di attestazione — validità 3 anni', prezzo: 0, rinnovo_anni: 3,
     },
     {
       id: 'ps-a-agg-6', sigla: 'PRIMO SOCCORSO',
       nome: 'Corso di aggiornamento per lavoratori designati addetti al primo soccorso per aziende di "Gruppo A"',
-      durata: '6 ore', attestato: 'Rilascio di attestazione', prezzo: 0,
+      durata: '6 ore', attestato: 'Rilascio di attestazione', prezzo: 0, rinnovo_anni: 3,
     },
     {
       id: 'ps-bc-12', sigla: 'PRIMO SOCCORSO',
       nome: 'Corso di formazione per lavoratori designati addetti al primo soccorso per aziende di "Gruppo B e C"',
-      durata: '12 ore', attestato: 'Rilascio di attestazione — validità 3 anni', prezzo: 0,
+      durata: '12 ore', attestato: 'Rilascio di attestazione — validità 3 anni', prezzo: 0, rinnovo_anni: 3,
     },
     {
       id: 'ps-bc-agg-4', sigla: 'PRIMO SOCCORSO',
       nome: 'Corso di aggiornamento per lavoratori designati addetti al primo soccorso per aziende di "Gruppo B e C"',
-      durata: '4 ore', attestato: 'Rilascio di attestazione', prezzo: 0,
+      durata: '4 ore', attestato: 'Rilascio di attestazione', prezzo: 0, rinnovo_anni: 3,
     },
     {
       id: 'blsd', sigla: 'BLSD',
       nome: 'Corso di rianimazione cardio-polmonare (BLSD)',
-      durata: '5 ore', attestato: 'Rilascio dell\'autorizzazione all\'uso del defibrillatore semiautomatico (DAE)', prezzo: 0,
+      durata: '5 ore', attestato: 'Rilascio dell\'autorizzazione all\'uso del defibrillatore semiautomatico (DAE)', prezzo: 0, rinnovo_anni: null,
     },
     {
       id: 'blsd-retraining', sigla: 'BLSD',
       nome: 'Retraining corso di rianimazione cardio-polmonare (BLSD)',
-      durata: '2 ore', attestato: 'Rilascio dell\'autorizzazione all\'uso del defibrillatore semiautomatico (DAE)', prezzo: 0,
+      durata: '2 ore', attestato: 'Rilascio dell\'autorizzazione all\'uso del defibrillatore semiautomatico (DAE)', prezzo: 0, rinnovo_anni: null,
     },
   ],
 
@@ -104,11 +109,20 @@ export function mergeImpostazioni(dati) {
     // Un catalogo vuoto è una scelta (lo si sta rifacendo da capo), non un
     // dato mancante: i sei corsi di partenza valgono solo quando la chiave
     // non c'è proprio, cioè alla primissima apertura.
-    corsi: Array.isArray(dati.corsi) ? dati.corsi : base.corsi,
+    corsi: Array.isArray(dati.corsi) ? dati.corsi.map(c => conRinnovo(c, base.corsi)) : base.corsi,
     trasferta_predefinita: Number(dati.trasferta_predefinita) || 0,
     testi: { ...base.testi, ...(dati.testi || {}) },
     firma: { ruolo: dati.firma?.ruolo ?? base.firma.ruolo, nome: dati.firma?.nome ?? base.firma.nome },
   };
+}
+
+// Un catalogo salvato prima del 02/11/2026 non ha la cadenza di rinnovo:
+// i corsi di partenza la riprendono dal default (chi l'ha già impostata,
+// anche vuota, tiene la sua), gli altri restano senza.
+function conRinnovo(corso, corsiBase) {
+  if (corso.rinnovo_anni !== undefined) return corso;
+  const base = corsiBase.find(b => b.id === corso.id);
+  return { ...corso, rinnovo_anni: base?.rinnovo_anni ?? null };
 }
 
 // Una riga del preventivo a partire da un corso del catalogo: il corso viene
@@ -121,6 +135,7 @@ export function rigaDaCorso(corso) {
     durata: corso.durata || '',
     attestato: corso.attestato || '',
     sigla: corso.sigla || '',
+    rinnovo_anni: Number(corso.rinnovo_anni) || null,
     discenti: null,
     listino: Number(corso.prezzo) || 0,
     prezzo: Number(corso.prezzo) || 0,
@@ -215,6 +230,22 @@ export function calcolaSconti(prev, totaleLordo) {
   return sconti;
 }
 
+// Il nome del corso accorciato per i riquadri del catalogo, il riepilogo e
+// il registro dei corsi: le denominazioni di legge sono lunghe e cominciano tutte allo stesso modo
+// («Corso di formazione per lavoratori designati addetti al primo soccorso
+// per aziende di…»), così troncate a tre righe sembravano quattro corsi
+// uguali — la parte che li distingue, il gruppo, sta in fondo. Nel documento
+// e nella riga resta il nome intero.
+export function nomeBreve(nome) {
+  const breve = String(nome || '')
+    .replace(/\s*(per\s+)?lavoratori designati addetti al\s*/i, ' ')
+    .replace(/\s*per aziende di\s*/i, ' ')
+    .replace(/^corso di\s+/i, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return breve ? breve[0].toUpperCase() + breve.slice(1) : 'Corso senza nome';
+}
+
 // Oggetto proposto per il documento, ricavato dai corsi scelti: "PREVENTIVO
 // CORSI BLSD" quando sono tutti della stessa famiglia, altrimenti le sigle
 // unite. Resta un suggerimento — nell'editor si può riscrivere.
@@ -222,4 +253,75 @@ export function oggettoProposto(righe) {
   const sigle = [...new Set((righe || []).map(r => (r.sigla || '').trim().toUpperCase()).filter(Boolean))];
   if (!sigle.length) return 'PREVENTIVO CORSI DI FORMAZIONE';
   return 'PREVENTIVO CORSI ' + sigle.join(' E ');
+}
+
+// ------------------------------------------------------------------
+//  QUANDO RICONTATTARE UN'AZIENDA
+//  Gli attestati scadono, e l'azienda che ha fatto il corso tre anni fa ne
+//  ha bisogno di nuovo: meglio chiamarla noi che aspettare che chiami
+//  qualcun altro. Il rinnovo si conta dalla fine del corso svolto, quando
+//  è registrato fra i corsi effettuati; altrimenti dalla data del
+//  preventivo confermato, che il corso segue di poco.
+//
+//  Una riga salvata prima che esistesse rinnovo_anni lo riprende dal
+//  catalogo attuale, cercando il corso per id; un corso fuori catalogo non
+//  ha cadenza e non fa scattare niente. Con più corsi nello stesso
+//  preventivo vale la scadenza più vicina: è quella per cui chiamare.
+// ------------------------------------------------------------------
+export function dataRinnovo(prev, catalogo = [], dataBase = prev?.data_documento) {
+  if (!dataBase) return null;
+  const anni = (prev.righe || [])
+    .map(r => Number(r.rinnovo_anni ?? catalogo.find(c => c.id === r.id)?.rinnovo_anni) || 0)
+    .filter(n => n > 0);
+  if (!anni.length) return null;
+  return sommaAnniISO(dataBase, Math.min(...anni));
+}
+
+// Il 29 febbraio, negli anni che non lo hanno, diventa il 28: il giorno
+// dopo sarebbe già marzo, e un rinnovo di tre anni non deve slittare di mese.
+export function sommaAnniISO(iso, anni) {
+  const [y, m, d] = String(iso).slice(0, 10).split('-').map(Number);
+  const ultimo = new Date(Date.UTC(y + anni, m, 0)).getUTCDate();
+  return `${y + anni}-${String(m).padStart(2, '0')}-${String(Math.min(d, ultimo)).padStart(2, '0')}`;
+}
+
+// I preventivi confermati da ricontattare: rinnovo passato da meno di un
+// anno o in arrivo entro `anticipo` giorni. Si escludono le aziende che
+// hanno già un preventivo più recente — il rinnovo, o comunque un contatto
+// successivo, c'è già stato — e oltre l'anno di ritardo il cliente si
+// considera perso: tenerlo in cima per sempre seppellirebbe quelli ancora
+// recuperabili.
+//
+// `dateCorsi` (preventivo → fine dell'ultimo corso svolto, vedi
+// dateCorsiSvolti in corsi.js) sposta il conto sulla data vera del corso.
+export function daRicontattare(lista, catalogo, oggi, anticipo = 120, dateCorsi = new Map()) {
+  const chiave = (p) => (p.cliente || '').trim().toLowerCase();
+  const ultimo = new Map();
+  for (const p of lista) {
+    if (p.stato === 'annullato' || !chiave(p)) continue;
+    const d = p.data_documento || '';
+    if (d > (ultimo.get(chiave(p)) || '')) ultimo.set(chiave(p), d);
+  }
+  const da = sommaGiorni(oggi, -365);
+  const a = sommaGiorni(oggi, anticipo);
+  return lista
+    .filter(p => p.stato === 'confermato' && chiave(p))
+    .map(p => ({ prev: p, rinnovo: dataRinnovo(p, catalogo, dateCorsi.get(p.id) || p.data_documento) }))
+    .filter(x => x.rinnovo && x.rinnovo >= da && x.rinnovo <= a)
+    .filter(x => (ultimo.get(chiave(x.prev)) || '') <= x.prev.data_documento)
+    .sort((x, y) => x.rinnovo.localeCompare(y.rinnovo));
+}
+
+function sommaGiorni(iso, giorni) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(Date.UTC(y, m - 1, d + giorni)).toISOString().slice(0, 10);
+}
+
+// Per quanti giorni vale l'offerta, letto dalla frase sulla validità che si
+// scrive in Impostazioni («… valido 60 giorni dalla data di emissione»).
+// Senza un numero di giorni nella frase il termine non si sa, e l'elenco non
+// segnala nessuna offerta come scaduta invece di inventarselo.
+export function giorniValidita(testo) {
+  const m = String(testo || '').match(/(\d+)\s*giorni/i);
+  return m ? Number(m[1]) : null;
 }

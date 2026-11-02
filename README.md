@@ -5,7 +5,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | Sezione | Stato |
 |---|---|
 | **Scadenziario** | attiva (è il contenuto storico di questo progetto, descritto qui sotto) |
-| **Formazione Esterna** | attiva: preventivi per i corsi erogati ad aziende ed enti, con uscita in PDF e Word sulla carta intestata |
+| **Formazione Esterna** | attiva: il gestionale dei corsi erogati ad aziende ed enti — preventivi in PDF e Word sulla carta intestata, registro dei corsi effettuati con partecipanti ed esito, statistiche |
 | **Trasporti lunghi** | attiva: preventivi per i trasporti sanitari fuori Genova (arrivata dal gestionale `preventivo-trasporti`, assorbita qui il 01/09/2026) |
 | **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
 | **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
@@ -94,7 +94,7 @@ Gli script sono **rieseguibili**: dalla seconda volta non trovano più niente da
 
 ## Sezione Formazione Esterna
 
-Generatore di preventivi per i **corsi che il Comitato eroga alle aziende**: primo soccorso per i lavoratori designati (gruppo A e gruppo B/C, con i rispettivi aggiornamenti), BLSD e retraining BLSD. Sostituisce la lettera scritta a mano ogni volta, dove i prezzi erano righe discorsive senza somma e mancavano il numero dei discenti, la validità dell'offerta e la riga sull'IVA.
+Il gestionale dei **corsi che il Comitato eroga alle aziende** — dal preventivo al corso tenuto, fino alle statistiche: primo soccorso per i lavoratori designati (gruppo A e gruppo B/C, con i rispettivi aggiornamenti), BLSD e retraining BLSD. Sostituisce la lettera scritta a mano ogni volta, dove i prezzi erano righe discorsive senza somma e mancavano il numero dei discenti, la validità dell'offerta e la riga sull'IVA.
 
 Si compila il destinatario, si scelgono i corsi dal catalogo e per ognuno si indicano **quante persone** e **a che prezzo**. I prezzi sono due, come si è sempre scritto nei preventivi del Comitato: il **listino** e il **prezzo riservato** a quel cliente. Nel documento il listino compare solo dove è più alto, così la formula «euro 60 a discente, per Voi euro 55» resta leggibile senza diventare una colonna che ripete l'altra. Il numero di discenti può anche restare vuoto: in quel caso il corso compare col prezzo a persona e senza totale, che è come si quota quando l'azienda non sa ancora quanti manderà.
 
@@ -108,11 +108,37 @@ Tre cose si decidono preventivo per preventivo:
 
 Ci sono poi i due **sconti** sull'intero pacchetto, percentuale e valore assoluto, che funzionano come nelle assistenze (la percentuale sul totale, l'importo fisso su quello che resta) e sono un'altra cosa rispetto al prezzo riservato del singolo corso. L'IVA, quando c'è, si calcola dopo gli sconti.
 
-Nell'elenco si filtra per stato, si cambia stato con un clic, si cerca anche **per nome del corso** («chi ci ha chiesto il BLSD?») e si **duplica** un preventivo: gli aggiornamenti scadono ogni tre anni e la stessa azienda richiama con la stessa richiesta. Il duplicato nasce come bozza con la data di oggi e **senza protocollo**, che è il numero di quel documento e non va ereditato. I committenti si tengono in una **rubrica** (voce `Rubrica committenti`) che si riempie mentre si lavora, con `Salva in rubrica` dall'editor e `Scegli dalla rubrica` per compilare il destinatario in un colpo solo; anche qui i dati restano copiati dentro il preventivo.
+L'editor è diviso in **cinque passi numerati** nell'ordine in cui si scrive: a chi va, quali corsi, dove, IVA e sconti, e infine il documento (oggetto, protocollo, data, stato, note) — l'oggetto sta in fondo perché lo propongono i corsi scelti. I corsi del catalogo sono **riquadri da cliccare**, con durata e prezzo in vista, e il segno ✓ dice quali sono già nel preventivo; ogni riga mostra in vista discenti, listino, prezzo riservato e totale, con durata e attestazione in un pannello sotto. Finché il prezzo riservato è uguale al listino, correggere il listino si porta dietro anche quello. A destra, sotto il totale, il riquadro **«Prima di inviarlo»** spunta quello che c'è e segnala quello che manca (committente, corsi, prezzi a zero, discenti da definire, indirizzo della sede). Accanto al titolo si vede se ci sono **modifiche non salvate**, e Ctrl+S salva.
+
+Nell'elenco i quattro riquadri in testa sono anche **filtri**: bozze, inviati in attesa di risposta, confermati e **da ricontattare**. Un inviato mostra da quanti giorni aspetta risposta, e quando supera la validità dell'offerta — letta dalla frase in Impostazioni, «valido 60 giorni…» — è segnato come **offerta scaduta**. Si cambia stato con un clic, si cerca anche **per nome del corso** o per referente («chi ci ha chiesto il BLSD?») e si **duplica** un preventivo. Il duplicato nasce come bozza con la data di oggi e **senza protocollo**, che è il numero di quel documento e non va ereditato.
+
+**Da ricontattare** sono i preventivi confermati il cui attestato sta per scadere: ogni corso del catalogo ha un campo **«Rinnovo ogni (anni)»** — 3 per il primo soccorso (D.M. 388/2003), vuoto per il BLSD finché non lo si imposta, perché la cadenza dipende dalla delibera regionale. L'azienda compare quattro mesi prima della scadenza, contata dalla data del preventivo, e resta in elenco fino a un anno dopo; sparisce appena ha un preventivo più recente. Il pulsante **«Prepara rinnovo»** duplica il preventivo tenendo l'oggetto com'era. Le regole sono in [`js/formazione/calc.js`](js/formazione/calc.js) (`daRicontattare`), fissate da [`test/preventivi.prove.mjs`](test/preventivi.prove.mjs). Non serve nessuna patch al database: la cadenza vive nel JSON del catalogo e delle righe.
+
+I committenti si tengono in una **rubrica** (voce `Rubrica committenti`) che si riempie mentre si lavora, con `Salva in rubrica` dall'editor; per compilare il destinatario in un colpo solo basta iniziare a scrivere il nome dell'azienda — la rubrica viene suggerita — oppure usare `Scegli dalla rubrica`. Anche qui i dati restano copiati dentro il preventivo.
 
 Il preventivo esce in **PDF** (stampa del browser) e in **Word (.docx)**, con lo stesso contenuto e la stessa impaginazione delle assistenze sanitarie: la carta intestata, la resa in Word e quella di stampa sono ora codice condiviso (`js/lib/carta.js`, `js/lib/docxBlocchi.js`, `js/lib/stampaBlocchi.js`), quindi sostituendo il `.dotx` cambiano insieme i documenti di tutte e due le sezioni.
 
-La sezione ha il suo **tour guidato** (il pulsante 🎓): una ventina di passi che attraversano elenco, editor, rubrica e impostazioni: il copione sta in [`js/tour/formazione.js`](js/tour/formazione.js). Passa davvero dall'editor di un preventivo nuovo, ma non salva nulla.
+### Il registro dei corsi effettuati
+
+Un preventivo dice che cosa si è **proposto**; il registro (voce `Corsi`) dice che cosa si è **fatto**. Una riga è un'edizione di un corso: il corso, le date di inizio e fine, la sede, i docenti, i partecipanti e lo stato — *programmato*, *svolto* o *annullato*. Quindici discenti confermati possono diventare due edizioni con dodici presenti, ed è il secondo numero quello che conta per le statistiche e per i rinnovi.
+
+- **Da un preventivo confermato** il pulsante `📅 Pianifica` (nell'elenco, nell'editor, o nell'avviso che compare appena si conferma) crea un corso *da fissare* per ogni riga, tutti in una richiesta sola. L'importo di ciascuno è la sua parte di quanto il cliente paga **IVA esclusa**: sconti e trasferta si ripartiscono in proporzione alle righe, e la somma torna al centesimo col preventivo. Se il preventivo ha già i suoi corsi, il pulsante porta a quelli invece di crearne altri.
+- **Un corso si crea anche da solo** (`Nuovo corso`): quello aperto ai privati, senza committente, o quello da registrare a posteriori.
+- **I partecipanti** sono facoltativi: senza elenco vale il numero di discenti scritto a mano. Si aggiungono uno per uno oppure **incollando un elenco** da Excel (colonne cognome, nome, codice fiscale) o da una mail («Rossi Mario RSSMRA80A01D969X»): il codice fiscale si riconosce dalla forma, le particelle dei cognomi («De Luca», «Della Valle») restano attaccate, e un codice fiscale già in elenco non si aggiunge due volte. Per ognuno si segna l'esito — idoneo, non idoneo, assente — e gli assenti non contano fra le persone formate. L'elenco si scarica in Excel.
+- **Il foglio presenze** esce sulla carta intestata, con i dati del corso e una riga per persona con lo spazio per la firma (righe vuote se l'elenco non c'è).
+- **L'elenco** mette in testa quello che chiede un'azione: i corsi **già passati ma ancora «programmati»** — tenuti, ma senza presenze né esito registrati, e quindi fuori dalle statistiche —, poi quelli **da fissare**, poi il calendario e l'archivio. Si cerca anche per docente o per nome di un partecipante.
+
+Un corso segnato **svolto** fa partire il conto del **rinnovo** dalla sua data di fine, al posto della data del preventivo. Un corso non si può segnare svolto senza data: sparirebbe dalle statistiche di ogni anno.
+
+### Le statistiche
+
+La voce `Statistiche` conta i soli corsi **svolti**, per anno solare sulla data di inizio (o per tutti gli anni): corsi, persone formate, ore di formazione (ore × persone, più le ore d'aula), ricavi IVA esclusa e percentuale di idonei — calcolata solo sui corsi con l'elenco nominativo, dove l'esito è registrato. I primi numeri si confrontano con l'anno prima. Sotto: le persone formate mese per mese, il dettaglio **per tipo di corso**, **per committente** (con la quota dei ricavi), **per docente** (ore d'aula), dove si sono tenuti i corsi e l'andamento dei **preventivi** — inviati, confermati, annullati, in attesa, conversione e valore. La conversione si calcola sui preventivi che hanno avuto una risposta: quelli ancora in attesa non sono un no. In testa la pagina avvisa se qualche corso passato non è stato registrato come svolto, invece di mostrare numeri più bassi in silenzio. Il pulsante Excel scarica l'elenco dei corsi svolti del periodo.
+
+I calcoli stanno in [`js/formazione/corsi.js`](js/formazione/corsi.js), fissati da [`test/corsi-formazione.prove.mjs`](test/corsi-formazione.prove.mjs).
+
+**Richiede [`supabase/patch-2026-11-02-corsi-formazione.sql`](supabase/patch-2026-11-02-corsi-formazione.sql)**: crea la tabella `corsi_formazione` con le sue policy (lettura e scrittura per chi ha la sezione, cancellazione agli admin) e la aggancia al registro modifiche. Finché la patch non è eseguita, Corsi e Statistiche mostrano un avviso che lo dice, e i preventivi continuano a funzionare come prima.
+
+La sezione ha il suo **tour guidato** (il pulsante 🎓): una venticinquina di passi che attraversano preventivi, editor, registro dei corsi, statistiche, rubrica e impostazioni: il copione sta in [`js/tour/formazione.js`](js/tour/formazione.js). Passa davvero dall'editor di un preventivo nuovo, ma non salva nulla.
 
 Richiede [`supabase/patch-2026-09-06-formazione.sql`](supabase/patch-2026-09-06-formazione.sql). Il catalogo di partenza — i sei corsi del listino — lo crea l'app alla prima apertura delle Impostazioni, **con i prezzi a zero**: vanno impostati lì prima del primo preventivo, e finché un corso resta a zero l'editor lo segnala.
 

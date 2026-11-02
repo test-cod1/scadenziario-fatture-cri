@@ -87,6 +87,96 @@ export const preventivi = {
 };
 
 // ------------------------------------------------------------------
+//  CORSI EFFETTUATI
+//  Le edizioni dei corsi, programmate e svolte (vedi
+//  patch-2026-11-02-corsi-formazione.sql). Stessa difesa dei preventivi
+//  contro le modifiche concorrenti: due colleghi che segnano i presenti
+//  dello stesso corso non devono cancellarsi il lavoro a vicenda.
+//
+//  Senza la patch la tabella non esiste: l'errore di PostgREST (42P01, o
+//  PGRST205 nelle versioni recenti) diventa un messaggio che dice cosa fare,
+//  invece di «relation does not exist».
+// ------------------------------------------------------------------
+function spiegaTabellaMancante(error) {
+  if (error?.code === '42P01' || error?.code === 'PGRST205') {
+    const e = new Error('Il registro dei corsi non è ancora attivo: va eseguita supabase/patch-2026-11-02-corsi-formazione.sql nel database.');
+    e.tabellaMancante = true;
+    return e;
+  }
+  return error;
+}
+
+export const corsi = {
+  async list() {
+    const sb = await sbClient();
+    const BLOCCO = 1000;
+    const tutti = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from('corsi_formazione').select('*')
+        .order('data_inizio', { ascending: false, nullsFirst: true })
+        .order('id', { ascending: true })   // ordine stabile fra un blocco e l'altro
+        .range(da, da + BLOCCO - 1);
+      if (error) throw spiegaTabellaMancante(error);
+      tutti.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutti;
+  },
+  async get(id) {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('corsi_formazione').select('*').eq('id', id).single();
+    if (error) throw spiegaTabellaMancante(error);
+    return data;
+  },
+  async perPreventivo(preventivoId) {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('corsi_formazione').select('*').eq('preventivo_id', preventivoId);
+    if (error) throw spiegaTabellaMancante(error);
+    return data;
+  },
+  async save(rec) {
+    const isNew = !rec.id;
+    const atteso = rec.updated_at;
+    rec = { ...rec, id: rec.id || uid(), updated_at: nowISO() };
+    const sb = await sbClient();
+    if (isNew) {
+      const { data: u } = await sb.auth.getUser();
+      if (u?.user) rec.created_by = rec.created_by || u.user.id;
+      const { data, error } = await sb.from('corsi_formazione').insert(rec).select().single();
+      if (error) throw spiegaTabellaMancante(error);
+      return data;
+    }
+    let q = sb.from('corsi_formazione').update(rec).eq('id', rec.id);
+    if (atteso) q = q.eq('updated_at', atteso);
+    const { data, error } = await q.select().maybeSingle();
+    if (error) throw spiegaTabellaMancante(error);
+    if (!data) {
+      const e = new Error('Il corso è stato modificato o eliminato da un altro utente.');
+      e.conflitto = true;
+      throw e;
+    }
+    return data;
+  },
+  // I corsi di un preventivo si creano tutti insieme, in un'unica
+  // richiesta: a metà strada per un errore di rete resterebbe un preventivo
+  // con metà dei suoi corsi, e rifarlo creerebbe i doppioni dell'altra metà.
+  async creaTutti(righe) {
+    const sb = await sbClient();
+    const { data: u } = await sb.auth.getUser();
+    const ora = nowISO();
+    const recs = righe.map(r => ({ ...r, id: uid(), created_by: u?.user?.id || null, updated_at: ora }));
+    const { data, error } = await sb.from('corsi_formazione').insert(recs).select();
+    if (error) throw spiegaTabellaMancante(error);
+    return data;
+  },
+  async remove(id) {
+    const sb = await sbClient();
+    const { error } = await sb.from('corsi_formazione').delete().eq('id', id);
+    if (error) throw spiegaTabellaMancante(error);
+  },
+};
+
+// ------------------------------------------------------------------
 //  RUBRICA DEI COMMITTENTI
 //  Le aziende tornano: gli aggiornamenti scadono ogni tre anni e chi ha fatto
 //  il corso nel 2023 lo rifà nel 2026. La rubrica tiene i loro dati scritti

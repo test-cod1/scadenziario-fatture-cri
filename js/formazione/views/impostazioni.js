@@ -50,7 +50,7 @@ export async function renderImpostazioni(view, ctx) {
   const cCat = el(`<div class="card" style="margin-bottom:18px">
     <div class="card-h">Catalogo dei corsi</div>
     <div class="card-b">
-      <p class="hint" style="margin:0 0 14px">I corsi che si possono mettere in un preventivo. Il <b>prezzo</b> è quello di listino, a discente: dentro il singolo preventivo resta modificabile, e accanto c'è il prezzo riservato al cliente. L'<b>attestazione</b> è quello che si rilascia a fine corso e finisce nel documento sotto la tabella: cambia da corso a corso. La <b>sigla</b> serve solo a proporre l'oggetto del preventivo («PREVENTIVO CORSI BLSD»).</p>
+      <p class="hint" style="margin:0 0 14px">I corsi che si possono mettere in un preventivo. Il <b>prezzo</b> è quello di listino, a discente: dentro il singolo preventivo resta modificabile, e accanto c'è il prezzo riservato al cliente. L'<b>attestazione</b> è quello che si rilascia a fine corso e finisce nel documento sotto la tabella: cambia da corso a corso. La <b>sigla</b> serve solo a proporre l'oggetto del preventivo («PREVENTIVO CORSI BLSD»). Il <b>rinnovo</b> dice ogni quanti anni il corso va rifatto: quando si avvicina, l'azienda compare nell'elenco fra quelle da ricontattare. Lascialo vuoto per i corsi che non scadono.</p>
       <div id="corsi"></div>
       <button class="btn sm" id="add-corso" type="button" style="margin-top:12px">➕ Aggiungi corso</button>
     </div></div>`);
@@ -69,14 +69,22 @@ export async function renderImpostazioni(view, ctx) {
           <div class="field"><label>Prezzo di listino a discente (€)</label>
             <input ${CAMPO_DECIMALE} data-k="prezzo" value="${testoDecimale(c.prezzo)}"></div>
         </div>
-        <div class="field"><label>Attestazione rilasciata</label>
-          <input type="text" data-k="attestato" value="${esc(c.attestato || '')}" placeholder="es. Rilascio di attestazione — validità 3 anni"></div>
+        <div class="form-row largo-stretto">
+          <div class="field"><label>Attestazione rilasciata</label>
+            <input type="text" data-k="attestato" value="${esc(c.attestato || '')}" placeholder="es. Rilascio di attestazione — validità 3 anni"></div>
+          <div class="field"><label>Rinnovo ogni (anni)</label>
+            <input type="text" inputmode="numeric" autocomplete="off" data-k="rinnovo_anni" value="${esc(c.rinnovo_anni ?? '')}" placeholder="non scade"></div>
+        </div>
         <button class="rm btn ghost sm" type="button">✕ Rimuovi corso</button>
       </div>`);
       riga.querySelectorAll('[data-k]').forEach(input => {
         input.addEventListener('input', () => {
           const k = input.dataset.k;
-          c[k] = k === 'prezzo' ? leggiDecimaleO0(input.value) : input.value;
+          if (k === 'prezzo') c[k] = leggiDecimaleO0(input.value);
+          // Anni interi, vuoto = il corso non scade: una cifra non valida
+          // vale come vuoto, invece di far scattare rinnovi a caso.
+          else if (k === 'rinnovo_anni') c[k] = parseInt(input.value, 10) > 0 ? parseInt(input.value, 10) : null;
+          else c[k] = input.value;
         });
       });
       riga.querySelector('.rm').addEventListener('click', () => { imp.corsi.splice(i, 1); modificato(); disegnaCorsi(); });
@@ -86,7 +94,7 @@ export async function renderImpostazioni(view, ctx) {
   }
   disegnaCorsi();
   cCat.querySelector('#add-corso').addEventListener('click', () => {
-    imp.corsi.push({ id: 'c' + Date.now(), nome: 'Nuovo corso', durata: '', sigla: '', attestato: '', prezzo: 0 });
+    imp.corsi.push({ id: 'c' + Date.now(), nome: 'Nuovo corso', durata: '', sigla: '', attestato: '', prezzo: 0, rinnovo_anni: null });
     modificato();
     disegnaCorsi();
   });

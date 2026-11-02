@@ -70,6 +70,55 @@ prova('l\'oggetto proposto raggruppa le sigle dei corsi scelti', () => {
 });
 
 // ------------------------------------------------------------------
+gruppo('Formazione esterna — rinnovi e validità');
+
+const catalogo = [{ id: 'ps', rinnovo_anni: 3 }, { id: 'blsd', rinnovo_anni: null }];
+const confermato = (cliente, data, righe = [{ id: 'ps' }]) => ({ cliente, data_documento: data, stato: 'confermato', righe });
+
+prova('il rinnovo si conta dalla data del preventivo, col corso che scade prima', () => {
+  uguale(formazione.dataRinnovo(confermato('A', '2024-03-15'), catalogo), '2027-03-15');
+  uguale(formazione.dataRinnovo(confermato('A', '2024-03-15', [{ id: 'ps' }, { id: 'x', rinnovo_anni: 2 }]), catalogo),
+    '2026-03-15', 'vale la scadenza più vicina');
+  uguale(formazione.dataRinnovo(confermato('A', '2024-03-15', [{ id: 'blsd' }]), catalogo), null,
+    'un corso senza cadenza non fa scattare niente');
+});
+
+prova('il 29 febbraio non slitta a marzo', () => {
+  uguale(formazione.sommaAnniISO('2024-02-29', 3), '2027-02-28');
+  uguale(formazione.sommaAnniISO('2024-02-29', 4), '2028-02-29');
+});
+
+prova('da ricontattare: finestra di un anno indietro e di 120 giorni avanti', () => {
+  const lista = [
+    confermato('Vicino', '2023-12-01'),     // rinnovo 2026-12-01: fra un mese
+    confermato('Lontano', '2024-10-01'),    // 2027-10-01: troppo presto
+    confermato('Perso', '2022-06-01'),      // 2025-06-01: oltre l'anno di ritardo
+    confermato('Passato', '2023-05-01'),    // 2026-05-01: scaduto da sei mesi
+    { ...confermato('Bozza', '2023-12-01'), stato: 'bozza' },
+  ];
+  uguale(formazione.daRicontattare(lista, catalogo, '2026-11-02').map(x => x.prev.cliente), ['Passato', 'Vicino']);
+});
+
+prova('da ricontattare: non chi ha già un preventivo più recente', () => {
+  const lista = [
+    confermato('Omnia srl', '2023-12-01'),
+    { cliente: 'OMNIA SRL ', data_documento: '2026-10-20', stato: 'inviato', righe: [] },
+  ];
+  uguale(formazione.daRicontattare(lista, catalogo, '2026-11-02'), []);
+});
+
+prova('la validità dell\'offerta si legge dalla frase delle impostazioni', () => {
+  uguale(formazione.giorniValidita('Il presente preventivo è valido 60 giorni dalla data di emissione.'), 60);
+  uguale(formazione.giorniValidita('Valido fino a fine anno'), null);
+});
+
+prova('i cataloghi salvati prima dei rinnovi li riprendono dai corsi di partenza', () => {
+  const imp = formazione.mergeImpostazioni({ corsi: [{ id: 'ps-a-16', nome: 'PS A' }, { id: 'mio', nome: 'Altro' }, { id: 'blsd', rinnovo_anni: 2 }] });
+  uguale(imp.corsi.map(c => c.rinnovo_anni), [3, null, 2]);
+  uguale(formazione.rigaDaCorso(imp.corsi[0]).rinnovo_anni, 3, 'la riga si porta dietro la cadenza');
+});
+
+// ------------------------------------------------------------------
 gruppo('Assistenze sanitarie — turni e tariffario');
 
 prova('un turno che passa la mezzanotte non dura un tempo negativo', () => {
