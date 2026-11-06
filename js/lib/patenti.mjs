@@ -93,9 +93,27 @@ export const DOCUMENTI_GAIA = [
   { id: 'carta_identita', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della carta d\'identità</b>?', breve: 'carta d\'identità, fronte e retro' },
 ];
 
+// Per il rinnovo serve in più la foto della patente CRI in scadenza (o già
+// scaduta), mandata per email. Si chiede come gli altri documenti, e si
+// salva nella stessa colonna (documenti_gaia) con il suo id.
+export const EMAIL_FOTO_PATENTE = 'jacopo.ravaioli@liguria.cri.it';
+export const FOTO_PATENTE_CRI = {
+  id: 'foto_patente_cri',
+  domanda: `Hai inviato la <b>foto della patente CRI in scadenza o scaduta</b> a
+    <a href="mailto:${EMAIL_FOTO_PATENTE}">${EMAIL_FOTO_PATENTE}</a>?`,
+  breve: 'foto della patente CRI in scadenza o scaduta (via email)',
+};
+
+// I documenti chiesti per quel tipo di richiesta.
+export function documentiRichiesti(tipo) {
+  return tipo === 'rinnovo' ? [...DOCUMENTI_GAIA, FOTO_PATENTE_CRI] : DOCUMENTI_GAIA;
+}
+
 // I documenti che mancano a una richiesta salvata (quelli non confermati).
-export function documentiMancanti(caricati) {
-  return DOCUMENTI_GAIA.filter(d => !(caricati || []).includes(d.id));
+// Le richieste arrivate prima che il modulo chiedesse il tipo (tipo null)
+// si leggono con i soli documenti su Gaia, gli unici che chiedeva allora.
+export function documentiMancanti(caricati, tipo) {
+  return documentiRichiesti(tipo).filter(d => !(caricati || []).includes(d.id));
 }
 
 // Stati di una richiesta, per la segreteria.
@@ -113,12 +131,14 @@ const pulisci = (s) => String(s ?? '').replace(/\s+/g, ' ').trim().slice(0, 80);
 
 export function controllaRichiesta(grezzi) {
   const g = grezzi && typeof grezzi === 'object' ? grezzi : {};
+  const tipo = tipoRichiesta(g.tipo)?.id || '';
+  const richiesti = documentiRichiesti(tipo);
   const dati = {
     nome: pulisci(g.nome),
     cognome: pulisci(g.cognome),
-    tipo: tipoRichiesta(g.tipo)?.id || '',
+    tipo,
     patente: Number(g.patente),
-    documenti_gaia: DOCUMENTI_GAIA.filter(d => g.documenti_gaia?.[d.id] === true).map(d => d.id),
+    documenti_gaia: richiesti.filter(d => g.documenti_gaia?.[d.id] === true).map(d => d.id),
   };
   const errori = {};
   if (!dati.nome) errori.nome = 'Scrivi il tuo nome.';
@@ -131,11 +151,11 @@ export function controllaRichiesta(grezzi) {
   // supporto ha senso solo se ne manca almeno uno. Il supporto non ha una
   // colonna sua: una richiesta salvata con documenti mancanti È una
   // richiesta di supporto.
-  const completi = dati.documenti_gaia.length === DOCUMENTI_GAIA.length;
+  const completi = dati.documenti_gaia.length === richiesti.length;
   if (g.supporto === true) {
-    if (completi) errori.documenti_gaia = 'Hai caricato tutti i documenti: invia la richiesta normalmente.';
+    if (completi) errori.documenti_gaia = 'Hai confermato tutti i documenti: invia la richiesta normalmente.';
   } else if (!completi) {
-    errori.documenti_gaia = 'Conferma di aver caricato su Gaia tutti i documenti, oppure chiedi supporto.';
+    errori.documenti_gaia = 'Conferma tutti i documenti, oppure chiedi supporto.';
   }
   return { ok: !Object.keys(errori).length, errori, dati };
 }

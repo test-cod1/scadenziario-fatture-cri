@@ -108,23 +108,23 @@ export async function onRequestPost(context) {
 export function emailSupporto(dati, env = {}, request = null) {
   const portale = (env.PORTALE_URL || (request ? new URL(request.url).origin : 'https://amministrazione.crigenova.it')).replace(/\/$/, '');
   const link = `${portale}/#/patenti/richieste/supporto`;
-  const mancanti = documentiMancanti(dati.documenti_gaia).map(d => d.breve);
+  const mancanti = documentiMancanti(dati.documenti_gaia, dati.tipo).map(d => d.breve);
   const chi = `${dati.nome} ${dati.cognome}`;
   const cosa = `${tipoRichiesta(dati.tipo)?.breve || 'Patente'} — patente ${dati.patente}`;
   const e = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   return {
     a: env.PATENTI_EMAIL_SUPPORTO || EMAIL_SUPPORTO,
-    oggetto: `Patenti CRI: ${chi} chiede supporto per i documenti su Gaia`,
+    oggetto: `Patenti CRI: ${chi} chiede supporto per i documenti`,
     testo: [
       `${chi} ha chiesto supporto dal modulo delle patenti CRI.`,
       `Richiesta: ${cosa}`,
-      `Documenti che non riesce a caricare su Gaia: ${mancanti.join('; ')}`,
+      `Documenti che mancano: ${mancanti.join('; ')}`,
       '',
       `Apri la richiesta nel portale: ${link}`,
     ].join('\n'),
     html: `<p><b>${e(chi)}</b> ha chiesto supporto dal modulo delle patenti CRI.</p>
       <p>Richiesta: <b>${e(cosa)}</b><br>
-      Documenti che non riesce a caricare su Gaia:</p>
+      Documenti che mancano:</p>
       <ul>${mancanti.map(m => `<li>${e(m)}</li>`).join('')}</ul>
       <p><a href="${e(link)}">Apri le richieste di supporto nel portale</a></p>`,
   };

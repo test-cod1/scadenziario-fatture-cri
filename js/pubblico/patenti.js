@@ -19,7 +19,7 @@
 //  Sotto ogni passaggio ci sono tutte le domande e risposte
 //  (js/lib/faqPatenti.mjs), con la ricerca.
 // ============================================================
-import { PATENTI, PERCORSI, DOCUMENTI_GAIA, TIPI_RICHIESTA, RINNOVO, TEST_RIFLESSI, patente, tipoRichiesta, servonoRiflessi, controllaRichiesta } from '../lib/patenti.mjs';
+import { PATENTI, PERCORSI, TIPI_RICHIESTA, documentiRichiesti, RINNOVO, TEST_RIFLESSI, patente, tipoRichiesta, servonoRiflessi, controllaRichiesta } from '../lib/patenti.mjs';
 import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
 
 const zona = document.getElementById('modulo');
@@ -46,12 +46,15 @@ const stato = {
   tipo: '',          // 'nuova' | 'rinnovo'
   patente: '',
   // Per documento: true (Sì), false (No, mi serve supporto) o null (non ancora risposto).
-  gaia: Object.fromEntries(DOCUMENTI_GAIA.map(d => [d.id, null])),
+  gaia: Object.fromEntries(documentiRichiesti('rinnovo').map(d => [d.id, null])),
   riflessi: false,   // confermato di aver letto le indicazioni sul test dei riflessi
   supporto: false,
 };
 
 const rinnovo = () => stato.tipo === 'rinnovo';
+// I documenti da confermare: per il rinnovo c'è in più la foto della
+// patente CRI mandata per email.
+const documenti = () => documentiRichiesti(stato.tipo);
 
 function stepper() {
   return `<ol class="pt-passi" aria-label="Avanzamento">
@@ -158,15 +161,15 @@ const inviaDaQui = () => !servonoRiflessi(stato.patente);
 // la vedono. Sta nel passaggio da cui parte l'invio.
 const trappola = () => '<div class="pt-trappola" aria-hidden="true"><label>Sito web <input name="sito" tabindex="-1" autocomplete="off"></label></div>';
 
-const etichettaInvio = () => (DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false) ? 'Invia e chiedi supporto' : 'Invia la richiesta');
+const etichettaInvio = () => (documenti().some(d => stato.gaia[d.id] === false) ? 'Invia e chiedi supporto' : 'Invia la richiesta');
 
 function passoGaia() {
   return `
-    <h2 class="pp-gruppo" style="margin-top:0">Documenti su Gaia</h2>
-    <p class="pp-sotto">Rispondi a tutte e tre le domande. Se non riesci a caricare un documento su Gaia,
+    <h2 class="pp-gruppo" style="margin-top:0">Documenti</h2>
+    <p class="pp-sotto">Rispondi a tutte le domande. Se non riesci a caricare un documento su Gaia${rinnovo() ? ' o a inviare la foto della patente' : ''},
       rispondi «No, mi serve supporto»: la segreteria ti aiuterà.</p>
     <div class="pt-domande">
-      ${DOCUMENTI_GAIA.map(d => `<fieldset class="pt-domanda">
+      ${documenti().map(d => `<fieldset class="pt-domanda">
         <legend>${d.domanda}</legend>
         <div class="pt-sino">
           <label class="pp-tipo"><input type="radio" name="${d.id}" value="si" ${stato.gaia[d.id] === true ? 'checked' : ''}> <span>Sì</span></label>
@@ -230,7 +233,7 @@ function riepilogo(righe) {
 }
 
 function passoSupporto() {
-  const mancanti = DOCUMENTI_GAIA.filter(d => stato.gaia[d.id] !== true);
+  const mancanti = documenti().filter(d => stato.gaia[d.id] !== true);
   return `
     <div class="banner ok" style="margin:0 0 14px"><div class="bi">✓</div><div>
       <b>Richiesta di supporto inviata</b><div class="small">La segreteria l'ha ricevuta e ti aiuterà a caricare i documenti che mancano.</div></div></div>
@@ -245,7 +248,7 @@ function passoProcedura() {
     <div class="banner ok" style="margin:0 0 14px"><div class="bi">✓</div><div>
       <b>Richiesta inviata</b><div class="small">La segreteria l'ha ricevuta. Ecco come prosegue la procedura.</div></div></div>
     ${riepilogo(`${rinnovo() ? '' : `<div><span>Percorso</span><b>${esc(pr.etichetta)}</b></div>`}
-      <div><span>Documenti su Gaia</span><b>✓ tutti caricati</b></div>`)}
+      <div><span>Documenti</span><b>✓ tutti confermati</b></div>`)}
     <h2 class="pp-gruppo">Come prosegue la procedura</h2>
     ${pr.spiegazione
       ? `<div class="pt-testo">${pr.spiegazione}</div>`
@@ -286,12 +289,12 @@ function collega() {
     const avanti = form.querySelector('button[type=submit]');
     const supporto = form.querySelector('.pt-supporto');
     const aggiorna = () => {
-      DOCUMENTI_GAIA.forEach(d => {
+      documenti().forEach(d => {
         const v = form.querySelector(`input[name="${d.id}"]:checked`)?.value;
         stato.gaia[d.id] = v === 'si' ? true : v === 'no' ? false : null;
       });
-      const serve = DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
-      avanti.disabled = !DOCUMENTI_GAIA.every(d => stato.gaia[d.id] !== null);
+      const serve = documenti().some(d => stato.gaia[d.id] === false);
+      avanti.disabled = !documenti().every(d => stato.gaia[d.id] !== null);
       avanti.textContent = inviaDaQui() ? etichettaInvio() : 'Avanti';
       supporto.hidden = !serve;
     };
@@ -316,11 +319,11 @@ function collega() {
     const primo = form.querySelector('.pp-sbagliato');
     if (primo) { primo.scrollIntoView({ block: 'center', behavior: 'smooth' }); primo.querySelector('input')?.focus({ preventScroll: true }); return; }
 
-    if (qui === 'gaia' && DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === null)) return;
+    if (qui === 'gaia' && documenti().some(d => stato.gaia[d.id] === null)) return;
     // L'invio parte dai documenti, oppure dalla schermata dei riflessi
     // quando c'è.
     if ((qui === 'gaia' && inviaDaQui()) || qui === 'riflessi') {
-      const supporto = DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
+      const supporto = documenti().some(d => stato.gaia[d.id] === false);
       if (!await invia(form, { supporto })) return;
       stato.supporto = supporto;
     }

@@ -16,7 +16,7 @@ import { contaSupportoDaGestire, segnaNelMenu } from '../avviso.js';
 const aggiornaAvviso = () => contaSupportoDaGestire().then(segnaNelMenu).catch(() => {});
 
 const ETICHETTA_STATO = Object.fromEntries(STATI);
-const serveSupporto = (r) => documentiMancanti(r.documenti_gaia).length > 0;
+const serveSupporto = (r) => documentiMancanti(r.documenti_gaia, r.tipo).length > 0;
 
 export async function renderRichieste(view, ctx) {
   let elenco = await store.list();
@@ -92,7 +92,7 @@ export async function renderRichieste(view, ctx) {
   }
 
   function riga(r) {
-    const mancanti = documentiMancanti(r.documenti_gaia);
+    const mancanti = documentiMancanti(r.documenti_gaia, r.tipo);
     const tr = el(`<tr>
       <td style="white-space:nowrap">${esc(fmtDateTime(r.created_at))}</td>
       <td><b>${esc(r.cognome)} ${esc(r.nome)}</b></td>
