@@ -62,6 +62,12 @@ export function tipoRichiesta(id) {
   return TIPI_RICHIESTA.find(t => t.id === id) || null;
 }
 
+// Visita medica: per tutti, si prenota scrivendo nel gruppo WhatsApp. Il
+// modulo lo dice in un passaggio apposito, da confermare prima dell'invio.
+export const VISITA_MEDICA = {
+  gruppoWhatsapp: 'https://chat.whatsapp.com/H5sbWjaaUc81aOWzn8ey8w',
+};
+
 // Test dei riflessi: chi ottiene o rinnova la patente 5 o una superiore
 // (6, 7, 8) deve farlo, prenotandolo al Comitato Regionale Liguria. Il
 // modulo glielo dice in un passaggio apposito, da confermare prima

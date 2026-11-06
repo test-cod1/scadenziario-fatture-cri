@@ -7,37 +7,44 @@
 //    2. rinnovare la patente CRI o ottenerne una nuova;
 //    3. quale patente;
 //    4. i documenti su Gaia: per ognuno «Sì» o «No, mi serve supporto»;
-//    5. solo per la 5, 6, 7 o 8 (nuova o rinnovo): il test dei riflessi, da
+//    5. la visita medica: entrare nel gruppo WhatsApp e chiedere di
+//       prenotarla, da confermare;
+//    6. solo per la 5, 6, 7 o 8 (nuova o rinnovo): il test dei riflessi, da
 //       confermare;
-//    6. come prosegue (oppure, se ha chiesto supporto, cosa succede ora).
+//    7. come prosegue (oppure, se ha chiesto supporto, cosa succede ora).
 //
-//  La richiesta si invia superando i documenti, o la schermata dei
-//  riflessi quando c'è: va a /api/patenti, che
+//  La richiesta si invia dall'ultimo passaggio prima della fine (visita
+//  medica, o test dei riflessi quando c'è): va a /api/patenti, che
 //  ricontrolla i dati con le stesse regole (js/lib/patenti.mjs) e la salva
 //  per la segreteria. L'ultimo passaggio si apre solo a invio riuscito.
 //
 //  Sotto ogni passaggio ci sono tutte le domande e risposte
 //  (js/lib/faqPatenti.mjs), con la ricerca.
 // ============================================================
-import { PATENTI, PERCORSI, TIPI_RICHIESTA, documentiRichiesti, RINNOVO, TEST_RIFLESSI, patente, tipoRichiesta, servonoRiflessi, controllaRichiesta } from '../lib/patenti.mjs';
+import { PATENTI, PERCORSI, TIPI_RICHIESTA, documentiRichiesti, RINNOVO, TEST_RIFLESSI, VISITA_MEDICA, patente, tipoRichiesta, servonoRiflessi, controllaRichiesta } from '../lib/patenti.mjs';
 import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
 
 const zona = document.getElementById('modulo');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// I passaggi dipendono dalle scelte: chi ottiene o rinnova la patente 5 o
-// una superiore ha in più il passaggio del test dei riflessi, dopo i documenti.
+// I passaggi dipendono dalle scelte: dopo i documenti tutti hanno la
+// visita medica, e chi ottiene o rinnova la patente 5 o una superiore anche
+// il test dei riflessi. La richiesta si invia dall'ultimo passaggio prima
+// della fine.
 function passi() {
   return [
     { id: 'nome', etichetta: 'Nome', disegna: passoNome },
     { id: 'tipo', etichetta: 'Richiesta', disegna: passoTipo },
     { id: 'patente', etichetta: 'Patente', disegna: passoPatente },
     { id: 'gaia', etichetta: 'Documenti', disegna: passoGaia },
+    { id: 'visita', etichetta: 'Visita', disegna: passoVisita },
     ...(servonoRiflessi(stato.patente) ? [{ id: 'riflessi', etichetta: 'Riflessi', disegna: passoRiflessi }] : []),
     { id: 'fine', etichetta: 'Procedura', disegna: () => (stato.supporto ? passoSupporto() : passoProcedura()) },
   ];
 }
 const passoCorrente = () => passi()[stato.passo]?.id;
+// Da quale passaggio parte l'invio: quello subito prima della fine.
+const passoDiInvio = () => passi().at(-2).id;
 
 const stato = {
   passo: 0,
@@ -47,6 +54,7 @@ const stato = {
   patente: '',
   // Per documento: true (Sì), false (No, mi serve supporto) o null (non ancora risposto).
   gaia: Object.fromEntries(documentiRichiesti('rinnovo').map(d => [d.id, null])),
+  visita: false,     // confermato di aver capito come prenotare la visita medica
   riflessi: false,   // confermato di aver letto le indicazioni sul test dei riflessi
   supporto: false,
 };
@@ -152,16 +160,21 @@ function riquadroPercorso() {
 // avanti solo dopo aver risposto a tutte e tre; con almeno un «No» la
 // richiesta parte come richiesta di supporto (e la segreteria riceve
 // un'email e un avviso nel portale).
-// Di solito la richiesta si invia da qui; per chi deve fare il test dei
-// riflessi si invia invece dalla schermata successiva, dopo averla
-// confermata.
-const inviaDaQui = () => !servonoRiflessi(stato.patente);
+// La richiesta non parte da qui: dopo i documenti ci sono la visita medica
+// e (per le patenti dalla 5) il test dei riflessi, da confermare prima.
+const inviaDaQui = (id) => passoDiInvio() === id;
 
 // Trappola per i programmi che compilano i moduli da soli: le persone non
 // la vedono. Sta nel passaggio da cui parte l'invio.
 const trappola = () => '<div class="pt-trappola" aria-hidden="true"><label>Sito web <input name="sito" tabindex="-1" autocomplete="off"></label></div>';
 
 const etichettaInvio = () => (documenti().some(d => stato.gaia[d.id] === false) ? 'Invia e chiedi supporto' : 'Invia la richiesta');
+
+// I tasti in fondo a un passaggio: «Invia» se è quello da cui parte la
+// richiesta, altrimenti «Avanti».
+const tastiPassaggio = (id) => (inviaDaQui(id)
+  ? `${trappola()}${azioni(etichettaInvio())}<div class="pp-esito" role="status"></div>`
+  : azioni('Avanti'));
 
 function passoGaia() {
   return `
@@ -180,7 +193,35 @@ function passoGaia() {
       <b>Chiederai supporto alla segreteria</b>
       <div class="small">Inviando, la segreteria riceve la tua richiesta con i documenti che mancano e ti aiuta a completarla.</div>
     </div></div>
-    ${inviaDaQui() ? `${trappola()}${azioni(etichettaInvio())}<div class="pp-esito" role="status"></div>` : azioni('Avanti')}`;
+    ${tastiPassaggio('gaia')}`;
+}
+
+// --- Visita medica (per tutti) ---------------------------------------------
+// Si prenota scrivendo nel gruppo WhatsApp: il modulo dà il link al gruppo e
+// un messaggio già pronto da copiare. Va confermato prima di andare avanti.
+const messaggioVisita = () => `Ciao, sono ${stato.nome} ${stato.cognome}. Vorrei prenotare la visita medica per ${rinnovo() ? 'il rinnovo della' : 'ottenere la'} patente CRI ${stato.patente}.`;
+
+function passoVisita() {
+  return `
+    <h2 class="pp-gruppo" style="margin-top:0">Visita medica</h2>
+    <div class="banner warn" style="margin:0 0 16px"><div class="bi">🩺</div><div>
+      <b>Prenota la visita medica nel gruppo WhatsApp</b>
+      <div class="small">Entra nel gruppo e manda un messaggio chiedendo di prenotare la visita medica.</div>
+    </div></div>
+    <a class="btn pt-gruppo-wa" href="${esc(VISITA_MEDICA.gruppoWhatsapp)}" target="_blank" rel="noopener">Entra nel gruppo WhatsApp</a>
+
+    <label class="pt-link-etichetta" for="pt-msg-visita" style="margin-top:16px">Messaggio da mandare nel gruppo</label>
+    <div class="pt-msg-visita">
+      <p id="pt-msg-visita">${esc(messaggioVisita())}</p>
+      <button class="btn sm" type="button" data-copia-visita>Copia</button>
+    </div>
+
+    <div class="field" data-campo="visita" style="margin:16px 0 0">
+      <label class="pp-tipo pt-conferma"><input type="checkbox" name="visita" ${stato.visita ? 'checked' : ''}>
+        <span>Ho capito: entrerò nel gruppo WhatsApp e chiederò di prenotare la <b>visita medica</b>.</span></label>
+      <div class="pp-errore" role="alert"></div>
+    </div>
+    ${tastiPassaggio('visita')}`;
 }
 
 // --- Test dei riflessi (patenti 5, 6, 7 e 8, nuove o da rinnovare) -----------
@@ -217,9 +258,7 @@ function passoRiflessi() {
         <span>Ho letto: chiamerò il Comitato Regionale Liguria per fare il <b>test dei riflessi</b>.</span></label>
       <div class="pp-errore" role="alert"></div>
     </div>
-    ${trappola()}
-    ${azioni(etichettaInvio())}
-    <div class="pp-esito" role="status"></div>`;
+    ${tastiPassaggio('riflessi')}`;
 }
 
 // --- 5. Fine -------------------------------------------------------------------
@@ -295,11 +334,20 @@ function collega() {
       });
       const serve = documenti().some(d => stato.gaia[d.id] === false);
       avanti.disabled = !documenti().every(d => stato.gaia[d.id] !== null);
-      avanti.textContent = inviaDaQui() ? etichettaInvio() : 'Avanti';
+      avanti.textContent = inviaDaQui('gaia') ? etichettaInvio() : 'Avanti';
       supporto.hidden = !serve;
     };
     form.querySelectorAll('.pt-domanda input').forEach(c => c.addEventListener('change', aggiorna));
     aggiorna();
+  }
+  if (qui === 'visita') {
+    form.visita.addEventListener('change', () => { stato.visita = form.visita.checked; segna(form, 'visita', ''); });
+    form.querySelector('[data-copia-visita]').addEventListener('click', async (e) => {
+      const btn = e.currentTarget;
+      try { await navigator.clipboard.writeText(messaggioVisita()); btn.textContent = 'Copiato ✓'; }
+      catch { btn.textContent = 'Selezionalo e copialo'; }
+      setTimeout(() => { btn.textContent = 'Copia'; }, 2500);
+    });
   }
   if (qui === 'riflessi') {
     form.riflessi.addEventListener('change', () => { stato.riflessi = form.riflessi.checked; segna(form, 'riflessi', ''); });
@@ -315,14 +363,15 @@ function collega() {
     }
     if (qui === 'tipo') segna(form, 'tipo', tipoRichiesta(stato.tipo) ? '' : 'Scegli se vuoi rinnovare la patente o ottenerne una nuova.');
     if (qui === 'patente') segna(form, 'patente', patente(stato.patente) ? '' : (rinnovo() ? 'Scegli la patente da rinnovare.' : 'Scegli la patente che vuoi ottenere.'));
+    if (qui === 'visita') segna(form, 'visita', stato.visita ? '' : 'Conferma di aver capito come prenotare la visita medica.');
     if (qui === 'riflessi') segna(form, 'riflessi', stato.riflessi ? '' : 'Conferma di aver letto le indicazioni sul test dei riflessi.');
     const primo = form.querySelector('.pp-sbagliato');
     if (primo) { primo.scrollIntoView({ block: 'center', behavior: 'smooth' }); primo.querySelector('input')?.focus({ preventScroll: true }); return; }
 
     if (qui === 'gaia' && documenti().some(d => stato.gaia[d.id] === null)) return;
-    // L'invio parte dai documenti, oppure dalla schermata dei riflessi
-    // quando c'è.
-    if ((qui === 'gaia' && inviaDaQui()) || qui === 'riflessi') {
+    // L'invio parte dall'ultimo passaggio prima della fine: la visita
+    // medica, o il test dei riflessi quando c'è.
+    if (inviaDaQui(qui)) {
       const supporto = documenti().some(d => stato.gaia[d.id] === false);
       if (!await invia(form, { supporto })) return;
       stato.supporto = supporto;

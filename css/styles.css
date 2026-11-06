@@ -1170,6 +1170,12 @@ tr.str-inattivo td{opacity:.6}
 .pt-whatsapp:hover{background:#1ebe5b;border-color:#1ebe5b;color:#fff}
 /* Passaggio del test dei riflessi. */
 .pt-telefono{font-weight:700;white-space:nowrap;color:var(--cri-red-dark)}
+/* Passaggio della visita medica: il tasto del gruppo WhatsApp e il
+   messaggio da copiare. */
+.pt-gruppo-wa{width:100%;justify-content:center;padding:13px;background:#25d366;border-color:#25d366;color:#fff;font-weight:700}
+.pt-gruppo-wa:hover{background:#1ebe5b;border-color:#1ebe5b;color:#fff}
+.pt-msg-visita{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:12px 14px}
+.pt-msg-visita p{flex:1;margin:0;font-size:14px;line-height:1.5}
 .pt-sottotitolo{font-size:15px;margin:4px 0 6px}
 ul.pt-testo{margin:0 0 14px;padding-left:20px}
 p.pt-testo{margin:0 0 8px}
@@ -1224,5 +1230,8 @@ p.pt-testo{margin:0 0 8px}
 .pt-trappola{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
 /* Con cinque passaggi le etichette non ci stanno tutte: sotto i 760px si
    vede solo quella del passaggio in corso, gli altri restano un numero. */
-@media(max-width:760px){.pt-passi{gap:4px}.pt-passi .t{display:none}.pt-passi li{flex:0 0 auto;padding:6px;gap:6px}.pt-passi li.attivo{flex:1}.pt-passi li.attivo .t{display:inline}}
+@media(max-width:760px){.pt-passi{gap:4px}.pt-passi .t{display:none}.pt-passi li{flex:0 0 auto;padding:6px;gap:6px}.pt-passi li.attivo{flex:1}.pt-passi li.attivo .t{display:inline}
+  /* Con sette passaggi, quelli non in corso diventano solo un pallino:
+     lo spazio resta al nome di quello in corso. */
+  .pt-passi li:not(.attivo){padding:2px;background:transparent}.pt-passi li:not(.attivo) .n{width:22px;height:22px;font-size:11px}}
 @media(max-width:560px){.pt-patenti{grid-template-columns:1fr}}
