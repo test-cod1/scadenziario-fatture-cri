@@ -6,7 +6,7 @@
 //  volesse usarlo per riempire la tabella.
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
-import { controllaRichiesta, PATENTI, percorsoDi } from '../js/lib/patenti.mjs';
+import { controllaRichiesta, PATENTI, percorsoDi, documentiMancanti } from '../js/lib/patenti.mjs';
 import { onRequestPost, MAX_PER_MITTENTE, MAX_AL_GIORNO, impronta } from '../functions/api/patenti.js';
 
 gruppo('Patenti — regole del modulo');
@@ -30,9 +30,17 @@ prova('nome, cognome e una patente da 1 a 8 sono obbligatori', () => {
   vero(!controllaRichiesta(null).ok);
 });
 
-prova('senza tutti e tre i documenti su Gaia non si invia', () => {
+prova('senza tutti e tre i documenti su Gaia non si invia, se non chiedendo supporto', () => {
   uguale(Object.keys(controllaRichiesta({ ...OK, documenti_gaia: { ...TUTTI, carta_identita: false } }).errori), ['documenti_gaia']);
   uguale(Object.keys(controllaRichiesta({ ...OK, documenti_gaia: { ...TUTTI, fototessera: 'true' } }).errori), ['documenti_gaia'], 'vale solo true');
+  const r = controllaRichiesta({ ...OK, documenti_gaia: { ...TUTTI, carta_identita: false }, supporto: true });
+  vero(r.ok, JSON.stringify(r.errori));
+  uguale(r.dati.documenti_gaia, ['fototessera', 'patente_civile']);
+  uguale(documentiMancanti(r.dati.documenti_gaia).map(d => d.id), ['carta_identita']);
+});
+
+prova('chi ha tutti i documenti non può chiedere supporto', () => {
+  uguale(Object.keys(controllaRichiesta({ ...OK, supporto: true }).errori), ['documenti_gaia']);
 });
 
 prova('i nomi hanno un tetto di lunghezza', () => {
@@ -94,6 +102,14 @@ prova('corpo non JSON o troppo grande', async () => {
   righe = [];
   uguale((await chiama('{rotto')).status, 400);
   uguale((await chiama({ ...OK, nome: 'x'.repeat(5000) })).status, 413);
+});
+
+prova('una richiesta di supporto si salva con i soli documenti caricati', async () => {
+  righe = [];
+  const r = await chiama({ ...OK, documenti_gaia: { fototessera: true, patente_civile: false, carta_identita: false }, supporto: true });
+  uguale(r.status, 200);
+  uguale(righe[0].documenti_gaia, ['fototessera']);
+  vero(!('supporto' in righe[0]), 'il supporto non ha una colonna: lo dicono i documenti mancanti');
 });
 
 prova('il campo trappola risponde ok senza salvare', async () => {

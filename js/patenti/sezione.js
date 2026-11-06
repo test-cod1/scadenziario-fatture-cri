@@ -44,8 +44,9 @@ function renderLink(view) {
       <h2 style="margin:0 0 12px;font-size:16px">I passaggi del modulo</h2>
       <ol style="margin:0;padding-left:20px;line-height:1.7">
         <li><b>I tuoi dati</b>: nome, cognome e patente richiesta (da 1 a 8).</li>
-        <li><b>Documenti su Gaia</b>: conferme obbligatorie, tutte da spuntare per proseguire —
-          <ul style="margin:2px 0 4px">${DOCUMENTI_GAIA.map(d => `<li>${d.testo.replace(/^Ho inserito su Gaia /, '')}</li>`).join('')}</ul></li>
+        <li><b>Documenti su Gaia</b>: una domanda per documento, Sì o No —
+          <ul style="margin:2px 0 4px">${DOCUMENTI_GAIA.map(d => `<li>${esc(d.breve)}</li>`).join('')}</ul>
+          Con tutti Sì la richiesta parte; con un No il volontario può chiedere <b>supporto</b>, e la richiesta arriva segnata «serve supporto».</li>
         <li><b>Procedura</b>: la spiegazione di come si prosegue, in base al percorso della patente.</li>
       </ol>
       <h3 style="margin:18px 0 8px;font-size:14px">Percorsi</h3>

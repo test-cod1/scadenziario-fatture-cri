@@ -47,13 +47,19 @@ export function percorsoDi(numero) {
   return p ? PERCORSI[p.percorso] : null;
 }
 
-// Documenti che il volontario deve aver caricato su Gaia prima di andare
-// avanti: vanno spuntati tutti.
+// Documenti che il volontario deve aver caricato su Gaia. Il modulo glieli
+// chiede uno per uno (Sì / No): con tutti Sì la richiesta parte normale,
+// con almeno un No può chiedere supporto alla segreteria.
 export const DOCUMENTI_GAIA = [
-  { id: 'fototessera', testo: 'Ho inserito su Gaia una <b>fototessera formale</b>.' },
-  { id: 'patente_civile', testo: 'Ho inserito su Gaia la <b>scansione fronte e retro della patente civile</b>.' },
-  { id: 'carta_identita', testo: 'Ho inserito su Gaia la <b>scansione fronte e retro della carta d\'identità</b>.' },
+  { id: 'fototessera', domanda: 'Hai caricato su Gaia una <b>fototessera formale</b>?', breve: 'fototessera formale' },
+  { id: 'patente_civile', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della patente civile</b>?', breve: 'patente civile, fronte e retro' },
+  { id: 'carta_identita', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della carta d\'identità</b>?', breve: 'carta d\'identità, fronte e retro' },
 ];
+
+// I documenti che mancano a una richiesta salvata (quelli non confermati).
+export function documentiMancanti(caricati) {
+  return DOCUMENTI_GAIA.filter(d => !(caricati || []).includes(d.id));
+}
 
 // Stati di una richiesta, per la segreteria.
 export const STATI = [
@@ -82,6 +88,15 @@ export function controllaRichiesta(grezzi) {
   const p = patente(dati.patente);
   if (!p) errori.patente = 'Scegli la patente che richiedi.';
   else dati.percorso = p.percorso;
-  if (dati.documenti_gaia.length !== DOCUMENTI_GAIA.length) errori.documenti_gaia = 'Conferma di aver inserito su Gaia tutti i documenti.';
+  // Senza tutti i documenti si può solo chiedere supporto, e chiedere
+  // supporto ha senso solo se ne manca almeno uno. Il supporto non ha una
+  // colonna sua: una richiesta salvata con documenti mancanti È una
+  // richiesta di supporto.
+  const completi = dati.documenti_gaia.length === DOCUMENTI_GAIA.length;
+  if (g.supporto === true) {
+    if (completi) errori.documenti_gaia = 'Hai caricato tutti i documenti: invia la richiesta normalmente.';
+  } else if (!completi) {
+    errori.documenti_gaia = 'Conferma di aver caricato su Gaia tutti i documenti, oppure chiedi supporto.';
+  }
   return { ok: !Object.keys(errori).length, errori, dati };
 }

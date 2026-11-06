@@ -24,8 +24,10 @@ const stato = {
   nome: '',
   cognome: '',
   patente: '',
-  gaia: Object.fromEntries(DOCUMENTI_GAIA.map(d => [d.id, false])),
+  // Per documento: true (Sì), false (No) o null (non ancora risposto).
+  gaia: Object.fromEntries(DOCUMENTI_GAIA.map(d => [d.id, null])),
   inviata: false,
+  supporto: false,
 };
 
 function stepper() {
@@ -36,7 +38,7 @@ function stepper() {
 }
 
 function disegna() {
-  const corpo = [passoDati, passoGaia, passoProcedura][stato.passo]();
+  const corpo = [passoDati, passoGaia, stato.supporto ? passoSupporto : passoProcedura][stato.passo]();
   zona.innerHTML = `
     <div class="card pp-card"><div class="card-b">
       <h1 class="pp-titolo">Patenti CRI</h1>
@@ -85,16 +87,27 @@ function riquadroPercorso() {
 }
 
 // --- Passo 2: documenti su Gaia ---------------------------------------------
+// Una domanda per documento, Sì o No. Con tutti Sì si invia la richiesta;
+// con almeno un No compare il riquadro del supporto.
 function passoGaia() {
   return `
     <h2 class="pp-gruppo" style="margin-top:0">Documenti su Gaia</h2>
-    <p class="pp-sotto">Prima di proseguire carica su Gaia questi documenti, poi conferma ciascuno.
-      Puoi andare avanti solo quando li hai confermati tutti.</p>
-    <div class="pt-conferme">
-      ${DOCUMENTI_GAIA.map(d => `<label class="pp-tipo pt-conferma">
-        <input type="checkbox" name="${d.id}" ${stato.gaia[d.id] ? 'checked' : ''}>
-        <span>${d.testo}</span></label>`).join('')}
+    <p class="pp-sotto">Rispondi a ogni domanda. Se non hai ancora caricato un documento, caricalo su Gaia
+      e poi rispondi Sì; se non ci riesci, puoi chiedere supporto alla segreteria.</p>
+    <div class="pt-domande">
+      ${DOCUMENTI_GAIA.map(d => `<fieldset class="pt-domanda">
+        <legend>${d.domanda}</legend>
+        <div class="pt-sino">
+          <label class="pp-tipo"><input type="radio" name="${d.id}" value="si" ${stato.gaia[d.id] === true ? 'checked' : ''}> <span>Sì</span></label>
+          <label class="pp-tipo"><input type="radio" name="${d.id}" value="no" ${stato.gaia[d.id] === false ? 'checked' : ''}> <span>No</span></label>
+        </div></fieldset>`).join('')}
     </div>
+    <div class="banner warn pt-supporto" hidden style="margin:14px 0 0"><div class="bi">🤝</div><div>
+      <b>Ti manca qualche documento?</b>
+      <div class="small">Caricalo su Gaia e cambia la risposta in Sì. Se non riesci, chiedi supporto: la segreteria riceve la tua
+        richiesta con i documenti che mancano e ti aiuta a completarla.</div>
+      <button class="btn" type="button" data-supporto style="margin-top:10px">No, mi serve supporto</button>
+    </div></div>
     <!-- Trappola per i programmi che compilano i moduli da soli: le persone non la vedono. -->
     <div class="pt-trappola" aria-hidden="true"><label>Sito web <input name="sito" tabindex="-1" autocomplete="off"></label></div>
     <div class="pp-azioni pt-azioni">
@@ -102,6 +115,21 @@ function passoGaia() {
       <button class="btn primary" type="submit">Invia la richiesta</button>
     </div>
     <div class="pp-esito" role="status"></div>`;
+}
+
+// --- Passo 3 per chi ha chiesto supporto ------------------------------------
+function passoSupporto() {
+  const mancanti = DOCUMENTI_GAIA.filter(d => stato.gaia[d.id] !== true);
+  return `
+    <div class="banner ok" style="margin:0 0 14px"><div class="bi">✓</div><div>
+      <b>Richiesta di supporto inviata</b><div class="small">La segreteria l'ha ricevuta e ti aiuterà a caricare i documenti che mancano.</div></div></div>
+    <div class="pp-rif">
+      <div><span>Volontario</span><b>${esc(stato.nome)} ${esc(stato.cognome)}</b></div>
+      <div><span>Patente richiesta</span><b>Patente ${esc(stato.patente)}</b></div>
+      <div><span>Documenti da caricare</span><b>${mancanti.map(d => esc(d.breve)).join('<br>')}</b></div>
+    </div>
+    <p style="margin:14px 0 0">Non serve compilare di nuovo il modulo: la tua richiesta è già registrata. Se nel frattempo riesci a caricare
+      i documenti su Gaia, avvisa la segreteria del tuo Comitato.</p>`;
 }
 
 // --- Passo 3: procedura ----------------------------------------------------
@@ -141,12 +169,20 @@ function collega() {
 
   if (stato.passo === 1) {
     const avanti = form.querySelector('button[type=submit]');
+    const supporto = form.querySelector('.pt-supporto');
     const aggiorna = () => {
-      DOCUMENTI_GAIA.forEach(d => { stato.gaia[d.id] = form[d.id].checked; });
-      avanti.disabled = !DOCUMENTI_GAIA.every(d => stato.gaia[d.id]);
+      DOCUMENTI_GAIA.forEach(d => {
+        const v = form.querySelector(`input[name="${d.id}"]:checked`)?.value;
+        stato.gaia[d.id] = v === 'si' ? true : v === 'no' ? false : null;
+      });
+      avanti.disabled = !DOCUMENTI_GAIA.every(d => stato.gaia[d.id] === true);
+      supporto.hidden = !DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
     };
-    form.querySelectorAll('input[type=checkbox]').forEach(c => c.addEventListener('change', aggiorna));
+    form.querySelectorAll('.pt-domanda input').forEach(c => c.addEventListener('change', aggiorna));
     aggiorna();
+    form.querySelector('[data-supporto]').addEventListener('click', async () => {
+      if (await invia(form, { supporto: true })) { stato.supporto = true; vai(2); }
+    });
   }
 
   form.addEventListener('submit', async (e) => {
@@ -170,10 +206,11 @@ function collega() {
   });
 }
 
-async function invia(form) {
-  const corpo = { nome: stato.nome, cognome: stato.cognome, patente: stato.patente, documenti_gaia: stato.gaia, sito: form.sito.value };
+async function invia(form, { supporto = false } = {}) {
+  const corpo = { nome: stato.nome, cognome: stato.cognome, patente: stato.patente, documenti_gaia: stato.gaia, sito: form.sito.value, supporto };
   if (!controllaRichiesta(corpo).ok) return false;
-  const btn = form.querySelector('button[type=submit]');
+  const btn = form.querySelector(supporto ? '[data-supporto]' : 'button[type=submit]');
+  const testo = btn.textContent;
   const esito = form.querySelector('.pp-esito');
   btn.disabled = true; btn.textContent = 'Invio in corso…'; esito.innerHTML = '';
   let r;
@@ -183,7 +220,7 @@ async function invia(form) {
     try { dati = await res.json(); } catch { /* risposta non JSON: vale lo stato */ }
     r = { ok: res.ok, ...dati };
   } catch { r = { ok: false, error: 'Connessione assente: riprova fra un momento.' }; }
-  btn.disabled = false; btn.textContent = 'Invia la richiesta';
+  btn.disabled = false; btn.textContent = testo;
   if (r.ok) { stato.inviata = true; return true; }
   esito.innerHTML = `<div class="banner danger" style="margin:14px 0 0"><div class="bi">⚠️</div><div>${esc(r.error || 'Invio non riuscito.')}</div></div>`;
   return false;

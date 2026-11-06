@@ -41,8 +41,10 @@ const NO_CACHE_PATHS = ['/api/'];
 // compila il modulo delle patenti): non sono il guscio. Senza questa riga,
 // un collega col portale installato che apre il link per controllarlo
 // vedrebbe il portale al posto del modulo, perché ogni navigazione viene
-// servita col guscio.
-const PAGINE_PUBBLICHE = ['/patenti.html'];
+// servita col guscio. Ogni pagina c'è due volte: Cloudflare Pages rimanda
+// «/patenti.html» a «/patenti», ed è quest'ultimo l'indirizzo che il
+// browser chiede davvero.
+const PAGINE_PUBBLICHE = ['/patenti.html', '/patenti'];
 
 // Indirizzo del guscio dell'applicazione. Il portale è una pagina sola con le
 // rotte nel frammento (#/trasporti/…), che al server non arriva: qualunque

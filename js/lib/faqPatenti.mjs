@@ -33,7 +33,8 @@ export const FAQ = [
         d: 'Perché devo caricare i documenti su Gaia?',
         r: `Fototessera, patente civile e carta d'identità servono a chi istruisce la pratica per verificare i tuoi requisiti
           ed emettere la patente. Caricali su Gaia prima di inviare il modulo: la segreteria li trova lì, senza che tu debba
-          mandarli altrove. Usa scansioni leggibili, fronte e retro.`,
+          mandarli altrove. Usa scansioni leggibili, fronte e retro. Se non riesci a caricarne uno, rispondi No e usa
+          il tasto <b>«No, mi serve supporto»</b>: la segreteria riceve la richiesta con i documenti che mancano e ti aiuta.`,
         fonte: 'Procedura del Comitato',
       },
       {

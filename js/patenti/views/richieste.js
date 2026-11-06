@@ -2,13 +2,16 @@
 //  RICHIESTE DI PATENTE — la pagina principale della sezione.
 //  Quello che i volontari hanno mandato dal modulo pubblico, le più
 //  recenti in cima. La segreteria segna a che punto è ognuna e ci scrive
-//  le sue note; l'admin della sezione può eliminarle.
+//  le sue note; l'admin della sezione può eliminarle. Quelle a cui manca
+//  qualche documento su Gaia sono richieste di supporto: il volontario ha
+//  risposto No e ha chiesto aiuto alla segreteria.
 // ============================================================
 import { richieste as store } from '../data/store.js';
-import { PERCORSI, STATI, DOCUMENTI_GAIA } from '../../lib/patenti.mjs';
+import { PERCORSI, STATI, documentiMancanti } from '../../lib/patenti.mjs';
 import { el, clear, esc, toast, confirmDialog, openModal, rendiCliccabile, fmtDateTime } from '../../lib/ui.js';
 
 const ETICHETTA_STATO = Object.fromEntries(STATI);
+const serveSupporto = (r) => documentiMancanti(r.documenti_gaia).length > 0;
 
 export async function renderRichieste(view, ctx) {
   let elenco = await store.list();
@@ -25,6 +28,7 @@ export async function renderRichieste(view, ctx) {
       <input type="text" id="q" placeholder="Cerca per nome o cognome…"></div>
     <select id="f-stato" aria-label="Filtra per stato">
       <option value="aperte">Da gestire</option>
+      <option value="supporto">Serve supporto</option>
       <option value="">Tutte</option>
       ${STATI.map(([v, l]) => `<option value="${v}">${esc(l)}</option>`).join('')}
     </select>
@@ -47,6 +51,13 @@ export async function renderRichieste(view, ctx) {
   function disegnaStats() {
     clear(stats);
     const filtro = $('#f-stato').value;
+    const nSupporto = elenco.filter(r => serveSupporto(r) && r.stato !== 'completata').length;
+    if (nSupporto) {
+      const nodo = el(`<div class="stat stat-clickable warn" aria-pressed="${filtro === 'supporto'}">
+        <div class="k">Serve supporto</div><div class="v">${nSupporto}</div><div class="s">documenti mancanti su Gaia</div></div>`);
+      rendiCliccabile(nodo, () => { $('#f-stato').value = filtro === 'supporto' ? 'aperte' : 'supporto'; draw(); });
+      stats.appendChild(nodo);
+    }
     for (const [v, l] of STATI) {
       const n = elenco.filter(r => r.stato === v).length;
       const classe = v === 'nuova' ? (n ? 'warn' : '') : v === 'completata' ? 'ok' : 'accent';
@@ -65,7 +76,7 @@ export async function renderRichieste(view, ctx) {
     const st = $('#f-stato').value;
     const pat = $('#f-patente').value;
     const righe = elenco
-      .filter(r => !st || (st === 'aperte' ? r.stato !== 'completata' : r.stato === st))
+      .filter(r => !st || (st === 'aperte' ? r.stato !== 'completata' : st === 'supporto' ? serveSupporto(r) && r.stato !== 'completata' : r.stato === st))
       .filter(r => !pat || String(r.patente) === pat)
       .filter(r => !q || `${r.nome} ${r.cognome} ${r.cognome} ${r.nome}`.toLowerCase().includes(q));
     clear(tbody);
@@ -76,12 +87,13 @@ export async function renderRichieste(view, ctx) {
   }
 
   function riga(r) {
-    const docs = (r.documenti_gaia || []).length;
+    const mancanti = documentiMancanti(r.documenti_gaia);
     const tr = el(`<tr>
       <td style="white-space:nowrap">${esc(fmtDateTime(r.created_at))}</td>
       <td><b>${esc(r.cognome)} ${esc(r.nome)}</b></td>
       <td style="white-space:nowrap">Patente ${r.patente}<div class="hint">${esc(PERCORSI[r.percorso]?.etichetta || '')}</div></td>
-      <td>${docs === DOCUMENTI_GAIA.length ? '<span class="chip">✓ tutti confermati</span>' : `<span class="chip red">${docs} di ${DOCUMENTI_GAIA.length}</span>`}</td>
+      <td>${!mancanti.length ? '<span class="chip">✓ tutti caricati</span>'
+        : `<span class="chip red">🆘 serve supporto</span><div class="hint" style="margin-top:4px">Mancano: ${mancanti.map(d => esc(d.breve)).join(', ')}</div>`}</td>
       <td><select aria-label="Stato della richiesta">${STATI.map(([v, l]) => `<option value="${v}" ${r.stato === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></td>
       <td style="max-width:260px">${r.note ? esc(r.note) : '<span class="hint">—</span>'}</td>
       <td style="white-space:nowrap;text-align:right">
