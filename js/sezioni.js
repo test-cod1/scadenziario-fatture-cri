@@ -45,6 +45,9 @@ const ICONE = {
   // che una scadenza è — di qualunque tipo sia.
   scadenze: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <path d="M9 3h18M9 33h18"/><path d="M11 3c0 8 14 9 14 15S11 25 11 33"/><path d="M25 3c0 8-14 9-14 15s14 7 14 15"/><path d="M14 29h8"/></svg>`,
+  // Una tessera: la foto a sinistra e le righe dei dati, cioè una patente.
+  patenti: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <rect x="2" y="7" width="32" height="22" rx="3"/><circle cx="11" cy="16" r="3.2"/><path d="M6 24c1-3 3-4 5-4s4 1 5 4"/><path d="M20 14h9M20 19h9M20 24h6"/></svg>`,
 };
 
 export const SEZIONI = [
@@ -206,6 +209,23 @@ export const SEZIONI = [
     ],
     tour: () => import('./tour/scadenze.js'),
     icona: ICONE.scadenze,
+  },
+  {
+    id: 'patenti',
+    label: 'Patenti',
+    descrizione: 'Emissione e rinnovo delle patenti CRI: le richieste dei volontari e il link per mandarle.',
+    emoji: '🪪',
+    colore: '#0e7490',
+    ombra: 'rgba(14,116,144,.22)',
+    tipo: 'interna',
+    home: '#/patenti/richieste',
+    menu: [
+      { id: 'richieste', icon: '📋', label: 'Richieste' },
+      { id: 'link', icon: '🔗', label: 'Link per i volontari' },
+      { id: 'domande', icon: '❓', label: 'Domande e risposte' },
+    ],
+    tour: () => import('./tour/patenti.js'),
+    icona: ICONE.patenti,
   },
 ];
 

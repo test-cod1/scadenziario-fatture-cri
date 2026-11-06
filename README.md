@@ -11,6 +11,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
 | **Direttore** | attiva: gli impegni della direzione, ordinati per urgenza, importanza e scadenza |
 | **Analisi** | attiva: i centri di costo — entrate e uscite della singola attività, lette dalle fatture |
+| **Patenti** | attiva: le richieste di emissione o rinnovo delle patenti CRI che i volontari mandano da un modulo pubblico, con le domande e risposte |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 
@@ -141,6 +142,22 @@ I calcoli stanno in [`js/formazione/corsi.js`](js/formazione/corsi.js), fissati 
 La sezione ha il suo **tour guidato** (il pulsante 🎓): una venticinquina di passi che attraversano preventivi, editor, registro dei corsi, statistiche, rubrica e impostazioni: il copione sta in [`js/tour/formazione.js`](js/tour/formazione.js). Passa davvero dall'editor di un preventivo nuovo, ma non salva nulla.
 
 Richiede [`supabase/patch-2026-09-06-formazione.sql`](supabase/patch-2026-09-06-formazione.sql). Il catalogo di partenza — i sei corsi del listino — lo crea l'app alla prima apertura delle Impostazioni, **con i prezzi a zero**: vanno impostati lì prima del primo preventivo, e finché un corso resta a zero l'editor lo segnala.
+
+## Sezione Patenti
+
+Accompagna i volontari nella richiesta di emissione o rinnovo della **patente di servizio CRI**. La segreteria manda a tutti lo stesso link, `…/patenti.html` (pagina **🔗 Link per i volontari**), che apre un **modulo pubblico** in tre passaggi, senza login:
+
+1. nome, cognome e patente richiesta (1–8), con il percorso che ne segue: conversione diretta (1, 2, 3), con prova pratica (4, 6, 7, 8) o con esame (5);
+2. la conferma di aver caricato su Gaia fototessera, patente civile e carta d'identità (fronte e retro): servono tutte e tre per inviare;
+3. il riepilogo e la spiegazione di come prosegue la procedura (il testo per ogni percorso sta in `PERCORSI` di [`js/lib/patenti.mjs`](js/lib/patenti.mjs)).
+
+La richiesta parte confermando il secondo passaggio e arriva in **📋 Richieste**, dove la segreteria la segna *Nuova*, *In lavorazione* o *Completata* e ci scrive le sue note; solo l'admin della sezione elimina. Dal portale non si possono cambiare i dati inviati dal volontario (lo impedisce anche il database: `grant update` solo su stato e note).
+
+**Domande e risposte.** In fondo al modulo e nella pagina **❓ Domande e risposte** c'è una trentina di domande, con ricerca, su requisiti, visita medica, prova pratica, validità, rinnovo e patente digitale. Sono tratte dal *Testo Unico CRI norme per la circolazione dei veicoli* (rev. 2 del 22/10/2026) e dalle note CRI prot. 2025/63182 e 2025/63883 di giugno 2025; ogni risposta cita l'articolo o la nota da cui viene. Stanno in [`js/lib/faqPatenti.mjs`](js/lib/faqPatenti.mjs): quando il Testo Unico cambia, è l'unico file da aggiornare.
+
+**Sicurezza.** Il link è uno per tutti, quindi [`/api/patenti`](functions/api/patenti.js) non legge mai niente, ricontrolla i dati con le stesse regole del modulo, scrive con la service role key e ha due tetti: 5 invii l'ora dallo stesso indirizzo (se ne salva solo un'impronta, mai l'IP) e 300 al giorno in tutto. Un campo nascosto ferma i programmi che compilano i moduli da soli.
+
+Richiede [`supabase/patch-2026-11-06-patenti.sql`](supabase/patch-2026-11-06-patenti.sql) e il secret `SUPABASE_SERVICE_ROLE_KEY`.
 
 ## Sezione Direttore
 

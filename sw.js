@@ -37,6 +37,12 @@ const PRECACHE = [/* __PRECACHE__ */];
 const IN_SVILUPPO = VERSIONE.startsWith('__');
 const CACHE_NAME = IN_SVILUPPO ? 'amministrazione-cri-v2' : `amministrazione-cri-${VERSIONE}`;
 const NO_CACHE_PATHS = ['/api/'];
+// Le pagine pubbliche, aperte da chi non usa il portale (il volontario che
+// compila il modulo delle patenti): non sono il guscio. Senza questa riga,
+// un collega col portale installato che apre il link per controllarlo
+// vedrebbe il portale al posto del modulo, perché ogni navigazione viene
+// servita col guscio.
+const PAGINE_PUBBLICHE = ['/patenti.html'];
 
 // Indirizzo del guscio dell'applicazione. Il portale è una pagina sola con le
 // rotte nel frammento (#/trasporti/…), che al server non arriva: qualunque
@@ -83,6 +89,7 @@ self.addEventListener('fetch', (event) => {
   if (request.method !== 'GET') return;
   if (url.origin !== self.location.origin) return;
   if (NO_CACHE_PATHS.some((p) => url.pathname.startsWith(p))) return;
+  if (PAGINE_PUBBLICHE.includes(url.pathname)) return;
 
   event.respondWith(IN_SVILUPPO ? daReteConRiserva(request) : daCacheDellaVersione(request));
 });

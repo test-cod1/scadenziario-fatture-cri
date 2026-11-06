@@ -452,6 +452,10 @@ async function route() {
       const { renderScadenze } = await import('./scadenze/sezione.js');
       return await disegna(z => renderScadenze(z, ctx, sub, param));
     }
+    if (sezione.id === 'patenti') {
+      const { renderPatenti } = await import('./patenti/sezione.js');
+      return await disegna(z => renderPatenti(z, ctx, sub, param));
+    }
     if (sezione.id === 'analisi') {
       const { renderAnalisi } = await import('./analisi/sezione.js');
       return await disegna(z => renderAnalisi(z, ctx, sub, param));

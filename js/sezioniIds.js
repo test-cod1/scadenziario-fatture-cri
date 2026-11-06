@@ -26,4 +26,5 @@ export const ID_SEZIONI = [
   'direttore',
   'analisi',
   'scadenze',
+  'patenti',
 ];
