@@ -119,9 +119,11 @@ function percorsoScelto() {
   return p ? PERCORSI[p.percorso] : null;
 }
 
+// Il riquadro con il percorso compare solo per una nuova patente: per il
+// rinnovo non aggiunge niente a quello che il volontario ha già scelto.
 function riquadroPercorso() {
   const pr = percorsoScelto();
-  if (!pr) return '';
+  if (!pr || rinnovo()) return '';
   return `<div class="banner info" style="margin:4px 0 0"><div class="bi">ℹ️</div><div>
     <b>Patente ${esc(stato.patente)}: ${esc(pr.etichetta.toLowerCase())}</b>
     <div class="small">${esc(pr.breve)}</div></div></div>`;
