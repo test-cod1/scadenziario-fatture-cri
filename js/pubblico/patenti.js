@@ -22,8 +22,8 @@ import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
 const zona = document.getElementById('modulo');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// I passaggi dipendono dalle scelte: chi rinnova una patente superiore alla
-// 5 ha in più il passaggio del test dei riflessi, dopo i documenti.
+// I passaggi dipendono dalle scelte: chi rinnova la patente 5 o una
+// superiore ha in più il passaggio del test dei riflessi, dopo i documenti.
 function passi() {
   return [
     { id: 'nome', etichetta: 'Nome', disegna: passoNome },
@@ -168,7 +168,7 @@ function passoGaia() {
     <div class="pp-esito" role="status"></div>`;
 }
 
-// --- Test dei riflessi (rinnovo delle patenti 6, 7 e 8) ----------------------
+// --- Test dei riflessi (rinnovo delle patenti 5, 6, 7 e 8) -------------------
 // Arriva dopo l'invio: la richiesta è già partita, qui il volontario scopre
 // che cosa deve fare in più. Non c'è «Indietro», perché tornando ai
 // documenti si rimanderebbe la richiesta.
@@ -261,6 +261,9 @@ function collega() {
     form.querySelectorAll('input[name=patente]').forEach(r => r.addEventListener('change', () => {
       stato.patente = r.value;
       form.querySelector('.pt-percorso').innerHTML = riquadroPercorso();
+      // La barra dei passaggi cambia subito se compare (o sparisce) il test
+      // dei riflessi.
+      zona.querySelector('.pt-passi').outerHTML = stepper();
       segna(form, 'patente', '');
     }));
   }

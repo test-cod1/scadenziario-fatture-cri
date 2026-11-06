@@ -25,9 +25,9 @@ prova('una richiesta in regola passa, ripulita e col suo percorso', () => {
   uguale(r.dati, { nome: 'Mario', cognome: 'Rossi', tipo: 'nuova', patente: 5, documenti_gaia: ['fototessera', 'patente_civile', 'carta_identita'], percorso: 'esame' });
 });
 
-prova('il test dei riflessi serve solo rinnovando una patente superiore alla 5', () => {
-  uguale([1, 2, 3, 4, 5, 6, 7, 8].map(n => servonoRiflessi('rinnovo', n)), [false, false, false, false, false, true, true, true]);
-  uguale([6, 7, 8].map(n => servonoRiflessi('nuova', n)), [false, false, false], 'non per una patente nuova');
+prova('il test dei riflessi serve solo rinnovando la patente 5 o una superiore', () => {
+  uguale([1, 2, 3, 4, 5, 6, 7, 8].map(n => servonoRiflessi('rinnovo', n)), [false, false, false, false, true, true, true, true]);
+  uguale([5, 6, 7, 8].map(n => servonoRiflessi('nuova', n)), [false, false, false, false], 'non per una patente nuova');
   uguale(servonoRiflessi('rinnovo', '7'), true, 'anche col numero scritto come testo, come arriva dal modulo');
 });
 
