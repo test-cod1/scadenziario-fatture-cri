@@ -7,9 +7,12 @@
 //    2. rinnovare la patente CRI o ottenerne una nuova;
 //    3. quale patente;
 //    4. i documenti su Gaia: per ognuno «Sì» o «No, mi serve supporto»;
-//    5. come prosegue (oppure, se ha chiesto supporto, cosa succede ora).
+//    5. solo per la 5, 6, 7 o 8 (nuova o rinnovo): il test dei riflessi, da
+//       confermare;
+//    6. come prosegue (oppure, se ha chiesto supporto, cosa succede ora).
 //
-//  La richiesta si invia superando il passaggio 4: va a /api/patenti, che
+//  La richiesta si invia superando i documenti, o la schermata dei
+//  riflessi quando c'è: va a /api/patenti, che
 //  ricontrolla i dati con le stesse regole (js/lib/patenti.mjs) e la salva
 //  per la segreteria. L'ultimo passaggio si apre solo a invio riuscito.
 //
@@ -22,15 +25,15 @@ import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
 const zona = document.getElementById('modulo');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// I passaggi dipendono dalle scelte: chi rinnova la patente 5 o una
-// superiore ha in più il passaggio del test dei riflessi, dopo i documenti.
+// I passaggi dipendono dalle scelte: chi ottiene o rinnova la patente 5 o
+// una superiore ha in più il passaggio del test dei riflessi, dopo i documenti.
 function passi() {
   return [
     { id: 'nome', etichetta: 'Nome', disegna: passoNome },
     { id: 'tipo', etichetta: 'Richiesta', disegna: passoTipo },
     { id: 'patente', etichetta: 'Patente', disegna: passoPatente },
     { id: 'gaia', etichetta: 'Documenti', disegna: passoGaia },
-    ...(servonoRiflessi(stato.tipo, stato.patente) ? [{ id: 'riflessi', etichetta: 'Riflessi', disegna: passoRiflessi }] : []),
+    ...(servonoRiflessi(stato.patente) ? [{ id: 'riflessi', etichetta: 'Riflessi', disegna: passoRiflessi }] : []),
     { id: 'fine', etichetta: 'Procedura', disegna: () => (stato.supporto ? passoSupporto() : passoProcedura()) },
   ];
 }
@@ -44,6 +47,7 @@ const stato = {
   patente: '',
   // Per documento: true (Sì), false (No, mi serve supporto) o null (non ancora risposto).
   gaia: Object.fromEntries(DOCUMENTI_GAIA.map(d => [d.id, null])),
+  riflessi: false,   // confermato di aver letto le indicazioni sul test dei riflessi
   supporto: false,
 };
 
@@ -145,6 +149,17 @@ function riquadroPercorso() {
 // avanti solo dopo aver risposto a tutte e tre; con almeno un «No» la
 // richiesta parte come richiesta di supporto (e la segreteria riceve
 // un'email e un avviso nel portale).
+// Di solito la richiesta si invia da qui; per chi deve fare il test dei
+// riflessi si invia invece dalla schermata successiva, dopo averla
+// confermata.
+const inviaDaQui = () => !servonoRiflessi(stato.patente);
+
+// Trappola per i programmi che compilano i moduli da soli: le persone non
+// la vedono. Sta nel passaggio da cui parte l'invio.
+const trappola = () => '<div class="pt-trappola" aria-hidden="true"><label>Sito web <input name="sito" tabindex="-1" autocomplete="off"></label></div>';
+
+const etichettaInvio = () => (DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false) ? 'Invia e chiedi supporto' : 'Invia la richiesta');
+
 function passoGaia() {
   return `
     <h2 class="pp-gruppo" style="margin-top:0">Documenti su Gaia</h2>
@@ -162,26 +177,18 @@ function passoGaia() {
       <b>Chiederai supporto alla segreteria</b>
       <div class="small">Inviando, la segreteria riceve la tua richiesta con i documenti che mancano e ti aiuta a completarla.</div>
     </div></div>
-    <!-- Trappola per i programmi che compilano i moduli da soli: le persone non la vedono. -->
-    <div class="pt-trappola" aria-hidden="true"><label>Sito web <input name="sito" tabindex="-1" autocomplete="off"></label></div>
-    ${azioni('Invia la richiesta')}
-    <div class="pp-esito" role="status"></div>`;
+    ${inviaDaQui() ? `${trappola()}${azioni(etichettaInvio())}<div class="pp-esito" role="status"></div>` : azioni('Avanti')}`;
 }
 
-// --- Test dei riflessi (rinnovo delle patenti 5, 6, 7 e 8) -------------------
-// Arriva dopo l'invio: la richiesta è già partita, qui il volontario scopre
-// che cosa deve fare in più. Non c'è «Indietro», perché tornando ai
-// documenti si rimanderebbe la richiesta.
+// --- Test dei riflessi (patenti 5, 6, 7 e 8, nuove o da rinnovare) -----------
+// Viene prima dell'invio: il volontario legge che cosa deve fare, lo
+// conferma, e solo allora manda la richiesta.
 function passoRiflessi() {
   const t = TEST_RIFLESSI;
   return `
-    <div class="banner ok" style="margin:0 0 14px"><div class="bi">✓</div><div>
-      <b>${stato.supporto ? 'Richiesta di supporto inviata' : 'Richiesta inviata'}</b>
-      <div class="small">Prima di andare avanti leggi questo passaggio: per il tuo rinnovo serve un test in più.</div></div></div>
-
     <h2 class="pp-gruppo" style="margin-top:0">Test dei riflessi</h2>
     <div class="banner warn" style="margin:0 0 16px"><div class="bi">📞</div><div>
-      <b>Per rinnovare la patente ${esc(stato.patente)} devi fare il test dei riflessi</b>
+      <b>Per ${rinnovo() ? 'rinnovare' : 'ottenere'} la patente ${esc(stato.patente)} devi fare il test dei riflessi</b>
       <div class="small">Chiama il <strong>Comitato Regionale Liguria</strong> al
         <a href="tel:${t.telefonoLink}" class="pt-telefono">${esc(t.telefono)}</a>
         e chiedi di effettuare il test dei riflessi.</div>
@@ -201,7 +208,15 @@ function passoRiflessi() {
         alt="Esempio di risultati del test dei riflessi: quattro scontrini (ottico semplice, ottico complesso, acustico semplice, acustico complesso), ognuno con i valori di Rapidità e Regolarità cerchiati.">
       <figcaption>Esempio: tutti i valori cerchiati sono pari o superiori a ${t.sogliaMinima} (il più basso è 05), quindi l'esito è idoneo.</figcaption>
     </figure>
-    ${azioni('Ho capito, avanti', false)}`;
+
+    <div class="field" data-campo="riflessi" style="margin:16px 0 0">
+      <label class="pp-tipo pt-conferma pt-conferma-riflessi"><input type="checkbox" name="riflessi" ${stato.riflessi ? 'checked' : ''}>
+        <span>Ho letto: chiamerò il Comitato Regionale Liguria per fare il <b>test dei riflessi</b>.</span></label>
+      <div class="pp-errore" role="alert"></div>
+    </div>
+    ${trappola()}
+    ${azioni(etichettaInvio())}
+    <div class="pp-esito" role="status"></div>`;
 }
 
 // --- 5. Fine -------------------------------------------------------------------
@@ -277,11 +292,14 @@ function collega() {
       });
       const serve = DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
       avanti.disabled = !DOCUMENTI_GAIA.every(d => stato.gaia[d.id] !== null);
-      avanti.textContent = serve ? 'Invia e chiedi supporto' : 'Invia la richiesta';
+      avanti.textContent = inviaDaQui() ? etichettaInvio() : 'Avanti';
       supporto.hidden = !serve;
     };
     form.querySelectorAll('.pt-domanda input').forEach(c => c.addEventListener('change', aggiorna));
     aggiorna();
+  }
+  if (qui === 'riflessi') {
+    form.riflessi.addEventListener('change', () => { stato.riflessi = form.riflessi.checked; segna(form, 'riflessi', ''); });
   }
 
   form.addEventListener('submit', async (e) => {
@@ -294,11 +312,14 @@ function collega() {
     }
     if (qui === 'tipo') segna(form, 'tipo', tipoRichiesta(stato.tipo) ? '' : 'Scegli se vuoi rinnovare la patente o ottenerne una nuova.');
     if (qui === 'patente') segna(form, 'patente', patente(stato.patente) ? '' : (rinnovo() ? 'Scegli la patente da rinnovare.' : 'Scegli la patente che vuoi ottenere.'));
+    if (qui === 'riflessi') segna(form, 'riflessi', stato.riflessi ? '' : 'Conferma di aver letto le indicazioni sul test dei riflessi.');
     const primo = form.querySelector('.pp-sbagliato');
     if (primo) { primo.scrollIntoView({ block: 'center', behavior: 'smooth' }); primo.querySelector('input')?.focus({ preventScroll: true }); return; }
 
-    if (qui === 'gaia') {
-      if (DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === null)) return;
+    if (qui === 'gaia' && DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === null)) return;
+    // L'invio parte dai documenti, oppure dalla schermata dei riflessi
+    // quando c'è.
+    if ((qui === 'gaia' && inviaDaQui()) || qui === 'riflessi') {
       const supporto = DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
       if (!await invia(form, { supporto })) return;
       stato.supporto = supporto;

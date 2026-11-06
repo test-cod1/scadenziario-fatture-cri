@@ -62,17 +62,18 @@ export function tipoRichiesta(id) {
   return TIPI_RICHIESTA.find(t => t.id === id) || null;
 }
 
-// Test dei riflessi: chi rinnova la patente 5 o una superiore (6, 7, 8) deve
-// farlo, prenotandolo al Comitato Regionale Liguria. Il modulo glielo dice
-// in un passaggio apposito, dopo le domande sui documenti.
+// Test dei riflessi: chi ottiene o rinnova la patente 5 o una superiore
+// (6, 7, 8) deve farlo, prenotandolo al Comitato Regionale Liguria. Il
+// modulo glielo dice in un passaggio apposito, da confermare prima
+// dell'invio.
 export const TEST_RIFLESSI = {
   telefono: '010 256992',
   telefonoLink: '+39010256992',
   sogliaMinima: 4,         // ogni valore cerchiato deve essere almeno questo
 };
 
-export function servonoRiflessi(tipo, numero) {
-  return tipo === 'rinnovo' && Number(numero) >= 5;
+export function servonoRiflessi(numero) {
+  return Number(numero) >= 5;
 }
 
 // Il testo del passaggio finale per chi rinnova (segnaposto, come quelli
