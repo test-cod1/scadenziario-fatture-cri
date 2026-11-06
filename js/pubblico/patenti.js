@@ -68,10 +68,10 @@ function passoNome() {
     <h2 class="pp-gruppo" style="margin-top:0">Chi sei</h2>
     <div class="form-row">
       <div class="field" data-campo="nome"><label for="f-nome">Nome</label>
-        <input id="f-nome" name="nome" value="${esc(stato.nome)}" autocomplete="given-name">
+        <input type="text" id="f-nome" name="nome" value="${esc(stato.nome)}" autocomplete="given-name">
         <div class="pp-errore" role="alert"></div></div>
       <div class="field" data-campo="cognome"><label for="f-cognome">Cognome</label>
-        <input id="f-cognome" name="cognome" value="${esc(stato.cognome)}" autocomplete="family-name">
+        <input type="text" id="f-cognome" name="cognome" value="${esc(stato.cognome)}" autocomplete="family-name">
         <div class="pp-errore" role="alert"></div></div>
     </div>
     ${azioni('Avanti', false)}`;
