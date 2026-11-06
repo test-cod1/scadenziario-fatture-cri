@@ -144,10 +144,6 @@ export const FAQ = [
         d: 'Cosa devo portare alla visita?',
         r: `<ul>
           <li>un documento di riconoscimento valido e il codice fiscale;</li>
-          <li>una fototessera recente (non più vecchia di 6 mesi);</li>
-          <li>se porti lenti: il certificato dell'ottico o dell'oculista con il grado delle lenti;</li>
-          <li>se porti protesi acustiche: il certificato di efficienza del costruttore, non più vecchio di 3 mesi;</li>
-          <li>il certificato anamnestico del tuo medico di base, oppure l'autocertificazione da firmare davanti al medico CRI;</li>
           <li>eventuali documenti sanitari su patologie che contano per la guida.</li>
         </ul>`,
         fonte: 'TU allegato B, punti 4 e 6',
