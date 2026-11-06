@@ -105,6 +105,8 @@ export const FAQ = [
           <li><b>Patente 1</b>: AM (o militare equipollente).</li>
           <li><b>Patente 2</b>: A2 o A, senza sospensioni negli ultimi 3 anni.</li>
           <li><b>Patente 3</b>: B in corso di validità, senza sospensioni negli ultimi 5 anni.</li>
+          <li><b>Patente 4</b>: B, con l'esercitazione pratica di guida.</li>
+          <li><b>Patente 5</b>: non si converte da una patente civile; serve la 4 CRI, poi corso ed esame.</li>
           <li><b>Patenti 6, 7, 7b e 8</b>: la categoria civile corrispondente — C1 o C per la 6, D per la 7, D1 per la 7b,
             C1E, CE o DE per la 8.</li>
         </ul>

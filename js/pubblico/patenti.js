@@ -99,10 +99,12 @@ function passoPatente() {
   return `
     <div class="field" data-campo="patente">
       <fieldset class="pp-tipi"><legend>${rinnovo() ? 'Quale patente vuoi rinnovare?' : 'Quale patente vuoi ottenere?'}</legend>
+        <p class="pt-nota">Seleziona una sola patente: <b>la più alta</b> che devi ${rinnovo() ? 'rinnovare' : 'ottenere'}.</p>
         <div class="pt-patenti">
           ${PATENTI.map(p => `<label class="pp-tipo pt-patente">
             <input type="radio" name="patente" value="${p.numero}" ${String(stato.patente) === String(p.numero) ? 'checked' : ''}>
-            <span><b>Patente ${p.numero}</b>${rinnovo() ? '' : `<small>${esc(PERCORSI[p.percorso].etichetta)}</small>`}</span></label>`).join('')}
+            <span><b>Patente ${p.numero}</b>${rinnovo() ? '' : `<small>${esc(PERCORSI[p.percorso].etichetta)}</small>
+              <small class="pt-civile">${esc(p.civile)}</small>`}</span></label>`).join('')}
         </div>
       </fieldset>
       <div class="pp-errore" role="alert"></div>

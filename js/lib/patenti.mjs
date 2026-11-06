@@ -27,15 +27,18 @@ export const PERCORSI = {
   },
 };
 
+// `civile`: da quale patente civile si fa la conversione (Testo Unico
+// CRI, art. 51 e allegati C-1 e C-2). La 5 non si converte: si ottiene con
+// corso ed esame, partendo dalla 4 CRI.
 export const PATENTI = [
-  { numero: 1, percorso: 'diretta' },
-  { numero: 2, percorso: 'diretta' },
-  { numero: 3, percorso: 'diretta' },
-  { numero: 4, percorso: 'pratica' },
-  { numero: 5, percorso: 'esame' },
-  { numero: 6, percorso: 'pratica' },
-  { numero: 7, percorso: 'pratica' },
-  { numero: 8, percorso: 'pratica' },
+  { numero: 1, percorso: 'diretta', civile: 'da patente AM' },
+  { numero: 2, percorso: 'diretta', civile: 'da patente A2 o A' },
+  { numero: 3, percorso: 'diretta', civile: 'da patente B' },
+  { numero: 4, percorso: 'pratica', civile: 'da patente B' },
+  { numero: 5, percorso: 'esame', civile: 'serve la patente 4 CRI' },
+  { numero: 6, percorso: 'pratica', civile: 'da patente C1 o C' },
+  { numero: 7, percorso: 'pratica', civile: 'da patente D' },
+  { numero: 8, percorso: 'pratica', civile: 'da patente C1E, CE o DE' },
 ];
 
 export function patente(numero) {
