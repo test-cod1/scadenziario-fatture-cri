@@ -1194,6 +1194,10 @@ tr.str-inattivo td{opacity:.6}
 .faq-tab{border-collapse:collapse;width:100%}
 .faq-tab td{padding:5px 8px;border-bottom:1px solid var(--line);vertical-align:top}
 .faq-tab td:first-child{width:36px;text-align:center}
+.faq-tab th{text-align:left;font-size:12px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);padding:6px 8px;border-bottom:2px solid var(--line)}
+.faq-eta{margin-top:8px;max-width:420px}
+.faq-eta th:first-child,.faq-eta td:first-child{width:80px;text-align:center}
+.faq-eta tbody tr:nth-child(even){background:var(--bg)}
 .faq-fonte{margin-top:8px;font-size:12px;color:var(--ink-soft)}
 .faq-vuoto{color:var(--ink-soft);margin:14px 0 0}
 .pt-trappola{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}

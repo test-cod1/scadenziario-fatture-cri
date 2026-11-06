@@ -126,16 +126,23 @@ export const FAQ = [
       },
       {
         d: 'Che età serve?',
-        r: `<b>14 anni</b> per la 1, con il consenso scritto di un genitore; <b>18 anni</b> per la 2, la 3 e la 4; <b>21 anni</b> per
-          la 2b, la 5, la 6, la 7, la 7b e la 8. Ogni patente ha anche un'età massima oltre la quale non si rinnova
-          (per esempio 70 anni per la 7, 85 per la 1 e la 3).`,
+        r: `L'età minima serve per ottenere la patente; oltre l'età massima non si può più rinnovare.
+          <table class="faq-tab faq-eta"><thead>
+            <tr><th>Patente</th><th>Età minima</th><th>Età massima</th></tr>
+          </thead><tbody>
+            <tr><td><b>1</b></td><td>14 anni*</td><td>85 anni</td></tr>
+            <tr><td><b>2</b></td><td>18 anni</td><td>82 anni</td></tr>
+            <tr><td><b>2b</b></td><td>21 anni</td><td>77 anni</td></tr>
+            <tr><td><b>3</b></td><td>18 anni</td><td>85 anni</td></tr>
+            <tr><td><b>4</b></td><td>18 anni</td><td>80 anni</td></tr>
+            <tr><td><b>5</b></td><td>21 anni</td><td>77 anni</td></tr>
+            <tr><td><b>6</b></td><td>21 anni</td><td>77 anni</td></tr>
+            <tr><td><b>7</b></td><td>21 anni</td><td>70 anni</td></tr>
+            <tr><td><b>7b</b></td><td>21 anni</td><td>77 anni</td></tr>
+            <tr><td><b>8</b></td><td>21 anni</td><td>75 anni</td></tr>
+          </tbody></table>
+          <div class="faq-fonte" style="margin-top:6px">* con il consenso scritto di un genitore.</div>`,
         fonte: 'TU art. 51 c. 11 e allegato B-1',
-      },
-      {
-        d: 'Ho una patente speciale: posso avere la patente CRI?',
-        r: `Sì, ma solo le patenti <b>1, 2 e 3</b>, e potrai guidare solo veicoli già adattati alle tue limitazioni.
-          Le patenti 2b, 4, 5, 6, 7, 7b e 8 non possono essere rilasciate a chi ha una patente speciale.`,
-        fonte: 'TU art. 51 c. 12',
       },
       {
         d: 'Chi può avere la patente CRI?',
