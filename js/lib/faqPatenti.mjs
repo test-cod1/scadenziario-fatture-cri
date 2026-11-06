@@ -178,8 +178,8 @@ export const FAQ = [
         d: 'Cos\'è il foglio rosa?',
         r: `È l'autorizzazione a esercitarti alla guida dei veicoli CRI. La rilascia il Responsabile del Procedimento, vale
           <b>1 anno</b> e si rinnova una volta se non hai ancora fatto l'esame. Durante le guide devi averla con te, insieme a un
-          documento che attesti la tua appartenenza alla CRI. Il veicolo deve avere i cartelli «SCUOLA GUIDA».`,
-        fonte: 'TU artt. 56 c. 15 e 57',
+          documento che attesti la tua appartenenza alla CRI.`,
+        fonte: 'TU art. 57',
       },
       {
         d: 'Come si ottiene la patente 5?',
