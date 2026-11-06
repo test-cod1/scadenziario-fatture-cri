@@ -50,9 +50,8 @@ export const FAQ = [
       {
         d: 'Chi non ha la patente civile può prendere la 6, la 7 o la 8?',
         r: `Sì, ma non per conversione: solo frequentando un corso di scuola guida presso un Centro di Formazione Motorizzazione
-          CRI e superando l'esame. A questi corsi accedono per primi i volontari segnalati dai Centri di Emergenza o di
-          Mobilitazione, i dipendenti e chi appartiene a Comitati che hanno quei veicoli.`,
-        fonte: 'TU artt. 54 c. 4 e 55 c. 4',
+          CRI e superando l'esame.`,
+        fonte: 'TU art. 54 c. 4',
       },
     ],
   },
@@ -74,18 +73,6 @@ export const FAQ = [
           <tr><td><b>8</b></td><td>Complessi con rimorchio oltre 2 t, quando il complesso supera 6,5 t</td></tr>
         </tbody></table>`,
         fonte: 'TU art. 50 c. 3',
-      },
-      {
-        d: 'Se prendo una patente, ottengo anche le altre?',
-        r: `In parte sì. La 1 è compresa in tutte le altre; la <b>4</b> comprende la 3; la <b>5</b> e la <b>7b</b> comprendono la 3 e la 4.`,
-        fonte: 'TU art. 53 e allegato C-1',
-      },
-      {
-        d: 'Il modulo arriva alla patente 8: e la 2b e la 7b?',
-        r: `La <b>2b</b> (moto medica) si chiede se hai già la 2, insieme alla 5 con un esame integrato, oppure dopo,
-          con esercitazione ed esame pratico. La <b>7b</b> (minibus) si ottiene per conversione con prova pratica, come la 7.
-          Se ti serve una di queste, scrivilo alla segreteria.`,
-        fonte: 'TU art. 54 cc. 3 e 6',
       },
       {
         d: 'Per guidare l\'ambulanza in servizio basta la patente 4 o 5?',
