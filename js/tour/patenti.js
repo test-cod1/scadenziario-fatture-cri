@@ -24,7 +24,7 @@ export function passi() {
       hash: '#/patenti/link',
       selettore: '.pt-link',
       titolo: 'Il link da mandare',
-      testo: 'Copialo e mandalo al volontario: il modulo si apre senza accedere al portale, anche dal telefono. La sua richiesta comparirà fra le Richieste.',
+      testo: 'C\'è già un messaggio pronto, che puoi modificare: copialo o mandalo direttamente su WhatsApp o per email. Il modulo si apre senza accedere al portale, anche dal telefono, e la richiesta comparirà fra le Richieste.',
     },
     {
       selettore: '.pt-passaggi',

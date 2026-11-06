@@ -1155,6 +1155,19 @@ tr.str-inattivo td{opacity:.6}
 .pt-scelte{display:flex;flex-direction:column;gap:10px}
 .pt-nota{margin:0 0 12px;font-size:13.5px;line-height:1.45;color:var(--ink-soft);background:var(--bg);border-radius:10px;padding:10px 12px}
 .pt-nota b{color:var(--ink)}
+/* Portale: il riquadro del link da mandare ai volontari. */
+.pt-link-testa{display:flex;gap:14px;align-items:flex-start;margin-bottom:14px}
+.pt-link-testa h2{margin:0 0 4px;font-size:17px}
+.pt-link-testa .hint{margin:0}
+.pt-link-ico{flex:none;width:44px;height:44px;border-radius:12px;background:#e6f4f6;display:grid;place-items:center;font-size:24px}
+.pt-link-indirizzo{display:flex;align-items:center;gap:10px;flex-wrap:wrap;background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px}
+.pt-link-indirizzo a{flex:1;min-width:0;font-size:18px;font-weight:700;color:#0e7490;text-decoration:none;overflow-wrap:anywhere}
+.pt-link-indirizzo a:hover{text-decoration:underline}
+.pt-link-etichetta{display:block;font-size:13px;font-weight:600;margin-bottom:5px}
+#pt-messaggio{width:100%;resize:vertical;line-height:1.45}
+.pt-link-azioni{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.pt-whatsapp{background:#25d366;border-color:#25d366;color:#fff}
+.pt-whatsapp:hover{background:#1ebe5b;border-color:#1ebe5b;color:#fff}
 /* Passaggio del test dei riflessi. */
 .pt-telefono{font-weight:700;white-space:nowrap;color:var(--cri-red-dark)}
 .pt-sottotitolo{font-size:15px;margin:4px 0 6px}

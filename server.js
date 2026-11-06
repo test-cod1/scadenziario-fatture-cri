@@ -72,6 +72,9 @@ const server = http.createServer(async (req, res) => {
 
   let p = decodeURIComponent(u.pathname);
   if (p === '/') p = '/index.html';
+  // Indirizzi senza .html (/patenti): Cloudflare Pages li serve così, ed è
+  // quello il link che il portale fa mandare ai volontari.
+  if (!path.extname(p) && fs.existsSync(path.join(ROOT, `${p}.html`))) p = `${p}.html`;
   const file = path.join(ROOT, p);
   // path.sep in coda: senza, una cartella FRATELLA il cui nome inizia come
   // ROOT (es. "…-backup") avrebbe superato il controllo.

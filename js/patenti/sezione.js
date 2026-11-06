@@ -17,8 +17,16 @@ export async function renderPatenti(view, ctx, sub, param) {
   return renderLink(view);
 }
 
+// Il messaggio proposto per mandare il link: si può modificare prima di
+// copiarlo o inviarlo.
+const messaggioPredefinito = (link) => `Ciao! Per richiedere una nuova patente CRI o rinnovare la tua, compila questo modulo: bastano pochi minuti e trovi anche le risposte alle domande più frequenti.
+
+👉 ${link}`;
+
 function renderLink(view) {
-  const link = `${location.origin}/patenti.html`;
+  // L'indirizzo corto, senza .html: è quello che Cloudflare Pages serve e
+  // che si legge meglio in un messaggio.
+  const link = `${location.origin}/patenti`;
   const perPercorso = Object.entries(PERCORSI).map(([id, pr]) => ({
     ...pr,
     patenti: PATENTI.filter(p => p.percorso === id).map(p => p.numero),
@@ -31,22 +39,39 @@ function renderLink(view) {
     </div></div>
 
     <div class="card pt-link"><div class="card-b">
-      <h2 style="margin:0 0 8px;font-size:16px">Link da mandare ai volontari</h2>
-      <p class="hint" style="margin:0 0 12px">Si apre senza accedere al portale, anche dal telefono.</p>
-      <div style="display:flex;gap:8px;flex-wrap:wrap">
-        <input readonly value="${esc(link)}" style="flex:1;min-width:220px" aria-label="Link del modulo">
-        <button class="btn primary" type="button" data-copia>Copia link</button>
-        <a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Apri anteprima ↗</a>
+      <div class="pt-link-testa">
+        <div class="pt-link-ico" aria-hidden="true">🪪</div>
+        <div>
+          <h2>Link da mandare ai volontari</h2>
+          <p class="hint">Si apre senza accedere al portale, anche dal telefono. Su WhatsApp e Telegram compare con titolo e descrizione.</p>
+        </div>
+      </div>
+
+      <div class="pt-link-indirizzo">
+        <a href="${esc(link)}" target="_blank" rel="noopener">${esc(link.replace(/^https?:\/\//, ''))}</a>
+        <button class="btn sm" type="button" data-copia-link>Copia link</button>
+      </div>
+
+      <label class="pt-link-etichetta" for="pt-messaggio">Messaggio da inviare</label>
+      <textarea id="pt-messaggio" rows="4">${esc(messaggioPredefinito(link))}</textarea>
+      <div class="pt-link-azioni">
+        <button class="btn primary" type="button" data-copia-messaggio>📋 Copia messaggio</button>
+        <a class="btn pt-whatsapp" data-whatsapp target="_blank" rel="noopener">WhatsApp</a>
+        <a class="btn" data-email>✉️ Email</a>
+        <a class="btn" href="${esc(link)}" target="_blank" rel="noopener">Apri il modulo ↗</a>
       </div>
     </div></div>
 
     <div class="card pt-passaggi" style="margin-top:16px"><div class="card-b">
       <h2 style="margin:0 0 12px;font-size:16px">I passaggi del modulo</h2>
       <ol style="margin:0;padding-left:20px;line-height:1.7">
-        <li><b>I tuoi dati</b>: nome, cognome e patente richiesta (da 1 a 8).</li>
-        <li><b>Documenti su Gaia</b>: una domanda per documento, Sì o No —
+        <li><b>Nome</b>: nome e cognome.</li>
+        <li><b>Richiesta</b>: ottenere una nuova patente CRI o rinnovare quella che si ha.</li>
+        <li><b>Patente</b>: quale (da 1 a 8), la più alta; per una nuova, con la patente civile di partenza.</li>
+        <li><b>Documenti</b>: una domanda per documento, «Sì» o «No, mi serve supporto» —
           <ul style="margin:2px 0 4px">${DOCUMENTI_GAIA.map(d => `<li>${esc(d.breve)}</li>`).join('')}<li>solo per il rinnovo: ${esc(FOTO_PATENTE_CRI.breve)}</li></ul>
-          Con tutti Sì la richiesta parte; con un No il volontario può chiedere <b>supporto</b>, e la richiesta arriva segnata «serve supporto».</li>
+          Con un «No» la richiesta arriva segnata «serve supporto», con un'email di avviso.</li>
+        <li><b>Test dei riflessi</b>: solo per le patenti 5, 6, 7 e 8, da confermare prima dell'invio.</li>
         <li><b>Procedura</b>: la spiegazione di come si prosegue, in base al percorso della patente.</li>
       </ol>
       <h3 style="margin:18px 0 8px;font-size:14px">Percorsi</h3>
@@ -56,10 +81,24 @@ function renderLink(view) {
     </div></div>
   </div>`);
 
-  pagina.querySelector('[data-copia]').addEventListener('click', async () => {
-    try { await navigator.clipboard.writeText(link); toast('Link copiato', 'ok'); }
-    catch { pagina.querySelector('input').select(); toast('Copia non riuscita: selezionalo e copialo a mano', 'err'); }
-  });
+  const testo = pagina.querySelector('#pt-messaggio');
+  const whatsapp = pagina.querySelector('[data-whatsapp]');
+  const email = pagina.querySelector('[data-email]');
+  // I tasti WhatsApp ed Email portano il messaggio così com'è scritto in
+  // quel momento.
+  const aggiornaInvii = () => {
+    whatsapp.href = `https://wa.me/?text=${encodeURIComponent(testo.value)}`;
+    email.href = `mailto:?subject=${encodeURIComponent('Patenti CRI: richiesta e rinnovo')}&body=${encodeURIComponent(testo.value)}`;
+  };
+  testo.addEventListener('input', aggiornaInvii);
+  aggiornaInvii();
+
+  const copia = async (valore, cosa, campo) => {
+    try { await navigator.clipboard.writeText(valore); toast(`${cosa} copiato`, 'ok'); }
+    catch { campo?.select(); toast('Copia non riuscita: selezionalo e copialo a mano', 'err'); }
+  };
+  pagina.querySelector('[data-copia-link]').addEventListener('click', () => copia(link, 'Link'));
+  pagina.querySelector('[data-copia-messaggio]').addEventListener('click', () => copia(testo.value, 'Messaggio', testo));
   view.appendChild(pagina);
 }
 
