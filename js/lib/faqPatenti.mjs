@@ -87,29 +87,19 @@ export const FAQ = [
     gruppo: 'Requisiti',
     domande: [
       {
-        d: 'Quale patente civile mi serve?',
+        d: 'Quale patente civile mi serve per la conversione?',
         r: `<ul>
           <li><b>Patente 1</b>: AM (o militare equipollente).</li>
           <li><b>Patente 2</b>: A2 o A, senza sospensioni negli ultimi 3 anni.</li>
           <li><b>Patente 3</b>: B in corso di validità, senza sospensioni negli ultimi 5 anni.</li>
           <li><b>Patente 4</b>: B, con l'esercitazione pratica di guida.</li>
-          <li><b>Patente 5</b>: non si converte da una patente civile; serve la 4 CRI, poi corso ed esame.</li>
+          <li><b>Patente 5</b>: non si converte da una patente civile: serve corso con esame.</li>
           <li><b>Patenti 6, 7, 7b e 8</b>: la categoria civile corrispondente — C1 o C per la 6, D per la 7, D1 per la 7b,
             C1E, CE o DE per la 8.</li>
         </ul>
         Valgono anche le patenti di altri Stati dell'Unione Europea, quelle di Stati con accordi di conversione e quelle
         rilasciate da Forze Armate e Corpi dello Stato.`,
         fonte: 'TU art. 51 e allegati C-1, C-2',
-      },
-      {
-        d: 'Cosa mi serve per la 5, la 6 e la 7?',
-        r: `<ul>
-          <li><b>Patente 5</b>: avere già la <b>4</b> CRI (o un titolo equipollente) e nessuna sospensione o revoca negli ultimi 5 anni.</li>
-          <li><b>Patente 6</b>: avere la 4 (o il titolo equipollente) da almeno <b>1 anno</b>.</li>
-          <li><b>Patente 7</b>: avere la 4 (o il titolo equipollente) da almeno <b>2 anni</b>.</li>
-        </ul>
-        Nell'autocertificazione dei requisiti, per le patenti 6, 7 e 8 si dichiara di non aver <b>mai</b> avuto sospensioni o revoche.`,
-        fonte: 'TU art. 51 cc. 4, 6, 7 e allegato C-3',
       },
       {
         d: 'Che età serve?',
