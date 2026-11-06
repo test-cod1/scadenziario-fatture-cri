@@ -278,12 +278,6 @@ export const FAQ = [
           10/06/2025: conviene averne una copia a bordo, su carta o sul telefono.`,
         fonte: 'Nota CRI prot. 2025/63883 del 18/06/2025',
       },
-      {
-        d: 'Posso guidare mentre aspetto la patente?',
-        r: `Solo se il Responsabile del Procedimento ti rilascia un'<b>autorizzazione provvisoria</b>: vale al massimo 90 giorni,
-          per i tipi di veicolo indicati, finché la patente non viene emessa. Senza, non si guida.`,
-        fonte: 'TU art. 50 c. 2 e allegato C-4',
-      },
     ],
   },
   {
