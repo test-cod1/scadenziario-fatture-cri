@@ -3,16 +3,9 @@
 //  domanda, risposta e fonte, e la ricerca trova anche senza accenti.
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
-import { FAQ, tutteLeDomande, testoCercabile, htmlFaq, SUGGERITE_PER_PASSO } from '../js/lib/faqPatenti.mjs';
+import { FAQ, tutteLeDomande, testoCercabile, htmlFaq } from '../js/lib/faqPatenti.mjs';
 
 gruppo('Patenti — domande e risposte');
-
-prova('le domande suggerite sotto i cinque passaggi esistono davvero', () => {
-  uguale(SUGGERITE_PER_PASSO.length, 5, 'una lista per passaggio del modulo');
-  const titoli = new Set(tutteLeDomande().map(q => q.d));
-  const mancanti = SUGGERITE_PER_PASSO.flat().filter(t => !titoli.has(t));
-  uguale(mancanti, [], 'suggerite che non corrispondono a nessuna domanda');
-});
 
 prova('ogni domanda ha testo, risposta e fonte', () => {
   for (const q of tutteLeDomande()) {

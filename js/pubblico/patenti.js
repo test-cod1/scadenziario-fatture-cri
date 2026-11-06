@@ -13,11 +13,11 @@
 //  ricontrolla i dati con le stesse regole (js/lib/patenti.mjs) e la salva
 //  per la segreteria. L'ultimo passaggio si apre solo a invio riuscito.
 //
-//  Sotto ogni passaggio c'è la ricerca nelle domande e risposte
-//  (js/lib/faqPatenti.mjs), con qualche domanda suggerita per quel punto.
+//  Sotto ogni passaggio ci sono tutte le domande e risposte
+//  (js/lib/faqPatenti.mjs), con la ricerca.
 // ============================================================
 import { PATENTI, PERCORSI, DOCUMENTI_GAIA, TIPI_RICHIESTA, RINNOVO, patente, tipoRichiesta, controllaRichiesta } from '../lib/patenti.mjs';
-import { tutteLeDomande, testoCercabile, SUGGERITE_PER_PASSO as SUGGERITE } from '../lib/faqPatenti.mjs';
+import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
 
 const zona = document.getElementById('modulo');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -50,12 +50,11 @@ function disegna() {
     <div class="card pp-card"><div class="card-b">
       <h1 class="pp-titolo">Patenti CRI</h1>
       <p class="pp-sotto">Segui questi passaggi per richiedere una nuova patente CRI o rinnovare la tua.
-        Hai un dubbio? Cerca la risposta nel riquadro in fondo.</p>
+        Hai un dubbio? Le domande e risposte sono in fondo alla pagina.</p>
       ${stepper()}
     </div></div>
     <form class="card pp-card" novalidate><div class="card-b">${passi[stato.passo]()}</div></form>`;
   collega();
-  suggerisci();
 }
 
 const azioni = (avanti = 'Avanti', indietro = true) => `<div class="pp-azioni pt-azioni">
@@ -286,51 +285,31 @@ function vai(passo) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// --- Ricerca nelle domande e risposte, sotto ogni passaggio -----------------
-// Senza testo mostra qualche domanda adatta al passaggio in cui si è;
-// scrivendo, quelle che contengono le parole cercate.
-const DOMANDE = tutteLeDomande();
-const normalizza = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-
-function htmlRisposte(domande, aperte) {
-  return domande.map(q => `<details class="faq-voce" ${aperte ? 'open' : ''}>
-    <summary>${esc(q.d)}</summary>
-    <div class="faq-risposta">${q.r}<div class="faq-fonte">Fonte: ${esc(q.fonte)}</div></div>
-  </details>`).join('');
-}
-
-function disegnaRicerca() {
+// --- Domande e risposte, sotto ogni passaggio ------------------------------
+// Tutte le domande, raggruppate e chiuse: si apre quella che interessa. La
+// ricerca le filtra parola per parola. Il riquadro sta fuori dal modulo, così
+// cambiando passaggio non si richiude e la ricerca resta.
+function disegnaFaq() {
   const box = document.getElementById('faq');
   if (!box) return;
   box.innerHTML = `<div class="card-b">
-    <h2 class="pp-gruppo" id="faq-titolo" style="margin-top:0">Hai un dubbio? Cerca nelle risposte</h2>
+    <h2 class="pp-titolo" id="faq-titolo">Domande e risposte</h2>
+    <p class="pp-sotto">Requisiti, visita medica, prova pratica, rinnovo e patente digitale, dal Testo Unico CRI sulla circolazione dei veicoli.</p>
     <div class="search faq-cerca"><span class="search-icon" aria-hidden="true">🔍</span>
-      <input type="search" placeholder="Scrivi una parola: rinnovo, visita, ambulanza, età…" aria-label="Cerca nelle domande e risposte"></div>
+      <input type="search" placeholder="Cerca: rinnovo, visita, ambulanza, età…" aria-label="Cerca nelle domande e risposte"></div>
     <p class="faq-nota" aria-live="polite"></p>
-    <div class="faq-elenco"></div>
+    <div class="faq-elenco">${htmlFaq(esc)}</div>
   </div>`;
-  box.querySelector('input').addEventListener('input', suggerisci);
-}
-
-function suggerisci() {
-  const box = document.getElementById('faq');
-  if (!box?.querySelector('input')) return;
-  const q = normalizza(box.querySelector('input').value);
-  const nota = box.querySelector('.faq-nota');
   const elenco = box.querySelector('.faq-elenco');
-  if (!q) {
-    const titoli = SUGGERITE[stato.passo] || [];
-    nota.textContent = 'Domande utili a questo punto:';
-    elenco.innerHTML = htmlRisposte(DOMANDE.filter(d => titoli.includes(d.d)), false);
-    return;
-  }
-  const parole = q.split(/\s+/).filter(Boolean);
-  const trovate = DOMANDE.filter(d => parole.every(p => testoCercabile(d).includes(p)));
-  nota.textContent = trovate.length
-    ? `${trovate.length} ${trovate.length === 1 ? 'risposta trovata' : 'risposte trovate'}:`
-    : 'Nessuna risposta trovata. Prova con un\'altra parola, o chiedi alla segreteria del tuo Comitato.';
-  elenco.innerHTML = htmlRisposte(trovate.slice(0, 8), trovate.length <= 2);
+  const nota = box.querySelector('.faq-nota');
+  box.querySelector('input').addEventListener('input', (e) => {
+    const q = e.target.value.trim();
+    const n = filtraFaq(elenco, q);
+    nota.textContent = !q ? '' : n
+      ? `${n} ${n === 1 ? 'risposta trovata' : 'risposte trovate'}`
+      : 'Nessuna risposta trovata. Prova con un\'altra parola, o chiedi alla segreteria del tuo Comitato.';
+  });
 }
 
-disegnaRicerca();
+disegnaFaq();
 disegna();

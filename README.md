@@ -145,7 +145,7 @@ Richiede [`supabase/patch-2026-09-06-formazione.sql`](supabase/patch-2026-09-06-
 
 ## Sezione Patenti
 
-Accompagna i volontari nella richiesta di emissione o rinnovo della **patente di servizio CRI**. La segreteria manda a tutti lo stesso link, `…/patenti.html` (pagina **🔗 Link per i volontari**), che apre un **modulo pubblico** senza login, a passaggi: ognuno è un cancello, e si va avanti solo dopo averlo superato. Sotto ogni passaggio c'è la **ricerca nelle domande e risposte**, che prima di scrivere propone le domande utili a quel punto (`SUGGERITE_PER_PASSO` in [`js/lib/faqPatenti.mjs`](js/lib/faqPatenti.mjs)).
+Accompagna i volontari nella richiesta di emissione o rinnovo della **patente di servizio CRI**. La segreteria manda a tutti lo stesso link, `…/patenti.html` (pagina **🔗 Link per i volontari**), che apre un **modulo pubblico** senza login, a passaggi: ognuno è un cancello, e si va avanti solo dopo averlo superato. Sotto ogni passaggio ci sono **tutte le domande e risposte**, raggruppate e chiuse, con la ricerca che le filtra parola per parola ([`js/lib/faqPatenti.mjs`](js/lib/faqPatenti.mjs)).
 
 1. nome e cognome;
 2. **«Rinnova patente CRI»** oppure **«Ottieni nuova patente CRI»** (colonna `tipo`, [`patch-2026-11-07-patenti-tipo.sql`](supabase/patch-2026-11-07-patenti-tipo.sql));

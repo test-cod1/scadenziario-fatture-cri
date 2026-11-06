@@ -319,18 +319,6 @@ export const FAQ = [
   },
 ];
 
-// Le domande che il modulo propone sotto ciascun passaggio, prima che si
-// scriva qualcosa nella ricerca (nome, richiesta, patente, documenti su
-// Gaia, fine). Sono titoli esatti di domande qui sopra: lo controlla
-// test/faq-patenti.prove.mjs.
-export const SUGGERITE_PER_PASSO = [
-  ['A cosa serve questo modulo?', 'Chi può avere la patente CRI?'],
-  ['Quando e come rinnovo la patente?', 'Che differenza c\'è tra conversione diretta, con prova pratica e con esame?', 'Ho una patente CRI del vecchio modello: vale ancora?'],
-  ['Quali veicoli posso guidare con ogni patente?', 'Quale patente civile mi serve?', 'Che età serve?'],
-  ['Perché devo caricare i documenti su Gaia?', 'Devo fare una visita medica?', 'Cosa devo portare alla visita?'],
-  ['Come funziona l\'esercitazione di guida?', 'Posso guidare mentre aspetto la patente?', 'Riceverò la patente su carta o in digitale?'],
-];
-
 // Tutte le domande in fila, con il loro gruppo: comodo per cercare.
 export function tutteLeDomande() {
   return FAQ.flatMap(g => g.domande.map(q => ({ ...q, gruppo: g.gruppo })));
@@ -355,21 +343,22 @@ export function htmlFaq(esc) {
   </section>`).join('');
 }
 
-// Filtro della ricerca: nasconde le domande che non c'entrano e i gruppi
-// rimasti vuoti; con una ricerca attiva apre quelle trovate.
+// Filtro della ricerca: tiene le domande che contengono tutte le parole
+// scritte (in qualunque ordine), nasconde le altre e i gruppi rimasti vuoti.
+// Apre le trovate solo se sono poche: con dieci risposte aperte insieme la
+// pagina diventa un muro di testo.
 export function filtraFaq(contenitore, testo) {
   const q = String(testo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-  let trovate = 0;
+  const parole = q.split(/s+/).filter(Boolean);
+  const voci = [...contenitore.querySelectorAll('.faq-voce')];
+  const ok = voci.map(v => parole.every(p => v.dataset.testo.includes(p)));
+  const trovate = ok.filter(Boolean).length;
+  voci.forEach((v, i) => {
+    v.hidden = !ok[i];
+    v.open = !!q && ok[i] && trovate <= 3;
+  });
   contenitore.querySelectorAll('.faq-gruppo').forEach(g => {
-    let nelGruppo = 0;
-    g.querySelectorAll('.faq-voce').forEach(v => {
-      const ok = !q || v.dataset.testo.includes(q);
-      v.hidden = !ok;
-      if (q) v.open = ok;
-      if (ok) nelGruppo++;
-    });
-    g.hidden = !nelGruppo;
-    trovate += nelGruppo;
+    g.hidden = ![...g.querySelectorAll('.faq-voce')].some(v => !v.hidden);
   });
   return trovate;
 }
