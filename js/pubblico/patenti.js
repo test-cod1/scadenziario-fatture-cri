@@ -16,13 +16,25 @@
 //  Sotto ogni passaggio ci sono tutte le domande e risposte
 //  (js/lib/faqPatenti.mjs), con la ricerca.
 // ============================================================
-import { PATENTI, PERCORSI, DOCUMENTI_GAIA, TIPI_RICHIESTA, RINNOVO, patente, tipoRichiesta, controllaRichiesta } from '../lib/patenti.mjs';
+import { PATENTI, PERCORSI, DOCUMENTI_GAIA, TIPI_RICHIESTA, RINNOVO, TEST_RIFLESSI, patente, tipoRichiesta, servonoRiflessi, controllaRichiesta } from '../lib/patenti.mjs';
 import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
 
 const zona = document.getElementById('modulo');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const PASSI = ['Nome', 'Richiesta', 'Patente', 'Documenti', 'Procedura'];
+// I passaggi dipendono dalle scelte: chi rinnova una patente superiore alla
+// 5 ha in più il passaggio del test dei riflessi, dopo i documenti.
+function passi() {
+  return [
+    { id: 'nome', etichetta: 'Nome', disegna: passoNome },
+    { id: 'tipo', etichetta: 'Richiesta', disegna: passoTipo },
+    { id: 'patente', etichetta: 'Patente', disegna: passoPatente },
+    { id: 'gaia', etichetta: 'Documenti', disegna: passoGaia },
+    ...(servonoRiflessi(stato.tipo, stato.patente) ? [{ id: 'riflessi', etichetta: 'Riflessi', disegna: passoRiflessi }] : []),
+    { id: 'fine', etichetta: 'Procedura', disegna: () => (stato.supporto ? passoSupporto() : passoProcedura()) },
+  ];
+}
+const passoCorrente = () => passi()[stato.passo]?.id;
 
 const stato = {
   passo: 0,
@@ -39,13 +51,12 @@ const rinnovo = () => stato.tipo === 'rinnovo';
 
 function stepper() {
   return `<ol class="pt-passi" aria-label="Avanzamento">
-    ${PASSI.map((t, i) => `<li class="${i < stato.passo ? 'fatto' : i === stato.passo ? 'attivo' : ''}" ${i === stato.passo ? 'aria-current="step"' : ''}>
-      <span class="n">${i < stato.passo ? '✓' : i + 1}</span><span class="t">${esc(t)}</span></li>`).join('')}
+    ${passi().map((p, i) => `<li class="${i < stato.passo ? 'fatto' : i === stato.passo ? 'attivo' : ''}" ${i === stato.passo ? 'aria-current="step"' : ''}>
+      <span class="n">${i < stato.passo ? '✓' : i + 1}</span><span class="t">${esc(p.etichetta)}</span></li>`).join('')}
   </ol>`;
 }
 
 function disegna() {
-  const passi = [passoNome, passoTipo, passoPatente, passoGaia, stato.supporto ? passoSupporto : passoProcedura];
   zona.innerHTML = `
     <div class="card pp-card"><div class="card-b">
       <h1 class="pp-titolo">Patenti CRI</h1>
@@ -53,7 +64,7 @@ function disegna() {
         Hai un dubbio? Le domande e risposte sono in fondo alla pagina.</p>
       ${stepper()}
     </div></div>
-    <form class="card pp-card" novalidate><div class="card-b">${passi[stato.passo]()}</div></form>`;
+    <form class="card pp-card" novalidate><div class="card-b">${passi()[stato.passo].disegna()}</div></form>`;
   collega();
 }
 
@@ -157,6 +168,42 @@ function passoGaia() {
     <div class="pp-esito" role="status"></div>`;
 }
 
+// --- Test dei riflessi (rinnovo delle patenti 6, 7 e 8) ----------------------
+// Arriva dopo l'invio: la richiesta è già partita, qui il volontario scopre
+// che cosa deve fare in più. Non c'è «Indietro», perché tornando ai
+// documenti si rimanderebbe la richiesta.
+function passoRiflessi() {
+  const t = TEST_RIFLESSI;
+  return `
+    <div class="banner ok" style="margin:0 0 14px"><div class="bi">✓</div><div>
+      <b>${stato.supporto ? 'Richiesta di supporto inviata' : 'Richiesta inviata'}</b>
+      <div class="small">Prima di andare avanti leggi questo passaggio: per il tuo rinnovo serve un test in più.</div></div></div>
+
+    <h2 class="pp-gruppo" style="margin-top:0">Test dei riflessi</h2>
+    <div class="banner warn" style="margin:0 0 16px"><div class="bi">📞</div><div>
+      <b>Per rinnovare la patente ${esc(stato.patente)} devi fare il test dei riflessi</b>
+      <div class="small">Chiama il <strong>Comitato Regionale Liguria</strong> al
+        <a href="tel:${t.telefonoLink}" class="pt-telefono">${esc(t.telefono)}</a>
+        e chiedi di effettuare il test dei riflessi.</div>
+    </div></div>
+
+    <h3 class="pt-sottotitolo">Come leggere i risultati</h3>
+    <p class="pt-testo">Il test ha quattro prove: <b>ottico semplice</b>, <b>ottico complesso</b>, <b>acustico semplice</b> e
+      <b>acustico complesso</b>. Per ognuna lo scontrino riporta due valori, <b>Rapidità</b> e <b>Regolarità</b>: è il numero
+      dopo il trattino, quello cerchiato nell'esempio.</p>
+    <ul class="pt-testo">
+      <li>Sei <b>idoneo</b> se tutti gli otto valori sono <b>pari o superiori a ${t.sogliaMinima}</b>.</li>
+      <li>Se anche uno solo è più basso, <b>chiedi di ripetere il test</b>: il risultato può dipendere da fattori esterni o dal
+        fatto di non conoscere ancora la prova al primo tentativo.</li>
+    </ul>
+    <figure class="pt-esempio">
+      <img src="img/patenti/test-riflessi-esempio.webp" width="1260" height="1440" loading="lazy"
+        alt="Esempio di risultati del test dei riflessi: quattro scontrini (ottico semplice, ottico complesso, acustico semplice, acustico complesso), ognuno con i valori di Rapidità e Regolarità cerchiati.">
+      <figcaption>Esempio: tutti i valori cerchiati sono pari o superiori a ${t.sogliaMinima} (il più basso è 05), quindi l'esito è idoneo.</figcaption>
+    </figure>
+    ${azioni('Ho capito, avanti', false)}`;
+}
+
 // --- 5. Fine -------------------------------------------------------------------
 function riepilogo(righe) {
   return `<div class="pp-rif">
@@ -197,10 +244,11 @@ function collega() {
   const form = zona.querySelector('form');
   form.querySelector('[data-indietro]')?.addEventListener('click', () => vai(stato.passo - 1));
 
-  if (stato.passo === 0) {
+  const qui = passoCorrente();
+  if (qui === 'nome') {
     ['nome', 'cognome'].forEach(k => form[k].addEventListener('input', () => segna(form, k, '')));
   }
-  if (stato.passo === 1) {
+  if (qui === 'tipo') {
     form.querySelectorAll('input[name=tipo]').forEach(r => r.addEventListener('change', () => {
       // Cambiando da nuova a rinnovo (o viceversa) la patente scelta prima
       // va riguardata: si azzera, così la si sceglie di nuovo sapendo cosa.
@@ -209,14 +257,14 @@ function collega() {
       segna(form, 'tipo', '');
     }));
   }
-  if (stato.passo === 2) {
+  if (qui === 'patente') {
     form.querySelectorAll('input[name=patente]').forEach(r => r.addEventListener('change', () => {
       stato.patente = r.value;
       form.querySelector('.pt-percorso').innerHTML = riquadroPercorso();
       segna(form, 'patente', '');
     }));
   }
-  if (stato.passo === 3) {
+  if (qui === 'gaia') {
     const avanti = form.querySelector('button[type=submit]');
     const supporto = form.querySelector('.pt-supporto');
     const aggiorna = () => {
@@ -235,18 +283,18 @@ function collega() {
 
   form.addEventListener('submit', async (e) => {
     e.preventDefault();
-    if (stato.passo === 0) {
+    if (qui === 'nome') {
       stato.nome = form.nome.value.trim();
       stato.cognome = form.cognome.value.trim();
       segna(form, 'nome', stato.nome ? '' : 'Scrivi il tuo nome.');
       segna(form, 'cognome', stato.cognome ? '' : 'Scrivi il tuo cognome.');
     }
-    if (stato.passo === 1) segna(form, 'tipo', tipoRichiesta(stato.tipo) ? '' : 'Scegli se vuoi rinnovare la patente o ottenerne una nuova.');
-    if (stato.passo === 2) segna(form, 'patente', patente(stato.patente) ? '' : (rinnovo() ? 'Scegli la patente da rinnovare.' : 'Scegli la patente che vuoi ottenere.'));
+    if (qui === 'tipo') segna(form, 'tipo', tipoRichiesta(stato.tipo) ? '' : 'Scegli se vuoi rinnovare la patente o ottenerne una nuova.');
+    if (qui === 'patente') segna(form, 'patente', patente(stato.patente) ? '' : (rinnovo() ? 'Scegli la patente da rinnovare.' : 'Scegli la patente che vuoi ottenere.'));
     const primo = form.querySelector('.pp-sbagliato');
     if (primo) { primo.scrollIntoView({ block: 'center', behavior: 'smooth' }); primo.querySelector('input')?.focus({ preventScroll: true }); return; }
 
-    if (stato.passo === 3) {
+    if (qui === 'gaia') {
       if (DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === null)) return;
       const supporto = DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
       if (!await invia(form, { supporto })) return;
@@ -284,7 +332,7 @@ function segna(form, campo, msg) {
 }
 
 function vai(passo) {
-  stato.passo = Math.max(0, Math.min(PASSI.length - 1, passo));
+  stato.passo = Math.max(0, Math.min(passi().length - 1, passo));
   disegna();
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }

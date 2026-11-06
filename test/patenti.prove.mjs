@@ -6,7 +6,7 @@
 //  volesse usarlo per riempire la tabella.
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
-import { controllaRichiesta, PATENTI, percorsoDi, documentiMancanti } from '../js/lib/patenti.mjs';
+import { controllaRichiesta, PATENTI, percorsoDi, documentiMancanti, servonoRiflessi } from '../js/lib/patenti.mjs';
 import { onRequestPost, MAX_PER_MITTENTE, MAX_AL_GIORNO, impronta, emailSupporto, EMAIL_SUPPORTO } from '../functions/api/patenti.js';
 
 gruppo('Patenti — regole del modulo');
@@ -23,6 +23,12 @@ prova('una richiesta in regola passa, ripulita e col suo percorso', () => {
   const r = controllaRichiesta({ ...OK, estraneo: '<script>' });
   vero(r.ok, JSON.stringify(r.errori));
   uguale(r.dati, { nome: 'Mario', cognome: 'Rossi', tipo: 'nuova', patente: 5, documenti_gaia: ['fototessera', 'patente_civile', 'carta_identita'], percorso: 'esame' });
+});
+
+prova('il test dei riflessi serve solo rinnovando una patente superiore alla 5', () => {
+  uguale([1, 2, 3, 4, 5, 6, 7, 8].map(n => servonoRiflessi('rinnovo', n)), [false, false, false, false, false, true, true, true]);
+  uguale([6, 7, 8].map(n => servonoRiflessi('nuova', n)), [false, false, false], 'non per una patente nuova');
+  uguale(servonoRiflessi('rinnovo', '7'), true, 'anche col numero scritto come testo, come arriva dal modulo');
 });
 
 prova('bisogna dire se è una nuova patente o un rinnovo', () => {
