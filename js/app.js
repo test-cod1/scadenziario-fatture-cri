@@ -349,6 +349,11 @@ async function route() {
 
   const parts = normalizzaPercorso(location.hash.replace(/^#\/?/, '').split('/').filter(Boolean));
   const [primo, ...resto] = parts;
+  // Richieste di patente che chiedono supporto: il numerino accanto a
+  // «Patenti» si ricalcola tornando in home ed entrando nella sezione.
+  if (ruoloIn(currentUser, 'patenti') && (primo === 'home' || primo === 'patenti')) {
+    import('./patenti/avviso.js').then(m => m.contaSupportoDaGestire().then(m.segnaNelMenu)).catch(() => {});
+  }
 
   // --- pagine di portale (fuori da ogni sezione) ---
   if (primo === 'home' || primo === 'portale') {

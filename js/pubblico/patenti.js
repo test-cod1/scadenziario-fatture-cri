@@ -87,26 +87,26 @@ function riquadroPercorso() {
 }
 
 // --- Passo 2: documenti su Gaia ---------------------------------------------
-// Una domanda per documento, Sì o No. Con tutti Sì si invia la richiesta;
-// con almeno un No compare il riquadro del supporto.
+// Una domanda per documento: «Sì» oppure «No, mi serve supporto». Si va
+// avanti solo dopo aver risposto a tutte e tre; con almeno un «No» la
+// richiesta parte come richiesta di supporto (e la segreteria riceve
+// un'email e un avviso nel portale).
 function passoGaia() {
   return `
     <h2 class="pp-gruppo" style="margin-top:0">Documenti su Gaia</h2>
-    <p class="pp-sotto">Rispondi a ogni domanda. Se non hai ancora caricato un documento, caricalo su Gaia
-      e poi rispondi Sì; se non ci riesci, puoi chiedere supporto alla segreteria.</p>
+    <p class="pp-sotto">Rispondi a tutte e tre le domande. Se non riesci a caricare un documento su Gaia,
+      rispondi «No, mi serve supporto»: la segreteria ti aiuterà.</p>
     <div class="pt-domande">
       ${DOCUMENTI_GAIA.map(d => `<fieldset class="pt-domanda">
         <legend>${d.domanda}</legend>
         <div class="pt-sino">
           <label class="pp-tipo"><input type="radio" name="${d.id}" value="si" ${stato.gaia[d.id] === true ? 'checked' : ''}> <span>Sì</span></label>
-          <label class="pp-tipo"><input type="radio" name="${d.id}" value="no" ${stato.gaia[d.id] === false ? 'checked' : ''}> <span>No</span></label>
+          <label class="pp-tipo"><input type="radio" name="${d.id}" value="no" ${stato.gaia[d.id] === false ? 'checked' : ''}> <span>No, mi serve supporto</span></label>
         </div></fieldset>`).join('')}
     </div>
     <div class="banner warn pt-supporto" hidden style="margin:14px 0 0"><div class="bi">🤝</div><div>
-      <b>Ti manca qualche documento?</b>
-      <div class="small">Caricalo su Gaia e cambia la risposta in Sì. Se non riesci, chiedi supporto: la segreteria riceve la tua
-        richiesta con i documenti che mancano e ti aiuta a completarla.</div>
-      <button class="btn" type="button" data-supporto style="margin-top:10px">No, mi serve supporto</button>
+      <b>Chiederai supporto alla segreteria</b>
+      <div class="small">Inviando, la segreteria riceve la tua richiesta con i documenti che mancano e ti aiuta a completarla.</div>
     </div></div>
     <!-- Trappola per i programmi che compilano i moduli da soli: le persone non la vedono. -->
     <div class="pt-trappola" aria-hidden="true"><label>Sito web <input name="sito" tabindex="-1" autocomplete="off"></label></div>
@@ -175,14 +175,13 @@ function collega() {
         const v = form.querySelector(`input[name="${d.id}"]:checked`)?.value;
         stato.gaia[d.id] = v === 'si' ? true : v === 'no' ? false : null;
       });
-      avanti.disabled = !DOCUMENTI_GAIA.every(d => stato.gaia[d.id] === true);
-      supporto.hidden = !DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
+      const serve = DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
+      avanti.disabled = !DOCUMENTI_GAIA.every(d => stato.gaia[d.id] !== null);
+      avanti.textContent = serve ? 'Invia e chiedi supporto' : 'Invia la richiesta';
+      supporto.hidden = !serve;
     };
     form.querySelectorAll('.pt-domanda input').forEach(c => c.addEventListener('change', aggiorna));
     aggiorna();
-    form.querySelector('[data-supporto]').addEventListener('click', async () => {
-      if (await invia(form, { supporto: true })) { stato.supporto = true; vai(2); }
-    });
   }
 
   form.addEventListener('submit', async (e) => {
@@ -200,7 +199,10 @@ function collega() {
       if (primo) { primo.scrollIntoView({ block: 'center', behavior: 'smooth' }); primo.querySelector('input')?.focus({ preventScroll: true }); return; }
     }
     if (stato.passo === 1) {
-      if (!await invia(form)) return;
+      if (DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === null)) return;
+      const supporto = DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
+      if (!await invia(form, { supporto })) return;
+      stato.supporto = supporto;
     }
     vai(stato.passo + 1);
   });
@@ -209,7 +211,7 @@ function collega() {
 async function invia(form, { supporto = false } = {}) {
   const corpo = { nome: stato.nome, cognome: stato.cognome, patente: stato.patente, documenti_gaia: stato.gaia, sito: form.sito.value, supporto };
   if (!controllaRichiesta(corpo).ok) return false;
-  const btn = form.querySelector(supporto ? '[data-supporto]' : 'button[type=submit]');
+  const btn = form.querySelector('button[type=submit]');
   const testo = btn.textContent;
   const esito = form.querySelector('.pp-esito');
   btn.disabled = true; btn.textContent = 'Invio in corso…'; esito.innerHTML = '';

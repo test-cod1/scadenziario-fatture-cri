@@ -15,12 +15,23 @@
 //   - per giorno, su tutti: se qualcuno aggira il primo, il danno resta
 //     contenuto.
 //
+//  Quando il volontario risponde «No, mi serve supporto» la richiesta si
+//  salva lo stesso, e parte un'email di avviso alla segreteria (stesso
+//  servizio dei promemoria). Se l'email non parte la richiesta resta
+//  salvata: il portale la mostra comunque come «serve supporto».
+//
 //  Secret: SUPABASE_SERVICE_ROLE_KEY (la tabella non ha policy per gli
-//  anonimi: scrive solo il server).
+//  anonimi: scrive solo il server). Per l'email: PROMEMORIA_MITTENTE e
+//  RESEND_API_KEY (o BREVO_API_KEY); il destinatario si può cambiare con
+//  PATENTI_EMAIL_SUPPORTO.
 // ============================================================
 
 import { SUPABASE_URL } from '../_lib/auth.js';
-import { controllaRichiesta } from '../../js/lib/patenti.mjs';
+import { inviaEmail } from '../_lib/promemoria.js';
+import { controllaRichiesta, documentiMancanti } from '../../js/lib/patenti.mjs';
+
+// A chi arriva l'avviso delle richieste di supporto.
+export const EMAIL_SUPPORTO = 'jacopo.ravaioli@liguria.cri.it';
 
 export const MAX_PER_MITTENTE = 5;     // nell'ultima ora
 export const MAX_AL_GIORNO = 300;      // nelle ultime 24 ore, da tutti
@@ -76,11 +87,46 @@ export async function onRequestPost(context) {
       headers: { Prefer: 'return=minimal' },
       body: JSON.stringify({ ...esito.dati, ip_hash: ipHash }),
     });
+    if (corpo.supporto === true) {
+      // L'email non deve far fallire né rallentare la risposta al
+      // volontario: su Cloudflare prosegue dopo la risposta (waitUntil).
+      const avviso = inviaEmail(env, emailSupporto(esito.dati, env, request))
+        .catch(e => console.error('[patenti] email di supporto non inviata:', e.message));
+      if (typeof context.waitUntil === 'function') context.waitUntil(avviso); else await avviso;
+    }
     return json({ ok: true });
   } catch (e) {
     console.error('[patenti]', e);
     return json({ error: 'Il modulo non è al momento disponibile. Riprova più tardi.' }, 500);
   }
+}
+
+// L'email alla segreteria: chi, quale patente, cosa manca, e il link alle
+// richieste di supporto nel portale. Tutto quello che arriva dal volontario
+// è già stato ripulito da controllaRichiesta, ma nell'HTML si scappa lo
+// stesso.
+export function emailSupporto(dati, env = {}, request = null) {
+  const portale = (env.PORTALE_URL || (request ? new URL(request.url).origin : 'https://amministrazione.crigenova.it')).replace(/\/$/, '');
+  const link = `${portale}/#/patenti/richieste/supporto`;
+  const mancanti = documentiMancanti(dati.documenti_gaia).map(d => d.breve);
+  const chi = `${dati.nome} ${dati.cognome}`;
+  const e = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+  return {
+    a: env.PATENTI_EMAIL_SUPPORTO || EMAIL_SUPPORTO,
+    oggetto: `Patenti CRI: ${chi} chiede supporto per i documenti su Gaia`,
+    testo: [
+      `${chi} ha chiesto supporto dal modulo delle patenti CRI.`,
+      `Patente richiesta: ${dati.patente}`,
+      `Documenti che non riesce a caricare su Gaia: ${mancanti.join('; ')}`,
+      '',
+      `Apri la richiesta nel portale: ${link}`,
+    ].join('\n'),
+    html: `<p><b>${e(chi)}</b> ha chiesto supporto dal modulo delle patenti CRI.</p>
+      <p>Patente richiesta: <b>${e(dati.patente)}</b><br>
+      Documenti che non riesce a caricare su Gaia:</p>
+      <ul>${mancanti.map(m => `<li>${e(m)}</li>`).join('')}</ul>
+      <p><a href="${e(link)}">Apri le richieste di supporto nel portale</a></p>`,
+  };
 }
 
 // SHA-256 dell'IP con un sale segreto: due invii dallo stesso indirizzo

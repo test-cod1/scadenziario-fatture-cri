@@ -9,6 +9,11 @@
 import { richieste as store } from '../data/store.js';
 import { PERCORSI, STATI, documentiMancanti } from '../../lib/patenti.mjs';
 import { el, clear, esc, toast, confirmDialog, openModal, rendiCliccabile, fmtDateTime } from '../../lib/ui.js';
+import { contaSupportoDaGestire, segnaNelMenu } from '../avviso.js';
+
+// Il numerino nel menu si ricalcola a ogni modifica: prendere in mano una
+// richiesta di supporto lo deve spegnere subito.
+const aggiornaAvviso = () => contaSupportoDaGestire().then(segnaNelMenu).catch(() => {});
 
 const ETICHETTA_STATO = Object.fromEntries(STATI);
 const serveSupporto = (r) => documentiMancanti(r.documenti_gaia).length > 0;
@@ -108,7 +113,7 @@ export async function renderRichieste(view, ctx) {
     tr.querySelector('[data-note]').addEventListener('click', () => modificaNote(r));
     tr.querySelector('[data-elimina]')?.addEventListener('click', async () => {
       if (!await confirmDialog(`Eliminare la richiesta di ${r.nome} ${r.cognome}? Non si potrà recuperare.`, { danger: true, okLabel: 'Elimina' })) return;
-      try { await store.remove(r.id); elenco = elenco.filter(x => x.id !== r.id); draw(); toast('Richiesta eliminata', 'ok'); }
+      try { await store.remove(r.id); elenco = elenco.filter(x => x.id !== r.id); draw(); aggiornaAvviso(); toast('Richiesta eliminata', 'ok'); }
       catch (err) { toast(err.message, 'err'); }
     });
     return tr;
@@ -117,6 +122,7 @@ export async function renderRichieste(view, ctx) {
   function sostituisci(nuova) {
     elenco = elenco.map(x => x.id === nuova.id ? nuova : x);
     draw();
+    aggiornaAvviso();
   }
 
   function modificaNote(r) {
@@ -132,6 +138,7 @@ export async function renderRichieste(view, ctx) {
   }
 
   $('#q').addEventListener('input', draw);
+  if (ctx.filtro === 'supporto') $('#f-stato').value = 'supporto';
   $('#f-stato').addEventListener('change', draw);
   $('#f-patente').addEventListener('change', draw);
   draw();

@@ -1156,6 +1156,9 @@ tr.str-inattivo td{opacity:.6}
 .pt-patente span{display:flex;flex-direction:column;gap:2px}
 .pt-patente small{font-size:12px;color:var(--ink-soft)}
 .pt-conferme{display:flex;flex-direction:column;gap:8px}
+.nav-avviso{margin-left:auto;min-width:20px;height:20px;padding:0 6px;border-radius:999px;background:var(--cri-red);color:#fff;font-size:12px;font-weight:700;display:inline-grid;place-items:center}
+.avviso-patenti{color:inherit;text-decoration:none}
+.avviso-patenti:hover{box-shadow:0 0 0 2px #f0dca0 inset}
 .pt-domande{display:flex;flex-direction:column;gap:12px}
 .pt-domanda{border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:0}
 .pt-domanda legend{padding:0 4px;font-size:14px;line-height:1.45}

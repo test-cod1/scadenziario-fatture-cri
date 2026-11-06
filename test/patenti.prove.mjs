@@ -7,7 +7,7 @@
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
 import { controllaRichiesta, PATENTI, percorsoDi, documentiMancanti } from '../js/lib/patenti.mjs';
-import { onRequestPost, MAX_PER_MITTENTE, MAX_AL_GIORNO, impronta } from '../functions/api/patenti.js';
+import { onRequestPost, MAX_PER_MITTENTE, MAX_AL_GIORNO, impronta, emailSupporto, EMAIL_SUPPORTO } from '../functions/api/patenti.js';
 
 gruppo('Patenti — regole del modulo');
 
@@ -52,8 +52,14 @@ gruppo('Patenti — endpoint pubblico');
 
 const ENV = { SUPABASE_SERVICE_ROLE_KEY: 'chiave-di-servizio-di-prova-lunga', SUPABASE_URL: 'https://db' };
 let righe;
+let email = [];          // le email che l'endpoint ha provato a mandare
+let emailRifiutata = false;
 const finto = async (url, opz = {}) => {
   const u = new URL(url);
+  if (u.hostname === 'api.resend.com') {
+    email.push(JSON.parse(opz.body));
+    return new Response(emailRifiutata ? 'no' : '{}', { status: emailRifiutata ? 500 : 200 });
+  }
   const filtri = [...u.searchParams].filter(([k]) => k !== 'select');
   const passa = (r) => filtri.every(([k, v]) => {
     const [op, val] = [v.slice(0, v.indexOf('.')), v.slice(v.indexOf('.') + 1)];
@@ -79,6 +85,39 @@ async function chiama(corpo, { env = ENV, ip = '1.2.3.4' } = {}) {
     return { status: res.status, corpo: await res.json(), cache: res.headers.get('Cache-Control') };
   } finally { globalThis.fetch = vero; }
 }
+
+const ENV_EMAIL = { ...ENV, RESEND_API_KEY: 'k', PROMEMORIA_MITTENTE: 'Amministrazione <a@b.it>' };
+const SUPPORTO = { ...OK, documenti_gaia: { fototessera: true, patente_civile: false, carta_identita: false }, supporto: true };
+
+prova('chi chiede supporto fa partire un\'email alla segreteria', async () => {
+  righe = []; email = []; emailRifiutata = false;
+  uguale((await chiama(SUPPORTO, { env: ENV_EMAIL })).status, 200);
+  uguale(email.length, 1);
+  uguale(email[0].to, [EMAIL_SUPPORTO]);
+  vero(email[0].subject.includes('Mario Rossi'));
+  vero(email[0].text.includes("carta d'identità") && email[0].text.includes('#/patenti/richieste/supporto'));
+});
+
+prova('una richiesta normale non manda email', async () => {
+  righe = []; email = [];
+  uguale((await chiama(OK, { env: ENV_EMAIL })).status, 200);
+  uguale(email.length, 0);
+});
+
+prova('se l\'email non parte la richiesta di supporto resta salvata', async () => {
+  righe = []; email = []; emailRifiutata = true;
+  uguale((await chiama(SUPPORTO, { env: ENV_EMAIL })).status, 200);
+  uguale(righe.length, 1);
+  emailRifiutata = false;
+  righe = [];
+  uguale((await chiama(SUPPORTO)).status, 200, 'anche senza servizio email configurato');
+  uguale(righe.length, 1);
+});
+
+prova('il destinatario si cambia con PATENTI_EMAIL_SUPPORTO', () => {
+  uguale(emailSupporto({ nome: 'A', cognome: 'B', patente: 3, documenti_gaia: [] }, { PATENTI_EMAIL_SUPPORTO: 'x@y.it' }).a, 'x@y.it');
+  vero(emailSupporto({ nome: '<b>', cognome: 'B', patente: 3, documenti_gaia: [] }).html.includes('&lt;b&gt;'), 'il nome va scappato nell\'HTML');
+});
 
 prova('una richiesta in regola si salva, con l\'impronta e non l\'IP', async () => {
   righe = [];

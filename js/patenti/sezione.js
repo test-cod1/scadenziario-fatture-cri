@@ -8,11 +8,11 @@ import { el, esc, toast } from '../lib/ui.js';
 import { PATENTI, PERCORSI, DOCUMENTI_GAIA } from '../lib/patenti.mjs';
 import { htmlFaq, filtraFaq, FONTE_TU } from '../lib/faqPatenti.mjs';
 
-export async function renderPatenti(view, ctx, sub) {
+export async function renderPatenti(view, ctx, sub, param) {
   if (sub === 'domande') return renderDomande(view);
   if (sub !== 'link') {
     const { renderRichieste } = await import('./views/richieste.js');
-    return renderRichieste(view, { user: ctx.user, ruolo: ctx.user?.ruolo, go: ctx.go });
+    return renderRichieste(view, { user: ctx.user, ruolo: ctx.user?.ruolo, go: ctx.go, filtro: param });
   }
   return renderLink(view);
 }
