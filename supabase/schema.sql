@@ -2125,6 +2125,9 @@ create table if not exists public.richieste_patenti (
   cognome text not null check (btrim(cognome) <> '' and length(cognome) <= 80),
   patente smallint not null check (patente between 1 and 8),
   percorso text not null check (percorso in ('diretta','pratica','esame')),
+  -- Nuova patente o rinnovo (patch-2026-11-07-patenti-tipo.sql); null per
+  -- le richieste arrivate prima che il modulo lo chiedesse.
+  tipo text check (tipo is null or tipo in ('nuova','rinnovo')),
   -- I documenti che il volontario ha confermato di aver caricato su Gaia.
   documenti_gaia text[] not null default '{}',
   -- Avanzamento, lo segna la segreteria.

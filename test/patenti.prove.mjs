@@ -12,7 +12,7 @@ import { onRequestPost, MAX_PER_MITTENTE, MAX_AL_GIORNO, impronta, emailSupporto
 gruppo('Patenti — regole del modulo');
 
 const TUTTI = { fototessera: true, patente_civile: true, carta_identita: true };
-const OK = { nome: '  Mario ', cognome: 'Rossi', patente: '5', documenti_gaia: TUTTI };
+const OK = { nome: '  Mario ', cognome: 'Rossi', tipo: 'nuova', patente: '5', documenti_gaia: TUTTI };
 
 prova('i percorsi delle otto patenti', () => {
   uguale(PATENTI.map(p => p.percorso), ['diretta', 'diretta', 'diretta', 'pratica', 'esame', 'pratica', 'pratica', 'pratica']);
@@ -22,7 +22,13 @@ prova('i percorsi delle otto patenti', () => {
 prova('una richiesta in regola passa, ripulita e col suo percorso', () => {
   const r = controllaRichiesta({ ...OK, estraneo: '<script>' });
   vero(r.ok, JSON.stringify(r.errori));
-  uguale(r.dati, { nome: 'Mario', cognome: 'Rossi', patente: 5, documenti_gaia: ['fototessera', 'patente_civile', 'carta_identita'], percorso: 'esame' });
+  uguale(r.dati, { nome: 'Mario', cognome: 'Rossi', tipo: 'nuova', patente: 5, documenti_gaia: ['fototessera', 'patente_civile', 'carta_identita'], percorso: 'esame' });
+});
+
+prova('bisogna dire se è una nuova patente o un rinnovo', () => {
+  uguale(Object.keys(controllaRichiesta({ ...OK, tipo: '' }).errori), ['tipo']);
+  uguale(Object.keys(controllaRichiesta({ ...OK, tipo: 'duplicato' }).errori), ['tipo']);
+  uguale(controllaRichiesta({ ...OK, tipo: 'rinnovo' }).dati.tipo, 'rinnovo');
 });
 
 prova('nome, cognome e una patente da 1 a 8 sono obbligatori', () => {

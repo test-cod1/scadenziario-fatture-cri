@@ -28,7 +28,7 @@
 
 import { SUPABASE_URL } from '../_lib/auth.js';
 import { inviaEmail } from '../_lib/promemoria.js';
-import { controllaRichiesta, documentiMancanti } from '../../js/lib/patenti.mjs';
+import { controllaRichiesta, documentiMancanti, tipoRichiesta } from '../../js/lib/patenti.mjs';
 
 // A chi arriva l'avviso delle richieste di supporto.
 export const EMAIL_SUPPORTO = 'jacopo.ravaioli@liguria.cri.it';
@@ -110,19 +110,20 @@ export function emailSupporto(dati, env = {}, request = null) {
   const link = `${portale}/#/patenti/richieste/supporto`;
   const mancanti = documentiMancanti(dati.documenti_gaia).map(d => d.breve);
   const chi = `${dati.nome} ${dati.cognome}`;
+  const cosa = `${tipoRichiesta(dati.tipo)?.breve || 'Patente'} — patente ${dati.patente}`;
   const e = (s) => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   return {
     a: env.PATENTI_EMAIL_SUPPORTO || EMAIL_SUPPORTO,
     oggetto: `Patenti CRI: ${chi} chiede supporto per i documenti su Gaia`,
     testo: [
       `${chi} ha chiesto supporto dal modulo delle patenti CRI.`,
-      `Patente richiesta: ${dati.patente}`,
+      `Richiesta: ${cosa}`,
       `Documenti che non riesce a caricare su Gaia: ${mancanti.join('; ')}`,
       '',
       `Apri la richiesta nel portale: ${link}`,
     ].join('\n'),
     html: `<p><b>${e(chi)}</b> ha chiesto supporto dal modulo delle patenti CRI.</p>
-      <p>Patente richiesta: <b>${e(dati.patente)}</b><br>
+      <p>Richiesta: <b>${e(cosa)}</b><br>
       Documenti che non riesce a caricare su Gaia:</p>
       <ul>${mancanti.map(m => `<li>${e(m)}</li>`).join('')}</ul>
       <p><a href="${e(link)}">Apri le richieste di supporto nel portale</a></p>`,

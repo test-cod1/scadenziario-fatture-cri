@@ -96,7 +96,8 @@ export async function renderRichieste(view, ctx) {
     const tr = el(`<tr>
       <td style="white-space:nowrap">${esc(fmtDateTime(r.created_at))}</td>
       <td><b>${esc(r.cognome)} ${esc(r.nome)}</b></td>
-      <td style="white-space:nowrap">Patente ${r.patente}<div class="hint">${esc(PERCORSI[r.percorso]?.etichetta || '')}</div></td>
+      <td style="white-space:nowrap">${r.tipo === 'rinnovo' ? '<span class="chip">Rinnovo</span>' : r.tipo === 'nuova' ? '<span class="chip">Nuova</span>' : ''}
+        Patente ${r.patente}<div class="hint">${r.tipo === 'rinnovo' ? 'visita medica di conferma' : esc(PERCORSI[r.percorso]?.etichetta || '')}</div></td>
       <td>${!mancanti.length ? '<span class="chip">✓ tutti caricati</span>'
         : `<span class="chip red">🆘 serve supporto</span><div class="hint" style="margin-top:4px">Mancano: ${mancanti.map(d => esc(d.breve)).join(', ')}</div>`}</td>
       <td><select aria-label="Stato della richiesta">${STATI.map(([v, l]) => `<option value="${v}" ${r.stato === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></td>

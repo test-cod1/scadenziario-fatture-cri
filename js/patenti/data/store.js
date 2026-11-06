@@ -8,7 +8,7 @@
 const nowISO = () => new Date().toISOString();
 async function sbClient() { const { getSupabase } = await import('../../lib/supabase.js'); return getSupabase(); }
 
-const COLONNE = 'id,nome,cognome,patente,percorso,documenti_gaia,stato,note,created_at,updated_at';
+const COLONNE = 'id,nome,cognome,tipo,patente,percorso,documenti_gaia,stato,note,created_at,updated_at';
 
 export const richieste = {
   async list() {

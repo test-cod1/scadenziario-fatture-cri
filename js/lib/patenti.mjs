@@ -47,6 +47,26 @@ export function percorsoDi(numero) {
   return p ? PERCORSI[p.percorso] : null;
 }
 
+// Che cosa chiede il volontario: una patente che non ha ancora, o il
+// rinnovo di una che ha già. Per il rinnovo non c'è conversione: serve la
+// visita medica di conferma della validità (TU artt. 60 e 61).
+export const TIPI_RICHIESTA = [
+  { id: 'nuova', etichetta: 'Ottieni nuova patente CRI', breve: 'Nuova patente' },
+  { id: 'rinnovo', etichetta: 'Rinnova patente CRI', breve: 'Rinnovo' },
+];
+
+export function tipoRichiesta(id) {
+  return TIPI_RICHIESTA.find(t => t.id === id) || null;
+}
+
+// Il testo del passaggio finale per chi rinnova (segnaposto, come quelli
+// dei percorsi).
+export const RINNOVO = {
+  etichetta: 'Rinnovo',
+  breve: 'Serve la visita medica di conferma della validità.',
+  spiegazione: '',
+};
+
 // Documenti che il volontario deve aver caricato su Gaia. Il modulo glieli
 // chiede uno per uno (Sì / No): con tutti Sì la richiesta parte normale,
 // con almeno un No può chiedere supporto alla segreteria.
@@ -79,12 +99,14 @@ export function controllaRichiesta(grezzi) {
   const dati = {
     nome: pulisci(g.nome),
     cognome: pulisci(g.cognome),
+    tipo: tipoRichiesta(g.tipo)?.id || '',
     patente: Number(g.patente),
     documenti_gaia: DOCUMENTI_GAIA.filter(d => g.documenti_gaia?.[d.id] === true).map(d => d.id),
   };
   const errori = {};
   if (!dati.nome) errori.nome = 'Scrivi il tuo nome.';
   if (!dati.cognome) errori.cognome = 'Scrivi il tuo cognome.';
+  if (!dati.tipo) errori.tipo = 'Scegli se vuoi rinnovare la patente o ottenerne una nuova.';
   const p = patente(dati.patente);
   if (!p) errori.patente = 'Scegli la patente che richiedi.';
   else dati.percorso = p.percorso;

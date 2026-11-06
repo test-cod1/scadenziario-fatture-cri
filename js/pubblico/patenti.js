@@ -1,34 +1,41 @@
 // ============================================================
 //  MODULO PUBBLICO PATENTI CRI (patenti.html)
 //  Lo apre il volontario dal link che gli manda la segreteria, senza
-//  accedere al portale. Lo accompagna, un passo alla volta, nella
-//  procedura di emissione o rinnovo della patente CRI:
-//    1. chi è e quale patente chiede;
-//    2. i documenti già caricati su Gaia (vanno confermati tutti);
-//    3. come prosegue la procedura per quella patente.
+//  accedere al portale. Lo accompagna nella richiesta, un passaggio alla
+//  volta: ognuno è un cancello, e si va avanti solo dopo averlo superato.
+//    1. nome e cognome;
+//    2. rinnovare la patente CRI o ottenerne una nuova;
+//    3. quale patente;
+//    4. i documenti su Gaia: per ognuno «Sì» o «No, mi serve supporto»;
+//    5. come prosegue (oppure, se ha chiesto supporto, cosa succede ora).
 //
-//  La richiesta si invia confermando il passo 2: va a /api/patenti, che
+//  La richiesta si invia superando il passaggio 4: va a /api/patenti, che
 //  ricontrolla i dati con le stesse regole (js/lib/patenti.mjs) e la salva
-//  per la segreteria. Il passo 3 si apre solo a invio riuscito.
+//  per la segreteria. L'ultimo passaggio si apre solo a invio riuscito.
+//
+//  Sotto ogni passaggio c'è la ricerca nelle domande e risposte
+//  (js/lib/faqPatenti.mjs), con qualche domanda suggerita per quel punto.
 // ============================================================
-import { PATENTI, PERCORSI, DOCUMENTI_GAIA, patente, percorsoDi, controllaRichiesta } from '../lib/patenti.mjs';
-import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
+import { PATENTI, PERCORSI, DOCUMENTI_GAIA, TIPI_RICHIESTA, RINNOVO, patente, tipoRichiesta, controllaRichiesta } from '../lib/patenti.mjs';
+import { tutteLeDomande, testoCercabile, SUGGERITE_PER_PASSO as SUGGERITE } from '../lib/faqPatenti.mjs';
 
 const zona = document.getElementById('modulo');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-const PASSI = ['I tuoi dati', 'Documenti su Gaia', 'Procedura'];
+const PASSI = ['Nome', 'Richiesta', 'Patente', 'Documenti', 'Procedura'];
 
 const stato = {
   passo: 0,
   nome: '',
   cognome: '',
+  tipo: '',          // 'nuova' | 'rinnovo'
   patente: '',
-  // Per documento: true (Sì), false (No) o null (non ancora risposto).
+  // Per documento: true (Sì), false (No, mi serve supporto) o null (non ancora risposto).
   gaia: Object.fromEntries(DOCUMENTI_GAIA.map(d => [d.id, null])),
-  inviata: false,
   supporto: false,
 };
+
+const rinnovo = () => stato.tipo === 'rinnovo';
 
 function stepper() {
   return `<ol class="pt-passi" aria-label="Avanzamento">
@@ -38,20 +45,25 @@ function stepper() {
 }
 
 function disegna() {
-  const corpo = [passoDati, passoGaia, stato.supporto ? passoSupporto : passoProcedura][stato.passo]();
+  const passi = [passoNome, passoTipo, passoPatente, passoGaia, stato.supporto ? passoSupporto : passoProcedura];
   zona.innerHTML = `
     <div class="card pp-card"><div class="card-b">
       <h1 class="pp-titolo">Patenti CRI</h1>
-      <p class="pp-sotto">Segui questi passaggi per la richiesta di emissione o rinnovo della tua patente CRI.
-        Hai un dubbio? <a href="#faq">Leggi le domande frequenti</a>.</p>
+      <p class="pp-sotto">Segui questi passaggi per richiedere una nuova patente CRI o rinnovare la tua.
+        Hai un dubbio? Cerca la risposta nel riquadro in fondo.</p>
       ${stepper()}
     </div></div>
-    <form class="card pp-card" novalidate><div class="card-b">${corpo}</div></form>`;
+    <form class="card pp-card" novalidate><div class="card-b">${passi[stato.passo]()}</div></form>`;
   collega();
+  suggerisci();
 }
 
-// --- Passo 1: dati ---------------------------------------------------------
-function passoDati() {
+const azioni = (avanti = 'Avanti', indietro = true) => `<div class="pp-azioni pt-azioni">
+  ${indietro ? '<button class="btn" type="button" data-indietro>← Indietro</button>' : ''}
+  <button class="btn primary" type="submit">${esc(avanti)}</button></div>`;
+
+// --- 1. Nome e cognome -------------------------------------------------------
+function passoNome() {
   return `
     <h2 class="pp-gruppo" style="margin-top:0">Chi sei</h2>
     <div class="form-row">
@@ -62,31 +74,59 @@ function passoDati() {
         <input id="f-cognome" name="cognome" value="${esc(stato.cognome)}" autocomplete="family-name">
         <div class="pp-errore" role="alert"></div></div>
     </div>
+    ${azioni('Avanti', false)}`;
+}
 
+// --- 2. Rinnovo o nuova patente --------------------------------------------
+function passoTipo() {
+  return `
+    <div class="field" data-campo="tipo">
+      <fieldset class="pp-tipi"><legend>Che cosa vuoi fare?</legend>
+        <div class="pt-scelte">
+          ${TIPI_RICHIESTA.map(t => `<label class="pp-tipo pt-scelta">
+            <input type="radio" name="tipo" value="${t.id}" ${stato.tipo === t.id ? 'checked' : ''}>
+            <span><b>${esc(t.etichetta)}</b><small>${t.id === 'rinnovo'
+              ? 'Hai già una patente CRI e sta per scadere (o è scaduta).'
+              : 'Vuoi una patente CRI che non hai ancora.'}</small></span></label>`).join('')}
+        </div>
+      </fieldset>
+      <div class="pp-errore" role="alert"></div>
+    </div>
+    ${azioni()}`;
+}
+
+// --- 3. Quale patente --------------------------------------------------------
+function passoPatente() {
+  return `
     <div class="field" data-campo="patente">
-      <fieldset class="pp-tipi"><legend>Patente richiesta</legend>
+      <fieldset class="pp-tipi"><legend>${rinnovo() ? 'Quale patente vuoi rinnovare?' : 'Quale patente vuoi ottenere?'}</legend>
         <div class="pt-patenti">
           ${PATENTI.map(p => `<label class="pp-tipo pt-patente">
             <input type="radio" name="patente" value="${p.numero}" ${String(stato.patente) === String(p.numero) ? 'checked' : ''}>
-            <span><b>Patente ${p.numero}</b><small>${esc(PERCORSI[p.percorso].etichetta)}</small></span></label>`).join('')}
+            <span><b>Patente ${p.numero}</b>${rinnovo() ? '' : `<small>${esc(PERCORSI[p.percorso].etichetta)}</small>`}</span></label>`).join('')}
         </div>
       </fieldset>
       <div class="pp-errore" role="alert"></div>
     </div>
     <div class="pt-percorso" aria-live="polite">${riquadroPercorso()}</div>
+    ${azioni()}`;
+}
 
-    <div class="pp-azioni"><button class="btn primary" type="submit">Avanti</button></div>`;
+function percorsoScelto() {
+  if (rinnovo()) return patente(stato.patente) ? RINNOVO : null;
+  const p = patente(stato.patente);
+  return p ? PERCORSI[p.percorso] : null;
 }
 
 function riquadroPercorso() {
-  const pr = percorsoDi(stato.patente);
+  const pr = percorsoScelto();
   if (!pr) return '';
   return `<div class="banner info" style="margin:4px 0 0"><div class="bi">ℹ️</div><div>
     <b>Patente ${esc(stato.patente)}: ${esc(pr.etichetta.toLowerCase())}</b>
     <div class="small">${esc(pr.breve)}</div></div></div>`;
 }
 
-// --- Passo 2: documenti su Gaia ---------------------------------------------
+// --- 4. Documenti su Gaia -----------------------------------------------------
 // Una domanda per documento: «Sì» oppure «No, mi serve supporto». Si va
 // avanti solo dopo aver risposto a tutte e tre; con almeno un «No» la
 // richiesta parte come richiesta di supporto (e la segreteria riceve
@@ -110,64 +150,70 @@ function passoGaia() {
     </div></div>
     <!-- Trappola per i programmi che compilano i moduli da soli: le persone non la vedono. -->
     <div class="pt-trappola" aria-hidden="true"><label>Sito web <input name="sito" tabindex="-1" autocomplete="off"></label></div>
-    <div class="pp-azioni pt-azioni">
-      <button class="btn" type="button" data-indietro>← Indietro</button>
-      <button class="btn primary" type="submit">Invia la richiesta</button>
-    </div>
+    ${azioni('Invia la richiesta')}
     <div class="pp-esito" role="status"></div>`;
 }
 
-// --- Passo 3 per chi ha chiesto supporto ------------------------------------
+// --- 5. Fine -------------------------------------------------------------------
+function riepilogo(righe) {
+  return `<div class="pp-rif">
+    <div><span>Volontario</span><b>${esc(stato.nome)} ${esc(stato.cognome)}</b></div>
+    <div><span>Richiesta</span><b>${esc(tipoRichiesta(stato.tipo)?.etichetta || '')}</b></div>
+    <div><span>Patente</span><b>Patente ${esc(stato.patente)}</b></div>
+    ${righe}
+  </div>`;
+}
+
 function passoSupporto() {
   const mancanti = DOCUMENTI_GAIA.filter(d => stato.gaia[d.id] !== true);
   return `
     <div class="banner ok" style="margin:0 0 14px"><div class="bi">✓</div><div>
       <b>Richiesta di supporto inviata</b><div class="small">La segreteria l'ha ricevuta e ti aiuterà a caricare i documenti che mancano.</div></div></div>
-    <div class="pp-rif">
-      <div><span>Volontario</span><b>${esc(stato.nome)} ${esc(stato.cognome)}</b></div>
-      <div><span>Patente richiesta</span><b>Patente ${esc(stato.patente)}</b></div>
-      <div><span>Documenti da caricare</span><b>${mancanti.map(d => esc(d.breve)).join('<br>')}</b></div>
-    </div>
+    ${riepilogo(`<div><span>Documenti da caricare</span><b>${mancanti.map(d => esc(d.breve)).join('<br>')}</b></div>`)}
     <p style="margin:14px 0 0">Non serve compilare di nuovo il modulo: la tua richiesta è già registrata. Se nel frattempo riesci a caricare
       i documenti su Gaia, avvisa la segreteria del tuo Comitato.</p>`;
 }
 
-// --- Passo 3: procedura ----------------------------------------------------
 function passoProcedura() {
-  const p = patente(stato.patente);
-  const pr = PERCORSI[p.percorso];
+  const pr = percorsoScelto();
   return `
     <div class="banner ok" style="margin:0 0 14px"><div class="bi">✓</div><div>
       <b>Richiesta inviata</b><div class="small">La segreteria l'ha ricevuta. Ecco come prosegue la procedura.</div></div></div>
-    <div class="pp-rif">
-      <div><span>Volontario</span><b>${esc(stato.nome)} ${esc(stato.cognome)}</b></div>
-      <div><span>Patente richiesta</span><b>Patente ${p.numero}</b></div>
-      <div><span>Percorso</span><b>${esc(pr.etichetta)}</b></div>
-      <div><span>Documenti su Gaia</span><b>✓ tutti confermati</b></div>
-    </div>
+    ${riepilogo(`${rinnovo() ? '' : `<div><span>Percorso</span><b>${esc(pr.etichetta)}</b></div>`}
+      <div><span>Documenti su Gaia</span><b>✓ tutti caricati</b></div>`)}
     <h2 class="pp-gruppo">Come prosegue la procedura</h2>
     ${pr.spiegazione
       ? `<div class="pt-testo">${pr.spiegazione}</div>`
       : `<div class="banner warn" style="margin:0"><div class="bi">📝</div><div>
           <b>Testo di spiegazione da inserire</b>
-          <div class="small">Qui comparirà la spiegazione della procedura per la ${esc(pr.etichetta.toLowerCase())}.</div></div></div>`}`;
+          <div class="small">Qui comparirà la spiegazione della procedura per ${rinnovo() ? 'il rinnovo' : `la ${esc(pr.etichetta.toLowerCase())}`}.</div></div></div>`}`;
 }
 
-// --- Comportamento ---------------------------------------------------------
+// --- Comportamento -------------------------------------------------------------
 function collega() {
   const form = zona.querySelector('form');
   form.querySelector('[data-indietro]')?.addEventListener('click', () => vai(stato.passo - 1));
 
   if (stato.passo === 0) {
     ['nome', 'cognome'].forEach(k => form[k].addEventListener('input', () => segna(form, k, '')));
+  }
+  if (stato.passo === 1) {
+    form.querySelectorAll('input[name=tipo]').forEach(r => r.addEventListener('change', () => {
+      // Cambiando da nuova a rinnovo (o viceversa) la patente scelta prima
+      // va riguardata: si azzera, così la si sceglie di nuovo sapendo cosa.
+      if (stato.tipo && stato.tipo !== r.value) stato.patente = '';
+      stato.tipo = r.value;
+      segna(form, 'tipo', '');
+    }));
+  }
+  if (stato.passo === 2) {
     form.querySelectorAll('input[name=patente]').forEach(r => r.addEventListener('change', () => {
       stato.patente = r.value;
       form.querySelector('.pt-percorso').innerHTML = riquadroPercorso();
       segna(form, 'patente', '');
     }));
   }
-
-  if (stato.passo === 1) {
+  if (stato.passo === 3) {
     const avanti = form.querySelector('button[type=submit]');
     const supporto = form.querySelector('.pt-supporto');
     const aggiorna = () => {
@@ -189,16 +235,15 @@ function collega() {
     if (stato.passo === 0) {
       stato.nome = form.nome.value.trim();
       stato.cognome = form.cognome.value.trim();
-      const errori = {
-        nome: stato.nome ? '' : 'Scrivi il tuo nome.',
-        cognome: stato.cognome ? '' : 'Scrivi il tuo cognome.',
-        patente: patente(stato.patente) ? '' : 'Scegli la patente che richiedi.',
-      };
-      Object.entries(errori).forEach(([k, v]) => segna(form, k, v));
-      const primo = form.querySelector('.pp-sbagliato');
-      if (primo) { primo.scrollIntoView({ block: 'center', behavior: 'smooth' }); primo.querySelector('input')?.focus({ preventScroll: true }); return; }
+      segna(form, 'nome', stato.nome ? '' : 'Scrivi il tuo nome.');
+      segna(form, 'cognome', stato.cognome ? '' : 'Scrivi il tuo cognome.');
     }
-    if (stato.passo === 1) {
+    if (stato.passo === 1) segna(form, 'tipo', tipoRichiesta(stato.tipo) ? '' : 'Scegli se vuoi rinnovare la patente o ottenerne una nuova.');
+    if (stato.passo === 2) segna(form, 'patente', patente(stato.patente) ? '' : (rinnovo() ? 'Scegli la patente da rinnovare.' : 'Scegli la patente che vuoi ottenere.'));
+    const primo = form.querySelector('.pp-sbagliato');
+    if (primo) { primo.scrollIntoView({ block: 'center', behavior: 'smooth' }); primo.querySelector('input')?.focus({ preventScroll: true }); return; }
+
+    if (stato.passo === 3) {
       if (DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === null)) return;
       const supporto = DOCUMENTI_GAIA.some(d => stato.gaia[d.id] === false);
       if (!await invia(form, { supporto })) return;
@@ -209,7 +254,7 @@ function collega() {
 }
 
 async function invia(form, { supporto = false } = {}) {
-  const corpo = { nome: stato.nome, cognome: stato.cognome, patente: stato.patente, documenti_gaia: stato.gaia, sito: form.sito.value, supporto };
+  const corpo = { nome: stato.nome, cognome: stato.cognome, tipo: stato.tipo, patente: stato.patente, documenti_gaia: stato.gaia, sito: form.sito.value, supporto };
   if (!controllaRichiesta(corpo).ok) return false;
   const btn = form.querySelector('button[type=submit]');
   const testo = btn.textContent;
@@ -223,7 +268,7 @@ async function invia(form, { supporto = false } = {}) {
     r = { ok: res.ok, ...dati };
   } catch { r = { ok: false, error: 'Connessione assente: riprova fra un momento.' }; }
   btn.disabled = false; btn.textContent = testo;
-  if (r.ok) { stato.inviata = true; return true; }
+  if (r.ok) return true;
   esito.innerHTML = `<div class="banner danger" style="margin:14px 0 0"><div class="bi">⚠️</div><div>${esc(r.error || 'Invio non riuscito.')}</div></div>`;
   return false;
 }
@@ -241,23 +286,51 @@ function vai(passo) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// --- Domande e risposte -----------------------------------------------------
-function disegnaFaq() {
+// --- Ricerca nelle domande e risposte, sotto ogni passaggio -----------------
+// Senza testo mostra qualche domanda adatta al passaggio in cui si è;
+// scrivendo, quelle che contengono le parole cercate.
+const DOMANDE = tutteLeDomande();
+const normalizza = (s) => String(s || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
+
+function htmlRisposte(domande, aperte) {
+  return domande.map(q => `<details class="faq-voce" ${aperte ? 'open' : ''}>
+    <summary>${esc(q.d)}</summary>
+    <div class="faq-risposta">${q.r}<div class="faq-fonte">Fonte: ${esc(q.fonte)}</div></div>
+  </details>`).join('');
+}
+
+function disegnaRicerca() {
   const box = document.getElementById('faq');
   if (!box) return;
   box.innerHTML = `<div class="card-b">
-    <h2 class="pp-titolo" id="faq-titolo">Domande frequenti</h2>
-    <p class="pp-sotto">Requisiti, visita medica, prova pratica, rinnovo e patente digitale, dal Testo Unico CRI sulla circolazione dei veicoli.</p>
+    <h2 class="pp-gruppo" id="faq-titolo" style="margin-top:0">Hai un dubbio? Cerca nelle risposte</h2>
     <div class="search faq-cerca"><span class="search-icon" aria-hidden="true">🔍</span>
-      <input type="search" placeholder="Cerca: visita medica, rinnovo, ambulanza…" aria-label="Cerca nelle domande"></div>
-    <div class="faq-elenco">${htmlFaq(esc)}</div>
-    <p class="faq-vuoto" hidden>Nessuna domanda trovata. Prova con un'altra parola, o chiedi alla segreteria del tuo Comitato.</p>
+      <input type="search" placeholder="Scrivi una parola: rinnovo, visita, ambulanza, età…" aria-label="Cerca nelle domande e risposte"></div>
+    <p class="faq-nota" aria-live="polite"></p>
+    <div class="faq-elenco"></div>
   </div>`;
-  const elenco = box.querySelector('.faq-elenco');
-  box.querySelector('input').addEventListener('input', (e) => {
-    box.querySelector('.faq-vuoto').hidden = filtraFaq(elenco, e.target.value) > 0;
-  });
+  box.querySelector('input').addEventListener('input', suggerisci);
 }
 
+function suggerisci() {
+  const box = document.getElementById('faq');
+  if (!box?.querySelector('input')) return;
+  const q = normalizza(box.querySelector('input').value);
+  const nota = box.querySelector('.faq-nota');
+  const elenco = box.querySelector('.faq-elenco');
+  if (!q) {
+    const titoli = SUGGERITE[stato.passo] || [];
+    nota.textContent = 'Domande utili a questo punto:';
+    elenco.innerHTML = htmlRisposte(DOMANDE.filter(d => titoli.includes(d.d)), false);
+    return;
+  }
+  const parole = q.split(/\s+/).filter(Boolean);
+  const trovate = DOMANDE.filter(d => parole.every(p => testoCercabile(d).includes(p)));
+  nota.textContent = trovate.length
+    ? `${trovate.length} ${trovate.length === 1 ? 'risposta trovata' : 'risposte trovate'}:`
+    : 'Nessuna risposta trovata. Prova con un\'altra parola, o chiedi alla segreteria del tuo Comitato.';
+  elenco.innerHTML = htmlRisposte(trovate.slice(0, 8), trovate.length <= 2);
+}
+
+disegnaRicerca();
 disegna();
-disegnaFaq();

@@ -319,6 +319,18 @@ export const FAQ = [
   },
 ];
 
+// Le domande che il modulo propone sotto ciascun passaggio, prima che si
+// scriva qualcosa nella ricerca (nome, richiesta, patente, documenti su
+// Gaia, fine). Sono titoli esatti di domande qui sopra: lo controlla
+// test/faq-patenti.prove.mjs.
+export const SUGGERITE_PER_PASSO = [
+  ['A cosa serve questo modulo?', 'Chi può avere la patente CRI?'],
+  ['Quando e come rinnovo la patente?', 'Che differenza c\'è tra conversione diretta, con prova pratica e con esame?', 'Ho una patente CRI del vecchio modello: vale ancora?'],
+  ['Quali veicoli posso guidare con ogni patente?', 'Quale patente civile mi serve?', 'Che età serve?'],
+  ['Perché devo caricare i documenti su Gaia?', 'Devo fare una visita medica?', 'Cosa devo portare alla visita?'],
+  ['Come funziona l\'esercitazione di guida?', 'Posso guidare mentre aspetto la patente?', 'Riceverò la patente su carta o in digitale?'],
+];
+
 // Tutte le domande in fila, con il loro gruppo: comodo per cercare.
 export function tutteLeDomande() {
   return FAQ.flatMap(g => g.domande.map(q => ({ ...q, gruppo: g.gruppo })));
