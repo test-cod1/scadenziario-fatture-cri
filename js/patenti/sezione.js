@@ -17,6 +17,8 @@ export async function renderPatenti(view, ctx, sub, param) {
   return renderLink(view);
 }
 
+const DOMINIO_UFFICIALE = 'https://amministrazione.crigenova.it';
+
 // Il messaggio proposto per mandare il link: si può modificare prima di
 // copiarlo o inviarlo.
 const messaggioPredefinito = (link) => `Ciao! Per richiedere una nuova patente CRI o rinnovare la tua, compila questo modulo: bastano pochi minuti e trovi anche le risposte alle domande più frequenti.
@@ -24,9 +26,12 @@ const messaggioPredefinito = (link) => `Ciao! Per richiedere una nuova patente C
 👉 ${link}`;
 
 function renderLink(view) {
-  // L'indirizzo corto, senza .html: è quello che Cloudflare Pages serve e
-  // che si legge meglio in un messaggio.
-  const link = `${location.origin}/patenti`;
+  // L'indirizzo corto, senza .html, sul dominio ufficiale: anche se il
+  // portale è aperto da amministrazione-crigenova.pages.dev (o dal Worker),
+  // ai volontari va il dominio del Comitato. In locale resta quello locale,
+  // così il link si prova.
+  const locale = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(location.hostname);
+  const link = `${locale ? location.origin : DOMINIO_UFFICIALE}/patenti`;
   const perPercorso = Object.entries(PERCORSI).map(([id, pr]) => ({
     ...pr,
     patenti: PATENTI.filter(p => p.percorso === id).map(p => p.numero),
