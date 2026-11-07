@@ -77,8 +77,9 @@ function renderLink(view) {
           <ul style="margin:2px 0 4px">${DOCUMENTI_GAIA.map(d => `<li>${esc(d.breve)}</li>`).join('')}<li>solo per il rinnovo: ${esc(FOTO_PATENTE_CRI.breve)}</li></ul>
           Con un «No» la richiesta arriva segnata «serve supporto», con un'email di avviso.</li>
         <li><b>Test dei riflessi</b>: solo per le patenti 5, 6, 7 e 8, da confermare.</li>
-        <li><b>Visita medica</b>: entrare nel gruppo WhatsApp e chiedere di prenotarla (dalla 5 in su, dopo il test dei riflessi), con un messaggio già pronto; da qui si invia la richiesta.</li>
-        <li><b>Procedura</b>: la spiegazione di come si prosegue, in base al percorso della patente.</li>
+        <li><b>Visita medica</b>: entrare nel gruppo WhatsApp e chiedere di prenotarla (dalla 5 in su, dopo il test dei riflessi), con un messaggio già pronto; da confermare.</li>
+        <li><b>Procedura</b>: la spiegazione di come si prosegue, in base al percorso della patente; la spunta «Ho letto» si sblocca dopo 10 secondi, e da qui si invia la richiesta.</li>
+        <li><b>Inviata</b>: la conferma dell'invio.</li>
       </ol>
       <h3 style="margin:18px 0 8px;font-size:14px">Percorsi</h3>
       <ul style="margin:0;padding-left:20px;line-height:1.7">

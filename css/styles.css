@@ -1178,6 +1178,10 @@ tr.str-inattivo td{opacity:.6}
 .pt-gruppo-wa:hover{background:#1ebe5b;border-color:#1ebe5b;color:#fff}
 .pt-msg-visita{display:flex;gap:10px;align-items:flex-start;background:var(--bg);border:1px dashed var(--line);border-radius:12px;padding:12px 14px}
 .pt-msg-visita p{flex:1;margin:0;font-size:14px;line-height:1.5}
+/* Spiegazione della procedura: la spunta si sblocca dopo l'attesa. */
+.pt-attesa{display:block;margin-top:3px;font-size:12.5px;font-weight:600;color:var(--warn)}
+.pt-attesa:empty{display:none}
+.pt-letto:has(input:disabled){opacity:.75;cursor:not-allowed}
 .pt-sottotitolo{font-size:15px;margin:4px 0 6px}
 ul.pt-testo{margin:0 0 14px;padding-left:20px}
 p.pt-testo{margin:0 0 8px}
@@ -1228,10 +1232,14 @@ p.pt-testo{margin:0 0 8px}
 .faq-fonte{margin-top:8px;font-size:12px;color:var(--ink-soft)}
 .faq-vuoto{color:var(--ink-soft);margin:14px 0 0}
 .pt-trappola{position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden}
-/* Con cinque passaggi le etichette non ci stanno tutte: sotto i 760px si
-   vede solo quella del passaggio in corso, gli altri restano un numero. */
-@media(max-width:760px){.pt-passi{gap:4px}.pt-passi .t{display:none}.pt-passi li{flex:0 0 auto;padding:6px;gap:6px}.pt-passi li.attivo{flex:1}.pt-passi li.attivo .t{display:inline}
-  /* Con sette passaggi, quelli non in corso diventano solo un pallino:
-     lo spazio resta al nome di quello in corso. */
-  .pt-passi li:not(.attivo){padding:2px;background:transparent}.pt-passi li:not(.attivo) .n{width:22px;height:22px;font-size:11px}}
+/* Fino a otto passaggi in un modulo largo al massimo 720px: le etichette
+   non ci stanno mai tutte. Si vede solo quella del passaggio in corso; gli
+   altri sono un pallino con il numero (o la spunta). */
+.pt-passi{gap:4px}
+.pt-passi .t{display:none}
+.pt-passi li{flex:0 0 auto;padding:6px;gap:6px}
+.pt-passi li.attivo{flex:1}
+.pt-passi li.attivo .t{display:inline}
+.pt-passi li:not(.attivo){padding:2px;background:transparent}
+.pt-passi li:not(.attivo) .n{width:22px;height:22px;font-size:11px}
 @media(max-width:560px){.pt-patenti{grid-template-columns:1fr}}

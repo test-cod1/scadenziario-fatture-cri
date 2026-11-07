@@ -11,10 +11,12 @@
 //       confermare (la visita medica si chiede dopo averlo fatto);
 //    6. la visita medica: entrare nel gruppo WhatsApp e chiedere di
 //       prenotarla, da confermare;
-//    7. come prosegue (oppure, se ha chiesto supporto, cosa succede ora).
+//    7. come prosegue la procedura: da leggere, la spunta «Ho letto» si
+//       sblocca dopo 10 secondi; da qui parte la richiesta;
+//    8. la conferma dell'invio (o, se ha chiesto supporto, cosa succede ora).
 //
-//  La richiesta si invia dall'ultimo passaggio prima della fine, la visita
-//  medica: va a /api/patenti, che
+//  La richiesta si invia dall'ultimo passaggio prima della fine, la
+//  spiegazione della procedura: va a /api/patenti, che
 //  ricontrolla i dati con le stesse regole (js/lib/patenti.mjs) e la salva
 //  per la segreteria. L'ultimo passaggio si apre solo a invio riuscito.
 //
@@ -29,8 +31,9 @@ const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<'
 
 // I passaggi dipendono dalle scelte: dopo i documenti, chi ottiene o
 // rinnova la patente 5 o una superiore ha il test dei riflessi, e poi tutti
-// la visita medica (che per loro si chiede dopo il test). La richiesta si
-// invia dall'ultimo passaggio prima della fine.
+// la visita medica (che per loro si chiede dopo il test), poi la
+// spiegazione da leggere. La richiesta si invia dall'ultimo passaggio prima
+// della fine.
 function passi() {
   return [
     { id: 'nome', etichetta: 'Nome', disegna: passoNome },
@@ -39,7 +42,8 @@ function passi() {
     { id: 'gaia', etichetta: 'Documenti', disegna: passoGaia },
     ...(servonoRiflessi(stato.patente) ? [{ id: 'riflessi', etichetta: 'Riflessi', disegna: passoRiflessi }] : []),
     { id: 'visita', etichetta: 'Visita', disegna: passoVisita },
-    { id: 'fine', etichetta: 'Procedura', disegna: () => (stato.supporto ? passoSupporto() : passoProcedura()) },
+    { id: 'spiegazione', etichetta: 'Procedura', disegna: passoSpiegazione },
+    { id: 'fine', etichetta: 'Inviata', disegna: () => (stato.supporto ? passoSupporto() : passoProcedura()) },
   ];
 }
 const passoCorrente = () => passi()[stato.passo]?.id;
@@ -55,6 +59,7 @@ const stato = {
   // Per documento: true (Sì), false (No, mi serve supporto) o null (non ancora risposto).
   gaia: Object.fromEntries(documentiRichiesti('rinnovo').map(d => [d.id, null])),
   visita: false,     // confermato di aver capito come prenotare la visita medica
+  letto: false,      // confermato di aver letto come prosegue la procedura
   riflessi: false,   // confermato di aver letto le indicazioni sul test dei riflessi
   supporto: false,
 };
@@ -161,7 +166,8 @@ function riquadroPercorso() {
 // richiesta parte come richiesta di supporto (e la segreteria riceve
 // un'email e un avviso nel portale).
 // La richiesta non parte da qui: dopo i documenti ci sono (per le patenti
-// dalla 5) il test dei riflessi e la visita medica, da confermare prima.
+// dalla 5) il test dei riflessi, la visita medica e la spiegazione della
+// procedura, da confermare prima.
 const inviaDaQui = (id) => passoDiInvio() === id;
 
 // Trappola per i programmi che compilano i moduli da soli: le persone non
@@ -287,15 +293,36 @@ function passoProcedura() {
   const pr = percorsoScelto();
   return `
     <div class="banner ok" style="margin:0 0 14px"><div class="bi">✓</div><div>
-      <b>Richiesta inviata</b><div class="small">La segreteria l'ha ricevuta. Ecco come prosegue la procedura.</div></div></div>
+      <b>Richiesta inviata</b><div class="small">La segreteria l'ha ricevuta.</div></div></div>
     ${riepilogo(`${rinnovo() ? '' : `<div><span>Percorso</span><b>${esc(pr.etichetta)}</b></div>`}
-      <div><span>Documenti</span><b>✓ tutti confermati</b></div>`)}
-    <h2 class="pp-gruppo">Come prosegue la procedura</h2>
+      <div><span>Documenti</span><b>✓ tutti confermati</b></div>`)}`;
+}
+
+// --- Spiegazione della procedura, prima dell'invio --------------------------
+// Il volontario deve leggerla: la spunta «Ho letto» si sblocca solo dopo
+// SECONDI_LETTURA secondi, e da qui parte la richiesta. Se torna indietro e
+// rientra dopo aver già confermato, non deve aspettare di nuovo.
+const SECONDI_LETTURA = 10;
+
+function passoSpiegazione() {
+  const pr = percorsoScelto();
+  return `
+    <h2 class="pp-gruppo" style="margin-top:0">Come prosegue la procedura</h2>
+    ${riepilogo(rinnovo() ? '' : `<div><span>Percorso</span><b>${esc(pr.etichetta)}</b></div>`)}
+    <div style="margin:16px 0 0">
     ${pr.spiegazione
       ? `<div class="pt-testo">${pr.spiegazione}</div>`
       : `<div class="banner warn" style="margin:0"><div class="bi">📝</div><div>
           <b>Testo di spiegazione da inserire</b>
-          <div class="small">Qui comparirà la spiegazione della procedura per ${rinnovo() ? 'il rinnovo' : `la ${esc(pr.etichetta.toLowerCase())}`}.</div></div></div>`}`;
+          <div class="small">Qui comparirà la spiegazione della procedura per ${rinnovo() ? 'il rinnovo' : `la ${esc(pr.etichetta.toLowerCase())}`}.</div></div></div>`}
+    </div>
+
+    <div class="field" data-campo="letto" style="margin:16px 0 0">
+      <label class="pp-tipo pt-conferma pt-letto"><input type="checkbox" name="letto" ${stato.letto ? 'checked' : 'disabled'}>
+        <span>Ho letto come prosegue la procedura. <small class="pt-attesa" aria-live="polite"></small></span></label>
+      <div class="pp-errore" role="alert"></div>
+    </div>
+    ${tastiPassaggio('spiegazione')}`;
 }
 
 // --- Comportamento -------------------------------------------------------------
@@ -351,6 +378,11 @@ function collega() {
       setTimeout(() => { btn.textContent = 'Copia'; }, 2500);
     });
   }
+  if (qui === 'spiegazione') {
+    const casella = form.letto;
+    casella.addEventListener('change', () => { stato.letto = casella.checked; segna(form, 'letto', ''); });
+    if (!stato.letto) avviaAttesa(casella, form.querySelector('.pt-attesa'));
+  }
   if (qui === 'riflessi') {
     form.riflessi.addEventListener('change', () => { stato.riflessi = form.riflessi.checked; segna(form, 'riflessi', ''); });
   }
@@ -365,6 +397,7 @@ function collega() {
     }
     if (qui === 'tipo') segna(form, 'tipo', tipoRichiesta(stato.tipo) ? '' : 'Scegli se vuoi rinnovare la patente o ottenerne una nuova.');
     if (qui === 'patente') segna(form, 'patente', patente(stato.patente) ? '' : (rinnovo() ? 'Scegli la patente da rinnovare.' : 'Scegli la patente che vuoi ottenere.'));
+    if (qui === 'spiegazione') segna(form, 'letto', stato.letto ? '' : (form.letto.disabled ? 'Leggi la spiegazione: potrai confermare tra pochi secondi.' : 'Conferma di aver letto come prosegue la procedura.'));
     if (qui === 'visita') segna(form, 'visita', stato.visita ? '' : 'Conferma di essere entrato nel gruppo WhatsApp.');
     if (qui === 'riflessi') segna(form, 'riflessi', stato.riflessi ? '' : 'Conferma di aver letto le indicazioni sul test dei riflessi.');
     const primo = form.querySelector('.pp-sbagliato');
@@ -380,6 +413,24 @@ function collega() {
     }
     vai(stato.passo + 1);
   });
+}
+
+// Conto alla rovescia prima di poter confermare la lettura. Si ferma da
+// solo se nel frattempo si cambia passaggio (la casella non è più nella
+// pagina).
+function avviaAttesa(casella, scritta) {
+  let restano = SECONDI_LETTURA;
+  casella.disabled = true;
+  const mostra = () => { scritta.textContent = `Potrai confermare tra ${restano} ${restano === 1 ? 'secondo' : 'secondi'}.`; };
+  mostra();
+  const timer = setInterval(() => {
+    if (!casella.isConnected) { clearInterval(timer); return; }
+    restano -= 1;
+    if (restano > 0) { mostra(); return; }
+    clearInterval(timer);
+    casella.disabled = false;
+    scritta.textContent = '';
+  }, 1000);
 }
 
 async function invia(form, { supporto = false } = {}) {
