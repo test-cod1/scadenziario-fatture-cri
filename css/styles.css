@@ -1306,3 +1306,47 @@ p.pt-testo{margin:0 0 8px}
   .pagina-pubblica .faq-testa-titolo{font-size:18px}
   .pagina-pubblica .faq-testa-nota{font-size:14px}
 }
+/* Le stesse regole quando telefono.js riconosce un telefono che mostra la
+   pagina «da computer» (classe .telefono su <html>): lì la finestra è larga
+   e la media query qui sopra non scatta. Più le due griglie che da telefono
+   vanno in colonna. */
+.telefono .pagina-pubblica{font-size:16px}
+.telefono .pagina-pubblica .pp-main{padding:16px 12px 48px}
+.telefono .pagina-pubblica .pp-testa b{font-size:16px}
+.telefono .pagina-pubblica .pp-testa span{font-size:14px}
+.telefono .pagina-pubblica .pp-titolo{font-size:24px}
+.telefono .pagina-pubblica .pp-sotto{font-size:16px}
+.telefono .pagina-pubblica .pp-gruppo{font-size:14px}
+.telefono .pagina-pubblica .pt-sottotitolo{font-size:17px}
+.telefono .pagina-pubblica p.pt-testo,.telefono .pagina-pubblica ul.pt-testo{font-size:16px;line-height:1.55}
+.telefono .pagina-pubblica .banner b{font-size:16.5px}
+.telefono .pagina-pubblica .banner .small{font-size:15px;line-height:1.5}
+.telefono .pagina-pubblica .field label{font-size:15px}
+.telefono .pagina-pubblica input[type=text],.telefono .pagina-pubblica input[type=search],.telefono .pagina-pubblica textarea,.telefono .pagina-pubblica select{font-size:16px;padding:12px 13px}
+.telefono .pagina-pubblica .btn{font-size:16px}
+.telefono .pagina-pubblica .pp-azioni .btn{padding:14px}
+.telefono .pagina-pubblica .pp-tipo{font-size:16px;padding:12px 14px}
+.telefono .pagina-pubblica .pp-tipi legend,.telefono .pagina-pubblica .pt-domanda legend{font-size:16px}
+.telefono .pagina-pubblica .pt-patente small{font-size:14px}
+.telefono .pagina-pubblica .pt-scelta b{font-size:17px}
+.telefono .pagina-pubblica .pt-scelta small{font-size:14.5px}
+.telefono .pagina-pubblica .pt-nota{font-size:15px}
+.telefono .pagina-pubblica .pp-rif div{font-size:15.5px}
+.telefono .pagina-pubblica .pp-errore{font-size:14px}
+.telefono .pagina-pubblica .pt-passi{gap:3px}
+.telefono .pagina-pubblica .pt-passi .t{font-size:14.5px}
+.telefono .pagina-pubblica .pt-passi li:not(.attivo){padding:1px}
+.telefono .pagina-pubblica .pt-passi li:not(.attivo) .n{width:20px;height:20px;font-size:10.5px}
+.telefono .pagina-pubblica .pt-msg-visita p{font-size:16px}
+.telefono .pagina-pubblica .pt-attesa{font-size:14px}
+.telefono .pagina-pubblica .pt-esempio figcaption{font-size:14px}
+.telefono .pagina-pubblica .faq-gruppo h3{font-size:14px}
+.telefono .pagina-pubblica .faq-voce summary{font-size:16.5px}
+.telefono .pagina-pubblica .faq-risposta{font-size:16px;padding-left:28px}
+.telefono .pagina-pubblica .faq-tab td,.telefono .pagina-pubblica .faq-tab th{font-size:14.5px}
+.telefono .pagina-pubblica .faq-fonte,.telefono .pagina-pubblica .faq-nota{font-size:13.5px}
+.telefono .pagina-pubblica .faq-testa-titolo{font-size:18px}
+.telefono .pagina-pubblica .faq-testa-nota{font-size:14px}
+.telefono .pagina-pubblica .form-row{grid-template-columns:1fr}
+.telefono .pagina-pubblica .pt-patenti{grid-template-columns:1fr}
+

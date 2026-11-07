@@ -522,7 +522,9 @@ function vai(passo) {
 function disegnaFaq() {
   const box = document.getElementById('faq');
   if (!box) return;
-  const aperto = !window.matchMedia('(max-width: 600px)').matches;
+  // «telefono» lo decide js/pubblico/telefono.js, anche per i telefoni che
+  // mostrano la pagina larga come su un computer.
+  const aperto = !document.documentElement.classList.contains('telefono');
   box.innerHTML = `<details class="faq-box" ${aperto ? 'open' : ''}>
     <summary class="faq-testa">
       <span class="faq-testa-titolo" id="faq-titolo">❓ Domande e risposte</span>
