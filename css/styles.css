@@ -1224,6 +1224,15 @@ p.pt-testo{margin:0 0 8px}
 .pt-testo{line-height:1.55}
 /* Domande e risposte sulle patenti (modulo pubblico e portale). */
 .faq-cerca{margin:4px 0 14px}
+/* Il riquadro delle domande nel modulo pubblico: una riga che si apre. */
+.faq-box>summary{list-style:none;cursor:pointer;display:flex;flex-direction:column;gap:2px;padding:16px 48px 16px 18px;position:relative}
+.faq-box>summary::-webkit-details-marker{display:none}
+.faq-box>summary::after{content:'+';position:absolute;right:18px;top:50%;transform:translateY(-50%);width:28px;height:28px;border-radius:50%;background:var(--bg);display:grid;place-items:center;font-weight:800;color:var(--cri-red)}
+.faq-box[open]>summary::after{content:'–'}
+.faq-testa-titolo{font-size:17px;font-weight:700}
+.faq-testa-nota{font-size:13px;color:var(--ink-soft)}
+.faq-box[open]>summary{border-bottom:1px solid var(--line)}
+.faq-corpo{padding-top:14px}
 .faq-gruppo h3{font-size:13px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);margin:18px 0 6px}
 .faq-voce{border-bottom:1px solid var(--line)}
 .faq-voce summary{cursor:pointer;padding:11px 4px;font-weight:600;font-size:14.5px;list-style:none;display:flex;gap:10px;align-items:flex-start}
@@ -1294,4 +1303,6 @@ p.pt-testo{margin:0 0 8px}
   .pagina-pubblica .faq-risposta{font-size:16px;padding-left:28px}
   .pagina-pubblica .faq-tab td,.pagina-pubblica .faq-tab th{font-size:14.5px}
   .pagina-pubblica .faq-fonte,.pagina-pubblica .faq-nota{font-size:13.5px}
+  .pagina-pubblica .faq-testa-titolo{font-size:18px}
+  .pagina-pubblica .faq-testa-nota{font-size:14px}
 }

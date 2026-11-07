@@ -24,7 +24,7 @@
 //  (js/lib/faqPatenti.mjs), con la ricerca.
 // ============================================================
 import { PATENTI, PERCORSI, TIPI_RICHIESTA, documentiRichiesti, RINNOVO, TEST_RIFLESSI, VISITA_MEDICA, GIORNI_LAVORAZIONE, serveFoglioRosa, patente, tipoRichiesta, servonoRiflessi, controllaRichiesta } from '../lib/patenti.mjs';
-import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
+import { htmlFaq, filtraFaq, tutteLeDomande } from '../lib/faqPatenti.mjs';
 
 const zona = document.getElementById('modulo');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
@@ -76,15 +76,23 @@ function stepper() {
   </ol>`;
 }
 
+// Le domande e risposte servono mentre si sceglie che cosa chiedere: dai
+// documenti in poi il volontario deve solo seguire le indicazioni, e
+// spariscono.
+const PASSI_CON_FAQ = ['nome', 'tipo', 'patente'];
+
 function disegna() {
+  const conFaq = PASSI_CON_FAQ.includes(passoCorrente());
   zona.innerHTML = `
     <div class="card pp-card"><div class="card-b">
       <h1 class="pp-titolo">Patenti CRI</h1>
-      <p class="pp-sotto">Segui questi passaggi per richiedere una nuova patente CRI o rinnovare la tua.
-        Hai un dubbio? Le domande e risposte sono in fondo alla pagina.</p>
+      <p class="pp-sotto">Segui questi passaggi per richiedere una nuova patente CRI o rinnovare la tua.${conFaq
+        ? ' Hai un dubbio? Le domande e risposte sono in fondo alla pagina.' : ''}</p>
       ${stepper()}
     </div></div>
     <form class="card pp-card" novalidate><div class="card-b">${passi()[stato.passo].disegna()}</div></form>`;
+  const faq = document.getElementById('faq');
+  if (faq) faq.style.display = conFaq ? '' : 'none';
   collega();
 }
 
@@ -504,21 +512,34 @@ function vai(passo) {
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 
-// --- Domande e risposte, sotto ogni passaggio ------------------------------
+// --- Domande e risposte, sotto i primi passaggi -----------------------------
 // Tutte le domande, raggruppate e chiuse: si apre quella che interessa. La
 // ricerca le filtra parola per parola. Il riquadro sta fuori dal modulo, così
 // cambiando passaggio non si richiude e la ricerca resta.
+// Sul telefono il riquadro parte chiuso: si vede solo una riga che dice che
+// ci sono, e lo spazio resta al passaggio da compilare. Sul computer, dove
+// c'è posto, parte aperto.
 function disegnaFaq() {
   const box = document.getElementById('faq');
   if (!box) return;
-  box.innerHTML = `<div class="card-b">
-    <h2 class="pp-titolo" id="faq-titolo">Domande e risposte</h2>
-    <p class="pp-sotto">Requisiti, visita medica, prova pratica, rinnovo e patente digitale, dal Testo Unico CRI sulla circolazione dei veicoli.</p>
-    <div class="search faq-cerca"><span class="search-icon" aria-hidden="true">🔍</span>
-      <input type="search" placeholder="Cerca: rinnovo, visita, ambulanza, età…" aria-label="Cerca nelle domande e risposte"></div>
-    <p class="faq-nota" aria-live="polite"></p>
-    <div class="faq-elenco">${htmlFaq(esc)}</div>
-  </div>`;
+  const aperto = !window.matchMedia('(max-width: 600px)').matches;
+  box.innerHTML = `<details class="faq-box" ${aperto ? 'open' : ''}>
+    <summary class="faq-testa">
+      <span class="faq-testa-titolo" id="faq-titolo">❓ Domande e risposte</span>
+      <span class="faq-testa-nota">${tutteLeDomande().length} domande su requisiti, visita medica, prova pratica e rinnovo · tocca per ${aperto ? 'chiudere' : 'aprire'}</span>
+    </summary>
+    <div class="card-b faq-corpo">
+      <div class="search faq-cerca"><span class="search-icon" aria-hidden="true">🔍</span>
+        <input type="search" placeholder="Cerca: rinnovo, visita, ambulanza, età…" aria-label="Cerca nelle domande e risposte"></div>
+      <p class="faq-nota" aria-live="polite"></p>
+      <div class="faq-elenco">${htmlFaq(esc)}</div>
+    </div>
+  </details>`;
+  const dettagli = box.querySelector('.faq-box');
+  const notaTesta = box.querySelector('.faq-testa-nota');
+  dettagli.addEventListener('toggle', () => {
+    notaTesta.textContent = notaTesta.textContent.replace(/tocca per (aprire|chiudere)$/, `tocca per ${dettagli.open ? 'chiudere' : 'aprire'}`);
+  });
   const elenco = box.querySelector('.faq-elenco');
   const nota = box.querySelector('.faq-nota');
   box.querySelector('input').addEventListener('input', (e) => {
