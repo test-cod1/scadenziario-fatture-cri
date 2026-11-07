@@ -1187,6 +1187,8 @@ ul.pt-testo{margin:0 0 14px;padding-left:20px}
 p.pt-testo{margin:0 0 8px}
 .pt-esempio{margin:0 0 6px;text-align:center}
 .pt-esempio img{width:100%;max-width:520px;height:auto;border:1px solid var(--line);border-radius:10px;background:#fff}
+.pt-gaia{margin-bottom:18px}
+.pt-gaia img{max-width:420px}
 .pt-esempio figcaption{font-size:12.5px;color:var(--ink-soft);margin-top:6px}
 .field .pt-scelta{display:flex;margin:0;font-weight:400;padding:14px 14px}
 .pt-scelta span{display:flex;flex-direction:column;gap:3px}

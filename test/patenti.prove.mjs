@@ -6,7 +6,7 @@
 //  volesse usarlo per riempire la tabella.
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
-import { controllaRichiesta, PATENTI, percorsoDi, documentiMancanti, servonoRiflessi } from '../js/lib/patenti.mjs';
+import { controllaRichiesta, PATENTI, percorsoDi, documentiMancanti, servonoRiflessi, serveFoglioRosa } from '../js/lib/patenti.mjs';
 import { onRequestPost, MAX_PER_MITTENTE, MAX_AL_GIORNO, impronta, emailSupporto, EMAIL_SUPPORTO } from '../functions/api/patenti.js';
 
 gruppo('Patenti — regole del modulo');
@@ -29,6 +29,11 @@ prova('il test dei riflessi serve per la patente 5 e le superiori, nuove o da ri
   uguale([1, 2, 3, 4, 5, 6, 7, 8].map(n => servonoRiflessi(n)), [false, false, false, false, true, true, true, true]);
   uguale(servonoRiflessi('7'), true, 'anche col numero scritto come testo, come arriva dal modulo');
   uguale(servonoRiflessi(''), false, 'senza patente scelta');
+});
+
+prova('il foglio rosa riguarda solo le nuove patenti dalla 4 in su', () => {
+  uguale([1, 2, 3, 4, 5, 6, 7, 8].map(n => serveFoglioRosa('nuova', n)), [false, false, false, true, true, true, true, true]);
+  uguale([4, 5, 8].map(n => serveFoglioRosa('rinnovo', n)), [false, false, false], 'mai per i rinnovi');
 });
 
 prova('bisogna dire se è una nuova patente o un rinnovo', () => {

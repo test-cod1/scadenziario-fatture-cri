@@ -7,23 +7,21 @@
 //  possono andare ognuno per conto suo.
 // ============================================================
 
-// Percorsi di conversione. Il testo esteso della procedura (cosa succede
-// dopo l'invio) va in `spiegazione`: per ora è un segnaposto.
+// Percorsi di conversione. La spiegazione di come prosegue la procedura
+// (dove trovare foglio rosa e patente su Gaia) la scrive il modulo, in
+// js/pubblico/patenti.js: dipende da tipo di richiesta e patente.
 export const PERCORSI = {
   diretta: {
     etichetta: 'Conversione diretta',
     breve: 'Nessuna prova da sostenere.',
-    spiegazione: '',
   },
   pratica: {
     etichetta: 'Conversione con prova pratica',
     breve: 'È prevista una prova pratica di guida.',
-    spiegazione: '',
   },
   esame: {
     etichetta: 'Conversione con esame',
     breve: 'È previsto un esame.',
-    spiegazione: '',
   },
 };
 
@@ -82,13 +80,22 @@ export function servonoRiflessi(numero) {
   return Number(numero) >= 5;
 }
 
-// Il testo del passaggio finale per chi rinnova (segnaposto, come quelli
-// dei percorsi).
+// Il rinnovo, trattato come un «percorso» nel riquadro del modulo.
 export const RINNOVO = {
   etichetta: 'Rinnovo',
   breve: 'Serve la visita medica di conferma della validità.',
-  spiegazione: '',
 };
+
+// Il foglio rosa (l'autorizzazione a esercitarsi alla guida) arriva su Gaia
+// a chi ottiene una nuova patente dalla 4 in su: la spiegazione gli dice
+// dove trovarlo, prima della patente. Per le 1–3 e per i rinnovi non serve.
+export function serveFoglioRosa(tipo, numero) {
+  return tipo === 'nuova' && Number(numero) >= 4;
+}
+
+// Dopo l'invio la pratica va lavorata: foglio rosa e patente non compaiono
+// subito su Gaia.
+export const GIORNI_LAVORAZIONE = '2-3 giorni lavorativi';
 
 // Documenti che il volontario deve aver caricato su Gaia. Il modulo glieli
 // chiede uno per uno (Sì / No): con tutti Sì la richiesta parte normale,

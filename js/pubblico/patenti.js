@@ -23,7 +23,7 @@
 //  Sotto ogni passaggio ci sono tutte le domande e risposte
 //  (js/lib/faqPatenti.mjs), con la ricerca.
 // ============================================================
-import { PATENTI, PERCORSI, TIPI_RICHIESTA, documentiRichiesti, RINNOVO, TEST_RIFLESSI, VISITA_MEDICA, patente, tipoRichiesta, servonoRiflessi, controllaRichiesta } from '../lib/patenti.mjs';
+import { PATENTI, PERCORSI, TIPI_RICHIESTA, documentiRichiesti, RINNOVO, TEST_RIFLESSI, VISITA_MEDICA, GIORNI_LAVORAZIONE, serveFoglioRosa, patente, tipoRichiesta, servonoRiflessi, controllaRichiesta } from '../lib/patenti.mjs';
 import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
 
 const zona = document.getElementById('modulo');
@@ -304,18 +304,48 @@ function passoProcedura() {
 // rientra dopo aver già confermato, non deve aspettare di nuovo.
 const SECONDI_LETTURA = 10;
 
+// Dove trovare su Gaia il foglio rosa (nuove patenti dalla 4) e la patente
+// CRI (tutti), con le schermate di Gaia; e che non compaiono subito.
+function schermataGaia(src, alt, didascalia) {
+  return `<figure class="pt-esempio pt-gaia">
+    <img src="${src}" width="797" height="827" loading="lazy" alt="${esc(alt)}">
+    <figcaption>${didascalia}</figcaption>
+  </figure>`;
+}
+
+function spiegazione() {
+  const conFoglioRosa = serveFoglioRosa(stato.tipo, stato.patente);
+  const cosa = conFoglioRosa ? 'il foglio rosa e la patente CRI' : 'la patente CRI';
+  const patenteCri = `
+    <h3 class="pt-sottotitolo">${conFoglioRosa ? '2. Poi, la patente CRI' : 'Dove trovare la patente CRI'}</h3>
+    <p class="pt-testo">${conFoglioRosa
+      ? 'Quando la patente sarà rilasciata, la trovi su <b>Gaia</b> nella sezione <b>Curriculum → Patenti CRI</b>.'
+      : `${rinnovo() ? 'La patente rinnovata' : 'La patente'} la trovi su <b>Gaia</b> nella sezione <b>Curriculum → Patenti CRI</b>.`}</p>
+    ${schermataGaia('img/patenti/gaia-patenti-cri.png',
+      'Gaia, sezione Curriculum: la voce «Patenti CRI» è indicata da una freccia.',
+      'Gaia → Curriculum → <b>Patenti CRI</b>')}`;
+  return `
+    <div class="banner info" style="margin:0 0 16px"><div class="bi">⏳</div><div>
+      <b>${conFoglioRosa ? 'Foglio rosa e patente' : 'La patente'} non ${conFoglioRosa ? 'saranno disponibili' : 'sarà disponibile'} subito</b>
+      <div class="small">La segreteria deve prima lavorare la tua pratica: ${cosa} ${conFoglioRosa ? 'compariranno' : 'comparirà'} su Gaia
+        dopo la lavorazione. <strong>Controlla dopo ${GIORNI_LAVORAZIONE}.</strong></div>
+    </div></div>
+    ${conFoglioRosa ? `
+      <h3 class="pt-sottotitolo">1. Prima, il foglio rosa</h3>
+      <p class="pt-testo">È l'autorizzazione a esercitarti alla guida dei veicoli CRI. Lo trovi su <b>Gaia</b> nella sezione
+        <b>Curriculum → Foglio Rosa</b>.</p>
+      ${schermataGaia('img/patenti/gaia-foglio-rosa.png',
+        'Gaia, sezione Curriculum: la voce «Foglio Rosa» è indicata da una freccia.',
+        'Gaia → Curriculum → <b>Foglio Rosa</b>')}` : ''}
+    ${patenteCri}`;
+}
+
 function passoSpiegazione() {
   const pr = percorsoScelto();
   return `
     <h2 class="pp-gruppo" style="margin-top:0">Come prosegue la procedura</h2>
     ${riepilogo(rinnovo() ? '' : `<div><span>Percorso</span><b>${esc(pr.etichetta)}</b></div>`)}
-    <div style="margin:16px 0 0">
-    ${pr.spiegazione
-      ? `<div class="pt-testo">${pr.spiegazione}</div>`
-      : `<div class="banner warn" style="margin:0"><div class="bi">📝</div><div>
-          <b>Testo di spiegazione da inserire</b>
-          <div class="small">Qui comparirà la spiegazione della procedura per ${rinnovo() ? 'il rinnovo' : `la ${esc(pr.etichetta.toLowerCase())}`}.</div></div></div>`}
-    </div>
+    <div style="margin:16px 0 0">${spiegazione()}</div>
 
     <div class="field" data-campo="letto" style="margin:16px 0 0">
       <label class="pp-tipo pt-conferma pt-letto"><input type="checkbox" name="letto" ${stato.letto ? 'checked' : 'disabled'}>
