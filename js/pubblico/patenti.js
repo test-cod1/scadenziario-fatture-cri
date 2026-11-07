@@ -256,9 +256,11 @@ function passoRiflessi() {
         fatto di non conoscere ancora la prova al primo tentativo.</li>
     </ul>
     <figure class="pt-esempio">
-      <img src="img/patenti/test-riflessi-esempio.webp" width="1260" height="1440" loading="lazy"
-        alt="Esempio di risultati del test dei riflessi: quattro scontrini (ottico semplice, ottico complesso, acustico semplice, acustico complesso), ognuno con i valori di Rapidità e Regolarità cerchiati.">
-      <figcaption>Esempio: tutti i valori cerchiati sono pari o superiori a ${t.sogliaMinima} (il più basso è 05), quindi l'esito è idoneo.</figcaption>
+      <a href="img/patenti/test-riflessi-esempio.webp" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
+        <img src="img/patenti/test-riflessi-esempio.webp" width="1260" height="1440" loading="lazy"
+          alt="Esempio di risultati del test dei riflessi: quattro scontrini (ottico semplice, ottico complesso, acustico semplice, acustico complesso), ognuno con i valori di Rapidità e Regolarità cerchiati.">
+      </a>
+      <figcaption>Esempio: tutti i valori cerchiati sono pari o superiori a ${t.sogliaMinima} (il più basso è 05), quindi l'esito è idoneo. · <span class="pt-ingrandisci">tocca per ingrandire</span></figcaption>
     </figure>
 
     <div class="field" data-campo="riflessi" style="margin:16px 0 0">
@@ -306,10 +308,16 @@ const SECONDI_LETTURA = 10;
 
 // Dove trovare su Gaia il foglio rosa (nuove patenti dalla 4) e la patente
 // CRI (tutti), con le schermate di Gaia; e che non compaiono subito.
+// La schermata intera è larga e sul telefono le scritte diventano
+// illeggibili: si mostra solo la colonna del menu (ritagliata con il CSS,
+// .pt-ritaglio), che così appare grande. Toccandola si apre l'immagine
+// intera.
 function schermataGaia(src, alt, didascalia) {
   return `<figure class="pt-esempio pt-gaia">
-    <img src="${src}" width="797" height="827" loading="lazy" alt="${esc(alt)}">
-    <figcaption>${didascalia}</figcaption>
+    <a class="pt-ritaglio" href="${src}" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
+      <img src="${src}" width="797" height="827" loading="lazy" alt="${esc(alt)}">
+    </a>
+    <figcaption>${didascalia} · <span class="pt-ingrandisci">tocca per ingrandire</span></figcaption>
   </figure>`;
 }
 
