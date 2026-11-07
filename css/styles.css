@@ -1253,3 +1253,45 @@ p.pt-testo{margin:0 0 8px}
 .pt-passi li:not(.attivo){padding:2px;background:transparent}
 .pt-passi li:not(.attivo) .n{width:22px;height:22px;font-size:11px}
 @media(max-width:560px){.pt-patenti{grid-template-columns:1fr}}
+
+/* Moduli pubblici aperti dal telefono: le misure del portale (13-14px,
+   pensate per lo schermo del computer) sul telefono si leggono a fatica.
+   Qui tutto sale di due o tre punti, e i campi arrivano a 16px, la misura
+   sotto la quale iPhone ingrandisce da solo la pagina toccandoli. */
+@media(max-width:600px){
+  .pagina-pubblica{font-size:16px}
+  .pagina-pubblica .pp-main{padding:16px 12px 48px}
+  .pagina-pubblica .pp-testa b{font-size:16px}
+  .pagina-pubblica .pp-testa span{font-size:14px}
+  .pagina-pubblica .pp-titolo{font-size:24px}
+  .pagina-pubblica .pp-sotto{font-size:16px}
+  .pagina-pubblica .pp-gruppo{font-size:14px}
+  .pagina-pubblica .pt-sottotitolo{font-size:17px}
+  .pagina-pubblica p.pt-testo,.pagina-pubblica ul.pt-testo{font-size:16px;line-height:1.55}
+  .pagina-pubblica .banner b{font-size:16.5px}
+  .pagina-pubblica .banner .small{font-size:15px;line-height:1.5}
+  .pagina-pubblica .field label{font-size:15px}
+  .pagina-pubblica input[type=text],.pagina-pubblica input[type=search],.pagina-pubblica textarea,.pagina-pubblica select{font-size:16px;padding:12px 13px}
+  .pagina-pubblica .btn{font-size:16px}
+  .pagina-pubblica .pp-azioni .btn{padding:14px}
+  .pagina-pubblica .pp-tipo{font-size:16px;padding:12px 14px}
+  .pagina-pubblica .pp-tipi legend,.pagina-pubblica .pt-domanda legend{font-size:16px}
+  .pagina-pubblica .pt-patente small{font-size:14px}
+  .pagina-pubblica .pt-scelta b{font-size:17px}
+  .pagina-pubblica .pt-scelta small{font-size:14.5px}
+  .pagina-pubblica .pt-nota{font-size:15px}
+  .pagina-pubblica .pp-rif div{font-size:15.5px}
+  .pagina-pubblica .pp-errore{font-size:14px}
+  .pagina-pubblica .pt-passi{gap:3px}
+  .pagina-pubblica .pt-passi .t{font-size:14.5px}
+  .pagina-pubblica .pt-passi li:not(.attivo){padding:1px}
+  .pagina-pubblica .pt-passi li:not(.attivo) .n{width:20px;height:20px;font-size:10.5px}
+  .pagina-pubblica .pt-msg-visita p{font-size:16px}
+  .pagina-pubblica .pt-attesa{font-size:14px}
+  .pagina-pubblica .pt-esempio figcaption{font-size:14px}
+  .pagina-pubblica .faq-gruppo h3{font-size:14px}
+  .pagina-pubblica .faq-voce summary{font-size:16.5px}
+  .pagina-pubblica .faq-risposta{font-size:16px;padding-left:28px}
+  .pagina-pubblica .faq-tab td,.pagina-pubblica .faq-tab th{font-size:14.5px}
+  .pagina-pubblica .faq-fonte,.pagina-pubblica .faq-nota{font-size:13.5px}
+}
