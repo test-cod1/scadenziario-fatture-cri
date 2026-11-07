@@ -206,7 +206,9 @@ function passoVisita() {
     <h2 class="pp-gruppo" style="margin-top:0">Visita medica</h2>
     <div class="banner warn" style="margin:0 0 16px"><div class="bi">🩺</div><div>
       <b>Prenota la visita medica nel gruppo WhatsApp</b>
-      <div class="small">Entra nel gruppo e manda un messaggio chiedendo di prenotare la visita medica.</div>
+      <div class="small">${servonoRiflessi(stato.patente)
+        ? 'Entra nel gruppo e, <strong>dopo aver fatto il test dei riflessi</strong>, manda un messaggio chiedendo di prenotare la visita medica.'
+        : 'Entra nel gruppo e manda un messaggio chiedendo di prenotare la visita medica.'}</div>
     </div></div>
     <a class="btn pt-gruppo-wa" href="${esc(VISITA_MEDICA.gruppoWhatsapp)}" target="_blank" rel="noopener">Entra nel gruppo WhatsApp</a>
 
