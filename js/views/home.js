@@ -36,15 +36,17 @@ export async function renderHome(view, ctx) {
   view.appendChild(wrap);
 
   // Richieste di patente che chiedono supporto e che nessuno ha ancora
-  // preso in mano: un riquadro in cima, sopra le card. Si disegna dopo la
-  // griglia per non far aspettare la home.
+  // preso in mano: un pallino rosso con il numero sulla card Patenti, come
+  // le notifiche delle app. La card porta allora dritta a quelle richieste.
+  // Si disegna dopo la griglia per non far aspettare la home.
   if (ruoloIn(ctx.user, 'patenti')) {
     import('../patenti/avviso.js').then(m => m.contaSupportoDaGestire()).then(n => {
-      if (!n || !wrap.isConnected) return;
-      wrap.insertBefore(el(`<a class="banner warn avviso-patenti" href="#/patenti/richieste/supporto"><div class="bi">🆘</div><div>
-        <b>${n === 1 ? 'Un volontario chiede' : `${n} volontari chiedono`} supporto per la patente</b>
-        <div class="small">Non ${n === 1 ? 'riesce' : 'riescono'} a caricare su Gaia i documenti richiesti. Apri le richieste e segnale «In lavorazione» quando le prendi in mano.</div>
-      </div></a>`), wrap.querySelector('.home-grid'));
+      const card = grid.querySelector('[data-sezione="patenti"]');
+      if (!n || !card || !wrap.isConnected) return;
+      const testo = `${n} ${n === 1 ? 'richiesta chiede' : 'richieste chiedono'} supporto`;
+      card.appendChild(el(`<span class="hc-notifica" title="${testo}" aria-label="${testo}">${n > 99 ? '99+' : n}</span>`));
+      card.href = '#/patenti/richieste/supporto';
+      card.title = `${testo}: apri le richieste`;
     }).catch(() => {});
   }
 }
@@ -54,7 +56,7 @@ function cardAperta(s, ruolo) {
   // si aprono in una scheda nuova, così il portale resta dov'era.
   const esterna = s.tipo === 'esterna';
   const href = esterna ? s.url : s.home;
-  const card = el(`<a class="home-card" href="${esc(href)}"
+  const card = el(`<a class="home-card" data-sezione="${esc(s.id)}" href="${esc(href)}"
       ${esterna ? 'target="_blank" rel="noopener noreferrer"' : ''}
       style="--c:${s.colore};--o:${s.ombra}" title="${esc(s.descrizione)}">
     <div class="hc-top">

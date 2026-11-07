@@ -4,7 +4,8 @@
 //  in mano: stato «Nuova» e almeno un documento su Gaia mancante. Basta
 //  segnarle «In lavorazione» perché l'avviso si spenga.
 //  Lo mostrano il menu laterale (un numero accanto a Patenti) e la home
-//  (un riquadro in cima), solo a chi ha accesso alla sezione.
+//  (un pallino di notifica sulla card Patenti), solo a chi ha accesso alla
+//  sezione.
 // ============================================================
 import { documentiMancanti } from '../lib/patenti.mjs';
 
