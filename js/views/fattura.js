@@ -31,7 +31,7 @@ export async function apriEditor(id, ctx, onSaved) {
   try {
     rec = id ? await fatture.get(id) : {
       fornitore: '', numero_fattura: '', data_fattura: todayISO(), importo: '', scadenza: '',
-      stato: 'da_pagare', metodo_pagamento: '', note: '', estratta_da_ai: false,
+      stato: 'da_pagare', metodo_pagamento: '', note: '', estratta_da_ai: false, tipo_documento: 'fattura',
     };
   } catch (e) {
     toast('Impossibile aprire la fattura: ' + e.message, 'err');
@@ -56,11 +56,17 @@ export async function apriEditor(id, ctx, onSaved) {
     <div class="editor-2col">
       <div class="col">
         <div class="form-row">
-          <div class="field"><label>Fornitore *</label><input type="text" id="f-fornitore" value="${esc(rec.fornitore)}"></div>
-          <div class="field"><label>Numero fattura</label><input type="text" id="f-numero" value="${esc(rec.numero_fattura || '')}"></div>
+          <div class="field"><label>Tipo documento</label><select id="f-tipo">
+            <option value="fattura" ${rec.tipo_documento !== 'f24' ? 'selected' : ''}>Fattura</option>
+            <option value="f24" ${rec.tipo_documento === 'f24' ? 'selected' : ''}>F24 (imposte)</option>
+          </select></div>
+        </div>
+        <div class="form-row">
+          <div class="field"><label id="l-fornitore">Fornitore *</label><input type="text" id="f-fornitore" value="${esc(rec.fornitore)}"></div>
+          <div class="field"><label id="l-numero">Numero fattura</label><input type="text" id="f-numero" value="${esc(rec.numero_fattura || '')}"></div>
         </div>
         <div class="form-row three">
-          <div class="field"><label>Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
+          <div class="field"><label id="l-data">Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
           <div class="field"><label>Importo (€) *</label><input ${CAMPO_DECIMALE} id="f-importo" value="${testoDecimale(rec.importo)}"></div>
           <div class="field"><label>Scadenza</label><input type="date" id="f-scadenza" value="${esc(rec.scadenza || '')}">
             <div style="display:flex;gap:6px;margin-top:6px">
@@ -113,6 +119,22 @@ export async function apriEditor(id, ctx, onSaved) {
       // parte invece di uscire come promise rifiutata senza gestore.
       .catch(e => console.warn('[centri di costo] blocco non caricato:', e));
   }
+
+  // F24: stessa scheda di una fattura (importo, scadenza, pagamenti), ma
+  // le etichette parlano di rata invece che di fattura, e la lettura da
+  // file non serve (l'F24 non è una fattura elettronica né un PDF di
+  // fornitore da cui estrarre i campi).
+  function aggiornaTipo() {
+    const f24 = body.querySelector('#f-tipo').value === 'f24';
+    body.querySelector('#l-fornitore').textContent = f24 ? 'Descrizione *' : 'Fornitore *';
+    body.querySelector('#l-numero').textContent = f24 ? 'Rata / riferimento' : 'Numero fattura';
+    body.querySelector('#l-data').textContent = f24 ? 'Data documento' : 'Data fattura';
+    body.querySelector('#f-fornitore').placeholder = f24 ? 'es. F24 IMPOSTE' : '';
+    body.querySelector('#f-numero').placeholder = f24 ? 'es. 2ª rata' : '';
+    if (!id) body.querySelector('#upload-row').style.display = f24 ? 'none' : '';
+  }
+  body.querySelector('#f-tipo').addEventListener('change', aggiornaTipo);
+  aggiornaTipo();
 
   // Suggerisce i fornitori già usati mentre si scrive, per non ritrovarsi
   // due grafie dello stesso soggetto (vedi collegaAutocompletamento).
@@ -189,6 +211,7 @@ export async function apriEditor(id, ctx, onSaved) {
     const err = body.querySelector('#err'); err.textContent = '';
     const payload = {
       id: id || undefined,
+      tipo_documento: body.querySelector('#f-tipo').value,
       fornitore: body.querySelector('#f-fornitore').value.trim(),
       numero_fattura: body.querySelector('#f-numero').value.trim() || null,
       data_fattura: body.querySelector('#f-data').value || null,
@@ -197,7 +220,7 @@ export async function apriEditor(id, ctx, onSaved) {
       metodo_pagamento: body.querySelector('#f-metodo').value || null,
       note: body.querySelector('#f-note').value.trim() || null,
     };
-    if (!payload.fornitore) { err.textContent = 'Il fornitore è obbligatorio.'; return; }
+    if (!payload.fornitore) { err.textContent = payload.tipo_documento === 'f24' ? 'La descrizione è obbligatoria.' : 'Il fornitore è obbligatorio.'; return; }
     if (payload.importo === null || payload.importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
     if (!await confermaSeDuplicato(payload, id)) return;
     const btn = footer.querySelector('#save'); const old = btn.innerHTML;

@@ -6,6 +6,7 @@ import { buildXlsxBlob } from './xlsx.js';
 // quel meccanismo a rompersi con i numeri di fattura lunghi (diventano
 // notazione scientifica) e con le date (restano testo, non riconosciute).
 const COLS = [
+  { header: 'Tipo', tipo: 'testo', get: r => r.tipo_documento === 'f24' ? 'F24' : 'Fattura' },
   { header: 'Fornitore', tipo: 'testo', get: r => r.fornitore },
   { header: 'N. Fattura', tipo: 'testo', get: r => r.numero_fattura || '' },
   { header: 'Data', tipo: 'data', get: r => r.data_fattura },

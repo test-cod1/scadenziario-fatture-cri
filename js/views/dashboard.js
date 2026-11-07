@@ -174,7 +174,7 @@ export async function renderDashboard(view, ctx) {
     if (state.soloAperte) r = r.filter(f => !STATI_CHIUSI.includes(f.stato));
     if (state.q) {
       const q = state.q.toLowerCase();
-      r = r.filter(f => (f.fornitore || '').toLowerCase().includes(q) || (f.numero_fattura || '').toLowerCase().includes(q) || (f.note || '').toLowerCase().includes(q));
+      r = r.filter(f => (q === 'f24' && f.tipo_documento === 'f24') || (f.fornitore || '').toLowerCase().includes(q) || (f.numero_fattura || '').toLowerCase().includes(q) || (f.note || '').toLowerCase().includes(q));
     }
     if (state.stato) r = r.filter(f => f.stato === state.stato);
     if (state.da) r = r.filter(f => f.scadenza && f.scadenza >= state.da);
@@ -413,7 +413,7 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
     const scaduta = !STATI_CHIUSI.includes(f.stato) && f.scadenza && f.scadenza < oggi;
     const nProposte = proposteInAttesa ? (proposteInAttesa.get(f.id) || 0) : 0;
     const tr = el(`<tr class="${scaduta ? 'scaduta' : ''}">
-      <td>${esc(f.fornitore)}</td>
+      <td>${f.tipo_documento === 'f24' ? '<span class="chip" title="Rata di modello F24, non una fattura">F24</span> ' : ''}${esc(f.fornitore)}</td>
       <td>${esc(f.numero_fattura || '—')}</td>
       <td>${fmtDate(f.data_fattura)}</td>
       <td class="money money-col">${fmtEuro(f.importo)}</td>

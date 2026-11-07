@@ -198,6 +198,10 @@ create table if not exists public.fatture (
   -- Partita IVA (o codice fiscale) del fornitore, letta dall'XML o dall'AI:
   -- riconosce lo stesso soggetto scritto in modi diversi (patch 2026-10-18).
   partita_iva text,
+  -- 'f24' = rata di un modello F24 (imposte): non è una fattura, ma si paga
+  -- a scadenza come una fattura e vive nello stesso scadenziario
+  -- (patch 2026-11-07).
+  tipo_documento text not null default 'fattura' check (tipo_documento in ('fattura','f24')),
   created_by uuid references auth.users(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
