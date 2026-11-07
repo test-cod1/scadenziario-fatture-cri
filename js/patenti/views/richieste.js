@@ -7,7 +7,7 @@
 //  risposto No e ha chiesto aiuto alla segreteria.
 // ============================================================
 import { richieste as store } from '../data/store.js';
-import { PERCORSI, STATI, documentiMancanti } from '../../lib/patenti.mjs';
+import { PERCORSI, STATI, documentiMancanti, supportoDaGestire } from '../../lib/patenti.mjs';
 import { el, clear, esc, toast, confirmDialog, openModal, rendiCliccabile, fmtDateTime } from '../../lib/ui.js';
 import { contaSupportoDaGestire, segnaNelMenu } from '../avviso.js';
 
@@ -16,7 +16,6 @@ import { contaSupportoDaGestire, segnaNelMenu } from '../avviso.js';
 const aggiornaAvviso = () => contaSupportoDaGestire().then(segnaNelMenu).catch(() => {});
 
 const ETICHETTA_STATO = Object.fromEntries(STATI);
-const serveSupporto = (r) => documentiMancanti(r.documenti_gaia, r.tipo).length > 0;
 
 export async function renderRichieste(view, ctx) {
   let elenco = await store.list();
@@ -56,7 +55,8 @@ export async function renderRichieste(view, ctx) {
   function disegnaStats() {
     clear(stats);
     const filtro = $('#f-stato').value;
-    const nSupporto = elenco.filter(r => serveSupporto(r) && r.stato !== 'completata').length;
+    // Lo stesso conto del pallino in home e del numero nel menu.
+    const nSupporto = elenco.filter(supportoDaGestire).length;
     if (nSupporto) {
       const nodo = el(`<div class="stat stat-clickable warn" aria-pressed="${filtro === 'supporto'}">
         <div class="k">Serve supporto</div><div class="v">${nSupporto}</div><div class="s">documenti mancanti su Gaia</div></div>`);
@@ -81,7 +81,7 @@ export async function renderRichieste(view, ctx) {
     const st = $('#f-stato').value;
     const pat = $('#f-patente').value;
     const righe = elenco
-      .filter(r => !st || (st === 'aperte' ? r.stato !== 'completata' : st === 'supporto' ? serveSupporto(r) && r.stato !== 'completata' : r.stato === st))
+      .filter(r => !st || (st === 'aperte' ? r.stato !== 'completata' : st === 'supporto' ? supportoDaGestire(r) : r.stato === st))
       .filter(r => !pat || String(r.patente) === pat)
       .filter(r => !q || `${r.nome} ${r.cognome} ${r.cognome} ${r.nome}`.toLowerCase().includes(q));
     clear(tbody);

@@ -11,7 +11,9 @@
 //  questo l'endpoint non legge mai niente dal database se non per contare,
 //  risponde solo «ok» o l'errore, e mette due tetti agli invii:
 //   - per mittente (impronta dell'IP, mai l'IP in chiaro): abbastanza per
-//     chi sbaglia e rimanda, non per chi vuole riempire la tabella;
+//     chi sbaglia e rimanda e per una serata in sede, dove tutti escono
+//     dalla stessa Wi-Fi con lo stesso indirizzo, non per chi vuole
+//     riempire la tabella;
 //   - per giorno, su tutti: se qualcuno aggira il primo, il danno resta
 //     contenuto.
 //
@@ -33,7 +35,10 @@ import { controllaRichiesta, documentiMancanti, tipoRichiesta } from '../../js/l
 // A chi arriva l'avviso delle richieste di supporto.
 export const EMAIL_SUPPORTO = 'jacopo.ravaioli@liguria.cri.it';
 
-export const MAX_PER_MITTENTE = 5;     // nell'ultima ora
+// 5 l'ora bloccava il sesto volontario che compilava dalla Wi-Fi della
+// sede (o la segreteria che lo compila per più persone): stesso indirizzo
+// per tutti. Il tetto giornaliero e il campo trappola restano.
+export const MAX_PER_MITTENTE = 15;    // nell'ultima ora
 export const MAX_AL_GIORNO = 300;      // nelle ultime 24 ore, da tutti
 const MAX_CORPO = 4000;
 
@@ -48,7 +53,10 @@ export async function onRequestPost(context) {
 
   // Campo trappola: invisibile alle persone, i programmi che compilano i
   // moduli da soli lo riempiono. Si risponde «ok» senza salvare, così non
-  // imparano niente.
+  // imparano niente. Nel modulo il campo ha un nome e un'etichetta che
+  // l'autocompilazione dei browser e dei gestori di password non riconosce
+  // (js/pubblico/patenti.js, `trappola`): se la riempisse lei, la richiesta
+  // di un volontario vero sparirebbe senza che nessuno se ne accorga.
   if (corpo && corpo.sito) return json({ ok: true });
 
   const esito = controllaRichiesta(corpo);

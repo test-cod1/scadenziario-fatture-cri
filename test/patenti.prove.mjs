@@ -6,7 +6,8 @@
 //  volesse usarlo per riempire la tabella.
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
-import { controllaRichiesta, PATENTI, percorsoDi, documentiMancanti, servonoRiflessi, serveFoglioRosa } from '../js/lib/patenti.mjs';
+import { controllaRichiesta, PATENTI, percorsoDi, documentiMancanti, servonoRiflessi, serveFoglioRosa, supportoDaGestire } from '../js/lib/patenti.mjs';
+import { erroreLettura } from '../js/patenti/data/store.js';
 import { onRequestPost, MAX_PER_MITTENTE, MAX_AL_GIORNO, impronta, emailSupporto, EMAIL_SUPPORTO } from '../functions/api/patenti.js';
 
 gruppo('Patenti — regole del modulo');
@@ -76,6 +77,28 @@ prova('per una nuova patente la foto non si chiede e non si salva', () => {
   vero(!r.dati.documenti_gaia.includes('foto_patente_cri'));
   uguale(documentiMancanti(['fototessera', 'patente_civile', 'carta_identita'], 'nuova'), []);
   uguale(documentiMancanti(['fototessera', 'patente_civile', 'carta_identita'], null), [], 'le richieste arrivate prima del tipo');
+});
+
+// Il pallino in home e il numero nel menu contavano solo le «Nuove», il
+// filtro «Serve supporto» che aprono anche quelle «In lavorazione»: il
+// pallino diceva 2 e la lista ne mostrava 5. Ora la regola è una sola.
+prova('serve supporto: documento mancante e ancora «Nuova»', () => {
+  const manca = ['fototessera', 'patente_civile'];
+  const tutti = ['fototessera', 'patente_civile', 'carta_identita'];
+  vero(supportoDaGestire({ stato: 'nuova', tipo: 'nuova', documenti_gaia: manca }));
+  vero(!supportoDaGestire({ stato: 'in_lavorazione', tipo: 'nuova', documenti_gaia: manca }), 'presa in mano: esce dal conto');
+  vero(!supportoDaGestire({ stato: 'completata', tipo: 'nuova', documenti_gaia: manca }));
+  vero(!supportoDaGestire({ stato: 'nuova', tipo: 'nuova', documenti_gaia: tutti }), 'documenti completi');
+  vero(supportoDaGestire({ stato: 'nuova', tipo: 'rinnovo', documenti_gaia: tutti }), 'al rinnovo manca la foto della patente CRI');
+  vero(!supportoDaGestire(null));
+});
+
+prova('se la lettura fallisce, il messaggio indica la patch giusta', () => {
+  vero(erroreLettura({ code: '42P01', message: 'relation "public.richieste_patenti" does not exist' }).message.includes('patch-2026-11-06'));
+  vero(erroreLettura({ code: 'PGRST205', message: "Could not find the table 'public.richieste_patenti'" }).message.includes('patch-2026-11-06'));
+  vero(erroreLettura({ code: '42703', message: 'column richieste_patenti.tipo does not exist' }).message.includes('patch-2026-11-07-patenti-tipo'));
+  const permessi = { code: '42501', message: 'permission denied for table richieste_patenti' };
+  uguale(erroreLettura(permessi), permessi, 'un errore di permessi non è «manca la patch»');
 });
 
 prova('i nomi hanno un tetto di lunghezza', () => {

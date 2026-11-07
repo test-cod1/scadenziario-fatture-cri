@@ -325,7 +325,8 @@ export function htmlFaq(esc) {
 // pagina diventa un muro di testo.
 export function filtraFaq(contenitore, testo) {
   const q = String(testo || '').toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').trim();
-  const parole = q.split(/s+/).filter(Boolean);
+  // Si divide sugli spazi (\s), non sulla lettera «s».
+  const parole = q.split(/\s+/).filter(Boolean);
   const voci = [...contenitore.querySelectorAll('.faq-voce')];
   const ok = voci.map(v => parole.every(p => v.dataset.testo.includes(p)));
   const trovate = ok.filter(Boolean).length;

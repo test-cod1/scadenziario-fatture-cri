@@ -2163,6 +2163,20 @@ create policy richieste_patenti_delete on public.richieste_patenti for delete
 revoke update on public.richieste_patenti from authenticated;
 grant update (stato, note, updated_at, updated_by) on public.richieste_patenti to authenticated;
 
+-- Chi ha modificato la richiesta lo scrive il database, non il browser
+-- (patch-2026-11-07-patenti-autore.sql).
+create or replace function public.trg_richieste_patenti_autore()
+returns trigger language plpgsql security definer set search_path = public as $$
+begin
+  if auth.uid() is not null then new.updated_by := auth.uid(); end if;
+  return new;
+end; $$;
+
+drop trigger if exists on_richieste_patenti_autore on public.richieste_patenti;
+create trigger on_richieste_patenti_autore
+  before update on public.richieste_patenti
+  for each row execute procedure public.trg_richieste_patenti_autore();
+
 -- Nel registro modifiche, come le altre tabelle di lavoro.
 do $$
 begin

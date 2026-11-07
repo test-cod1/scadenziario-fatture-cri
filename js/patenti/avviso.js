@@ -7,14 +7,14 @@
 //  (un pallino di notifica sulla card Patenti), solo a chi ha accesso alla
 //  sezione.
 // ============================================================
-import { documentiMancanti } from '../lib/patenti.mjs';
+import { supportoDaGestire } from '../lib/patenti.mjs';
 
 export async function contaSupportoDaGestire() {
   const { getSupabase } = await import('../lib/supabase.js');
   const sb = await getSupabase();
-  const { data, error } = await sb.from('richieste_patenti').select('documenti_gaia,tipo').eq('stato', 'nuova').limit(1000);
+  const { data, error } = await sb.from('richieste_patenti').select('stato,documenti_gaia,tipo').eq('stato', 'nuova').limit(1000);
   if (error) throw error;
-  return (data || []).filter(r => documentiMancanti(r.documenti_gaia, r.tipo).length > 0).length;
+  return (data || []).filter(supportoDaGestire).length;
 }
 
 // Il numerino accanto a «Patenti» nel menu laterale.

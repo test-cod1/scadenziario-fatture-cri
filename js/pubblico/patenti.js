@@ -179,8 +179,14 @@ function riquadroPercorso() {
 const inviaDaQui = (id) => passoDiInvio() === id;
 
 // Trappola per i programmi che compilano i moduli da soli: le persone non
-// la vedono. Sta nel passaggio da cui parte l'invio.
-const trappola = () => '<div class="pt-trappola" aria-hidden="true"><label>Sito web <input name="sito" tabindex="-1" autocomplete="off"></label></div>';
+// la vedono. Sta nel passaggio da cui parte l'invio. Il server scarta senza
+// dirlo le richieste con la trappola piena, quindi non deve riempirla
+// l'autocompilazione: niente «sito», «web», «url» o «email» nel nome e
+// nell'etichetta (sono le parole che browser e gestori di password
+// riconoscono), e le spie per dire a 1Password, LastPass e Bitwarden di
+// lasciarla stare. Al server arriva comunque come `sito`.
+const trappola = () => `<div class="pt-trappola" aria-hidden="true"><label>Lascia vuoto
+  <input name="pt_controllo" type="text" tabindex="-1" autocomplete="off" data-1p-ignore data-lpignore="true" data-bwignore data-form-type="other"></label></div>`;
 
 const etichettaInvio = () => (documenti().some(d => stato.gaia[d.id] === false) ? 'Invia e chiedi supporto' : 'Invia la richiesta');
 
@@ -384,13 +390,14 @@ function collega() {
     form.querySelectorAll('input[name=tipo]').forEach(r => r.addEventListener('change', () => {
       // Cambiando da nuova a rinnovo (o viceversa) la patente scelta prima
       // va riguardata: si azzera, così la si sceglie di nuovo sapendo cosa.
-      if (stato.tipo && stato.tipo !== r.value) stato.patente = '';
+      if (stato.tipo && stato.tipo !== r.value) { stato.patente = ''; azzeraConferme(); }
       stato.tipo = r.value;
       segna(form, 'tipo', '');
     }));
   }
   if (qui === 'patente') {
     form.querySelectorAll('input[name=patente]').forEach(r => r.addEventListener('change', () => {
+      if (stato.patente && String(stato.patente) !== r.value) azzeraConferme();
       stato.patente = r.value;
       form.querySelector('.pt-percorso').innerHTML = riquadroPercorso();
       // La barra dei passaggi cambia subito se compare (o sparisce) il test
@@ -461,6 +468,17 @@ function collega() {
   });
 }
 
+// Test dei riflessi, visita medica e spiegazione dicono cose diverse a
+// seconda del tipo di richiesta e della patente (il foglio rosa, per
+// esempio, c'è solo per le nuove dalla 4). Se il volontario torna indietro
+// e cambia una delle due, quello che aveva confermato riguardava un'altra
+// richiesta: si conferma di nuovo, e la spiegazione si rilegge per intero.
+function azzeraConferme() {
+  stato.riflessi = false;
+  stato.visita = false;
+  stato.letto = false;
+}
+
 // Conto alla rovescia prima di poter confermare la lettura. Si ferma da
 // solo se nel frattempo si cambia passaggio (la casella non è più nella
 // pagina).
@@ -480,11 +498,17 @@ function avviaAttesa(casella, scritta) {
 }
 
 async function invia(form, { supporto = false } = {}) {
-  const corpo = { nome: stato.nome, cognome: stato.cognome, tipo: stato.tipo, patente: stato.patente, documenti_gaia: stato.gaia, sito: form.sito.value, supporto };
-  if (!controllaRichiesta(corpo).ok) return false;
+  const corpo = { nome: stato.nome, cognome: stato.cognome, tipo: stato.tipo, patente: stato.patente, documenti_gaia: stato.gaia, sito: form.pt_controllo.value, supporto };
+  const esito = form.querySelector('.pp-esito');
+  const mostraErrore = (msg) => {
+    esito.innerHTML = `<div class="banner danger" style="margin:14px 0 0"><div class="bi">⚠️</div><div>${msg}</div></div>`;
+  };
+  // Prima di partire, le stesse regole del server: se qualcosa non va lo si
+  // dice qui, invece di lasciare un tasto che non fa niente.
+  const prima = controllaRichiesta(corpo);
+  if (!prima.ok) { mostraErrore(elencoErrori(prima.errori)); return false; }
   const btn = form.querySelector('button[type=submit]');
   const testo = btn.textContent;
-  const esito = form.querySelector('.pp-esito');
   btn.disabled = true; btn.textContent = 'Invio in corso…'; esito.innerHTML = '';
   let r;
   try {
@@ -495,8 +519,18 @@ async function invia(form, { supporto = false } = {}) {
   } catch { r = { ok: false, error: 'Connessione assente: riprova fra un momento.' }; }
   btn.disabled = false; btn.textContent = testo;
   if (r.ok) return true;
-  esito.innerHTML = `<div class="banner danger" style="margin:14px 0 0"><div class="bi">⚠️</div><div>${esc(r.error || 'Invio non riuscito.')}</div></div>`;
+  // Con un 422 il server dice anche che cosa correggere: lo si mostra.
+  mostraErrore(`${esc(r.error || 'Invio non riuscito.')}${r.errori ? elencoErrori(r.errori) : ''}`);
   return false;
+}
+
+// Gli errori campo per campo, in un elenco, con l'indicazione di tornare
+// indietro: dal passaggio dell'invio quei campi non si vedono più.
+function elencoErrori(errori) {
+  const voci = Object.values(errori || {}).filter(Boolean);
+  if (!voci.length) return '';
+  return `<ul style="margin:6px 0 0;padding-left:18px">${voci.map(v => `<li>${esc(v)}</li>`).join('')}</ul>
+    <div class="small" style="margin-top:4px">Torna indietro con «← Indietro» per correggere.</div>`;
 }
 
 function segna(form, campo, msg) {

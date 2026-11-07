@@ -129,6 +129,15 @@ export function documentiMancanti(caricati, tipo) {
   return documentiRichiesti(tipo).filter(d => !(caricati || []).includes(d.id));
 }
 
+// Una richiesta di supporto che nessuno ha ancora preso in mano: le manca
+// almeno un documento ed è ancora «Nuova». Basta segnarla «In lavorazione»
+// perché esca dal conto. La stessa regola vale per il pallino in home, il
+// numero nel menu, il riquadro e il filtro «Serve supporto» delle Richieste:
+// il numero che si vede deve essere quello delle righe che si aprono.
+export function supportoDaGestire(r) {
+  return r?.stato === 'nuova' && documentiMancanti(r.documenti_gaia, r.tipo).length > 0;
+}
+
 // Stati di una richiesta, per la segreteria.
 export const STATI = [
   ['nuova', 'Nuova'],
