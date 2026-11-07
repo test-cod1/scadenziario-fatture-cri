@@ -7,14 +7,14 @@
 //    2. rinnovare la patente CRI o ottenerne una nuova;
 //    3. quale patente;
 //    4. i documenti su Gaia: per ognuno «Sì» o «No, mi serve supporto»;
-//    5. la visita medica: entrare nel gruppo WhatsApp e chiedere di
+//    5. solo per la 5, 6, 7 o 8 (nuova o rinnovo): il test dei riflessi, da
+//       confermare (la visita medica si chiede dopo averlo fatto);
+//    6. la visita medica: entrare nel gruppo WhatsApp e chiedere di
 //       prenotarla, da confermare;
-//    6. solo per la 5, 6, 7 o 8 (nuova o rinnovo): il test dei riflessi, da
-//       confermare;
 //    7. come prosegue (oppure, se ha chiesto supporto, cosa succede ora).
 //
-//  La richiesta si invia dall'ultimo passaggio prima della fine (visita
-//  medica, o test dei riflessi quando c'è): va a /api/patenti, che
+//  La richiesta si invia dall'ultimo passaggio prima della fine, la visita
+//  medica: va a /api/patenti, che
 //  ricontrolla i dati con le stesse regole (js/lib/patenti.mjs) e la salva
 //  per la segreteria. L'ultimo passaggio si apre solo a invio riuscito.
 //
@@ -27,18 +27,18 @@ import { htmlFaq, filtraFaq } from '../lib/faqPatenti.mjs';
 const zona = document.getElementById('modulo');
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
 
-// I passaggi dipendono dalle scelte: dopo i documenti tutti hanno la
-// visita medica, e chi ottiene o rinnova la patente 5 o una superiore anche
-// il test dei riflessi. La richiesta si invia dall'ultimo passaggio prima
-// della fine.
+// I passaggi dipendono dalle scelte: dopo i documenti, chi ottiene o
+// rinnova la patente 5 o una superiore ha il test dei riflessi, e poi tutti
+// la visita medica (che per loro si chiede dopo il test). La richiesta si
+// invia dall'ultimo passaggio prima della fine.
 function passi() {
   return [
     { id: 'nome', etichetta: 'Nome', disegna: passoNome },
     { id: 'tipo', etichetta: 'Richiesta', disegna: passoTipo },
     { id: 'patente', etichetta: 'Patente', disegna: passoPatente },
     { id: 'gaia', etichetta: 'Documenti', disegna: passoGaia },
-    { id: 'visita', etichetta: 'Visita', disegna: passoVisita },
     ...(servonoRiflessi(stato.patente) ? [{ id: 'riflessi', etichetta: 'Riflessi', disegna: passoRiflessi }] : []),
+    { id: 'visita', etichetta: 'Visita', disegna: passoVisita },
     { id: 'fine', etichetta: 'Procedura', disegna: () => (stato.supporto ? passoSupporto() : passoProcedura()) },
   ];
 }
@@ -160,8 +160,8 @@ function riquadroPercorso() {
 // avanti solo dopo aver risposto a tutte e tre; con almeno un «No» la
 // richiesta parte come richiesta di supporto (e la segreteria riceve
 // un'email e un avviso nel portale).
-// La richiesta non parte da qui: dopo i documenti ci sono la visita medica
-// e (per le patenti dalla 5) il test dei riflessi, da confermare prima.
+// La richiesta non parte da qui: dopo i documenti ci sono (per le patenti
+// dalla 5) il test dei riflessi e la visita medica, da confermare prima.
 const inviaDaQui = (id) => passoDiInvio() === id;
 
 // Trappola per i programmi che compilano i moduli da soli: le persone non
@@ -227,8 +227,8 @@ function passoVisita() {
 }
 
 // --- Test dei riflessi (patenti 5, 6, 7 e 8, nuove o da rinnovare) -----------
-// Viene prima dell'invio: il volontario legge che cosa deve fare, lo
-// conferma, e solo allora manda la richiesta.
+// Viene prima della visita medica, che per queste patenti si chiede dopo
+// aver fatto il test: il volontario legge che cosa deve fare e lo conferma.
 function passoRiflessi() {
   const t = TEST_RIFLESSI;
   return `
