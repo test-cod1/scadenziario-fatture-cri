@@ -218,7 +218,7 @@ function passoVisita() {
 
     <div class="field" data-campo="visita" style="margin:16px 0 0">
       <label class="pp-tipo pt-conferma"><input type="checkbox" name="visita" ${stato.visita ? 'checked' : ''}>
-        <span>Sono entrato nel <b>gruppo WhatsApp</b>.</span></label>
+        <span>Ho capito: sono entrato nel gruppo WhatsApp e chiederò di prenotare la <b>visita medica</b>.</span></label>
       <div class="pp-errore" role="alert"></div>
     </div>
     ${tastiPassaggio('visita')}`;
