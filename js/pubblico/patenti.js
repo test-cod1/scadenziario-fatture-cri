@@ -218,7 +218,7 @@ function passoVisita() {
 
     <div class="field" data-campo="visita" style="margin:16px 0 0">
       <label class="pp-tipo pt-conferma"><input type="checkbox" name="visita" ${stato.visita ? 'checked' : ''}>
-        <span>Ho capito: entrerò nel gruppo WhatsApp e chiederò di prenotare la <b>visita medica</b>.</span></label>
+        <span>Sono entrato nel <b>gruppo WhatsApp</b>.</span></label>
       <div class="pp-errore" role="alert"></div>
     </div>
     ${tastiPassaggio('visita')}`;
@@ -363,7 +363,7 @@ function collega() {
     }
     if (qui === 'tipo') segna(form, 'tipo', tipoRichiesta(stato.tipo) ? '' : 'Scegli se vuoi rinnovare la patente o ottenerne una nuova.');
     if (qui === 'patente') segna(form, 'patente', patente(stato.patente) ? '' : (rinnovo() ? 'Scegli la patente da rinnovare.' : 'Scegli la patente che vuoi ottenere.'));
-    if (qui === 'visita') segna(form, 'visita', stato.visita ? '' : 'Conferma di aver capito come prenotare la visita medica.');
+    if (qui === 'visita') segna(form, 'visita', stato.visita ? '' : 'Conferma di essere entrato nel gruppo WhatsApp.');
     if (qui === 'riflessi') segna(form, 'riflessi', stato.riflessi ? '' : 'Conferma di aver letto le indicazioni sul test dei riflessi.');
     const primo = form.querySelector('.pp-sbagliato');
     if (primo) { primo.scrollIntoView({ block: 'center', behavior: 'smooth' }); primo.querySelector('input')?.focus({ preventScroll: true }); return; }
