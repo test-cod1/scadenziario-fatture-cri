@@ -2,6 +2,7 @@ import { fatture, pagamenti, proposte } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast, rendiCliccabile, todayISO, sommaGiorniISO, fineMeseISO, parseEuro } from '../lib/ui.js';
 import { FILTRO_FORNITORE_KEY } from '../lib/filtriReport.js';
 import { CAMPO_DECIMALE } from '../lib/importi.js';
+import { ordinaRighe, prossimoOrdinamento, thOrdinabile, collegaOrdinamento } from '../lib/ordinaTabella.js';
 
 // L'editor della fattura (con la lettura degli XML e l'anteprima dei file) e
 // l'export Excel/PDF (con il generatore xlsx e lo zip) si caricano al primo
@@ -21,6 +22,19 @@ const apriNuovaNotaCredito = daEditor('apriNuovaNotaCredito');
 const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata', stornata: 'Stornata' };
 const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok', stornata: 'info' };
 const STATI_CHIUSI = ['pagata', 'stornata']; // niente altro da pagare: il chip non apre più pagamento/proposta
+
+// Colonne ordinabili con un clic sull'intestazione. Lo stato si ordina per
+// avanzamento (da pagare → stornata), non in ordine alfabetico dell'etichetta.
+const ORDINE_STATO = { da_pagare: 0, pagata_parziale: 1, pagata: 2, stornata: 3 };
+const COLONNE = {
+  fornitore: { get: f => f.fornitore, tipo: 'testo' },
+  numero:    { get: f => f.numero_fattura, tipo: 'testo' },
+  data:      { get: f => f.data_fattura, tipo: 'data' },
+  importo:   { get: f => f.importo, tipo: 'numero' },
+  scadenza:  { get: f => f.scadenza, tipo: 'data' },
+  stato:     { get: f => ORDINE_STATO[f.stato], tipo: 'numero' },
+  residuo:   { get: f => f._residuo, tipo: 'numero' },
+};
 
 // Confini dell'intervallo "questo mese"/"quest'anno", usati sia al primo
 // caricamento sia a ogni ricarica per le statistiche di pagato.
@@ -61,7 +75,10 @@ export async function renderDashboard(view, ctx) {
   let archivioCaricato = false;
   let archivio = [];   // fatture chiuse di anni precedenti, caricate su richiesta (vedi caricaArchivio)
 
-  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false };
+  // `sort` nullo = ordine di arrivo dal database (per scadenza). Non lo tocca
+  // «Azzera filtri»: l'ordinamento non è un filtro, non toglie righe.
+  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, sort: null };
+  const onSort = (campo) => { state.sort = prossimoOrdinamento(state.sort, campo); refreshTable(); };
   // Arrivo da un click su un fornitore nel Report: preimposta la ricerca e
   // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
   // nella dashboard finché non viene aperto di nuovo il Report.
@@ -162,7 +179,7 @@ export async function renderDashboard(view, ctx) {
   // digitata sopra.
   function disegnaArchivio() {
     if (!archivioCaricato) return;
-    renderTable(wrap.querySelector('#archivio-zone'), applyFilters(archivio), ctx, ricarica, proposteInAttesa);
+    renderTable(wrap.querySelector('#archivio-zone'), applyFilters(archivio), ctx, ricarica, proposteInAttesa, state.sort, onSort);
   }
 
   function filtriAttivi() {
@@ -194,7 +211,8 @@ export async function renderDashboard(view, ctx) {
   // fatture chiuse di anni precedenti, anche col pannello archivio aperto.
   async function righeDaEsportare() {
     await caricaArchivio();
-    return [...applyFilters(tutte), ...applyFilters(archivio)];
+    // Nello stesso ordine scelto a video, se se n'è scelto uno.
+    return ordinaRighe([...applyFilters(tutte), ...applyFilters(archivio)], state.sort, COLONNE);
   }
 
   // Clic sulla card "Da pagare (totale)": filtra la tabella sulle fatture
@@ -239,7 +257,7 @@ export async function renderDashboard(view, ctx) {
   }
 
   function refreshTable() {
-    renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica, proposteInAttesa);
+    renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica, proposteInAttesa, state.sort, onSort);
     mostraNotaSenzaScadenza();
     // Appena si cerca o si filtra, l'archivio va caricato e filtrato anche
     // lui: chi cerca una fattura del 2025 già pagata deve trovarla, non
@@ -398,7 +416,7 @@ function renderAlert(node, tutte) {
   node.appendChild(el(`<div class="banner ${scadute.length ? 'danger' : 'warn'}"><div class="bi">${scadute.length ? '⚠️' : '⏰'}</div><div>${parts.join('')}</div></div>`));
 }
 
-function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
+function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura trovata con questi filtri.</p></div>`)); return; }
   const isAdmin = ctx.user.ruolo === 'admin';
@@ -406,10 +424,11 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa) {
   const titoloChip = isAdmin ? 'Clicca per segnare un pagamento' : 'Clicca per proporre un pagamento';
   const oggi = todayISO();
   const table = el(`<table class="tbl tbl-fatture"><thead><tr>
-    <th>Fornitore</th><th>N. Fattura</th><th>Data</th><th class="money-col">Importo</th><th>Scadenza</th><th>Stato</th><th class="money-col">Residuo</th><th></th>
+    ${thOrdinabile('Fornitore', 'fornitore', sort)}${thOrdinabile('N. Fattura', 'numero', sort)}${thOrdinabile('Data', 'data', sort)}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Scadenza', 'scadenza', sort)}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}<th></th>
   </tr></thead><tbody></tbody></table>`);
+  collegaOrdinamento(table, onSort);
   const tbody = table.querySelector('tbody');
-  for (const f of righe) {
+  for (const f of ordinaRighe(righe, sort, COLONNE)) {
     const scaduta = !STATI_CHIUSI.includes(f.stato) && f.scadenza && f.scadenza < oggi;
     const nProposte = proposteInAttesa ? (proposteInAttesa.get(f.id) || 0) : 0;
     const tr = el(`<tr class="${scaduta ? 'scaduta' : ''}">

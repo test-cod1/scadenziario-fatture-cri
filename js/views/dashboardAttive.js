@@ -3,6 +3,7 @@ import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, rendiCliccabile, 
 import { impostazioni } from '../data/store.js';
 import { FILTRO_CLIENTE_KEY } from '../lib/filtriReport.js';
 import { CAMPO_DECIMALE } from '../lib/importi.js';
+import { ordinaRighe, prossimoOrdinamento, thOrdinabile, collegaOrdinamento } from '../lib/ordinaTabella.js';
 
 // Editor della fattura attiva ed export si caricano al primo clic che li
 // usa, non all'apertura dell'elenco: stesso motivo della dashboard delle
@@ -19,6 +20,18 @@ const apriSollecitoRapido = daEditor('apriSollecitoRapido');
 const STATO_LABEL = { da_incassare: 'Da incassare', incassata_parziale: 'Incassata parz.', incassata: 'Incassata', stornata: 'Stornata' };
 const STATO_CHIP = { da_incassare: 'warn', incassata_parziale: 'red', incassata: 'ok', stornata: 'info' };
 const STATI_CHIUSI = ['incassata', 'stornata'];
+
+// Colonne ordinabili: vedi il commento gemello in dashboard.js.
+const ORDINE_STATO = { da_incassare: 0, incassata_parziale: 1, incassata: 2, stornata: 3 };
+const COLONNE = {
+  cliente:   { get: f => f.cliente, tipo: 'testo' },
+  numero:    { get: f => f.numero_fattura, tipo: 'testo' },
+  data:      { get: f => f.data_fattura, tipo: 'data' },
+  importo:   { get: f => f.importo, tipo: 'numero' },
+  stato:     { get: f => ORDINE_STATO[f.stato], tipo: 'numero' },
+  residuo:   { get: f => f._residuo, tipo: 'numero' },
+  sollecito: { get: f => f.data_sollecito, tipo: 'data' },
+};
 
 // Vedi il commento gemello in dashboard.js: periodi su mese e anno interi,
 // coerenti con l'etichetta delle card, e data locale (non UTC).
@@ -62,7 +75,9 @@ export async function renderDashboardAttive(view, ctx) {
   let archivioCaricato = false;
   let archivio = [];   // fatture chiuse di anni precedenti, caricate su richiesta (vedi caricaArchivio)
 
-  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, soloIncassateMese: false };
+  // `sort` nullo = ordine di arrivo; «Azzera filtri» non lo tocca (vedi dashboard.js).
+  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, soloIncassateMese: false, sort: null };
+  const onSort = (campo) => { state.sort = prossimoOrdinamento(state.sort, campo); refreshTable(); };
   // Arrivo da un click su un cliente nel Report: preimposta la ricerca e
   // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
   // nella dashboard finché non viene aperto di nuovo il Report.
@@ -158,7 +173,7 @@ export async function renderDashboardAttive(view, ctx) {
   // Gli stessi filtri della tabella principale valgono anche per l'archivio.
   function disegnaArchivio() {
     if (!archivioCaricato) return;
-    renderTable(wrap.querySelector('#archivio-zone'), applyFilters(archivio), ctx, ricarica);
+    renderTable(wrap.querySelector('#archivio-zone'), applyFilters(archivio), ctx, ricarica, state.sort, onSort);
   }
 
   // `soloIncassateMese` conta come filtro: la card «Incassato questo mese»
@@ -175,7 +190,7 @@ export async function renderDashboardAttive(view, ctx) {
   // compreso — se non è ancora stato scaricato lo si scarica adesso.
   async function righeDaEsportare() {
     await caricaArchivio();
-    return [...applyFilters(tutte), ...applyFilters(archivio)];
+    return ordinaRighe([...applyFilters(tutte), ...applyFilters(archivio)], state.sort, COLONNE);
   }
 
   function applyFilters(sorgente = tutte) {
@@ -205,7 +220,7 @@ export async function renderDashboardAttive(view, ctx) {
   }
 
   function refreshTable() {
-    renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica);
+    renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica, state.sort, onSort);
     mostraNotaSenzaData();
     if (filtriAttivi() && !archivioCaricato) caricaArchivio();
     else disegnaArchivio();
@@ -355,14 +370,15 @@ function renderAlertAttive(node, tutte, giorniAllerta) {
   node.appendChild(el(`<div class="banner danger"><div class="bi">⚠️</div><div><b>⚠️ ${oltreSoglia.length} fattura/e emesse da oltre ${giorniAllerta} giorni e non ancora incassate</b></div></div>`));
 }
 
-function renderTable(node, righe, ctx, ricarica) {
+function renderTable(node, righe, ctx, ricarica, sort, onSort) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura trovata con questi filtri.</p></div>`)); return; }
   const table = el(`<table class="tbl tbl-fatture"><thead><tr>
-    <th>Cliente</th><th>N. Fattura</th><th>Data</th><th class="money-col">Importo</th><th>Stato</th><th class="money-col">Residuo</th><th>Sollecito</th><th></th>
+    ${thOrdinabile('Cliente', 'cliente', sort)}${thOrdinabile('N. Fattura', 'numero', sort)}${thOrdinabile('Data', 'data', sort)}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}${thOrdinabile('Sollecito', 'sollecito', sort)}<th></th>
   </tr></thead><tbody></tbody></table>`);
+  collegaOrdinamento(table, onSort);
   const tbody = table.querySelector('tbody');
-  for (const f of righe) {
+  for (const f of ordinaRighe(righe, sort, COLONNE)) {
     const tr = el(`<tr>
       <td>${esc(f.cliente)}</td>
       <td>${esc(f.numero_fattura || '—')}</td>
