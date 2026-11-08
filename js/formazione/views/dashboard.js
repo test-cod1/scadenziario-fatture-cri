@@ -1,6 +1,7 @@
 import { preventivi, corsi as storeCorsi } from '../data/store.js';
 import { dateCorsiSvolti } from '../corsi.js';
 import { pianificaCorsi } from './corsi.js';
+import { linkFatturazione, linkValido, urlDi } from '../../lib/linkFatturazione.js';
 import { fmtData } from '../lib/documento.js';
 import { daRicontattare, giorniValidita } from '../calc.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO, giorniDa, rendiCliccabile } from '../../lib/ui.js';
@@ -30,12 +31,22 @@ export async function renderDashboard(view, ctx) {
   // corso si è tenuto davvero, e sapere quali confermati sono già stati
   // pianificati. Se il registro non è ancora attivo (patch non eseguita)
   // l'elenco funziona lo stesso, come prima.
-  const [list, registro] = await Promise.all([
+  const [list, registro, linkFatt] = await Promise.all([
     preventivi.list(),
     storeCorsi.list().catch(() => []),
+    linkFatturazione.elenco('formazione').catch(() => []),
   ]);
   const dateCorsi = dateCorsiSvolti(registro);
   const pianificati = new Set(registro.map(c => c.preventivo_id).filter(Boolean));
+  // I link dei dati di fatturazione, per metterli nel documento stampato da
+  // qui come in quello dell'editor. Il preventivo si copia invece di
+  // modificarlo: la riga dell'elenco si salva intera (cambio di stato,
+  // duplica), e un campo in più verrebbe mandato al database.
+  const linkDi = new Map(linkFatt.filter(linkValido).map(l => [l.preventivo_id, urlDi(l.token)]));
+  const conLink = (p) => (linkDi.has(p.id) ? { ...p, _linkFatturazione: linkDi.get(p.id) } : p);
+  // Chi ha mandato i dati di fatturazione e non sono ancora stati riportati
+  // nel preventivo: lo si segnala nella riga.
+  const datiNuovi = new Set(linkFatt.filter(l => l.inviato_il && (!l.acquisiti_il || l.inviato_il > l.acquisiti_il)).map(l => l.preventivo_id));
   // L'ordine è quello della data del documento, il più recente in cima: è la
   // data che si legge nella colonna, e un preventivo duplicato o corretto
   // dopo mesi non deve saltare in testa solo perché è stato creato ieri.
@@ -168,7 +179,8 @@ export async function renderDashboard(view, ctx) {
     }
     const tr = el(`<tr class="riga-apribile">
       <td><b>${esc(p.cliente || '—')}</b>
-        <div class="mini">${esc(p.oggetto || 'senza oggetto')}${p.protocollo ? ` · Prot. n. ${esc(p.protocollo)}` : ''}</div></td>
+        <div class="mini">${esc(p.oggetto || 'senza oggetto')}${p.protocollo ? ` · Prot. n. ${esc(p.protocollo)}` : ''}</div>
+        ${datiNuovi.has(p.id) ? '<div class="mini nota-stato avviso">📩 dati di fatturazione ricevuti</div>' : ''}</td>
       <td style="white-space:nowrap">${p.data_documento ? fmtData(p.data_documento) : '<span class="muted">—</span>'}</td>
       <td>${corsi.length ? esc(riassuntoCorsi(corsi)) : '<span class="muted">nessuno</span>'}
         <div class="mini">${discenti ? `${discenti} ${discenti === 1 ? 'discente' : 'discenti'}` : 'discenti da definire'}</div></td>
@@ -251,13 +263,13 @@ export async function renderDashboard(view, ctx) {
 
     tr.querySelector('[data-pdf]').addEventListener('click', async () => {
       try {
-        await stampaPreventivo(p, ctx.imp);
+        await stampaPreventivo(conLink(p), ctx.imp);
       } catch (e) { toast('Stampa non riuscita: ' + e.message, 'err'); }
     });
     tr.querySelector('[data-word]').addEventListener('click', async () => {
       try {
         const { scaricaDocx } = await import('../lib/docx.js');
-        await scaricaDocx(p, ctx.imp);
+        await scaricaDocx(conLink(p), ctx.imp);
       } catch (e) { toast('Generazione Word non riuscita: ' + e.message, 'err'); }
     });
     tr.querySelector('[data-del]')?.addEventListener('click', async () => {

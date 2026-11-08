@@ -5,6 +5,7 @@ import { dataAmmessa } from '../date.js';
 // Import statico, non import() al clic: la stampa apre una finestra, e Safari
 // la blocca come popup se prima del window.open c'è un'attesa (27/09/2026).
 import { stampaPreventivo } from '../lib/stampa.js';
+import { linkFatturazione, linkValido, urlDi } from '../../lib/linkFatturazione.js';
 
 // ============================================================
 //  ELENCO DEI PREVENTIVI DI ASSISTENZA
@@ -23,7 +24,18 @@ function primaData(p) {
 }
 
 export async function renderDashboard(view, ctx) {
-  const list = await preventivi.list();
+  const [list, linkFatt] = await Promise.all([
+    preventivi.list(),
+    // Senza la patch dei dati di fatturazione l'elenco funziona come prima.
+    linkFatturazione.elenco('assistenze').catch(() => []),
+  ]);
+  // I link dei dati di fatturazione, per metterli nel documento stampato da
+  // qui come in quello dell'editor. Il preventivo si copia invece di
+  // modificarlo: la riga dell'elenco si salva intera (cambio di stato,
+  // duplica), e un campo in più verrebbe mandato al database.
+  const linkDi = new Map(linkFatt.filter(linkValido).map(l => [l.preventivo_id, urlDi(l.token)]));
+  const conLink = (p) => (linkDi.has(p.id) ? { ...p, _linkFatturazione: linkDi.get(p.id) } : p);
+
   // Eliminare un preventivo è irreversibile e tocca il lavoro di tutti:
   // resta agli admin della sezione, come la policy di cancellazione lato
   // database. All'operatore restano duplica, Word e stampa.
@@ -169,13 +181,13 @@ export async function renderDashboard(view, ctx) {
 
       tr.querySelector('[data-pdf]').addEventListener('click', async () => {
         try {
-          await stampaPreventivo(p, ctx.imp);
+          await stampaPreventivo(conLink(p), ctx.imp);
         } catch (e) { toast('Stampa non riuscita: ' + e.message, 'err'); }
       });
       tr.querySelector('[data-word]').addEventListener('click', async () => {
         try {
           const { scaricaDocx } = await import('../lib/docx.js');
-          await scaricaDocx(p, ctx.imp);
+          await scaricaDocx(conLink(p), ctx.imp);
         } catch (e) { toast('Generazione Word non riuscita: ' + e.message, 'err'); }
       });
       tr.querySelector('[data-del]')?.addEventListener('click', async () => {

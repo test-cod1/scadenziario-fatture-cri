@@ -19,6 +19,7 @@ import { onRequestPost as promemoriaProvaPost } from '../api/promemoria-prova.js
 import { onRequestPost as telegramPost } from '../api/telegram.js';
 import { onRequestGet as telegramStatoGet } from '../api/telegram-stato.js';
 import { onRequestPost as telegramConfiguraPost } from '../api/telegram-configura.js';
+import { onRequestPost as datiFatturazionePost } from '../api/dati-fatturazione.js';
 import { onRequestPost as patentiPost } from '../api/patenti.js';
 
 export const ROUTES = {
@@ -41,6 +42,9 @@ export const ROUTES = {
   '/api/telegram': { POST: telegramPost },
   '/api/telegram-stato': { GET: telegramStatoGet },
   '/api/telegram-configura': { POST: telegramConfiguraPost },
+  // Modulo pubblico dei dati di fatturazione: lo chiama il cliente dal link
+  // del preventivo, senza login (vedi l'intestazione del file).
+  '/api/dati-fatturazione': { POST: datiFatturazionePost },
   // Modulo pubblico delle patenti CRI: lo chiamano i volontari dal link
   // della segreteria, senza login (vedi l'intestazione del file).
   '/api/patenti': { POST: patentiPost },

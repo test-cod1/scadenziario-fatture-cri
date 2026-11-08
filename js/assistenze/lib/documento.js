@@ -9,6 +9,7 @@
 //  Tipi di blocco: 'p' (paragrafo), 'titolo', 'tabella', 'firma', 'spazio'.
 // ============================================================
 import { calcola, inLettere } from '../calc.js';
+import { fraseLinkFatturazione } from '../../lib/datiFatturazione.mjs';
 
 const euro = (n) => Number(n || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const num = (n, d = 0) => Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d });
@@ -142,6 +143,12 @@ export function costruisciBlocchi(prev, imp) {
   if (prev.note) {
     blocchi.push({ t: 'spazio' });
     for (const riga of String(prev.note).split('\n')) if (riga.trim()) blocchi.push({ t: 'p', testo: riga.trim() });
+  }
+  // Il link al modulo dei dati di fatturazione, se l'editor (o l'elenco)
+  // ne ha uno valido per questo preventivo: vedi js/lib/linkFatturazione.js.
+  if (prev._linkFatturazione) {
+    blocchi.push({ t: 'spazio' });
+    blocchi.push({ t: 'p', testo: fraseLinkFatturazione(prev._linkFatturazione) });
   }
   if (testi.chiusura) {
     blocchi.push({ t: 'spazio' });

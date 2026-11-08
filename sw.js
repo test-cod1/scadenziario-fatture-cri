@@ -37,14 +37,14 @@ const PRECACHE = [/* __PRECACHE__ */];
 const IN_SVILUPPO = VERSIONE.startsWith('__');
 const CACHE_NAME = IN_SVILUPPO ? 'amministrazione-cri-v2' : `amministrazione-cri-${VERSIONE}`;
 const NO_CACHE_PATHS = ['/api/'];
-// Le pagine pubbliche, aperte da chi non usa il portale (il volontario che
-// compila il modulo delle patenti): non sono il guscio. Senza questa riga,
+// Le pagine pubbliche, aperte da chi non usa il portale (il cliente che
+// compila i dati di fatturazione): non sono il guscio. Senza questa riga,
 // un collega col portale installato che apre il link per controllarlo
 // vedrebbe il portale al posto del modulo, perché ogni navigazione viene
 // servita col guscio. Ogni pagina c'è due volte: Cloudflare Pages rimanda
 // «/patenti.html» a «/patenti», ed è quest'ultimo l'indirizzo che il
 // browser chiede davvero.
-const PAGINE_PUBBLICHE = ['/patenti.html', '/patenti'];
+const PAGINE_PUBBLICHE = ['/dati-fatturazione.html', '/dati-fatturazione', '/patenti.html', '/patenti'];
 
 // Indirizzo del guscio dell'applicazione. Il portale è una pagina sola con le
 // rotte nel frammento (#/trasporti/…), che al server non arriva: qualunque

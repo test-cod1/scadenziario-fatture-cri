@@ -1389,6 +1389,62 @@ drop policy if exists corsi_form_delete on public.corsi_formazione;
 create policy corsi_form_delete on public.corsi_formazione for delete
   using (public.e_admin_sezione('formazione'));
 
+-- ------------------------------------------------------------------
+--  Dati di fatturazione chiesti ai clienti col preventivo (vedi
+--  patch-2026-11-02-dati-fatturazione.sql). Comune a tutte le sezioni con
+--  preventivi: il modulo pubblico scrive qui tramite /api/dati-fatturazione.
+-- ------------------------------------------------------------------
+create table if not exists public.dati_fatturazione (
+  id uuid primary key default gen_random_uuid(),
+
+  -- Di quale sezione e di quale preventivo. Niente chiave esterna: il
+  -- preventivo sta in una tabella diversa per ogni sezione.
+  sezione text not null check (sezione in ('formazione','assistenze','trasporti')),
+  preventivo_id uuid not null,
+
+  -- Il codice nel link: 32 byte casuali (43 caratteri base64url). Chi lo ha
+  -- può solo leggere l'intestazione del preventivo e mandare i dati di
+  -- fatturazione, nient'altro. Rigenerarlo invalida il link vecchio.
+  token text not null unique check (token ~ '^[A-Za-z0-9_-]{43}$'),
+  scade_il timestamptz not null default (now() + interval '120 days'),
+  revocato boolean not null default false,
+
+  -- Quello che il cliente ha mandato, già controllato dal server (vedi
+  -- js/lib/datiFatturazione.mjs). Ogni nuovo invio sostituisce il
+  -- precedente: il cliente può correggersi finché il link vale.
+  dati jsonb,
+  inviato_il timestamptz,
+  invii integer not null default 0,
+
+  -- Quando un operatore ha riportato i dati nel preventivo o in rubrica:
+  -- un invio successivo a questa data è una correzione da guardare.
+  acquisiti_il timestamptz,
+
+  created_by uuid references auth.users(id) on delete set null,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now(),
+
+  -- Un link per preventivo.
+  unique (sezione, preventivo_id)
+);
+
+alter table public.dati_fatturazione enable row level security;
+
+-- Ognuno vede e gestisce i link della propria sezione; eliminarli resta
+-- all'admin della sezione.
+drop policy if exists dati_fatt_read on public.dati_fatturazione;
+create policy dati_fatt_read on public.dati_fatturazione for select
+  using (public.accede_a(sezione));
+drop policy if exists dati_fatt_insert on public.dati_fatturazione;
+create policy dati_fatt_insert on public.dati_fatturazione for insert
+  with check (public.accede_a(sezione));
+drop policy if exists dati_fatt_update on public.dati_fatturazione;
+create policy dati_fatt_update on public.dati_fatturazione for update
+  using (public.accede_a(sezione)) with check (public.accede_a(sezione));
+drop policy if exists dati_fatt_delete on public.dati_fatturazione;
+create policy dati_fatt_delete on public.dati_fatturazione for delete
+  using (public.e_admin_sezione(sezione));
+
 -- ============================================================
 --  SEZIONE STRAORDINARI
 --  Registro delle ore in piu' richieste ai dipendenti dalla centrale
@@ -1894,7 +1950,7 @@ begin
     'fatture_attive','incassi','note_credito_attive','note_credito_attive_righe',
     'preventivi','impostazioni_trasferte',
     'preventivi_assistenze','clienti_assistenze','impostazioni_assistenze',
-    'preventivi_formazione','clienti_formazione','impostazioni_formazione','corsi_formazione',
+    'preventivi_formazione','clienti_formazione','impostazioni_formazione','corsi_formazione','dati_fatturazione',
     'dipendenti_straordinari','straordinari','impostazioni_straordinari',
     'impegni_direttore','centri_costo','imputazioni'
   ] loop
@@ -2119,6 +2175,7 @@ begin
       for each row execute procedure public.trg_registro();
   end if;
 end $$;
+
 -- ============================================================
 --  PATENTI (patch-2026-11-06-patenti.sql): le richieste che i volontari
 --  mandano dal modulo pubblico patenti.html, via /api/patenti.

@@ -9,6 +9,7 @@ import { CAMPO_DECIMALE, testoDecimale, leggiDecimale } from '../../lib/importi.
 // la blocca come popup se prima del window.open c'è un'attesa (27/09/2026).
 import { anteprimaPreventivo, stampaPreventivo } from '../lib/stampa.js';
 import { pianificaCorsi } from './corsi.js';
+import { cardDatiFatturazione, perDestinatario } from '../../lib/linkFatturazione.js';
 
 // ============================================================
 //  EDITOR DEL PREVENTIVO DI FORMAZIONE
@@ -178,6 +179,22 @@ export async function renderPreventivo(view, id, ctx) {
     <div class="field"><label>Note</label>
       <textarea id="note" rows="3" placeholder="Testo libero, compare nel preventivo prima dei saluti…">${esc(prev.note || '')}</textarea></div>`);
   main.appendChild(cDoc);
+
+  // ---------- 6. dati di fatturazione dal cliente ----------
+  // Il link da mandare al cliente, che compila da sé i dati per la fattura;
+  // finisce anche nel documento (vedi js/lib/linkFatturazione.js). I dati
+  // ricevuti si riportano nel destinatario con un clic.
+  const { card: cFatt } = cardDatiFatturazione({
+    sezione: 'formazione', prev, numero: 6,
+    onLink: (url) => { prev._linkFatturazione = url; },
+    onUsa: (d) => {
+      for (const [campo, valore] of Object.entries(perDestinatario(d))) if (valore) scrivi(campo, valore);
+      aggiorna();
+      toast('Destinatario aggiornato con i dati del cliente: ricordati di salvare', 'ok');
+      cDest.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    },
+  });
+  main.appendChild(cFatt);
 
   // ------------------------------------------------------------------
   //  Aggancio dei campi semplici: scrivono direttamente sull'oggetto
