@@ -62,6 +62,14 @@ export function passi(ctx) {
         : 'Qui trovi le proposte di pagamento che hai inviato e il loro stato: in attesa, confermata o rifiutata.',
     },
     {
+      hash: '#/scadenziario/passive/ritenute',
+      selettore: '.nav a[data-nav="ritenute"]',
+      titolo: "Ritenute d'acconto",
+      testo: admin
+        ? "Le ritenute trattenute sulle fatture pagate, mese per mese: ogni mese è un F24 da versare entro il 16 del mese dopo. Quando l'hai versato, segnalo qui."
+        : "Le ritenute trattenute sulle fatture pagate, mese per mese, con la scadenza dell'F24 (il 16 del mese dopo) e se è già stato versato.",
+    },
+    {
       hash: '#/scadenziario/passive/report',
       selettore: '.nav a[data-nav="report"]',
       titolo: 'Report fornitori',

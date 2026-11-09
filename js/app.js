@@ -17,6 +17,7 @@ const VISTE_SCADENZIARIO = {
   impostazioni: () => import('./views/impostazioni.js').then(m => m.renderImpostazioni),
   report: () => import('./views/report.js').then(m => m.renderReport),
   proposte: () => import('./views/proposte.js').then(m => m.renderProposte),
+  ritenute: () => import('./views/ritenute.js').then(m => m.renderRitenute),
   fatture: () => import('./views/dashboard.js').then(m => m.renderDashboard),
   reportAttive: () => import('./views/reportAttive.js').then(m => m.renderReportAttive),
   clientiAttive: () => import('./views/clientiAttive.js').then(m => m.renderClientiAttive),
@@ -166,6 +167,9 @@ function navItemsPassive() {
   return [
     { id: 'fatture', icon: '🧾', label: 'Fatture' },
     { id: 'proposte', icon: '📨', label: 'Proposte pagamento' },
+    // Le ritenute d'acconto le versiamo noi solo sulle passive: sulle attive
+    // è il cliente che le trattiene e le versa.
+    { id: 'ritenute', icon: '🧮', label: 'Ritenute' },
     { id: 'report', icon: '📊', label: 'Report' },
   ];
 }
@@ -470,7 +474,7 @@ async function route() {
     const vista = sub === 'impostazioni' ? 'impostazioni'
       : sottoSezione === 'attive'
         ? (sub === 'report' ? 'reportAttive' : sub === 'clienti' ? 'clientiAttive' : 'fattureAttive')
-        : (sub === 'report' || sub === 'proposte' ? sub : 'fatture');
+        : (sub === 'report' || sub === 'proposte' || sub === 'ritenute' ? sub : 'fatture');
     const render = await VISTE_SCADENZIARIO[vista]();
     await disegna(z => render(z, ctx));
   } catch (e) {

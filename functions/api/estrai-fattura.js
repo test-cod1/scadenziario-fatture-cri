@@ -27,11 +27,13 @@ const SCHEMA = {
     note: { type: 'STRING', description: 'Eventuali dettagli utili non altrimenti catalogabili (es. rate/acconti indicati nel documento)' },
     nota_credito: { type: 'BOOLEAN', description: 'true se il documento è una NOTA DI CREDITO (storno di una fattura precedente, tipo documento TD04/TD08), altrimenti false' },
     riferimento: { type: 'STRING', description: 'Solo per le note di credito: numero della fattura che il documento storna, se indicato' },
+    ritenuta: { type: 'NUMBER', description: "Importo della ritenuta d'acconto IRPEF indicata nel documento (es. 20% sull'imponibile di un professionista). Ometti il campo se il documento non ha ritenuta. Non includere contributi previdenziali (INPS, rivalsa, ENASARCO) né l'IVA in split payment." },
+    ritenuta_codice_tributo: { type: 'STRING', description: "Solo se c'è una ritenuta d'acconto: codice tributo F24 con cui si versa. 1040 per lavoro autonomo e prestazioni occasionali (il caso normale), 1038 per provvigioni di agenti e rappresentanti." },
   },
   required: ['fornitore', 'importo'],
 };
 
-const PROMPT = `Sei un assistente contabile. Analizza il documento allegato (fattura fornitore) ed estrai i campi richiesti secondo lo schema JSON fornito. Usa il formato data YYYY-MM-DD. Se un campo non è presente nel documento, omettilo o lascialo vuoto: non inventare valori. Per l'importo usa sempre il totale finale del documento (IVA inclusa). Per metodo_pagamento restituisci SOLO una di queste parole, senza codici né altro testo: bonifico, RIBA, RID, contanti, altro. Se il documento indica una ritenuta d'acconto o l'IVA in split payment (scissione dei pagamenti), in "importo" metti la cifra effettivamente da pagare (totale meno ritenuta e/o IVA scissa) e scrivi in "note" il totale del documento e le voci sottratte.`;
+const PROMPT = `Sei un assistente contabile. Analizza il documento allegato (fattura fornitore) ed estrai i campi richiesti secondo lo schema JSON fornito. Usa il formato data YYYY-MM-DD. Se un campo non è presente nel documento, omettilo o lascialo vuoto: non inventare valori. Per l'importo usa sempre il totale finale del documento (IVA inclusa). Per metodo_pagamento restituisci SOLO una di queste parole, senza codici né altro testo: bonifico, RIBA, RID, contanti, altro. Se il documento indica una ritenuta d'acconto o l'IVA in split payment (scissione dei pagamenti), in "importo" metti la cifra effettivamente da pagare (totale meno ritenuta e/o IVA scissa) e scrivi in "note" il totale del documento e le voci sottratte. Se c'è una ritenuta d'acconto, riportane l'importo anche nel campo "ritenuta".`;
 
 export async function onRequestPost(context) {
   const { request, env } = context;

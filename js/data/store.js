@@ -502,6 +502,71 @@ export const pagamenti = {
 };
 
 // ---------------------------------------------------------------
+//  RITENUTE D'ACCONTO
+// ------------------------------------------------------------
+//  Le fatture con ritenuta (di qualunque anno: una fattura vecchia pagata
+//  oggi matura una ritenuta da versare il mese prossimo, anche se è già in
+//  archivio) e gli F24 già versati, un mese per riga. I conti stanno in
+//  js/lib/ritenute.js.
+// ---------------------------------------------------------------
+export const ritenute = {
+  async fatture() {
+    const sb = await sbClient();
+    const BLOCCO = 1000;
+    const tutte = [];
+    for (let da = 0; ; da += BLOCCO) {
+      const { data, error } = await sb.from('fatture')
+        .select('id, fornitore, partita_iva, numero_fattura, data_fattura, importo, stato, ritenuta, ritenuta_codice_tributo, pagamenti(id, importo, data_pagamento, metodo)')
+        .not('ritenuta', 'is', null)
+        .order('id', { ascending: true })
+        .range(da, da + BLOCCO - 1);
+      if (error) throw error;
+      tutte.push(...data);
+      if (data.length < BLOCCO) break;
+    }
+    return tutte;
+  },
+  // Fatture senza ritenuta segnata ma che nelle note ne parlano: quelle
+  // registrate prima che il campo esistesse (vedi ritenutaDaNote).
+  async daNote() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('fatture')
+      .select('id, fornitore, numero_fattura, data_fattura, importo, stato, note')
+      .is('ritenuta', null).eq('tipo_documento', 'fattura').ilike('note', '%ritenuta%')
+      .order('data_fattura', { ascending: false }).limit(500);
+    if (error) throw error;
+    return data || [];
+  },
+  async segna(id, ritenuta, codice) {
+    const sb = await sbClient();
+    const { error } = await sb.from('fatture').update({ ritenuta, ritenuta_codice_tributo: codice }).eq('id', id);
+    if (error) throw error;
+  },
+  async versamenti() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('ritenute_versamenti').select('*').order('mese', { ascending: false });
+    if (error) throw error;
+    return data || [];
+  },
+  // Un mese ha al più un versamento (vincolo unique su mese): segnarlo di
+  // nuovo lo corregge invece di aggiungerne un secondo.
+  async segnaVersato({ mese, data_versamento, importo, note }) {
+    const sb = await sbClient();
+    const { data: u } = await sb.auth.getUser();
+    const { data, error } = await sb.from('ritenute_versamenti')
+      .upsert({ mese, data_versamento, importo, note: note || null, created_by: u?.user?.id }, { onConflict: 'mese' })
+      .select().single();
+    if (error) throw error;
+    return data;
+  },
+  async annullaVersamento(id) {
+    const sb = await sbClient();
+    const { error } = await sb.from('ritenute_versamenti').delete().eq('id', id);
+    if (error) throw error;
+  },
+};
+
+// ---------------------------------------------------------------
 //  PROPOSTE DI PAGAMENTO
 // ------------------------------------------------------------
 //  L'operatore propone (importo, data prevista, metodo); solo l'admin può

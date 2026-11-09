@@ -126,6 +126,10 @@ export function parseFatturaXml(xmlText) {
     nota_credito: fiscali.nota_credito,
     riferimento: fiscali.riferimento,
     collegate: fiscali.collegate,
+    // Ritenuta d'acconto da versare noi con l'F24 (solo sulle passive: sulle
+    // attive la versa il cliente).
+    ritenuta: fiscali.ritenuta,
+    ritenuta_codice_tributo: fiscali.ritenuta_codice_tributo,
   };
 }
 
@@ -311,8 +315,22 @@ function datiFiscali(body, datiGen, totale, verbo) {
     .filter(c => c.numero);
   const riferimento = collegate.map(c => c.numero).join(', ');
 
-  const ritenuta = arrotonda((datiGen ? allTags(datiGen, 'DatiRitenuta') : [])
+  const blocchiRitenuta = datiGen ? allTags(datiGen, 'DatiRitenuta') : [];
+  const ritenuta = arrotonda(blocchiRitenuta
     .reduce((s, r) => s + (numero(txt(r, 'ImportoRitenuta')) || 0), 0));
+  // Di tutto quello che si trattiene, la ritenuta d'acconto da versare con
+  // l'F24 è solo quella fiscale: RT01 (persone fisiche) e RT02 (persone
+  // giuridiche). RT03-RT06 sono contributi previdenziali (INPS, ENASARCO,
+  // ENPAM…), che si trattengono anche loro ma si versano altrove.
+  const ritenuteFiscali = blocchiRitenuta.filter(r => {
+    const tipo = txt(r, 'TipoRitenuta').toUpperCase();
+    return !tipo || tipo === 'RT01' || tipo === 'RT02';
+  });
+  const ritenutaAcconto = arrotonda(ritenuteFiscali.reduce((s, r) => s + (numero(txt(r, 'ImportoRitenuta')) || 0), 0));
+  // CausalePagamento H/I = provvigioni (codice 1038); tutto il resto, in
+  // pratica, è lavoro autonomo (1040).
+  const causale = ritenuteFiscali.length ? txt(ritenuteFiscali[0], 'CausalePagamento').toUpperCase() : '';
+  const ritenuta_codice_tributo = ritenutaAcconto > 0 ? (causale === 'H' || causale === 'I' ? '1038' : '1040') : null;
   const ivaSplit = arrotonda(allTags(body, 'DatiRiepilogo')
     .filter(r => txt(r, 'EsigibilitaIVA').toUpperCase() === 'S')
     .reduce((s, r) => s + (numero(txt(r, 'Imposta')) || 0), 0));
@@ -324,12 +342,17 @@ function datiFiscali(body, datiGen, totale, verbo) {
     if (dovuto > 0) {
       importo = dovuto;
       const voci = [];
-      if (ritenuta > 0) voci.push(`ritenuta d'acconto ${ritenuta.toFixed(2)}€`);
+      const previdenziale = arrotonda(ritenuta - ritenutaAcconto);
+      if (ritenutaAcconto > 0) voci.push(`ritenuta d'acconto ${ritenutaAcconto.toFixed(2)}€`);
+      if (previdenziale > 0) voci.push(`contributo previdenziale trattenuto ${previdenziale.toFixed(2)}€`);
       if (ivaSplit > 0) voci.push(`IVA in split payment ${ivaSplit.toFixed(2)}€`);
       avvisi.push(`Totale documento ${totale.toFixed(2)}€, meno ${voci.join(' e ')}: importo da ${verbo} ${dovuto.toFixed(2)}€.`);
     }
   }
-  return { tipo_documento: tipo_documento || null, nota_credito, riferimento: riferimento || null, collegate, importo, avvisi };
+  return {
+    tipo_documento: tipo_documento || null, nota_credito, riferimento: riferimento || null, collegate, importo, avvisi,
+    ritenuta: ritenutaAcconto > 0 ? ritenutaAcconto : null, ritenuta_codice_tributo,
+  };
 }
 
 // Nel tracciato FatturaPA i decimali usano il punto, ma qualche gestionale

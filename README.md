@@ -48,6 +48,16 @@ Si divide a sua volta in due parti indipendenti, selezionabili come due schede d
 
 Le due sezioni hanno tabelle, dati e permessi separati: nulla di quanto inserito in una compare nell'altra.
 
+### Ritenute d'acconto (solo sulle passive)
+
+Quando paghiamo un professionista tratteniamo la ritenuta d'acconto e la versiamo noi con l'F24, **entro il 16 del mese dopo quello del pagamento** (non della fattura). Per questo:
+
+- nella scheda della fattura c'è la casella **«Con ritenuta d'acconto»**, con importo e codice tributo (1040 di norma, 1038 per le provvigioni). L'importo della fattura resta il **netto da pagare**, come prima. La lettura dall'XML compila la casella da sola dal blocco `DatiRitenuta` (solo RT01/RT02: i contributi INPS/ENASARCO trattenuti si versano altrove); la lettura con l'AI pure. Nell'elenco le fatture con ritenuta hanno il segno **RA**;
+- **Fatture Passive → Ritenute** raggruppa le ritenute per mese di pagamento: per ogni mese le fatture pagate, la quota di ritenuta di ciascun pagamento (pagata a rate, la ritenuta matura in proporzione, e l'ultima rata chiude il conto al centesimo), i totali per codice tributo, la scadenza (il 16, spostato al primo giorno lavorativo; il 20 agosto per i pagamenti di luglio) e se è già stato versato. L'admin segna il versamento con data e importo; se poi i pagamenti del mese cambiano, la pagina avvisa che il versato non torna più;
+- in fondo alla pagina, le fatture registrate prima del campo che citano una ritenuta nelle note, da segnare con un clic.
+
+I conti stanno in [`js/lib/ritenute.js`](js/lib/ritenute.js), fissati da [`test/ritenute.prove.mjs`](test/ritenute.prove.mjs). Serve la patch [`supabase/patch-2026-11-09-ritenute.sql`](supabase/patch-2026-11-09-ritenute.sql), **da eseguire prima di pubblicare** questa versione: senza, il salvataggio delle fatture fallisce perché le colonne nuove non esistono.
+
 ### Clienti (solo sulle attive)
 
 Il nome del cliente è un campo di testo libero, e va bene così: una fattura si registra col documento in mano, non scegliendo da un'anagrafica che qualcuno deve tenere aggiornata. Il prezzo di quella libertà è che in tre anni e in quattro mani lo stesso ente finisce scritto in tre modi — «FONDAZIONE L'ANCORA ONLUS», «FONDAZIONE L'ANCORA ETS», «FONDAZIONE L'ANCORA» — e **ogni conto per cliente si spezza in tre**. Il più falsato è quello che serve di più, la concentrazione del fatturato: due clienti da 50 al posto di uno da 100 fanno sembrare il Comitato meno dipendente di quanto è.

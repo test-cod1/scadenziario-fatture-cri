@@ -202,6 +202,11 @@ create table if not exists public.fatture (
   -- a scadenza come una fattura e vive nello stesso scadenziario
   -- (patch 2026-11-07).
   tipo_documento text not null default 'fattura' check (tipo_documento in ('fattura','f24')),
+  -- Ritenuta d'acconto trattenuta al fornitore e versata da noi con l'F24
+  -- entro il 16 del mese dopo il pagamento (patch 2026-11-09). L'importo
+  -- della fattura resta il netto da pagare; null = nessuna ritenuta.
+  ritenuta numeric(12,2) constraint fatture_ritenuta_check check (ritenuta is null or ritenuta > 0),
+  ritenuta_codice_tributo text,
   created_by uuid references auth.users(id),
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -224,6 +229,19 @@ create table if not exists public.pagamenti (
   created_at timestamptz default now()
 );
 create index if not exists idx_pagamenti_fattura on public.pagamenti(fattura_id);
+
+-- ---------- VERSAMENTI DELLE RITENUTE D'ACCONTO ----------
+-- Un F24 per ogni mese di competenza (il mese dei pagamenti delle fatture
+-- con ritenuta): dice quali mesi sono già stati versati (patch 2026-11-09).
+create table if not exists public.ritenute_versamenti (
+  id uuid primary key default gen_random_uuid(),
+  mese date not null unique check (extract(day from mese) = 1),
+  data_versamento date not null,
+  importo numeric(12,2) not null check (importo >= 0),
+  note text,
+  created_by uuid references auth.users(id),
+  created_at timestamptz not null default now()
+);
 
 -- ---------- NOTE DI CREDITO ----------
 -- Una nota di credito è un documento (testata) che può stornare PIÙ fatture
@@ -513,6 +531,7 @@ alter table public.pagamenti         enable row level security;
 alter table public.note_credito       enable row level security;
 alter table public.note_credito_righe enable row level security;
 alter table public.proposte_pagamento enable row level security;
+alter table public.ritenute_versamenti enable row level security;
 alter table public.log_modifiche     enable row level security;
 alter table public.impostazioni      enable row level security;
 
@@ -620,6 +639,13 @@ create policy pagamenti_read on public.pagamenti for select using (public.puo_le
 -- può solo proporli (vedi proposte_pagamento più sotto).
 drop policy if exists pagamenti_write on public.pagamenti;
 create policy pagamenti_write on public.pagamenti for all
+  using (public.e_admin()) with check (public.e_admin());
+
+-- Il versamento delle ritenute è un pagamento vero: lo segna solo l'admin.
+drop policy if exists ritenute_versamenti_read on public.ritenute_versamenti;
+create policy ritenute_versamenti_read on public.ritenute_versamenti for select using (public.puo_leggere());
+drop policy if exists ritenute_versamenti_write on public.ritenute_versamenti;
+create policy ritenute_versamenti_write on public.ritenute_versamenti for all
   using (public.e_admin()) with check (public.e_admin());
 
 -- A differenza dei pagamenti (dove scrive solo l'admin, perché è lui che li
@@ -1946,7 +1972,7 @@ declare t text;
 begin
   foreach t in array array[
     'profili','autorizzazioni',
-    'fatture','pagamenti','note_credito','note_credito_righe','impostazioni','proposte_pagamento',
+    'fatture','pagamenti','note_credito','note_credito_righe','impostazioni','proposte_pagamento','ritenute_versamenti',
     'fatture_attive','incassi','note_credito_attive','note_credito_attive_righe',
     'preventivi','impostazioni_trasferte',
     'preventivi_assistenze','clienti_assistenze','impostazioni_assistenze',

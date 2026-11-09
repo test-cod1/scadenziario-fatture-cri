@@ -432,7 +432,7 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort)
     const scaduta = !STATI_CHIUSI.includes(f.stato) && f.scadenza && f.scadenza < oggi;
     const nProposte = proposteInAttesa ? (proposteInAttesa.get(f.id) || 0) : 0;
     const tr = el(`<tr class="${scaduta ? 'scaduta' : ''}">
-      <td>${f.tipo_documento === 'f24' ? '<span class="chip" title="Rata di modello F24, non una fattura">F24</span> ' : ''}${esc(f.fornitore)}</td>
+      <td>${f.tipo_documento === 'f24' ? '<span class="chip" title="Rata di modello F24, non una fattura">F24</span> ' : ''}${esc(f.fornitore)}${Number(f.ritenuta) > 0 ? ` <span class="chip" title="Ritenuta d'acconto ${esc(fmtEuro(f.ritenuta))}: si versa con l'F24 entro il 16 del mese dopo il pagamento">RA</span>` : ''}</td>
       <td>${esc(f.numero_fattura || '—')}</td>
       <td>${fmtDate(f.data_fattura)}</td>
       <td class="money money-col">${fmtEuro(f.importo)}</td>

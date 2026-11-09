@@ -4,8 +4,56 @@ import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, par
 import { renderAnteprimaFile, bannerErroreLettura, bannerAbbinamento, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento, aggiornaDopo } from '../lib/documenti.js';
 import { CAMPO_DECIMALE, testoDecimale, testoDecimaleOVuoto } from '../lib/importi.js';
 import { abbinaNotaCredito } from '../lib/soggetti.js';
+import { CODICI_TRIBUTO, CODICE_TRIBUTO_DEFAULT } from '../lib/ritenute.js';
 
 export { METODI };
+
+// ------------------------------------------------------------
+//  Ritenuta d'acconto: casella + importo + codice tributo
+//  Gli stessi campi nell'editor singolo e nel caricamento multiplo, cercati
+//  per classe dentro il contenitore. L'importo della fattura resta il netto
+//  da pagare: la ritenuta la versiamo noi con l'F24 (pagina «Ritenute»).
+// ------------------------------------------------------------
+function campiRitenutaHtml(rec = {}) {
+  const on = Number(rec.ritenuta) > 0;
+  const codice = rec.ritenuta_codice_tributo || CODICE_TRIBUTO_DEFAULT;
+  return `<div class="ritenuta-zona">
+    <label class="check-inline" style="display:flex;align-items:center;gap:8px;font-size:13.5px;margin:4px 0 8px;cursor:pointer">
+      <input type="checkbox" class="r-on" ${on ? 'checked' : ''}> Con ritenuta d'acconto
+    </label>
+    <div class="form-row r-campi" ${on ? '' : 'style="display:none"'}>
+      <div class="field"><label>Ritenuta d'acconto (€)</label><input ${CAMPO_DECIMALE} class="r-importo" value="${on ? testoDecimale(rec.ritenuta) : ''}">
+        <div class="hint">La trattieni tu e la versi con l'F24 entro il 16 del mese dopo il pagamento. L'importo qui sopra resta il netto da pagare.</div></div>
+      <div class="field"><label>Codice tributo</label><input type="text" class="r-codice" list="codici-tributo" value="${esc(codice)}" maxlength="6">
+        <datalist id="codici-tributo">${CODICI_TRIBUTO.map(c => `<option value="${c.codice}">${esc(c.descrizione)}</option>`).join('')}</datalist></div>
+    </div>
+  </div>`;
+}
+
+function collegaCampiRitenuta(scope) {
+  const on = scope.querySelector('.r-on');
+  on.addEventListener('change', () => {
+    scope.querySelector('.r-campi').style.display = on.checked ? '' : 'none';
+    if (on.checked) scope.querySelector('.r-importo').focus();
+  });
+}
+
+function compilaRitenuta(scope, estratti) {
+  if (!(Number(estratti.ritenuta) > 0)) return;
+  scope.querySelector('.r-on').checked = true;
+  scope.querySelector('.r-campi').style.display = '';
+  scope.querySelector('.r-importo').value = testoDecimale(estratti.ritenuta);
+  scope.querySelector('.r-codice').value = estratti.ritenuta_codice_tributo || CODICE_TRIBUTO_DEFAULT;
+}
+
+// { ritenuta, ritenuta_codice_tributo } da salvare, oppure { errore }.
+function leggiRitenuta(scope) {
+  if (!scope.querySelector('.r-on').checked) return { ritenuta: null, ritenuta_codice_tributo: null };
+  const importo = parseEuro(scope.querySelector('.r-importo').value);
+  if (importo === null || importo <= 0) return { errore: "Indica l'importo della ritenuta d'acconto, o togli la spunta." };
+  const codice = scope.querySelector('.r-codice').value.trim() || CODICE_TRIBUTO_DEFAULT;
+  return { ritenuta: importo, ritenuta_codice_tributo: codice };
+}
 
 // Scorciatoie "30gg"/"60gg" accanto al campo Scadenza: calcolano la data a
 // partire dalla data fattura invece di doverla sommare a mano ogni volta.
@@ -78,6 +126,7 @@ export async function apriEditor(id, ctx, onSaved) {
         <div class="form-row">
           <div class="field"><label>Metodo di pagamento</label><select id="f-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_pagamento === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
         </div>
+        <div id="f-ritenuta">${campiRitenutaHtml(rec)}</div>
         <div class="field"><label>Note</label><textarea id="f-note" rows="2">${esc(rec.note || '')}</textarea></div>
         <div id="pag-zone"></div>
         <div id="note-credito-zone"></div>
@@ -132,8 +181,11 @@ export async function apriEditor(id, ctx, onSaved) {
     body.querySelector('#f-fornitore').placeholder = f24 ? 'es. F24 IMPOSTE' : '';
     body.querySelector('#f-numero').placeholder = f24 ? 'es. 2ª rata' : '';
     if (!id) body.querySelector('#upload-row').style.display = f24 ? 'none' : '';
+    // Un F24 non ha ritenuta: semmai è l'F24 con cui la si versa.
+    body.querySelector('#f-ritenuta').style.display = f24 ? 'none' : '';
   }
   body.querySelector('#f-tipo').addEventListener('change', aggiornaTipo);
+  collegaCampiRitenuta(body.querySelector('#f-ritenuta'));
   aggiornaTipo();
 
   // Suggerisce i fornitori già usati mentre si scrive, per non ritrovarsi
@@ -166,6 +218,7 @@ export async function apriEditor(id, ctx, onSaved) {
       if (estratti.scadenza) body.querySelector('#f-scadenza').value = estratti.scadenza;
       if (estratti.metodo_pagamento) body.querySelector('#f-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) body.querySelector('#f-note').value = estratti.note;
+      compilaRitenuta(body.querySelector('#f-ritenuta'), estratti);
       viaAI = !!estratti._viaAI;
       hint.textContent = '✅ Campi compilati automaticamente — confronta con l\'anteprima qui a fianco e correggi se necessario prima di salvare.';
     } catch (err) {
@@ -222,6 +275,10 @@ export async function apriEditor(id, ctx, onSaved) {
     };
     if (!payload.fornitore) { err.textContent = payload.tipo_documento === 'f24' ? 'La descrizione è obbligatoria.' : 'Il fornitore è obbligatorio.'; return; }
     if (payload.importo === null || payload.importo <= 0) { err.textContent = 'Indica un importo valido.'; return; }
+    const rit = payload.tipo_documento === 'f24' ? { ritenuta: null, ritenuta_codice_tributo: null } : leggiRitenuta(body.querySelector('#f-ritenuta'));
+    if (rit.errore) { err.textContent = rit.errore; return; }
+    payload.ritenuta = rit.ritenuta;
+    payload.ritenuta_codice_tributo = rit.ritenuta_codice_tributo;
     if (!await confermaSeDuplicato(payload, id)) return;
     const btn = footer.querySelector('#save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
@@ -691,6 +748,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
             <div class="field"><label>Metodo</label><select class="i-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
             <div class="field" style="grid-column:span 2"><label>Note</label><input type="text" class="i-note"></div>
           </div>
+          <div style="margin-top:8px">${campiRitenutaHtml()}</div>
           <div style="display:flex;gap:8px;margin-top:12px">
             <button class="btn primary i-save">💾 Salva fattura</button>
             <button class="btn ghost i-skip">Scarta</button>
@@ -702,6 +760,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
     </div>`);
     zona.appendChild(box);
     collegaAutocompletamento(box.querySelector('.i-fornitore'), () => fatture.fornitoriNoti());
+    collegaCampiRitenuta(box);
 
     box.querySelector('.i-scad-30').addEventListener('click', () => impostaScadenzaOffset(box, '.i-data', '.i-scadenza', 30));
     box.querySelector('.i-scad-60').addEventListener('click', () => impostaScadenzaOffset(box, '.i-data', '.i-scadenza', 60));
@@ -722,6 +781,7 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
       if (estratti.scadenza) box.querySelector('.i-scadenza').value = estratti.scadenza;
       if (estratti.metodo_pagamento) box.querySelector('.i-metodo').value = metodoAmmesso(estratti.metodo_pagamento);
       if (estratti.note) box.querySelector('.i-note').value = estratti.note;
+      compilaRitenuta(box, estratti);
       if (estratti.nota_credito) mostraComeNotaCredito(estratti);
     }).catch(err => {
       status.textContent = '⚠️ errore di lettura';
@@ -773,6 +833,10 @@ export function apriUpload(ctx, onSaved, fileIniziali) {
       };
       const err = box.querySelector('.i-err'); err.textContent = '';
       if (!payload.fornitore || !payload.importo || payload.importo <= 0) { err.textContent = 'Compila almeno fornitore e importo.'; return; }
+      const rit = leggiRitenuta(box);
+      if (rit.errore) { err.textContent = rit.errore; return; }
+      payload.ritenuta = rit.ritenuta;
+      payload.ritenuta_codice_tributo = rit.ritenuta_codice_tributo;
       if (!await confermaSeDuplicato(payload, null)) return;
       const btn = box.querySelector('.i-save'); btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvataggio…';
       try {

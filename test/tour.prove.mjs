@@ -83,7 +83,7 @@ prova('ogni passo dice qualcosa: ha titolo e testo', async () => {
 // perché si divide in due parti con menu diversi. Sono elencate qui a mano,
 // e se cambiano lì questa prova fallisce: è il segnale, non un difetto.
 const PAGINE_FUORI_DA_SEZIONI = {
-  scadenziario: ['passive', 'attive', 'fatture', 'proposte', 'report', 'impostazioni'],
+  scadenziario: ['passive', 'attive', 'fatture', 'proposte', 'ritenute', 'report', 'impostazioni'],
 };
 
 prova('gli hash puntano a pagine che esistono davvero nel menu', async () => {
