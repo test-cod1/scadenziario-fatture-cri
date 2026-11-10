@@ -142,7 +142,7 @@ function passoPatente() {
         <div class="pt-patenti">
           ${PATENTI.map(p => `<label class="pp-tipo pt-patente">
             <input type="radio" name="patente" value="${p.numero}" ${String(stato.patente) === String(p.numero) ? 'checked' : ''}>
-            <span><b>Patente ${p.numero}</b>${rinnovo() ? '' : `<small>${esc(PERCORSI[p.percorso].etichetta)}</small>
+            <span><b>Patente ${p.numero}</b>${rinnovo() ? '' : `${p.percorso === 'esame' ? `<small>${esc(PERCORSI[p.percorso].etichetta)}</small>` : ''}
               <small class="pt-civile">${esc(p.civile)}</small>`}</span></label>`).join('')}
         </div>
       </fieldset>
