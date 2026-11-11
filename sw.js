@@ -44,7 +44,8 @@ const NO_CACHE_PATHS = ['/api/'];
 // servita col guscio. Ogni pagina c'è due volte: Cloudflare Pages rimanda
 // «/patenti.html» a «/patenti», ed è quest'ultimo l'indirizzo che il
 // browser chiede davvero.
-const PAGINE_PUBBLICHE = ['/dati-fatturazione.html', '/dati-fatturazione', '/patenti.html', '/patenti'];
+const PAGINE_PUBBLICHE = ['/dati-fatturazione.html', '/dati-fatturazione', '/patenti.html', '/patenti',
+  '/centro-condiviso.html', '/centro-condiviso'];
 
 // Indirizzo del guscio dell'applicazione. Il portale è una pagina sola con le
 // rotte nel frammento (#/trasporti/…), che al server non arriva: qualunque

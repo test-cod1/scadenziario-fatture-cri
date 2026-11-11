@@ -84,11 +84,16 @@ export async function renderCentro(view, id, ctx) {
         <a class="btn" href="#/analisi/centri">← Centri di costo</a>
         ${admin ? `<button class="btn" data-chiudi>${centro.chiuso ? '↩︎ Riapri' : '✓ Concludi'}</button>` : ''}
         ${admin ? '<button class="btn" data-mod>✏️ Modifica</button>' : ''}
+        <button class="btn" data-condividi title="Link di sola lettura per chi non ha il portale">🔗 ${centro.link_token ? 'Link attivo' : 'Condividi'}</button>
         <button class="btn primary" data-nuovo-mov>➕ Nuovo movimento</button>
       </div>`),
     );
 
     testa.querySelector('[data-nuovo-mov]').addEventListener('click', () => nuovoMovimento('uscita'));
+    testa.querySelector('[data-condividi]').addEventListener('click', async () => {
+      const { apriCondividi } = await import('./condividi.js');
+      if (await apriCondividi(centro, { admin })) disegnaTesta();
+    });
     testa.querySelector('[data-mod]')?.addEventListener('click', async () => {
       const agg = await apriSchedaCentro(centro);
       if (!agg) return;

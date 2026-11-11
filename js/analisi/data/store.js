@@ -75,6 +75,25 @@ export const centri = {
     return data;
   },
 
+  // Il link di sola lettura (centro-condiviso.html#codice). Crearne uno
+  // nuovo invalida quello vecchio; `null` lo disattiva. Il codice viene da
+  // nuovoToken(): 32 byte casuali, come quello dei dati di fatturazione.
+  async impostaLink(id, attivo) {
+    const sb = await sbClient();
+    const { nuovoToken } = await import('../../lib/datiFatturazione.mjs');
+    const riga = attivo
+      ? { link_token: nuovoToken(), link_creato_il: nowISO(), updated_at: nowISO() }
+      : { link_token: null, link_creato_il: null, updated_at: nowISO() };
+    const { data, error } = await sb.from('centri_costo').update(riga).eq('id', id).select().single();
+    if (error) {
+      if (/link_token/.test(String(error.message))) {
+        throw new Error('Il link non è ancora attivo: va eseguita supabase/patch-2026-11-11-link-centri.sql nel database.');
+      }
+      throw error;
+    }
+    return data;
+  },
+
   // Eliminare un centro porta via con sé i suoi movimenti (on delete
   // cascade). Chi chiama deve dirlo all'utente PRIMA, con il numero.
   async remove(id) {

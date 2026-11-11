@@ -1677,12 +1677,19 @@ create table if not exists public.centri_costo (
   inizio date,
   fine date,
   chiuso boolean not null default false,
+  -- Il link di sola lettura per chi non ha il portale
+  -- (patch-2026-11-11-link-centri.sql): null = nessun link attivo.
+  link_token text constraint centri_costo_link_token_forma
+    check (link_token is null or link_token ~ '^[A-Za-z0-9_-]{43}$'),
+  link_creato_il timestamptz,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
 create unique index if not exists ux_centri_costo_nome
   on public.centri_costo (lower(btrim(nome)));
+create unique index if not exists ux_centri_costo_link_token
+  on public.centri_costo (link_token) where link_token is not null;
 
 comment on table public.centri_costo is
   'Attività seguite dalla sezione Analisi: ognuna ha i suoi movimenti in movimenti_analisi';

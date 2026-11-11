@@ -1188,6 +1188,12 @@ tr.str-inattivo td{opacity:.6}
 .pp-gruppo{font-size:13px;text-transform:uppercase;letter-spacing:.03em;color:var(--ink-soft);margin:22px 0 10px}
 .pp-tre{grid-template-columns:1fr 2fr 1fr}
 .pagina-pubblica input::placeholder{text-transform:none}
+/* Il conto di un centro di costo aperto da un link (centro-condiviso.html):
+   è una pagina di numeri e grafici, e ha bisogno di più larghezza del modulo. */
+.pp-largo{max-width:1100px}
+.pp-conto-testa{margin-bottom:4px}
+.pp-agg{margin:0;font-size:12.5px;color:var(--ink-soft)}
+.pp-voce{grid-template-columns:1fr auto}
 .pp-errore{font-size:12.5px;color:var(--danger);margin-top:4px;font-weight:600}
 .pp-errore:empty{display:none}
 .pp-sbagliato input{border-color:var(--danger)}

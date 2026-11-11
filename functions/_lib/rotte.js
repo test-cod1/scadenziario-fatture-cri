@@ -21,6 +21,7 @@ import { onRequestGet as telegramStatoGet } from '../api/telegram-stato.js';
 import { onRequestPost as telegramConfiguraPost } from '../api/telegram-configura.js';
 import { onRequestPost as datiFatturazionePost } from '../api/dati-fatturazione.js';
 import { onRequestPost as patentiPost } from '../api/patenti.js';
+import { onRequestPost as centroCondivisoPost } from '../api/centro-condiviso.js';
 
 export const ROUTES = {
   '/api/estrai-fattura': { POST: estraiFatturaPost },
@@ -48,6 +49,9 @@ export const ROUTES = {
   // Modulo pubblico delle patenti CRI: lo chiamano i volontari dal link
   // della segreteria, senza login (vedi l'intestazione del file).
   '/api/patenti': { POST: patentiPost },
+  // Pagina pubblica di sola lettura di un centro di costo (Analisi): la apre
+  // chi ha ricevuto il link, senza login (vedi l'intestazione del file).
+  '/api/centro-condiviso': { POST: centroCondivisoPost },
 };
 
 // Risposta per un metodo non previsto su una route esistente. Senza, la
