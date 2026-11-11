@@ -14,7 +14,8 @@
 //    scritte restano leggibili anche sul telefono invece di rimpicciolire
 //    con tutto il disegno.
 // ============================================================
-import { el, esc, fmtEuro } from '../../lib/ui.js';
+import { el, esc } from '../../lib/ui.js';
+import { fmtEuro } from '../formato.js';
 
 export const MESI_BREVI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
 const MESI_LUNGHI = ['gennaio', 'febbraio', 'marzo', 'aprile', 'maggio', 'giugno', 'luglio', 'agosto', 'settembre', 'ottobre', 'novembre', 'dicembre'];
@@ -29,7 +30,7 @@ const nodo = (tag, attr = {}) => {
 
 // Euro senza decimali per gli assi: «1.200 €» si legge, «1.200,00 €» su
 // un'asse è rumore.
-const euroAsse = v => `${Math.round(v).toLocaleString('it-IT')} €`;
+const euroAsse = v => `${Math.round(v).toLocaleString('it-IT', { useGrouping: 'always' })} €`;
 
 // Il massimo dell'asse arrotondato a un numero «tondo» (1, 2, 2,5, 5 × 10^n),
 // con quattro tacche: le linee di griglia cadono su cifre che si leggono.
@@ -235,4 +236,16 @@ export function tabellaAnni(righe, annoScelto, alClic, { mostraEntrate = true } 
     corpo.appendChild(tr);
   }
   return box;
+}
+
+// ---------- l'intestazione di un anno nell'elenco dei movimenti ----------
+// L'anno in grande, quanti movimenti a parole («8 movimenti», non «· 8»,
+// che non si capiva cosa contasse) e il totale allineato a destra. La usa
+// anche la pagina pubblica del link, così le due restano uguali.
+export function intestazioneAnno(anno, n, somma) {
+  return el(`<div class="cc-anno">
+    <span class="cc-anno-a">${anno ? esc(anno) : 'Senza data'}</span>
+    <span class="cc-anno-n">${n} ${n === 1 ? 'movimento' : 'movimenti'}</span>
+    <b class="cc-anno-t">${esc(fmtEuro(somma))}</b>
+  </div>`);
 }

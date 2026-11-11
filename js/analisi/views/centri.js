@@ -11,7 +11,8 @@
 // ============================================================
 import { caricaTutto, centri as storeCentri } from '../data/store.js';
 import { quadro, vociDi, anni, perAnno } from '../calc.js';
-import { el, clear, esc, toast, fmtEuro, fmtDate, rendiCliccabile, confirmDialog } from '../../lib/ui.js';
+import { el, clear, esc, toast, fmtDate, rendiCliccabile, confirmDialog } from '../../lib/ui.js';
+import { fmtEuro } from '../formato.js';
 import { barraPeriodo, intervallo, nomePeriodo } from './periodo.js';
 import { apriSchedaCentro } from './scheda.js';
 import { tabellaAnni } from './grafici.js';

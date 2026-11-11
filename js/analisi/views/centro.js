@@ -10,9 +10,10 @@
 // ============================================================
 import { caricaTutto, centri as storeCentri, movimenti as storeMovimenti } from '../data/store.js';
 import { vociDi, totaliDi, anni, perAnno, perMese, perCategoria, categorieUsate } from '../calc.js';
-import { el, clear, esc, toast, fmtEuro, fmtDate, confirmDialog } from '../../lib/ui.js';
+import { el, clear, esc, toast, fmtDate, confirmDialog } from '../../lib/ui.js';
+import { fmtEuro } from '../formato.js';
 import { barraPeriodo, intervallo, nomePeriodo } from './periodo.js';
-import { graficoAndamento, graficoCategorie, tabellaAnni, MESI_BREVI, nomeMese } from './grafici.js';
+import { graficoAndamento, graficoCategorie, tabellaAnni, intestazioneAnno, MESI_BREVI, nomeMese } from './grafici.js';
 import { apriSchedaCentro } from './scheda.js';
 import { apriSchedaMovimento } from './movimento.js';
 import { periodoDi } from './centri.js';
@@ -194,7 +195,7 @@ export async function renderCentro(view, id, ctx) {
         annoCorrente = anno;
         const sub = voci.filter(x => (x.data ? x.data.slice(0, 4) : '') === anno);
         const somma = sub.reduce((s, x) => s + Math.round(Number(x.importo) * 100), 0) / 100;
-        dentro.appendChild(el(`<div class="cc-anno"><span>${anno ? esc(anno) : 'Senza data'} · ${sub.length}</span><b>${esc(fmtEuro(somma))}</b></div>`));
+        dentro.appendChild(intestazioneAnno(anno, sub.length, somma));
       }
       dentro.appendChild(voce(v));
     }

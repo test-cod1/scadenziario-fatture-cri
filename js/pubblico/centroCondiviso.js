@@ -13,9 +13,10 @@
 // ============================================================
 import { formaValida } from '../lib/linkCentri.mjs';
 import { vociDi, totaliDi, anni, perAnno, perMese, perCategoria } from '../analisi/calc.js';
-import { graficoAndamento, graficoCategorie, tabellaAnni, MESI_BREVI, nomeMese } from '../analisi/views/grafici.js';
+import { graficoAndamento, graficoCategorie, tabellaAnni, intestazioneAnno, MESI_BREVI, nomeMese } from '../analisi/views/grafici.js';
 import { barraPeriodo, intervallo, nomePeriodo } from '../analisi/views/periodo.js';
-import { el, esc, clear, fmtEuro, fmtDate, fmtDateTime } from '../lib/ui.js';
+import { el, esc, clear, fmtDate, fmtDateTime } from '../lib/ui.js';
+import { fmtEuro } from '../analisi/formato.js';
 
 const zona = document.getElementById('conto');
 const token = decodeURIComponent(location.hash.replace(/^#/, ''));
@@ -135,7 +136,7 @@ function disegnaPagina(centro, movimenti, lettoIl) {
         annoCorrente = anno;
         const sub = voci.filter(x => (x.data ? x.data.slice(0, 4) : '') === anno);
         const somma = sub.reduce((s, x) => s + Math.round(Number(x.importo) * 100), 0) / 100;
-        dentro.appendChild(el(`<div class="cc-anno"><span>${anno ? esc(anno) : 'Senza data'} · ${sub.length}</span><b>${esc(fmtEuro(somma))}</b></div>`));
+        dentro.appendChild(intestazioneAnno(anno, sub.length, somma));
       }
       const tit = v.descrizione || v.controparte || v.documento || '—';
       const det = [v.data ? fmtDate(v.data) : 'senza data', v.descrizione && v.controparte ? v.controparte : '', v.documento || '']
