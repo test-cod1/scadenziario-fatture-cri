@@ -45,7 +45,7 @@ const NO_CACHE_PATHS = ['/api/'];
 // «/patenti.html» a «/patenti», ed è quest'ultimo l'indirizzo che il
 // browser chiede davvero.
 const PAGINE_PUBBLICHE = ['/dati-fatturazione.html', '/dati-fatturazione', '/patenti.html', '/patenti',
-  '/centro-condiviso.html', '/centro-condiviso'];
+  '/conto.html', '/conto'];
 
 // Indirizzo del guscio dell'applicazione. Il portale è una pagina sola con le
 // rotte nel frammento (#/trasporti/…), che al server non arriva: qualunque

@@ -1678,9 +1678,10 @@ create table if not exists public.centri_costo (
   fine date,
   chiuso boolean not null default false,
   -- Il link di sola lettura per chi non ha il portale
-  -- (patch-2026-11-11-link-centri.sql): null = nessun link attivo.
+  -- (patch-2026-11-11-link-centri.sql e -link-brevi.sql): null = nessun link
+  -- attivo. Forma: «automedica-Xk3pQ9aZb2», vedi js/lib/linkCentri.mjs.
   link_token text constraint centri_costo_link_token_forma
-    check (link_token is null or link_token ~ '^[A-Za-z0-9_-]{43}$'),
+    check (link_token is null or link_token ~ '^[A-Za-z0-9_-]{10,60}$'),
   link_creato_il timestamptz,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),

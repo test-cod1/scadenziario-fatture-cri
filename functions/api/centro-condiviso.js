@@ -1,7 +1,7 @@
 // ============================================================
 //  Cloudflare Function — Il conto di un centro di costo, in sola lettura
 //  Endpoint: POST /api/centro-condiviso   (lo chiama la pagina pubblica
-//  centro-condiviso.html, aperta col link creato in Analisi)
+//  conto.html, aperta col link creato in Analisi)
 //
 //  Corpo: { token }
 //  Risposta: il nome e il periodo del centro e i suoi movimenti, con i soli
@@ -19,7 +19,7 @@
 // ============================================================
 
 import { SUPABASE_URL } from '../_lib/auth.js';
-import { FORMA_TOKEN } from '../../js/lib/datiFatturazione.mjs';
+import { formaValida } from '../../js/lib/linkCentri.mjs';
 
 const MAX_CORPO = 2000;
 const NON_VALIDO = 'Il link non è valido o non è più attivo. Chiedine uno nuovo a chi te lo ha mandato.';
@@ -39,8 +39,8 @@ export async function onRequestPost(context) {
   try { corpo = JSON.parse(grezzo); } catch { return json({ error: 'Richiesta non valida.' }, 400); }
   const token = corpo?.token;
   // La forma si controlla prima di qualunque query: nel filtro di PostgREST
-  // finisce solo una stringa di 43 caratteri da un alfabeto innocuo.
-  if (typeof token !== 'string' || !FORMA_TOKEN.test(token)) return json({ error: NON_VALIDO }, 404);
+  // finisce solo una stringa corta di lettere, cifre e trattini.
+  if (!formaValida(token)) return json({ error: NON_VALIDO }, 404);
 
   const base = env.SUPABASE_URL || SUPABASE_URL;
   const key = env.SUPABASE_SERVICE_ROLE_KEY;

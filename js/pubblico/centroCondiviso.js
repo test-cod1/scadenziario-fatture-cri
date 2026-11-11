@@ -1,7 +1,7 @@
 // ============================================================
-//  IL CONTO DI UN CENTRO DI COSTO, IN SOLA LETTURA (centro-condiviso.html)
+//  IL CONTO DI UN CENTRO DI COSTO, IN SOLA LETTURA (conto.html)
 //  Lo apre chi ha ricevuto il link dalla sezione Analisi, senza accedere
-//  al portale. Il codice sta dopo il # («…/centro-condiviso.html#codice»):
+//  al portale. Il codice sta dopo il # («…/conto#automedica-Xk3pQ9aZb2»):
 //  la parte dopo il # non viene mandata al server con la pagina, quindi
 //  non finisce nei log né nel Referer; lo spedisce solo questo script, nel
 //  corpo della richiesta a /api/centro-condiviso.
@@ -11,7 +11,7 @@
 //  stesso centro non possono dire due numeri diversi. Qui non c'è nessun
 //  pulsante che modifica: la pagina non saprebbe nemmeno come farlo.
 // ============================================================
-import { FORMA_TOKEN } from '../lib/datiFatturazione.mjs';
+import { formaValida } from '../lib/linkCentri.mjs';
 import { vociDi, totaliDi, anni, perAnno, perMese, perCategoria } from '../analisi/calc.js';
 import { graficoAndamento, graficoCategorie, tabellaAnni, MESI_BREVI, nomeMese } from '../analisi/views/grafici.js';
 import { barraPeriodo, intervallo, nomePeriodo } from '../analisi/views/periodo.js';
@@ -26,7 +26,7 @@ function errore(titolo, testo) {
 }
 
 async function avvia() {
-  if (!FORMA_TOKEN.test(token)) {
+  if (!formaValida(token)) {
     errore('Link non valido', 'Il link è incompleto. Copialo per intero, oppure chiedine uno nuovo a chi te lo ha mandato.');
     return;
   }

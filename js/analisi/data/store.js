@@ -75,14 +75,14 @@ export const centri = {
     return data;
   },
 
-  // Il link di sola lettura (centro-condiviso.html#codice). Crearne uno
+  // Il link di sola lettura (conto#codice, vedi js/lib/linkCentri.mjs). Crearne uno
   // nuovo invalida quello vecchio; `null` lo disattiva. Il codice viene da
-  // nuovoToken(): 32 byte casuali, come quello dei dati di fatturazione.
-  async impostaLink(id, attivo) {
+  // nuovoCodiceLink(): il nome dell'attività più dieci caratteri casuali.
+  async impostaLink(id, attivo, nome = '') {
     const sb = await sbClient();
-    const { nuovoToken } = await import('../../lib/datiFatturazione.mjs');
+    const { nuovoCodiceLink } = await import('../../lib/linkCentri.mjs');
     const riga = attivo
-      ? { link_token: nuovoToken(), link_creato_il: nowISO(), updated_at: nowISO() }
+      ? { link_token: nuovoCodiceLink(nome), link_creato_il: nowISO(), updated_at: nowISO() }
       : { link_token: null, link_creato_il: null, updated_at: nowISO() };
     const { data, error } = await sb.from('centri_costo').update(riga).eq('id', id).select().single();
     if (error) {

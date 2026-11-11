@@ -1,7 +1,7 @@
 // ============================================================
 //  IL LINK DI SOLA LETTURA DI UN CENTRO DI COSTO — finestra.
 //  Crea, mostra da copiare, rinnova o disattiva il link che apre
-//  centro-condiviso.html per chi non ha il portale. Lo gestisce l'admin
+//  conto.html («…/conto#automedica-Xk3pQ9aZb2») per chi non ha il portale. Lo gestisce l'admin
 //  di Analisi (policy centri_costo_write); gli altri lo vedono soltanto.
 //
 //  Si risolve con il centro aggiornato, o null se non è cambiato niente.
@@ -9,7 +9,9 @@
 import { centri } from '../data/store.js';
 import { el, esc, toast, openModal, confirmDialog, fmtDateTime } from '../../lib/ui.js';
 
-export const urlCondiviso = token => `${location.origin}/centro-condiviso.html#${token}`;
+// «/conto» e non «/conto.html»: è la forma che Cloudflare serve e che si
+// legge meglio in un messaggio.
+export const urlCondiviso = token => `${location.origin}/conto#${token}`;
 
 export function apriCondividi(centro, { admin }) {
   return new Promise(res => {
@@ -56,7 +58,7 @@ export function apriCondividi(centro, { admin }) {
     async function imposta(attivo, messaggio) {
       foot.querySelectorAll('button').forEach(b => { b.disabled = true; });
       try {
-        Object.assign(centro, await centri.impostaLink(centro.id, attivo));
+        Object.assign(centro, await centri.impostaLink(centro.id, attivo, centro.nome));
         esito = centro;
         toast(messaggio, 'ok');
       } catch (e) { toast(e.message, 'err'); }

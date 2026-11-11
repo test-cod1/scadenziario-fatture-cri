@@ -7,8 +7,39 @@
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
 import { onRequestPost, CAMPI_MOVIMENTO } from '../functions/api/centro-condiviso.js';
 import { nuovoToken } from '../js/lib/datiFatturazione.mjs';
+import { nuovoCodiceLink, nomeNelLink, formaValida, casuale } from '../js/lib/linkCentri.mjs';
 
-const TOKEN = nuovoToken();
+const TOKEN = nuovoCodiceLink('Automedica');
+
+gruppo('Analisi — il codice del link');
+
+prova('il link porta il nome dell\'attività e dieci caratteri casuali', () => {
+  const c = nuovoCodiceLink('Automedica');
+  vero(/^automedica-[A-Za-z0-9]{10}$/.test(c), c);
+  vero(formaValida(c));
+  vero(nuovoCodiceLink('Automedica') !== c, 'due link dello stesso centro sono diversi');
+});
+
+prova('il nome si riduce a lettere, cifre e trattini, tagliato a una parola intera', () => {
+  uguale(nomeNelLink('Corso BLSD – primavera 2026'), 'corso-blsd-primavera-2026');
+  uguale(nomeNelLink('Attività «Fiera» più è'), 'attivita-fiera-piu-e');
+  uguale(nomeNelLink('Assistenza sanitaria alla manifestazione estiva del porto'), 'assistenza-sanitaria-alla');
+  uguale(nomeNelLink('!!!'), '');
+  vero(/^[A-Za-z0-9]{10}$/.test(nuovoCodiceLink('!!!')), 'senza un nome usabile resta il solo codice');
+});
+
+prova('i caratteri casuali usano tutto l\'alfabeto', () => {
+  const visti = new Set(casuale(4000));
+  vero(visti.size === 62, `visti ${visti.size} caratteri su 62`);
+});
+
+prova('valgono la forma nuova e quella dei link già creati, nient\'altro', () => {
+  vero(formaValida(nuovoToken()), 'i link di 43 caratteri restano validi');
+  vero(formaValida('Xk3pQ9aZb2'));
+  for (const no of ['', 'auto', 'automedica-abc', 'Automedica-Xk3pQ9aZb2', 'auto medica-Xk3pQ9aZb2', 'a'.repeat(70), null, 42]) {
+    vero(!formaValida(no), `non deve valere: ${no}`);
+  }
+});
 const ENV = { SUPABASE_SERVICE_ROLE_KEY: 'chiave', SUPABASE_URL: 'https://db.finto' };
 let db, richieste;
 
