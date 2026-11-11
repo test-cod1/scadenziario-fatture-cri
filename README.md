@@ -294,6 +294,8 @@ Analisi tiene i **centri di costo**: «quell'attività quanto è costata e quant
 
 - **Centri di costo** è il quadro d'insieme: una riga per attività con entrate, uscite e saldo nel periodo scelto, prima quelle in perdita.
 - Cliccando un'attività si apre il suo **conto**: entrate e uscite in due colonne, movimento per movimento. Da lì si aggiungono, correggono ed eliminano i movimenti (**➕ Nuovo movimento**, o il ➕ in testa a ciascuna colonna).
+- **Anno per anno**: in tutte e due le pagine una tabella confronta gli anni (entrate, uscite, saldo, variazione delle uscite sull'anno prima); un clic su un anno filtra la pagina su quell'anno. Con «Tutti gli anni» l'elenco dei movimenti è diviso per anno, ciascuno col suo totale.
+- **Grafici** nel conto dell'attività: uscite (ed entrate, se ci sono) per anno, oppure mese per mese quando è scelto un anno, con il valore al passaggio del mouse; accanto, **le uscite per categoria** con importo e quota. Disegnati a mano in SVG ([`js/analisi/views/grafici.js`](js/analisi/views/grafici.js)): blu = entrate, arancio = uscite, sempre. Ogni movimento ha una **categoria** (testo libero con i suggerimenti di quelle già usate; maiuscole e spazi non contano), aggiunta da [`patch-2026-11-11-categorie-movimenti.sql`](supabase/patch-2026-11-11-categorie-movimenti.sql), da eseguire prima di pubblicare.
 
 Due cose da sapere per leggere bene questi numeri, scritte in testa a [`js/analisi/calc.js`](js/analisi/calc.js):
 1. **Un movimento conta nella data del documento**, non in quella del pagamento.
@@ -550,6 +552,7 @@ js/analisi/calc.js              conti dei centri di costo (totali, periodi, ordi
 js/analisi/views/centri.js      il quadro d’insieme: una riga per attività
 js/analisi/views/centro.js      il conto di una singola attività, movimento per movimento
 js/analisi/views/movimento.js   la scheda di un movimento (entrata o uscita)
+js/analisi/views/grafici.js     grafici SVG e tabella anno per anno
 js/lib/carta.js                 legge la carta intestata .dotx (immagini e testi)
 js/lib/docxBlocchi.js           dai blocchi al .docx, sostituendo il corpo del modello
 js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF

@@ -898,6 +898,66 @@ tr.str-inattivo td{opacity:.6}
 .cc-voce-azioni{display:flex;gap:2px}
 .cc-chiusa{display:flex;gap:8px;align-items:flex-start;margin-top:14px;font-size:13px;color:var(--ink-soft)}
 .cc-chiusa input{margin-top:3px;flex:none}
+/* I grafici di Analisi (js/analisi/views/grafici.js). Due colori soli,
+   blu = entrate e arancio = uscite, verificati per daltonismo e contrasto
+   sul bianco della card; il rosso CRI resta all'identità e agli allarmi. */
+.an-graf{--an-entrate:#2a78d6;--an-uscite:#eb6834}
+.an-quadro{display:grid;grid-template-columns:minmax(0,3fr) minmax(0,2fr);gap:18px;align-items:start;margin-bottom:18px}
+.an-quadro>.card{min-width:0}
+.an-graf-testa{display:flex;justify-content:space-between;align-items:baseline;gap:12px;flex-wrap:wrap;margin-bottom:10px}
+.an-graf-titolo{font-weight:700;font-size:14px}
+.an-legenda{display:flex;gap:14px;font-size:12.5px;color:var(--ink-soft)}
+.an-legenda span{display:inline-flex;align-items:center;gap:6px}
+.an-legenda i{width:10px;height:10px;border-radius:2px;display:inline-block}
+.an-legenda i.entrate{background:var(--an-entrate)}
+.an-legenda i.uscite{background:var(--an-uscite)}
+.an-graf-area{position:relative;min-height:236px;max-width:100%}
+.an-graf-area svg{display:block;overflow:visible}
+.an-griglia{stroke:var(--line);stroke-width:1}
+.an-asse{stroke:#c9d0d6;stroke-width:1}
+.an-asse-t{font-size:11.5px;fill:var(--ink-soft);font-variant-numeric:tabular-nums}
+.an-barra.entrate{fill:var(--an-entrate)}
+.an-barra.uscite{fill:var(--an-uscite)}
+.an-barra{transition:opacity .12s}
+.an-barra.spenta{opacity:.35}
+.an-zona{fill:transparent;cursor:default;outline:none}
+.an-zona:focus-visible{stroke:var(--ink);stroke-width:1.5;stroke-dasharray:3 3}
+.an-tip{position:absolute;z-index:5;pointer-events:none;background:var(--card);border:1px solid var(--line);
+  border-radius:8px;box-shadow:var(--shadow-alta);padding:8px 10px;font-size:12.5px;white-space:nowrap}
+.an-tip-t{color:var(--ink-soft);margin-bottom:4px}
+.an-tip-r{display:flex;align-items:center;gap:8px}
+.an-tip-r i{width:12px;height:2px;border-radius:1px;display:inline-block}
+.an-tip-r b{font-variant-numeric:tabular-nums;color:var(--ink)}
+.an-tip-r span{color:var(--ink-soft)}
+.an-cat{display:flex;flex-direction:column;gap:10px}
+.an-cat-r{display:grid;grid-template-columns:minmax(90px,1.1fr) 2fr 96px 46px;gap:10px;align-items:center;font-size:13px;
+  border-radius:6px;outline-offset:3px}
+.an-cat-n{overflow-wrap:anywhere;line-height:1.3}
+.an-cat-r.senza .an-cat-n{color:var(--ink-soft);font-style:italic}
+.an-cat-b{height:10px;background:var(--bg);border-radius:0 4px 4px 0;overflow:hidden}
+.an-cat-b i{display:block;height:100%;border-radius:0 4px 4px 0;min-width:2px}
+.an-cat-b i.uscite{background:var(--an-uscite)}
+.an-cat-b i.entrate{background:var(--an-entrate)}
+.an-cat-r:hover .an-cat-b i,.an-cat-r:focus-visible .an-cat-b i{filter:brightness(.88)}
+.an-cat-v{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.an-cat-q{text-align:right;color:var(--ink-soft);font-size:12px;font-variant-numeric:tabular-nums}
+.an-cat+.an-graf-testa{margin-top:18px}
+.an-anni-wrap{overflow-x:auto;margin:0 -4px}
+.an-anni td.num,.an-anni th.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.an-anni td.neg{color:var(--danger)}
+.an-anni tr.cliccabile{cursor:pointer}
+.an-anni tr.cliccabile:hover td{background:var(--bg)}
+.an-anni tr.scelto td{background:var(--cri-red-soft)}
+.an-anni tr.scelto td:first-child{box-shadow:inset 3px 0 0 var(--cri-red)}
+.an-anni tr:focus-visible{outline:2px solid var(--ink);outline-offset:-2px}
+.cc-anno{display:flex;justify-content:space-between;align-items:baseline;gap:8px;font-size:12px;font-weight:700;
+  text-transform:uppercase;letter-spacing:.04em;color:var(--ink-soft);padding:8px 0 4px;border-bottom:2px solid var(--line)}
+.cc-anno:not(:first-child){margin-top:10px}
+.cc-anno b{font-variant-numeric:tabular-nums;color:var(--ink);text-transform:none;letter-spacing:0}
+.cc-voce-cat{display:inline-block;font-size:11px;font-weight:600;color:var(--ink-soft);background:var(--bg);
+  border-radius:999px;padding:1px 8px;margin-left:6px;vertical-align:1px}
+@media (max-width:900px){.an-quadro{grid-template-columns:1fr}}
+@media (max-width:560px){.an-cat-r{grid-template-columns:1fr 96px 40px}.an-cat-b{grid-column:1/-1;order:5}}
 
 /* Da attribuire: la riga è un piccolo modulo, perché il gesto si fa lì
    senza aprire niente — è lo stesso motivo per cui la spunta degli

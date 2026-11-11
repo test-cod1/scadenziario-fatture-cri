@@ -1697,6 +1697,9 @@ create table if not exists public.movimenti_analisi (
   controparte text,
   documento text,
   descrizione text,
+  -- Carburante, Assicurazione, Manutenzione…: testo libero, raggruppato
+  -- ignorando maiuscole e spazi (patch-2026-11-11-categorie-movimenti.sql).
+  categoria text,
   importo numeric(12,2) not null check (importo > 0),
   note text,
   created_by uuid references auth.users(id),

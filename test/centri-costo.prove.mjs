@@ -11,7 +11,9 @@
 import { gruppo, prova, uguale, vero, RADICE } from './aiuto.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
-import { vociDi, totaliDi, quadro, nelPeriodo, anni } from '../js/analisi/calc.js';
+import {
+  vociDi, totaliDi, quadro, nelPeriodo, anni, perAnno, perMese, perCategoria, categorieUsate, SENZA_CATEGORIA,
+} from '../js/analisi/calc.js';
 import { rigaMovimento } from '../js/analisi/data/store.js';
 
 const mov = (id, centro_id, tipo, importo, data, extra = {}) =>
@@ -98,7 +100,58 @@ prova('gli anni proposti nel filtro sono quelli che hanno davvero un movimento',
   uguale(anni([mov('u9', 'c1', 'uscita', 100, null)]), [], 'un movimento senza data non inventa un anno');
 });
 
+gruppo('Analisi — anno per anno, mese per mese, per categoria');
+
+prova('una riga per anno, dal più recente, con la variazione delle uscite', () => {
+  const r = perAnno(vociDi('c1', MOVIMENTI));
+  uguale(r.map(x => x.anno), ['2026', '2025']);
+  uguale([r[0].entrate, r[0].uscite, r[0].saldo], [2000, 1100, 900]);
+  uguale(r[1].uscite, 300);
+  uguale(Math.round(r[0].varUscite * 100), 267, '1100 contro 300: +267%');
+  uguale(r[1].varUscite, null, 'senza un anno prima la variazione non si inventa');
+});
+
+prova('i movimenti senza data stanno in una riga a parte, in fondo', () => {
+  const r = perAnno([...MOVIMENTI, mov('x', 'c1', 'uscita', 50, null)]);
+  uguale(r[r.length - 1].anno, '');
+  uguale(r[r.length - 1].uscite, 50);
+  uguale(r.reduce((s, x) => s + x.uscite, 0), totaliDi(MOVIMENTI).uscite + 50, 'la somma delle righe è il totale');
+});
+
+prova('i mesi sono sempre dodici, anche quelli vuoti', () => {
+  const m = perMese(vociDi('c1', MOVIMENTI), '2026');
+  uguale(m.length, 12);
+  uguale([m[2].uscite, m[3].entrate, m[4].uscite, m[0].uscite], [600, 2000, 500, 0]);
+});
+
+prova('le categorie si sommano ignorando maiuscole e spazi, la più pesante prima', () => {
+  const vs = [
+    mov('a', 'c1', 'uscita', 80, '2026-01-01', { categoria: 'Carburante' }),
+    mov('b', 'c1', 'uscita', 20, '2026-01-02', { categoria: ' carburante  ' }),
+    mov('c', 'c1', 'uscita', 400, '2026-01-03', { categoria: 'Assicurazione' }),
+    mov('d', 'c1', 'uscita', 900, '2026-01-04'),
+    mov('e', 'c1', 'entrata', 999, '2026-01-04', { categoria: 'Convenzione' }),
+  ];
+  const r = perCategoria(vs, 'uscita');
+  uguale(r.map(x => x.categoria), ['Assicurazione', 'Carburante', SENZA_CATEGORIA],
+    '«Senza categoria» in fondo anche se è la voce più grossa');
+  uguale(r[1].importo, 100);
+  uguale(r[1].n, 2);
+  uguale(Math.round(r.reduce((s, x) => s + x.quota, 0) * 1000), 1000, 'le quote fanno il 100%');
+  uguale(perCategoria(vs, 'entrata').map(x => x.categoria), ['Convenzione'], 'le entrate per conto loro');
+});
+
+prova('le categorie suggerite sono una per nome, in ordine alfabetico', () => {
+  uguale(categorieUsate([{ categoria: 'carburante' }, { categoria: 'Assicurazione' }, { categoria: 'Carburante' }, {}]),
+    ['Assicurazione', 'carburante']);
+});
+
 gruppo('Analisi — che cosa è un movimento valido');
+
+prova('la categoria si salva ripulita, o null se vuota', () => {
+  uguale(rigaMovimento({ ...{ centro_id: 'c1', tipo: 'uscita', importo: 5, descrizione: 'x' }, categoria: '  Manutenzione   auto ' }).categoria, 'Manutenzione auto');
+  uguale(rigaMovimento({ centro_id: 'c1', tipo: 'uscita', importo: 5, descrizione: 'x', categoria: '  ' }).categoria, null);
+});
 
 const base = { centro_id: 'c1', tipo: 'uscita', importo: 82, descrizione: 'Rifornimento' };
 

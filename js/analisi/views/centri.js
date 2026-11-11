@@ -10,10 +10,11 @@
 //  riga per cui si è aperta la pagina.
 // ============================================================
 import { caricaTutto, centri as storeCentri } from '../data/store.js';
-import { quadro, vociDi, anni } from '../calc.js';
+import { quadro, vociDi, anni, perAnno } from '../calc.js';
 import { el, clear, esc, toast, fmtEuro, fmtDate, rendiCliccabile, confirmDialog } from '../../lib/ui.js';
 import { barraPeriodo, intervallo, nomePeriodo } from './periodo.js';
 import { apriSchedaCentro } from './scheda.js';
+import { tabellaAnni } from './grafici.js';
 
 export async function renderCentri(view, ctx) {
   const admin = ctx.ruolo === 'admin';
@@ -44,11 +45,21 @@ export async function renderCentri(view, ctx) {
 
   const barra = barraPeriodo(anni(dati.movimenti), stato, disegna);
   const stats = el('<div class="grid stats" style="margin:0 0 20px"></div>');
+  const anniBox = el('<div class="card" style="margin-bottom:18px"><div class="card-b"></div></div>');
   const lista = el('<div class="cc-lista"></div>');
   const nota = el('<div class="an-nota"></div>');
 
   clear(zona);
-  zona.append(barra, stats, lista, nota);
+  zona.append(barra, stats, anniBox, lista, nota);
+
+  // Come nella pagina del singolo centro: un clic su un anno della tabella
+  // sposta anche la tendina, e tutta la pagina guarda quell'anno.
+  function scegliAnno(anno) {
+    stato.anno = anno;
+    Object.assign(stato, intervallo(anno));
+    barra.querySelector('#f-anno').value = anno;
+    disegna();
+  }
 
   if (admin) {
     view.querySelector('[data-nuovo]').addEventListener('click', async () => {
@@ -75,6 +86,16 @@ export async function renderCentri(view, ctx) {
       card(tot.entrate - tot.uscite < 0 ? 'danger' : 'ok', 'Saldo', fmtEuro(tot.entrate - tot.uscite),
         'entrate meno uscite'),
     );
+
+    // Tutti i centri insieme, anno per anno: il confronto si fa sempre su
+    // tutti gli anni, e quello scelto sopra è evidenziato.
+    const corpoAnni = anniBox.querySelector('.card-b');
+    clear(corpoAnni);
+    anniBox.hidden = !dati.movimenti.length;
+    if (dati.movimenti.length) {
+      corpoAnni.appendChild(tabellaAnni(perAnno(dati.movimenti), stato.anno, scegliAnno,
+        { mostraEntrate: dati.movimenti.some(m => m.tipo === 'entrata') }));
+    }
 
     clear(lista);
     clear(nota);

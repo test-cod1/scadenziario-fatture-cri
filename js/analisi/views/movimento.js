@@ -11,7 +11,16 @@ import { movimenti } from '../data/store.js';
 import { el, esc, toast, openModal } from '../../lib/ui.js';
 import { CAMPO_DECIMALE, testoDecimale, leggiDecimale } from '../../lib/importi.js';
 
-export function apriSchedaMovimento(centro, rec, tipoIniziale = 'uscita') {
+// Le categorie proposte la prima volta, prima che ce ne siano di usate:
+// coprono un mezzo, un corso e un servizio senza pretendere di essere
+// tutte. Si può sempre scriverne una nuova.
+const CATEGORIE_DI_BASE = ['Assicurazione', 'Carburante', 'Manutenzione e riparazioni', 'Materiali', 'Personale', 'Quote e convenzioni'];
+
+export function apriSchedaMovimento(centro, rec, tipoIniziale = 'uscita', categorieUsate = []) {
+  const chiave = c => c.trim().toLowerCase();
+  const proposte = [...categorieUsate];
+  for (const c of CATEGORIE_DI_BASE) if (!proposte.some(p => chiave(p) === chiave(c))) proposte.push(c);
+  proposte.sort((a, b) => a.localeCompare(b, 'it'));
   const nuovo = !rec?.id;
   const tipo = rec?.tipo || tipoIniziale;
   return new Promise(res => {
@@ -27,9 +36,15 @@ export function apriSchedaMovimento(centro, rec, tipoIniziale = 'uscita') {
         <div class="field"><label for="mv-data">Data</label>
           <input type="date" id="mv-data" value="${esc(rec?.data || '')}"></div>
       </div>
-      <div class="field"><label for="mv-desc">Descrizione</label>
-        <input type="text" id="mv-desc" value="${esc(rec?.descrizione || '')}"
-          placeholder="es. Rifornimento, tagliando, quota convenzione" autocomplete="off"></div>
+      <div class="form-row">
+        <div class="field"><label for="mv-desc">Descrizione</label>
+          <input type="text" id="mv-desc" value="${esc(rec?.descrizione || '')}"
+            placeholder="es. Rifornimento, tagliando" autocomplete="off"></div>
+        <div class="field"><label for="mv-cat">Categoria</label>
+          <input type="text" id="mv-cat" list="mv-cat-elenco" value="${esc(rec?.categoria || '')}"
+            placeholder="es. Carburante" autocomplete="off">
+          <datalist id="mv-cat-elenco">${proposte.map(c => `<option value="${esc(c)}">`).join('')}</datalist></div>
+      </div>
       <div class="form-row">
         <div class="field"><label for="mv-contro">Fornitore o cliente</label>
           <input type="text" id="mv-contro" value="${esc(rec?.controparte || '')}" autocomplete="off"></div>
@@ -66,6 +81,7 @@ export function apriSchedaMovimento(centro, rec, tipoIniziale = 'uscita') {
           tipo: v('#mv-tipo'),
           data: v('#mv-data'),
           descrizione: v('#mv-desc'),
+          categoria: v('#mv-cat'),
           controparte: v('#mv-contro'),
           documento: v('#mv-doc'),
           importo: leggiDecimale(v('#mv-importo')),

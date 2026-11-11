@@ -9,9 +9,10 @@
 //  questo è l'unico posto in cui un costo o un ricavo entra in un'attività.
 // ============================================================
 import { caricaTutto, centri as storeCentri, movimenti as storeMovimenti } from '../data/store.js';
-import { vociDi, totaliDi, anni } from '../calc.js';
+import { vociDi, totaliDi, anni, perAnno, perMese, perCategoria, categorieUsate } from '../calc.js';
 import { el, clear, esc, toast, fmtEuro, fmtDate, confirmDialog } from '../../lib/ui.js';
-import { barraPeriodo, nomePeriodo } from './periodo.js';
+import { barraPeriodo, intervallo, nomePeriodo } from './periodo.js';
+import { graficoAndamento, graficoCategorie, tabellaAnni, MESI_BREVI, nomeMese } from './grafici.js';
 import { apriSchedaCentro } from './scheda.js';
 import { apriSchedaMovimento } from './movimento.js';
 import { periodoDi } from './centri.js';
@@ -44,13 +45,29 @@ export async function renderCentro(view, id, ctx) {
   const testa = el('<div class="page-head"></div>');
   const barra = barraPeriodo(anni(dati.movimenti.filter(m => m.centro_id === id)), stato, disegna);
   const stats = el('<div class="grid stats" style="margin:0 0 20px"></div>');
+  const quadroAnni = el('<div class="card" style="margin-bottom:18px"><div class="card-b"></div></div>');
+  const grafici = el('<div class="an-quadro"></div>');
   const colonne = el('<div class="cc-colonne"></div>');
 
   clear(zona);
-  zona.append(testa, barra, stats, colonne);
+  zona.append(testa, barra, stats, quadroAnni, grafici, colonne);
+
+  // Cliccare un anno nella tabella fa la stessa cosa della tendina in cima,
+  // e la tendina lo deve mostrare: due comandi che dicono due periodi
+  // diversi sarebbero peggio di uno solo.
+  function scegliAnno(anno) {
+    const sel = barra.querySelector('#f-anno');
+    if (anno && ![...sel.options].some(o => o.value === anno)) {
+      sel.appendChild(el(`<option value="${esc(anno)}">${esc(anno)}</option>`));
+    }
+    stato.anno = anno;
+    Object.assign(stato, intervallo(anno));
+    sel.value = anno;
+    disegna();
+  }
 
   async function nuovoMovimento(tipo) {
-    const creato = await apriSchedaMovimento(centro, null, tipo);
+    const creato = await apriSchedaMovimento(centro, null, tipo, categorieUsate(dati.movimenti));
     if (!creato) return;
     dati.movimenti.push(creato);
     disegna();
@@ -103,6 +120,42 @@ export async function renderCentro(view, id, ctx) {
       card(t.saldo < 0 ? 'danger' : 'ok', 'Saldo', fmtEuro(t.saldo), t.saldo < 0 ? 'l’attività è in perdita' : 'entrate meno uscite'),
     );
 
+    // Il confronto fra gli anni si fa sempre su tutti, anche quando sopra
+    // ne è scelto uno: la riga scelta è evidenziata, le altre restano lì
+    // come termine di paragone.
+    const tutte = vociDi(centro.id, dati.movimenti);
+    const conEntrate = tutte.some(v => v.tipo === 'entrata');
+    const corpoAnni = quadroAnni.querySelector('.card-b');
+    clear(corpoAnni);
+    quadroAnni.hidden = !tutte.length;
+    if (tutte.length) corpoAnni.appendChild(tabellaAnni(perAnno(tutte), stato.anno, scegliAnno, { mostraEntrate: conEntrate }));
+
+    clear(grafici);
+    grafici.hidden = !voci.length;
+    if (voci.length) {
+      // Un anno scelto si guarda mese per mese; tutti gli anni, anno per
+      // anno — dodici mesi di tre anni diversi messi in fila non si leggono.
+      const andamento = stato.anno
+        ? perMese(voci, stato.anno).map(m => ({
+          etichetta: MESI_BREVI[m.mese], titolo: `${nomeMese(m.mese)} ${stato.anno}`, entrate: m.entrate, uscite: m.uscite,
+        }))
+        : perAnno(tutte).filter(r => r.anno).reverse().map(r => ({
+          etichetta: r.anno, titolo: r.anno, entrate: r.entrate, uscite: r.uscite,
+        }));
+      const sinistra = el('<div class="card"><div class="card-b"></div></div>');
+      sinistra.firstElementChild.appendChild(graficoAndamento(andamento, {
+        // Con una serie sola la legenda non serve: la dice il titolo.
+        titolo: `${conEntrate ? 'Entrate e uscite' : 'Uscite'} ${stato.anno ? `mese per mese, ${stato.anno}` : 'per anno'}`,
+        mostraEntrate: conEntrate,
+      }));
+      const destra = el('<div class="card"><div class="card-b"></div></div>');
+      const catU = perCategoria(voci, 'uscita');
+      const catE = perCategoria(voci, 'entrata');
+      if (catU.length) destra.firstElementChild.appendChild(graficoCategorie(catU, { titolo: `Uscite per categoria ${nomePeriodo(stato.anno)}` }));
+      if (catE.length) destra.firstElementChild.appendChild(graficoCategorie(catE, { titolo: `Entrate per categoria ${nomePeriodo(stato.anno)}`, tipo: 'entrata' }));
+      grafici.append(sinistra, destra);
+    }
+
     clear(colonne);
     colonne.append(
       colonna('Entrate', 'entrata', voci.filter(v => v.tipo === 'entrata'), t.entrate),
@@ -127,7 +180,19 @@ export async function renderCentro(view, id, ctx) {
       dentro.appendChild(el(`<p class="muted" style="font-size:13px;margin:0">Nessun movimento ${esc(nomePeriodo(stato.anno))}.</p>`));
       return c;
     }
-    for (const v of voci) dentro.appendChild(voce(v));
+    // Con tutti gli anni l'elenco si divide per anno, ognuno col suo
+    // totale: trenta righe di fila non dicono dove finisce un anno.
+    let annoCorrente = null;
+    for (const v of voci) {
+      const anno = v.data ? v.data.slice(0, 4) : '';
+      if (!stato.anno && anno !== annoCorrente) {
+        annoCorrente = anno;
+        const sub = voci.filter(x => (x.data ? x.data.slice(0, 4) : '') === anno);
+        const somma = sub.reduce((s, x) => s + Math.round(Number(x.importo) * 100), 0) / 100;
+        dentro.appendChild(el(`<div class="cc-anno"><span>${anno ? esc(anno) : 'Senza data'} · ${sub.length}</span><b>${esc(fmtEuro(somma))}</b></div>`));
+      }
+      dentro.appendChild(voce(v));
+    }
     return c;
   }
 
@@ -140,7 +205,7 @@ export async function renderCentro(view, id, ctx) {
     ].filter(Boolean).join(' · ');
     const r = el(`<div class="cc-voce">
       <div class="cc-voce-chi">
-        <div class="cc-voce-nome">${esc(titolo)}</div>
+        <div class="cc-voce-nome">${esc(titolo)}${v.categoria ? `<span class="cc-voce-cat">${esc(v.categoria)}</span>` : ''}</div>
         <div class="cc-voce-sotto">${esc(sotto)}</div>
         ${v.note ? `<div class="cc-voce-sotto">${esc(v.note)}</div>` : ''}
       </div>
@@ -152,7 +217,7 @@ export async function renderCentro(view, id, ctx) {
     </div>`);
 
     r.querySelector('[data-mod]').addEventListener('click', async () => {
-      const agg = await apriSchedaMovimento(centro, v);
+      const agg = await apriSchedaMovimento(centro, v, v.tipo, categorieUsate(dati.movimenti));
       if (!agg) return;
       const i = dati.movimenti.findIndex(m => m.id === v.id);
       if (i >= 0) dati.movimenti[i] = agg;

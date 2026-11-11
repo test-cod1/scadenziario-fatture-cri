@@ -95,6 +95,9 @@ export function rigaMovimento(rec) {
     controparte: testo(rec.controparte),
     documento: testo(rec.documento),
     descrizione: testo(rec.descrizione),
+    // Spazi doppi dentro il nome ridotti a uno: «Manutenzione  auto» e
+    // «Manutenzione auto» devono finire nella stessa fetta del grafico.
+    categoria: testo(rec.categoria)?.replace(/\s+/g, ' ') || null,
     importo: Math.round(Number(rec.importo) * 100) / 100,
     note: testo(rec.note),
   };

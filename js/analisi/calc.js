@@ -70,6 +70,80 @@ export function quadro(centri, movimenti, periodo = {}) {
   });
 }
 
+// ---------- anno per anno ----------
+// Una riga per anno, dal più recente, con la variazione delle uscite
+// rispetto all'anno prima. I movimenti senza data stanno in una riga a
+// parte in fondo: non appartengono a nessun anno, e farli sparire
+// renderebbe la somma delle righe diversa dal totale.
+export function perAnno(voci) {
+  const gruppi = new Map();
+  for (const v of voci) {
+    const k = v.data ? v.data.slice(0, 4) : '';
+    if (!gruppi.has(k)) gruppi.set(k, []);
+    gruppi.get(k).push(v);
+  }
+  const righe = [...gruppi.entries()]
+    .map(([anno, vs]) => ({ anno, ...totaliDi(vs) }))
+    .sort((a, b) => (!a.anno - !b.anno) || b.anno.localeCompare(a.anno));
+  for (const r of righe) {
+    const prec = r.anno && righe.find(x => x.anno === String(Number(r.anno) - 1));
+    r.varUscite = prec && prec.uscite > 0.005 ? (r.uscite - prec.uscite) / prec.uscite : null;
+  }
+  return righe;
+}
+
+// ---------- mese per mese ----------
+// Dodici caselle sempre, anche vuote: un grafico che salta i mesi senza
+// movimenti avvicina luglio a novembre e fa sembrare continuo un buco.
+export function perMese(voci, anno) {
+  const mesi = Array.from({ length: 12 }, (_, i) => ({ mese: i, entrate: 0, uscite: 0, n: 0 }));
+  for (const v of voci) {
+    if (!v.data || v.data.slice(0, 4) !== anno) continue;
+    const m = mesi[Number(v.data.slice(5, 7)) - 1];
+    const c = Math.round(euro(v) * 100);
+    if (v.tipo === 'entrata') m.entrate += c; else m.uscite += c;
+    m.n++;
+  }
+  return mesi.map(m => ({ ...m, entrate: m.entrate / 100, uscite: m.uscite / 100 }));
+}
+
+// ---------- per categoria ----------
+export const SENZA_CATEGORIA = 'Senza categoria';
+
+// La chiave che decide se due categorie sono la stessa: maiuscole e
+// spazi non contano. A schermo resta la grafia della prima incontrata.
+export const chiaveCategoria = c => String(c || '').trim().replace(/\s+/g, ' ').toLowerCase();
+
+// Le voci di un verso raggruppate per categoria, dalla più pesante, con la
+// quota sul totale. «Senza categoria» va sempre in fondo, qualunque sia il
+// suo peso: è lavoro da fare, non una categoria.
+export function perCategoria(voci, tipo = 'uscita') {
+  const g = new Map();
+  let tot = 0;
+  for (const v of voci) {
+    if ((v.tipo === 'entrata') !== (tipo === 'entrata')) continue;
+    const k = chiaveCategoria(v.categoria);
+    if (!g.has(k)) g.set(k, { categoria: k ? String(v.categoria).trim().replace(/\s+/g, ' ') : SENZA_CATEGORIA, cent: 0, n: 0, senza: !k });
+    const r = g.get(k);
+    const c = Math.round(euro(v) * 100);
+    r.cent += c; r.n++; tot += c;
+  }
+  return [...g.values()]
+    .map(r => ({ categoria: r.categoria, importo: r.cent / 100, n: r.n, quota: tot ? r.cent / tot : 0, senza: r.senza }))
+    .sort((a, b) => (a.senza - b.senza) || b.importo - a.importo || a.categoria.localeCompare(b.categoria, 'it'));
+}
+
+// Le categorie già usate, per i suggerimenti del modulo: una per chiave,
+// in ordine alfabetico.
+export function categorieUsate(movimenti) {
+  const g = new Map();
+  for (const m of movimenti) {
+    const k = chiaveCategoria(m.categoria);
+    if (k && !g.has(k)) g.set(k, String(m.categoria).trim().replace(/\s+/g, ' '));
+  }
+  return [...g.values()].sort((a, b) => a.localeCompare(b, 'it'));
+}
+
 // Gli anni in cui c'è almeno un movimento, dal più recente: sono le voci
 // del filtro di periodo, e proporre un anno vuoto sarebbe proporre una
 // pagina vuota.
