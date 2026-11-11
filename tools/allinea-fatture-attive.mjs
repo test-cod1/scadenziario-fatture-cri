@@ -143,13 +143,12 @@ if (new Set(registro.map(r => chiave(r.numero, r.data))).size !== registro.lengt
 }
 
 console.log(`Archivio:  ${URL_SUPABASE}`);
-const [grezze, incassi, storni, quote] = await Promise.all([
+const [grezze, incassi, storni] = await Promise.all([
   scarica('fatture_attive', 'id,cliente,numero_fattura,data_fattura,importo,stato,created_at'),
   scarica('incassi', 'id,fattura_attiva_id,importo'),
   scarica('note_credito_attive_righe', 'id,fattura_attiva_id,importo'),
-  scarica('imputazioni', 'id,fattura_attiva_id'),
 ]);
-const fatture = conStoria(grezze, { incassi, storni, quote });
+const fatture = conStoria(grezze, { incassi, storni });
 console.log(`           ${fatture.length} fatture in archivio, ${eur(fatture.reduce((s, f) => s + Number(f.importo || 0), 0))}`);
 
 const piano = pianifica(registro, fatture);
@@ -265,10 +264,8 @@ for (const f of piano.daCancellare) {
 }
 console.log(`  doppioni cancellati: ${fatti.cancellate}`);
 
-// Una alla volta e non in blocco: il trigger che impedisce di scendere
-// sotto le quote attribuite ai centri di costo parla di UNA fattura, e in
-// un aggiornamento cumulativo il suo messaggio si perderebbe insieme a
-// tutte le altre correzioni.
+// Una alla volta e non in blocco: se una correzione fallisce, il suo
+// messaggio non si perde insieme a tutte le altre.
 for (const { f, r } of piano.daCorreggere) {
   try {
     await chiedi(`fatture_attive?id=eq.${f.id}`, {

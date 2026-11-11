@@ -35,11 +35,11 @@ export function apriSchedaCentro(rec) {
           <input type="date" id="cc-fine" value="${esc(rec?.fine || '')}"></div>
       </div>
       <div class="hint" style="margin-top:-4px">Il periodo serve a leggere il conto e a distinguere
-      due edizioni della stessa attività. <b>Non filtra le fatture</b>: una fattura che arriva mesi
+      due edizioni della stessa attività. <b>Non filtra i movimenti</b>: un costo che arriva mesi
       dopo la fine resta di questa attività, ed è giusto così.</div>
       ${nuovo ? '' : `<label class="cc-chiusa">
         <input type="checkbox" id="cc-chiuso" ${rec.chiuso ? 'checked' : ''}>
-        <span>Attività conclusa — resta leggibile nei conti, ma sparisce dalle tendine di chi registra una fattura nuova</span>
+        <span>Attività conclusa — resta leggibile nei conti, e scende in fondo all’elenco</span>
       </label>`}
     </div>`);
 

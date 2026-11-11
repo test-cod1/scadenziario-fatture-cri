@@ -172,7 +172,7 @@ export const SEZIONI = [
   {
     id: 'analisi',
     label: 'Analisi',
-    descrizione: 'I numeri del Comitato letti insieme: cosa dicono i dati delle altre sezioni.',
+    descrizione: 'I centri di costo: quanto è costata e quanto ha reso ogni attività.',
     emoji: '📊',
     // Un viola profondo, non acceso: le card della home sono tutte scure
     // tranne quella rossa dello scadenziario, che è l'unico colore
@@ -185,8 +185,6 @@ export const SEZIONI = [
     // prima. Le prossime si aggiungono qui e in js/analisi/sezione.js.
     menu: [
       { id: 'centri', icon: '🎯', label: 'Centri di costo', attivoAnche: ['centro'] },
-      { id: 'fatturato', icon: '📈', label: 'Fatturato' },
-      { id: 'da-attribuire', icon: '📥', label: 'Da attribuire' },
     ],
     tour: () => import('./tour/analisi.js'),
     icona: ICONE.analisi,

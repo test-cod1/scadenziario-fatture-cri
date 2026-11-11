@@ -55,7 +55,6 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
         <div class="field"><label>Note</label><textarea id="f-note" rows="2">${esc(rec.note || '')}</textarea></div>
         <div id="pag-zone"></div>
         <div id="note-credito-zone"></div>
-        <div id="centri-zone"></div>
         <div id="err" style="color:var(--danger);font-size:13px"></div>
       </div>
       <div class="col" id="preview-col" style="display:none">
@@ -81,15 +80,6 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
     disegnaIncassiENote();
   }
   if (id) disegnaIncassiENote();
-
-  // A quale attività appartiene questo incasso (sezione Analisi). Vedi il
-  // commento gemello in js/views/fattura.js.
-  if (id) {
-    import('../analisi/imputazioniFattura.js')
-      .then(({ renderImputazioni }) => renderImputazioni(body.querySelector('#centri-zone'),
-        { fatturaId: rec.id, attiva: true, importo: rec.importo }))
-      .catch(e => console.warn('[centri di costo] blocco non caricato:', e));
-  }
 
   body.querySelector('#file-in').addEventListener('change', async (e) => {
     const file = e.target.files[0];

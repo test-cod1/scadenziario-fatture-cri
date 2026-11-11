@@ -40,7 +40,7 @@ const TABELLE = {
   'Straordinari': ['straordinari', 'dipendenti_straordinari', 'impostazioni_straordinari'],
   'Direttore': ['impegni_direttore', 'idee_direttore', 'telegram_collegamenti'],
   'Scadenze': ['scadenze'],
-  'Analisi': ['centri_costo', 'imputazioni'],
+  'Analisi': ['centri_costo', 'movimenti_analisi'],
 };
 
 // Chiavi da .dev.vars, stesso formato dei secret di Cloudflare (come fa

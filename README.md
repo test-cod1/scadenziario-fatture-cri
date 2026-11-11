@@ -10,7 +10,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Assistenze sanitarie** | attiva: generatore di preventivi per le assistenze a eventi, con uscita in PDF e Word sulla carta intestata |
 | **Straordinari** | attiva: registro delle ore in più richieste ai dipendenti dalla centrale operativa |
 | **Direttore** | attiva: gli impegni della direzione, ordinati per urgenza, importanza e scadenza |
-| **Analisi** | attiva: i centri di costo — entrate e uscite della singola attività, lette dalle fatture |
+| **Analisi** | attiva: i centri di costo — entrate e uscite della singola attività, registrate nella sezione e staccate dallo scadenziario |
 | **Patenti** | attiva: le richieste di emissione o rinnovo delle patenti CRI che i volontari mandano da un modulo pubblico, con le domande e risposte |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
@@ -93,7 +93,7 @@ Il registro è un CSV con intestazione e colonne separate da punto e virgola —
 La chiave con cui si riconosce una fattura è **numero + anno**, non numero + data: in un registro di vendita il numero non si ripete dentro l'anno, mentre le date già in archivio non sono affidabili (la fattura n. 1 risultava al 28/01/2026 e il registro la dà al 14/01/2026). Cercandole per data sarebbero risultate tutte mancanti, e le avremmo inserite una seconda volta — cioè proprio il doppione da evitare.
 
 Tre cose che lo script **non** fa, di proposito:
-- non cancella una riga che ha una storia sua (incassi, note di credito, quote sui centri di costo): fra due doppioni ne resta uno solo se l'altro è vuoto, altrimenti il doppione resta segnalato e lo si decide dall'app, perché unire due storie è una decisione;
+- non cancella una riga che ha una storia sua (incassi, note di credito): fra due doppioni ne resta uno solo se l'altro è vuoto, altrimenti il doppione resta segnalato e lo si decide dall'app, perché unire due storie è una decisione;
 - non abbassa l'importo di una fattura sotto quanto vi risulta già incassato o stornato: lì c'è un errore da capire, e correggerlo di nascosto lo nasconderebbe;
 - non cancella le fatture che stanno in archivio e non nel registro — i numeri mancanti nella serie (annullate, o diventate note di credito) e gli errori di numerazione. Il primo file le elenca sotto «DA CONTROLLARE».
 
@@ -288,45 +288,26 @@ Richiede `supabase/patch-2026-09-05-straordinari.sql` (tabelle, RLS e voce di me
 
 ## Sezione Analisi
 
-Analisi legge insieme quello che le altre sezioni scrivono, per rispondere a domande che oggi richiedono di aprire quattro sezioni e sommare a mano. È nata per avere **più sottosezioni**: oggi sono i **centri di costo** (a quale attività appartengono i soldi) e il **fatturato** (come stanno andando le fatture emesse).
+Analisi tiene i **centri di costo**: «quell'attività quanto è costata e quanto ha reso?». Un *centro di costo* è un'attività — un corso, un'assistenza a un evento, un mezzo, un servizio — con le sue **entrate e uscite**.
 
-### Centri di costo
+**È staccata dallo scadenziario** (dal 11/11/2026). I movimenti di un centro si registrano dentro il centro stesso (tabella `movimenti_analisi`): data, fornitore o cliente, documento, descrizione, importo. Analisi non legge le fatture passive e attive e non scrive niente che le riguardi, e lo scadenziario non sa nulla dei centri di costo. Così un costo entra in un'attività anche quando non passa dallo scadenziario: il carburante pagato con le carte, un intervento già saldato, un ricavo da convenzione. Una prova in [`test/centri-costo.prove.mjs`](test/centri-costo.prove.mjs) controlla che nessun file di `js/analisi/` torni a importare lo store delle fatture.
 
-«Quell'attività quanto è costata e quanto ha reso?» I soldi ci sono già tutti — nelle fatture passive (uscite) e attive (entrate) — ma nessuno diceva **a quale attività** appartengono. Un *centro di costo* è quell'attività: un corso, un'assistenza a un evento, un mezzo, un servizio.
+- **Centri di costo** è il quadro d'insieme: una riga per attività con entrate, uscite e saldo nel periodo scelto, prima quelle in perdita.
+- Cliccando un'attività si apre il suo **conto**: entrate e uscite in due colonne, movimento per movimento. Da lì si aggiungono, correggono ed eliminano i movimenti (**➕ Nuovo movimento**, o il ➕ in testa a ciascuna colonna).
 
-Una fattura si **ripartisce**: una bolletta da 1.000 € può valere 600 € su un corso e 400 € su un'assistenza, ed è il caso normale, non l'eccezione. La quota è in euro e non in percentuale, perché quello che si sa avendo il documento in mano è «di questi 1.000, 600 sono del corso» — una percentuale sarebbe una divisione fatta a mano, col suo arrotondamento, e i totali smetterebbero di tornare. La somma delle quote non può superare l'importo della fattura, e **a impedirlo è un trigger sul database**, non il browser: due persone che imputano la stessa fattura nello stesso momento non si vedono fra loro.
+Due cose da sapere per leggere bene questi numeri, scritte in testa a [`js/analisi/calc.js`](js/analisi/calc.js):
+1. **Un movimento conta nella data del documento**, non in quella del pagamento.
+2. **La somma delle righe non è il bilancio del Comitato**: è quello che si è deciso di seguire attività per attività.
 
-Si attribuisce da **due posti**, che sono lo stesso gesto in due momenti del lavoro:
-- dalla **scheda della fattura** nello scadenziario, mentre la si registra col documento in mano — è lì che si sa davvero a che cosa apparteneva quella fattura di materiale didattico;
-- da **Analisi → Da attribuire**, che elenca tutto quello che nessuna attività ha ancora preso in carico. È la pagina che rende usabile la sezione il primo giorno: senza, i centri di costo funzionerebbero solo per le fatture registrate da domani in poi. La quota parte già compilata con quanto resta, e in cima si sceglie **un'attività di lavoro** valida per tutte le righe, perché l'arretrato si smaltisce un'attività alla volta.
+L'importo di un movimento è sempre positivo: se è un costo o un ricavo lo dice il *tipo*. Un movimento deve avere almeno una descrizione, una controparte o un documento. Un movimento senza data resta dentro ogni periodo, in cima all'elenco, finché qualcuno non gliela mette.
 
-Tre cose da sapere per leggere bene questi numeri, tutte scritte in testa a [`js/analisi/calc.js`](js/analisi/calc.js):
-1. **Si contano le fatture, non i pagamenti.** La fattura di dicembre pagata a marzo è un costo di dicembre, che è il momento in cui l'attività l'ha generata. Quanto sia stato effettivamente pagato è la domanda di cassa, e la risponde lo scadenziario.
-2. **Le note di credito abbassano le quote in proporzione.** 1.000 € ripartiti 600/400 e poi stornati per 100 valgono 540 e 360: la nota di credito non dice su quale delle due ricade, e spalmarla è l'unica ripartizione che non inventa un'informazione che nessuno ha dato. Se invece si sa dove ricade, la strada giusta è correggere le quote.
-3. **Una fattura può restare fuori da ogni attività**, o esserlo in parte: sono le spese generali, e non sono un errore. Per questo la somma delle righe **non è il bilancio del Comitato**, e un riquadro in cima dice quante fatture stanno ancora fuori. Le regole sono fissate una per una da [`test/centri-costo.prove.mjs`](test/centri-costo.prove.mjs).
+L'anagrafica delle attività la tiene l'**admin della sezione**: è un piano dei conti — se il nome fosse libero, dopo un anno ci sarebbero «Fiera del Mare», «fiera del mare» e «Fiera Mare 2026», cioè tre conti al posto di uno. I movimenti li registra chiunque abbia la sezione. Un'attività conclusa si **chiude** invece di eliminarla: resta leggibile nei conti. Eliminare un'attività elimina anche i suoi movimenti, e la pagina dice quanti prima di farlo.
 
-L'anagrafica delle attività la tiene l'**admin della sezione**: è un piano dei conti, non un elenco che si allunga mentre si registra una fattura — se il nome fosse libero, dopo un anno ci sarebbero «Fiera del Mare», «fiera del mare» e «Fiera Mare 2026», cioè tre conti al posto di uno. Un'attività conclusa si **chiude** invece di eliminarla: resta leggibile nei conti e sparisce dalle tendine.
+**Permessi.** Chi ha la sezione Analisi vede i centri di costo e i loro movimenti, e **non** le fatture dello scadenziario: `puo_leggere()` è tornata allo scadenziario soltanto.
 
-### Fatturato
+Serve la patch [`supabase/patch-2026-11-11-analisi-autonoma.sql`](supabase/patch-2026-11-11-analisi-autonoma.sql), **da eseguire prima di pubblicare** questa versione: crea `movimenti_analisi`, toglie `imputazioni` e i trigger sulle fatture che le proteggevano (si ferma da sola se `imputazioni` contiene dati) e riporta `puo_leggere()` allo scadenziario.
 
-Lo scadenziario ha già un **Report** delle fatture attive: quanto ha fatturato ogni cliente, e come sono andati i mesi. **Analisi → Fatturato** parte da dove quello finisce, e risponde a quattro domande che lì non si possono porre.
-
-- **Stiamo andando meglio o peggio dell'anno scorso?** Il grafico affianca ogni mese allo stesso mese dell'anno precedente, con il progressivo dell'anno come linea. Un mese da 60.000 € non dice niente finché non si sa che l'anno prima, a quel punto, eravamo a 40.000. Dove l'anno prima non c'era nulla la variazione non si scrive: da zero a qualunque cifra l'aumento è infinito, e «+∞%» non è una notizia.
-- **Da quanti clienti dipendiamo davvero?** La tabella dei clienti porta la **quota cumulata**, e le righe evidenziate sono quelle che insieme fanno l'80% del fatturato: «cinque su quarantatré» è la frase che si porta in Consiglio. Accanto ci sono la quota dei primi 3 e dei primi 10 e l'**indice di Herfindahl** — l'unico dei tre che non dipende da dove si taglia l'elenco, e quindi l'unico confrontabile fra un anno e l'altro quando i clienti cambiano di numero.
-- **Quanto del fatturato è ancora un credito, e da quanto tempo?** L'anzianità si conta **dalla data della fattura**, non dalla scadenza: sulle attive la scadenza spesso non c'è, e un conto che sparisce quando manca un campo facoltativo non serve a niente. Oltre i sei mesi la fascia diventa rossa, e sotto ci sono le dieci fatture aperte da più tempo, cliccabili per aprire la scheda e registrare l'incasso o segnare il sollecito. Il tempo di incasso è mostrato come **distribuzione** e non solo come media: 60 giorni medi possono voler dire «tutti a 60» oppure «metà subito e metà a un anno», e sono due situazioni che si gestiscono in modo diverso.
-- **Quanto di tutto questo sta dentro un centro di costo?** L'ultimo riquadro è il ponte con l'altra pagina della sezione: finché quella quota non è vicina al 100%, i conti dei centri di costo sono una fotografia parziale del fatturato, ed è qui che ci si accorge che lo sono.
-
-Due regole da tenere a mente, scritte in testa a [`js/analisi/fatturato.js`](js/analisi/fatturato.js) e fissate una per una da [`test/fatturato.prove.mjs`](test/fatturato.prove.mjs):
-1. **Fatturato vuol dire emesso, non incassato.** La fattura di luglio incassata a ottobre è fatturato di luglio. L'incassato c'è, ma è un altro numero e sta scritto come tale.
-2. **Lo storno pesa sul mese della fattura, non su quello della nota di credito.** Una fattura di marzo stornata a settembre è fatturato di marzo che non c'è mai stato, non un buco che arriva a settembre: portarla avanti farebbe due mesi falsi al posto di uno vero.
-
-I clienti si raggruppano per nome normalizzato (maiuscole e spazi): «COMUNE DI GENOVA  ATS35» e «Comune di Genova ATS35» sono lo stesso ente, e tenerli separati farebbe risultare la concentrazione più bassa del vero. Si unisce solo ciò che è identico a meno di maiuscole e spaziatura, **mai per somiglianza**: due grafie davvero diverse dello stesso ente restano due righe, e si uniformano da **Scadenziario → Fatture Attive → Clienti**. Le fatture senza data restano dentro ogni periodo — non sono «fuori dall'anno», è una data che manca — e la pagina lo dice in fondo, insieme agli altri buchi nei dati, invece di lasciarlo scoprire. Il pulsante di esportazione produce un CSV con dentro **tutti** i blocchi della pagina, non la sola tabella dei clienti.
-
-Non serve nessuna patch al database: la pagina legge le tabelle che ci sono già.
-
-**Permessi — da sapere prima di assegnare la sezione.** Analisi vive dei dati dello scadenziario, quindi la patch estende `puo_leggere()` (la funzione da cui passano tutte le policy di lettura delle fatture) a chi ha la sezione Analisi: **dare Analisi a una persona significa farle leggere tutte le fatture del Comitato**, passive e attive. `puo_scrivere()` non cambia — da Analisi non si modifica nessuna fattura.
-
-La sezione ha il suo **tour guidato** (il pulsante 🎓): undici passi fra il quadro d'insieme, il fatturato e l'arretrato, il copione sta in [`js/tour/analisi.js`](js/tour/analisi.js).
+La sezione ha il suo **tour guidato** (il pulsante 🎓): il copione sta in [`js/tour/analisi.js`](js/tour/analisi.js).
 
 Richiede [`supabase/patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql) (la sezione nel portale) e poi [`supabase/patch-2026-09-15-centri-di-costo.sql`](supabase/patch-2026-09-15-centri-di-costo.sql) (le due tabelle, il trigger e i permessi).
 
@@ -372,7 +353,7 @@ Richiede [`supabase/patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-ana
 >
 > **[`patch-2026-09-15-analisi.sql`](supabase/patch-2026-09-15-analisi.sql)** aggiunge la sezione *Analisi* a `public.sezioni`, come la patch del Direttore e per la stessa ragione: senza, la card compare nella home ma il permesso non si può assegnare.
 >
-> **[`patch-2026-09-15-centri-di-costo.sql`](supabase/patch-2026-09-15-centri-di-costo.sql)** crea `centri_costo` e `imputazioni`, il trigger che impedisce di attribuire più dell'importo di una fattura e le policy delle due tabelle. Va **dopo** la patch qui sopra, che crea la sezione. Estende anche `puo_leggere()`: da qui in avanti chi ha la sezione *Analisi* legge le fatture (solo in lettura — vedi *Sezione Analisi*).
+> **[`patch-2026-09-15-centri-di-costo.sql`](supabase/patch-2026-09-15-centri-di-costo.sql)** crea `centri_costo` e `imputazioni`, il trigger che impedisce di attribuire più dell'importo di una fattura e le policy delle due tabelle. Va **dopo** la patch qui sopra, che crea la sezione. Estende anche `puo_leggere()`: da qui in avanti chi ha la sezione *Analisi* legge le fatture (solo in lettura). *Superata da [`patch-2026-11-11-analisi-autonoma.sql`](supabase/patch-2026-11-11-analisi-autonoma.sql), che toglie `imputazioni` e riporta `puo_leggere()` allo scadenziario: Analisi ha movimenti propri.*
 
 ## 2. Ottieni una chiave Gemini gratuita (per la lettura AI dei PDF)
 
@@ -564,21 +545,18 @@ js/direttore/calc.js            livelli, scadenze, punteggio dell’elenco e gri
 js/direttore/views/impegni.js   l’elenco, i quattro numeri in testa e la spunta rapida
 js/direttore/views/impegno.js   la scheda: titolo, i due livelli, scadenza e dettagli
 js/direttore/views/calendario.js  il mese delle scadenze e il dettaglio del giorno scelto
-js/analisi/                    sezione Analisi: i numeri delle altre sezioni, letti insieme
-js/analisi/calc.js              conti dei centri di costo (quote, note di credito, periodi)
-js/analisi/fatturato.js         conti del fatturato (concentrazione, anzianità del credito, tempi)
-js/analisi/views/fatturato.js   la pagina del fatturato: andamento, clienti, credito, copertura
+js/analisi/                    sezione Analisi: i centri di costo, con movimenti propri
+js/analisi/calc.js              conti dei centri di costo (totali, periodi, ordine)
 js/analisi/views/centri.js      il quadro d’insieme: una riga per attività
-js/analisi/views/centro.js      il conto di una singola attività, fattura per fattura
-js/analisi/views/daAttribuire.js  le fatture che nessuna attività ha ancora preso in carico
-js/analisi/imputazioniFattura.js  il blocco «Centri di costo» dentro la scheda di una fattura
+js/analisi/views/centro.js      il conto di una singola attività, movimento per movimento
+js/analisi/views/movimento.js   la scheda di un movimento (entrata o uscita)
 js/lib/carta.js                 legge la carta intestata .dotx (immagini e testi)
 js/lib/docxBlocchi.js           dai blocchi al .docx, sostituendo il corpo del modello
 js/lib/stampaBlocchi.js         dai blocchi al foglio A4 per la stampa/PDF
 js/lib/numeri.js                importo in lettere e arrotondamento ai centesimi
 js/lib/importi.js               i campi con i decimali: la virgola si può scrivere e incollare
 js/lib/rubrica.js               la rubrica (elenco, scheda, riquadro di scelta), una volta sola
-js/lib/nomiClienti.js           quando due nomi sono lo stesso ente (usato da Clienti e da Fatturato)
+js/lib/nomiClienti.js           quando due nomi sono lo stesso ente (usato da Clienti)
 js/lib/zip.js                   zip minimale (scrittura e lettura): serve a .xlsx e .docx
 js/vendor/supabase-js-*.js      il client Supabase, dentro il progetto e non su una CDN
 test/                          le prove automatiche (npm test)

@@ -2,14 +2,10 @@
 //  SEZIONE ANALISI — punto di ingresso.
 //  Smista alla vista giusta, come fanno le altre sezioni.
 //
-//  Analisi nasce per avere più sottosezioni: i centri di costo sono la
-//  prima, e quando ne arriveranno altre si aggiungono qui e nel `menu`
-//  di js/sezioni.js, senza toccare il router del portale.
-//
-//  Niente cache: i numeri di questa sezione sono la somma di quello che
-//  scrivono tutte le altre, e mostrare un totale vecchio è peggio che
-//  aspettare un secondo in più — chi guarda un conto lo guarda per
-//  decidere qualcosa.
+//  Analisi è staccata dallo scadenziario (patch-2026-11-11-analisi-
+//  autonoma.sql): i centri di costo hanno movimenti propri e nessuna
+//  pagina legge le fatture. Le prossime sottosezioni si aggiungono qui e
+//  nel `menu` di js/sezioni.js, senza toccare il router del portale.
 // ============================================================
 
 export async function renderAnalisi(view, ctx, sub, param) {
@@ -22,14 +18,6 @@ export async function renderAnalisi(view, ctx, sub, param) {
   if (sub === 'centro' && param) {
     const { renderCentro } = await import('./views/centro.js');
     return renderCentro(view, param, ctxA);
-  }
-  if (sub === 'fatturato') {
-    const { renderFatturato } = await import('./views/fatturato.js');
-    return renderFatturato(view, ctxA);
-  }
-  if (sub === 'da-attribuire') {
-    const { renderDaAttribuire } = await import('./views/daAttribuire.js');
-    return renderDaAttribuire(view, ctxA);
   }
   const { renderCentri } = await import('./views/centri.js');
   return renderCentri(view, ctxA);

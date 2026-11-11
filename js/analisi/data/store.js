@@ -1,23 +1,21 @@
 // ============================================================
 //  DATA LAYER della sezione ANALISI
-//  I centri di costo e le imputazioni su Supabase. Come nelle altre
+//  I centri di costo e i loro movimenti su Supabase. Come nelle altre
 //  sezioni i permessi li fanno rispettare le RLS: qui non si ripete
 //  nessun controllo, sarebbe una cortesia all'utente e non una sicurezza.
 //
-//  Le fatture NON si rileggono da qui: si usano `fatture.list()` e
-//  `fattureAttive.list()` dello scadenziario, che sanno già paginare e
-//  calcolare lo stornato. Duplicarle avrebbe voluto dire mantenere due
-//  volte lo stesso conto e vederlo divergere alla prima nota di credito.
+//  Analisi è staccata dallo scadenziario (patch-2026-11-11-analisi-
+//  autonoma.sql): non legge le fatture e non scrive niente che le
+//  riguardi. Entrate e uscite di un'attività stanno in
+//  `movimenti_analisi`, scritte qui.
 // ============================================================
-import { fatture } from '../../data/store.js';
-import { fattureAttive } from '../../data/storeAttive.js';
 
 async function sbClient() { const { getSupabase } = await import('../../lib/supabase.js'); return getSupabase(); }
 
 const nowISO = () => new Date().toISOString();
 
 // PostgREST tronca ogni risposta a 1000 righe: senza paginazione, dopo
-// qualche anno di imputazioni i totali sarebbero silenziosamente più bassi
+// qualche anno di movimenti i totali sarebbero silenziosamente più bassi
 // del vero (vedi il commento gemello in js/data/store.js).
 async function tutteLeRighe(query) {
   const BLOCCO = 1000;
@@ -67,8 +65,8 @@ export const centri = {
     return data;
   },
 
-  // Chiudere un'attività non cancella niente: la toglie dalle tendine di
-  // chi registra una fattura nuova, e i suoi conti restano leggibili.
+  // Chiudere un'attività non cancella niente: i suoi conti restano
+  // leggibili, e nell'elenco scende in fondo con il segno «conclusa».
   async chiudi(id, chiuso) {
     const sb = await sbClient();
     const { data, error } = await sb.from('centri_costo')
@@ -77,9 +75,8 @@ export const centri = {
     return data;
   },
 
-  // Eliminare un centro porta via con sé le sue imputazioni (on delete
-  // cascade): le fatture restano tutte, tornano solo a non essere
-  // attribuite. Chi chiama deve dirlo all'utente PRIMA, con il numero.
+  // Eliminare un centro porta via con sé i suoi movimenti (on delete
+  // cascade). Chi chiama deve dirlo all'utente PRIMA, con il numero.
   async remove(id) {
     const sb = await sbClient();
     const { error } = await sb.from('centri_costo').delete().eq('id', id);
@@ -87,83 +84,63 @@ export const centri = {
   },
 };
 
-export const imputazioni = {
+// Da quello che arriva dal modulo alla riga da salvare. Esportata perché
+// la provano i test: è qui che si decide che cosa è un movimento valido.
+export function rigaMovimento(rec) {
+  const testo = v => (v == null ? '' : String(v)).trim() || null;
+  const riga = {
+    centro_id: rec.centro_id,
+    tipo: rec.tipo,
+    data: rec.data || null,
+    controparte: testo(rec.controparte),
+    documento: testo(rec.documento),
+    descrizione: testo(rec.descrizione),
+    importo: Math.round(Number(rec.importo) * 100) / 100,
+    note: testo(rec.note),
+  };
+  if (!riga.centro_id) throw new Error('Manca l’attività a cui appartiene il movimento.');
+  if (riga.tipo !== 'entrata' && riga.tipo !== 'uscita') throw new Error('Scegli se è un’entrata o un’uscita.');
+  if (!Number.isFinite(riga.importo) || riga.importo <= 0) throw new Error('Scrivi un importo maggiore di zero.');
+  if (!riga.descrizione && !riga.controparte && !riga.documento) {
+    throw new Error('Scrivi almeno una descrizione, una controparte o un documento: un importo da solo, fra un anno, non dice più niente.');
+  }
+  return riga;
+}
+
+export const movimenti = {
   async list() {
     const sb = await sbClient();
-    return tutteLeRighe((da, a) => sb.from('imputazioni')
-      .select('id, centro_id, fattura_id, fattura_attiva_id, importo, note')
+    return tutteLeRighe((da, a) => sb.from('movimenti_analisi').select('*')
       .order('id', { ascending: true })
       .range(da, a));
   },
 
-  // Le quote di una singola fattura: è quello che serve al blocco dentro
-  // la scheda della fattura, che non ha nessun motivo di scaricare tutto.
-  async perFattura(fatturaId, attiva) {
+  async save(rec) {
     const sb = await sbClient();
-    const { data, error } = await sb.from('imputazioni')
-      .select('id, centro_id, fattura_id, fattura_attiva_id, importo, note')
-      .eq(attiva ? 'fattura_attiva_id' : 'fattura_id', fatturaId);
+    const riga = rigaMovimento(rec);
+    if (!rec.id) {
+      const { data: u } = await sb.auth.getUser();
+      if (u?.user) riga.created_by = u.user.id;
+      const { data, error } = await sb.from('movimenti_analisi').insert(riga).select().single();
+      if (error) throw error;
+      return data;
+    }
+    riga.updated_at = nowISO();
+    const { data, error } = await sb.from('movimenti_analisi').update(riga).eq('id', rec.id).select().single();
     if (error) throw error;
-    return data;
-  },
-
-  async add({ centroId, fatturaId, attiva, importo, note }) {
-    const sb = await sbClient();
-    const { data: u } = await sb.auth.getUser();
-    const riga = {
-      centro_id: centroId,
-      fattura_id: attiva ? null : fatturaId,
-      fattura_attiva_id: attiva ? fatturaId : null,
-      importo,
-      note: (note || '').trim() || null,
-      created_by: u?.user?.id || null,
-    };
-    const { data, error } = await sb.from('imputazioni').insert(riga).select().single();
-    if (error) throw vestiErrore(error);
-    return data;
-  },
-
-  async setImporto(id, importo) {
-    const sb = await sbClient();
-    const { data, error } = await sb.from('imputazioni').update({ importo }).eq('id', id).select().single();
-    if (error) throw vestiErrore(error);
     return data;
   },
 
   async remove(id) {
     const sb = await sbClient();
-    const { error } = await sb.from('imputazioni').delete().eq('id', id);
+    const { error } = await sb.from('movimenti_analisi').delete().eq('id', id);
     if (error) throw error;
   },
 };
 
-// Gli errori del database parlano la loro lingua. Due qui capitano
-// davvero, e detti così com'escono non si capiscono:
-//  - il trigger che impedisce di sforare l'importo della fattura manda già
-//    un messaggio scritto per essere letto: si passa quello e basta;
-//  - l'indice unico scatta quando si attribuisce due volte la stessa
-//    fattura allo stesso centro, cioè quando due schede aperte insieme
-//    fanno lo stesso lavoro.
-function vestiErrore(error) {
-  const m = String(error?.message || '');
-  // Il messaggio del trigger arriva già scritto per essere letto e si passa
-  // intero. Prima se ne tagliava la parte fino al primo «:» per togliere un
-  // prefisso tecnico che non c'è mai stato: siccome nel messaggio i due
-  // punti cadono dopo «…e la fattura è di 1000,00 €», all'utente restava
-  // solo la coda della frase, senza le due cifre che servivano a capirla.
-  if (/quote attribuite/i.test(m)) return new Error(m);
-  if (error?.code === '23505') {
-    return new Error('Questa fattura è già attribuita a questo centro: correggi la quota che c’è invece di aggiungerne una seconda.');
-  }
-  return error;
-}
-
-// Tutto quello che serve a una pagina di Analisi, in un colpo solo. Le
-// quattro letture partono insieme: sono indipendenti, e in fila avrebbero
-// sommato quattro attese di rete per mostrare una pagina sola.
+// Tutto quello che serve a una pagina di Analisi, in un colpo solo: le
+// due letture sono indipendenti e partono insieme.
 export async function caricaTutto() {
-  const [elencoCentri, elencoImputazioni, passive, attive] = await Promise.all([
-    centri.list(), imputazioni.list(), fatture.list(), fattureAttive.list(),
-  ]);
-  return { centri: elencoCentri, imputazioni: elencoImputazioni, passive, attive };
+  const [elencoCentri, elencoMovimenti] = await Promise.all([centri.list(), movimenti.list()]);
+  return { centri: elencoCentri, movimenti: elencoMovimenti };
 }

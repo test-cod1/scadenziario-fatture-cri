@@ -164,15 +164,12 @@ returns boolean language sql stable security definer set search_path = public as
   select public.accede_a('scadenziario');
 $$;
 
--- La lettura vale anche per la sezione Analisi, che dei dati delle fatture
--- vive: senza, chi ha solo 'analisi' vedrebbe i centri di costo e nessun
--- numero dentro (patch-2026-09-15-centri-di-costo.sql). `puo_scrivere()`
--- resta dello scadenziario: da Analisi non si modifica nessuna fattura.
--- Vale la pena saperlo quando si assegna il permesso: dare Analisi a una
--- persona significa farle leggere tutte le fatture del Comitato.
+-- La lettura è dello scadenziario soltanto. Fino al 10/11/2026 valeva anche
+-- per la sezione Analisi, che leggeva le fatture; da
+-- patch-2026-11-11-analisi-autonoma.sql Analisi ha movimenti propri.
 create or replace function public.puo_leggere()
 returns boolean language sql stable security definer set search_path = public as $$
-  select public.accede_a('scadenziario') or public.accede_a('analisi');
+  select public.accede_a('scadenziario');
 $$;
 
 create or replace function public.e_admin()
@@ -1663,18 +1660,16 @@ create policy impegni_dir_write on public.impegni_direttore for all
 
 -- ============================================================
 --  SEZIONE ANALISI — CENTRI DI COSTO
---  (patch-2026-09-15-centri-di-costo.sql)
---  A quale attività appartengono i soldi che entrano ed escono. Gli
---  importi stanno già nelle fatture: qui si dice soltanto quanto di
---  ciascuna pesa su quale attività, perché una bolletta da 1000 € può
---  valere 600 € su un corso e 400 € su un'assistenza — è il caso
---  normale, non l'eccezione.
+--  (patch-2026-09-15-centri-di-costo.sql, poi
+--   patch-2026-11-11-analisi-autonoma.sql)
+--  Quanto è costata e quanto ha reso una singola attività. Analisi tiene
+--  i suoi movimenti, staccati dallo scadenziario: nessuna lettura e
+--  nessun legame con le tabelle delle fatture.
 -- ============================================================
 
 -- L'anagrafica delle attività: un piano dei conti, tenuto dall'admin di
--- Analisi. Se il nome fosse un testo libero scritto mentre si registra una
--- fattura, dopo un anno ci sarebbero tre grafie della stessa attività e
--- tre conti al posto di uno.
+-- Analisi. Se il nome fosse un testo libero, dopo un anno ci sarebbero tre
+-- grafie della stessa attività e tre conti al posto di uno.
 create table if not exists public.centri_costo (
   id uuid primary key default gen_random_uuid(),
   nome text not null,
@@ -1690,133 +1685,48 @@ create unique index if not exists ux_centri_costo_nome
   on public.centri_costo (lower(btrim(nome)));
 
 comment on table public.centri_costo is
-  'Attività seguite dalla sezione Analisi: a queste si attribuiscono entrate e uscite';
+  'Attività seguite dalla sezione Analisi: ognuna ha i suoi movimenti in movimenti_analisi';
 
--- Quanto di UNA fattura pesa su UN centro. La quota è in euro e non in
--- percentuale: quello che si sa, avendo il documento in mano, è «di questi
--- 1000, 600 sono del corso».
-create table if not exists public.imputazioni (
+-- Entrate e uscite di un centro. L'importo è sempre positivo: il verso lo
+-- dice `tipo`.
+create table if not exists public.movimenti_analisi (
   id uuid primary key default gen_random_uuid(),
   centro_id uuid not null references public.centri_costo(id) on delete cascade,
-  fattura_id uuid references public.fatture(id) on delete cascade,
-  fattura_attiva_id uuid references public.fatture_attive(id) on delete cascade,
+  tipo text not null check (tipo in ('entrata','uscita')),
+  data date,
+  controparte text,
+  documento text,
+  descrizione text,
   importo numeric(12,2) not null check (importo > 0),
   note text,
   created_by uuid references auth.users(id),
   created_at timestamptz not null default now(),
-  constraint imputazioni_una_sola_fattura check (
-    (fattura_id is not null and fattura_attiva_id is null) or
-    (fattura_id is null and fattura_attiva_id is not null)
-  )
+  updated_at timestamptz not null default now()
 );
-create index if not exists idx_imputazioni_centro on public.imputazioni(centro_id);
-create index if not exists idx_imputazioni_fattura on public.imputazioni(fattura_id);
-create index if not exists idx_imputazioni_fattura_attiva on public.imputazioni(fattura_attiva_id);
-create unique index if not exists ux_imputazioni_passiva
-  on public.imputazioni(centro_id, fattura_id) where fattura_id is not null;
-create unique index if not exists ux_imputazioni_attiva
-  on public.imputazioni(centro_id, fattura_attiva_id) where fattura_attiva_id is not null;
+create index if not exists idx_movimenti_analisi_centro on public.movimenti_analisi(centro_id);
+create index if not exists idx_movimenti_analisi_data on public.movimenti_analisi(data);
 
-comment on table public.imputazioni is
-  'Quota di una fattura (passiva o attiva) attribuita a un centro di costo';
+comment on table public.movimenti_analisi is
+  'Entrate e uscite di un centro di costo, registrate in Analisi: nessun legame con lo scadenziario';
 
--- Le quote di una fattura non possono superare il suo importo. Il controllo
--- sta qui e non nel browser: due persone che imputano la stessa fattura
--- nello stesso momento non si vedono fra loro. `security definer` perché la
--- regola non può dipendere dai permessi di chi scrive; il mezzo centesimo di
--- tolleranza assorbe l'arrotondamento di una ripartizione in terzi.
-create or replace function public.trg_imputazioni_controlla()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare
-  lordo numeric(12,2);
-  gia_imputato numeric(12,2);
-begin
-  if new.fattura_id is not null then
-    select importo into lordo from public.fatture where id = new.fattura_id;
-    select coalesce(sum(importo), 0) into gia_imputato from public.imputazioni
-     where fattura_id = new.fattura_id and id is distinct from new.id;
-  else
-    select importo into lordo from public.fatture_attive where id = new.fattura_attiva_id;
-    select coalesce(sum(importo), 0) into gia_imputato from public.imputazioni
-     where fattura_attiva_id = new.fattura_attiva_id and id is distinct from new.id;
-  end if;
-
-  if lordo is null then
-    raise exception 'La fattura a cui stai attribuendo questa quota non esiste.';
-  end if;
-  if gia_imputato + new.importo > lordo + 0.005 then
-    raise exception 'Le quote attribuite arrivano a % € e la fattura è di % €: ne restano % € da attribuire.',
-      to_char(gia_imputato + new.importo, 'FM999999990.00'),
-      to_char(lordo, 'FM999999990.00'),
-      to_char(lordo - gia_imputato, 'FM999999990.00');
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists imputazioni_controlla on public.imputazioni;
-create trigger imputazioni_controlla
-  before insert or update on public.imputazioni
-  for each row execute function public.trg_imputazioni_controlla();
-
--- L'invariante si può violare da due lati: alzando una quota (sopra) o
--- abbassando la fattura. Senza questo, una fattura registrata per errore a
--- 1000 € e attribuita tutta a un'attività, poi corretta a 500, lasciava il
--- centro di costo a contarne 1000 per sempre e senza un avviso.
-create or replace function public.trg_fatture_importo_imputato()
-returns trigger language plpgsql security definer set search_path = public as $$
-declare
-  gia_imputato numeric(12,2);
-begin
-  if new.importo >= old.importo then return new; end if;
-
-  if tg_table_name = 'fatture' then
-    select coalesce(sum(importo), 0) into gia_imputato
-      from public.imputazioni where fattura_id = new.id;
-  else
-    select coalesce(sum(importo), 0) into gia_imputato
-      from public.imputazioni where fattura_attiva_id = new.id;
-  end if;
-
-  if gia_imputato > new.importo + 0.005 then
-    raise exception 'Questa fattura è attribuita a centri di costo per % €: non può scendere a % €. Correggi prima le attribuzioni, in fondo alla scheda.',
-      to_char(gia_imputato, 'FM999999990.00'), to_char(new.importo, 'FM999999990.00');
-  end if;
-  return new;
-end;
-$$;
-
-drop trigger if exists fatture_importo_imputato on public.fatture;
-create trigger fatture_importo_imputato
-  before update of importo on public.fatture
-  for each row execute function public.trg_fatture_importo_imputato();
-
-drop trigger if exists fatture_attive_importo_imputato on public.fatture_attive;
-create trigger fatture_attive_importo_imputato
-  before update of importo on public.fatture_attive
-  for each row execute function public.trg_fatture_importo_imputato();
-
--- ---------- ROW LEVEL SECURITY ----------
--- I centri si leggono anche dallo scadenziario, perché è lì che si
--- attribuisce una fattura mentre la si registra. Crearli e chiuderli è
--- invece dell'admin di Analisi: è il piano dei conti del Comitato.
-alter table public.centri_costo enable row level security;
-alter table public.imputazioni  enable row level security;
+-- Leggere e registrare movimenti è di chi ha la sezione; creare e chiudere
+-- i centri è dell'admin di Analisi.
+alter table public.centri_costo      enable row level security;
+alter table public.movimenti_analisi enable row level security;
 
 drop policy if exists centri_costo_read on public.centri_costo;
 create policy centri_costo_read on public.centri_costo for select to authenticated
-  using (public.accede_a('analisi') or public.accede_a('scadenziario'));
+  using (public.accede_a('analisi'));
 drop policy if exists centri_costo_write on public.centri_costo;
 create policy centri_costo_write on public.centri_costo for all to authenticated
   using (public.e_admin_sezione('analisi')) with check (public.e_admin_sezione('analisi'));
 
-drop policy if exists imputazioni_read on public.imputazioni;
-create policy imputazioni_read on public.imputazioni for select to authenticated
-  using (public.accede_a('analisi') or public.accede_a('scadenziario'));
-drop policy if exists imputazioni_write on public.imputazioni;
-create policy imputazioni_write on public.imputazioni for all to authenticated
-  using (public.accede_a('analisi') or public.accede_a('scadenziario'))
-  with check (public.accede_a('analisi') or public.accede_a('scadenziario'));
+drop policy if exists movimenti_analisi_read on public.movimenti_analisi;
+create policy movimenti_analisi_read on public.movimenti_analisi for select to authenticated
+  using (public.accede_a('analisi'));
+drop policy if exists movimenti_analisi_write on public.movimenti_analisi;
+create policy movimenti_analisi_write on public.movimenti_analisi for all to authenticated
+  using (public.accede_a('analisi')) with check (public.accede_a('analisi'));
 
 -- ------------------------------------------------------------
 --  Totali di pagamenti e incassi per periodo (dashboard dello
@@ -1978,7 +1888,7 @@ begin
     'preventivi_assistenze','clienti_assistenze','impostazioni_assistenze',
     'preventivi_formazione','clienti_formazione','impostazioni_formazione','corsi_formazione','dati_fatturazione',
     'dipendenti_straordinari','straordinari','impostazioni_straordinari',
-    'impegni_direttore','centri_costo','imputazioni'
+    'impegni_direttore','centri_costo','movimenti_analisi'
   ] loop
     if to_regclass('public.' || t) is not null then
       execute format('drop trigger if exists on_%1$s_registro on public.%1$I', t);

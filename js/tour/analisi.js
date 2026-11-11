@@ -4,7 +4,7 @@
 //  js/lib/tour.js ed è condiviso con le altre sezioni: qui c'è solo il
 //  copione, cioè dove andare, cosa evidenziare e cosa raccontare.
 //
-//  Il tour non tocca nessun dato: gira fra due pagine di sola lettura.
+//  Il tour non tocca nessun dato: gira su una pagina di sola lettura.
 // ============================================================
 
 export function passi(ctx) {
@@ -13,7 +13,7 @@ export function passi(ctx) {
     {
       hash: '#/analisi/centri',
       titolo: 'Tour guidato',
-      testo: 'Analisi legge insieme quello che le altre sezioni scrivono. La prima cosa che ci sa dire sono i centri di costo: quanto è costata e quanto ha reso una singola attività. Usa «Avanti» per proseguire, oppure «Salta tour» in qualsiasi momento.',
+      testo: 'Analisi tiene i conti delle singole attività: quanto è costata e quanto ha reso ognuna. Ha numeri suoi, staccati dallo scadenziario: le entrate e le uscite si registrano qui, dentro l\'attività. Usa «Avanti» per proseguire, oppure «Salta tour» in qualsiasi momento.',
     },
     {
       selettore: '.an-periodo',
@@ -23,50 +23,22 @@ export function passi(ctx) {
     {
       selettore: '.grid.stats',
       titolo: 'Entrate, uscite, saldo',
-      testo: 'I totali di quello che è stato attribuito alle attività. Si contano le fatture, non i pagamenti: la fattura di dicembre pagata a marzo è un costo di dicembre, che è il momento in cui l\'attività l\'ha generata. Quanto sia stato davvero pagato è un\'altra domanda, e la risponde lo scadenziario.',
-    },
-    {
-      selettore: '.stat:last-child',
-      titolo: 'Il numero che non va dimenticato',
-      testo: 'Quante fatture stanno ancora fuori da ogni attività. Finché quel numero non è zero, la somma delle righe qui sotto NON è il bilancio del Comitato: è solo la parte che stai seguendo. Cliccandolo si va a sistemare l\'arretrato.',
+      testo: 'La somma dei movimenti di tutte le attività nel periodo. È quello che si sta seguendo, non il bilancio del Comitato.',
     },
     {
       selettore: '.cc-lista',
       titolo: 'Una riga per attività',
-      testo: 'In cima quelle in perdita: è la riga per cui si apre questa pagina. Cliccando il nome si vede il conto nel dettaglio, fattura per fattura — perché un numero rosso, da solo, non dice ancora perché.',
+      testo: 'In cima quelle in perdita: è la riga per cui si apre questa pagina. Cliccando il nome si apre il conto nel dettaglio, movimento per movimento: è lì che si aggiungono entrate e uscite.',
     },
     ...(admin ? [{
       selettore: '[data-nuovo]',
       titolo: 'Creare un\'attività',
-      testo: 'L\'elenco lo tiene l\'amministratore della sezione: è un piano dei conti, non una lista che si allunga mentre si registra una fattura. Se il nome fosse libero, fra un anno ci sarebbero tre grafie della stessa attività e tre conti al posto di uno.',
+      testo: 'L\'elenco lo tiene l\'amministratore della sezione: è un piano dei conti. Se il nome fosse libero, fra un anno ci sarebbero tre grafie della stessa attività e tre conti al posto di uno.',
     }] : []),
     {
-      hash: '#/analisi/fatturato',
-      selettore: '.grid.stats',
-      titolo: 'Il fatturato',
-      testo: 'La seconda pagina guarda le sole fatture emesse, e le guarda da lontano: quanto abbiamo fatturato nel periodo, quanto ne è già entrato e quanto è ancora un credito. Fatturato vuol dire emesso, non incassato: la fattura di luglio incassata a ottobre è fatturato di luglio, e l\'incassato è il riquadro accanto.',
-    },
-    {
-      selettore: '.fat-corpo .card:nth-child(2)',
-      titolo: 'Da chi dipendiamo',
-      testo: 'Le righe evidenziate sono i clienti che insieme fanno l\'80% del fatturato. È il numero da portare in Consiglio: se sono tre su quaranta, perdere una convenzione non è un contrattempo ma un problema di sostenibilità. Sotto, il credito aperto è diviso per anzianità — oltre i sei mesi diventa rosso, e le dieci fatture più vecchie sono in elenco con il link per aprirle.',
-    },
-    {
-      hash: '#/analisi/da-attribuire',
-      selettore: '.att-lista',
-      titolo: 'Attribuire le fatture',
-      testo: 'Le fatture che nessuna attività ha ancora preso in carico. La quota parte già compilata con quanto resta, perché quasi sempre la fattura è tutta di una sola attività: se invece va divisa, si abbassa la cifra e si ripassa sulla stessa riga per l\'altra.',
-    },
-    {
-      selettore: '.an-lavoro',
-      titolo: 'Un\'attività alla volta',
-      testo: 'Chi sistema l\'arretrato lo fa quasi sempre per attività: si sceglie qui una volta sola, e vale per tutte le righe. Insieme alla ricerca è il modo per smaltire un anno di fatture senza impazzire.',
-    },
-    {
-      hash: '#/analisi/centri',
       selettore: '.tour-fab',
       titolo: 'Tour completato',
-      testo: 'Una cosa da ricordare: una fattura si attribuisce anche dalla sua scheda nello scadenziario, mentre la si registra — è lì che si sa davvero a che cosa apparteneva. Puoi rivedere questo tour quando vuoi da questo pulsante.',
+      testo: 'Puoi rivedere questo tour quando vuoi da questo pulsante.',
     },
   ];
 }

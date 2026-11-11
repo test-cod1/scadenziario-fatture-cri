@@ -37,7 +37,7 @@ const TABELLE = {
   impostazioni_straordinari: ['Straordinari', 'Impostazioni'],
   impegni_direttore: ['Direttore', 'Impegno'],
   centri_costo: ['Analisi', 'Centro di costo'],
-  imputazioni: ['Analisi', 'Imputazione'],
+  movimenti_analisi: ['Analisi', 'Movimento'],
   idee_direttore: ['Direttore', 'Idea'],
   scadenze: ['Scadenze', 'Scadenza'],
 };
