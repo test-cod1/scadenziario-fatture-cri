@@ -29,15 +29,6 @@ Il portale segue il Manuale CRI. Le regole che valgono ovunque:
 
 **Le card della home.** L audit chiedeva (rilievo M3) di togliere i sei colori di sezione e di rendere tutte le card uguali, con fondo chiaro e un filo rosso. La versione conforme e stata fatta e poi ritirata su richiesta: la home torna alle card monocrome a tutto campo, una per sezione, col loro colore e il sollevamento in hover. E una scelta di chi usa il portale tutti i giorni, non una svista — chi riprende in mano l audit sappia che quel punto resta aperto di proposito.
 
-Restano da completare quattro interventi dell audit dell 11/09/2026, tutti fermi sugli asset ufficiali che il Comitato deve fornire in `assets/brand/` e `assets/icons/ifrc/`:
-
-| | Cosa manca |
-|---|---|
-| **T1** | L emblema nel blocco del marchio e ancora un glifo tipografico dentro un quadrato rosso arrotondato: serve `emblema-genova-orizzontale-rosso.svg`. |
-| **T2** | Favicon e icone PWA sono lo stesso emblema alterato: servono l emblema verticale ufficiale e la rigenerazione dei PNG. |
-| **T6** | 294 emoji usate come icone in 43 file: servono le icone IFRC 2024 e la libreria Lucide in `js/vendor/` (la CSP vieta i CDN). |
-| **T10** | Firma di formato nelle stampe: banda, marchio verticale e payoff «Un Italia che aiuta». |
-
 ## Sezione Scadenziario
 
 Inserimento manuale o automatico delle fatture (PDF via AI Gemini, XML fattura elettronica letto direttamente), pagamenti/acconti, alert scadenze, ricerca e filtri, export Excel/PDF, registro modifiche per gli admin.
