@@ -66,8 +66,12 @@ create trigger on_auth_password_changed
 create table if not exists public.sezioni (
   id text primary key,
   etichetta text not null,
-  ordine int not null default 0
+  ordine int not null default 0,
+  -- true: la card in home non si vede a chi non è abilitato alla sezione
+  -- (patch-2026-11-12-card-nascoste.sql). La decide il super admin.
+  nascosta boolean not null default false
 );
+alter table public.sezioni add column if not exists nascosta boolean not null default false;
 
 insert into public.sezioni (id, etichetta, ordine) values
   ('scadenziario', 'Scadenziario',          1),
@@ -576,6 +580,14 @@ create policy prof_admin_update on public.profili for update
 -- menu, comprese le card bloccate.
 drop policy if exists sezioni_read on public.sezioni;
 create policy sezioni_read on public.sezioni for select to authenticated using (true);
+
+-- Il super admin spegne o riaccende la card di una sezione per chi non vi è
+-- abilitato: può cambiare quella colonna e nient'altro.
+revoke update on public.sezioni from authenticated;
+grant update (nascosta) on public.sezioni to authenticated;
+drop policy if exists sezioni_sa_update on public.sezioni;
+create policy sezioni_sa_update on public.sezioni for update to authenticated
+  using (public.e_super_admin()) with check (public.e_super_admin());
 
 -- Ognuno legge i propri permessi (l'app li usa per capire cosa mostrare);
 -- il super admin li legge e li scrive tutti.

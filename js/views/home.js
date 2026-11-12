@@ -1,14 +1,19 @@
 import { SEZIONI, ruoloIn } from '../sezioni.js';
 import { el, esc, toast } from '../lib/ui.js';
+import { amministrazione } from '../data/store.js';
 
 // ============================================================
 //  HOME DEL PORTALE — la griglia da cui si sceglie la sezione.
-//  Le card ci sono tutte, anche quelle a cui l'utente non ha accesso: così
-//  sa che la sezione esiste e a chi chiederne l'abilitazione, invece di
-//  trovarsi una home diversa da quella del collega senza capire perché.
+//  Di regola le card ci sono tutte, anche quelle a cui l'utente non ha
+//  accesso: così sa che la sezione esiste e a chi chiederne l'abilitazione.
+//  Il super admin può però nascondere la card di una sezione a chi non vi è
+//  abilitato (l'occhio sotto ogni card, che vede solo lui): chi è abilitato
+//  la vede sempre.
 // ============================================================
 
 export async function renderHome(view, ctx) {
+  const superAdmin = ctx.user?.ruoloPortale === 'super_admin';
+  const nascoste = await amministrazione.sezioniNascoste();
   const wrap = el(`<div class="home">
     <div class="home-head">
       <h1>Seleziona una sezione</h1>
@@ -20,8 +25,9 @@ export async function renderHome(view, ctx) {
 
   for (const s of SEZIONI) {
     const ruolo = ruoloIn(ctx.user, s.id);
+    if (!ruolo && nascoste.has(s.id)) continue;
     const card = ruolo ? cardAperta(s, ruolo) : cardBloccata(s);
-    grid.appendChild(card);
+    grid.appendChild(superAdmin ? cellaConOcchio(card, s, nascoste.has(s.id)) : card);
   }
 
   const nessuna = SEZIONI.every(s => !ruoloIn(ctx.user, s.id));
@@ -49,6 +55,37 @@ export async function renderHome(view, ctx) {
       card.title = `${testo}: apri le richieste`;
     }).catch(() => {});
   }
+}
+
+// La card del super admin con, sotto, l'interruttore della visibilità per
+// gli altri. Sta fuori dalla card perché la card è un link: un pulsante
+// dentro un link non è un controllo valido, e il clic aprirebbe la sezione.
+function cellaConOcchio(card, s, nascosta) {
+  const cella = el('<div class="home-cella"></div>');
+  const btn = el('<button type="button" class="hc-occhio"></button>');
+  const disegna = (n) => {
+    card.classList.toggle('nascosta-altri', n);
+    btn.classList.toggle('spento', n);
+    btn.innerHTML = n ? '🙈 Nascosta agli altri' : '👁 Visibile a tutti';
+    btn.setAttribute('aria-pressed', String(n));
+    btn.title = n
+      ? `Chi non è abilitato a ${s.label} non vede questa card. Clic per mostrarla di nuovo.`
+      : `Tutti vedono questa card (chi non è abilitato col lucchetto). Clic per nasconderla a chi non è abilitato.`;
+  };
+  disegna(nascosta);
+  btn.addEventListener('click', async () => {
+    const nuova = btn.getAttribute('aria-pressed') !== 'true';
+    btn.disabled = true;
+    try {
+      await amministrazione.impostaSezioneNascosta(s.id, nuova);
+      disegna(nuova);
+      toast(nuova ? `«${s.label}» nascosta a chi non è abilitato` : `«${s.label}» di nuovo visibile a tutti`, 'ok');
+    } catch (e) {
+      toast(e.message || 'Modifica non riuscita', 'err');
+    } finally { btn.disabled = false; }
+  });
+  cella.append(card, btn);
+  return cella;
 }
 
 function cardAperta(s, ruolo) {

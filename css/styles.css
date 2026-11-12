@@ -384,6 +384,15 @@ tr.scaduta:hover td{background:#fbdcdd}
    chiedere l'accesso) ma si vede a colpo d'occhio che è spenta. */
 .home-card.locked{filter:grayscale(.75);opacity:.5;box-shadow:none}
 .home-card.locked:hover{transform:none;box-shadow:none}
+/* Solo per il super admin: sotto ogni card l'interruttore che la nasconde a
+   chi non è abilitato. Una card nascosta agli altri resta per lui, ma
+   sbiadita e tratteggiata, così la differenza si vede senza leggere. */
+.home-cella{display:flex;flex-direction:column;gap:8px}
+.hc-occhio{font:inherit;font-size:12px;font-weight:600;color:var(--ink-soft);background:none;border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer;align-self:center}
+.hc-occhio:hover{color:var(--ink);border-color:var(--ink-soft)}
+.hc-occhio.spento{color:var(--danger);border-color:var(--danger)}
+.hc-occhio:disabled{opacity:.5;cursor:wait}
+.home-card.nascosta-altri{opacity:.55;outline:2px dashed var(--ink-soft);outline-offset:3px}
 
 /* Le sezioni non autorizzate si leggono: prima erano a opacity .55, che
    portava il grigio molto sotto la soglia di contrasto. Il fatto che non

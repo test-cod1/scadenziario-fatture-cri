@@ -161,6 +161,26 @@ export const amministrazione = {
     return data || [];
   },
 
+  // Le sezioni la cui card in home non si mostra a chi non vi è abilitato.
+  // Su un database senza la colonna (patch-2026-11-12-card-nascoste.sql non
+  // ancora eseguita) la lettura fallisce: allora non è nascosta nessuna, e la
+  // home resta com'era invece di rompersi.
+  async sezioniNascoste() {
+    try {
+      const sb = await sbClient();
+      const { data, error } = await sb.from('sezioni').select('id').eq('nascosta', true);
+      if (error) return new Set();
+      return new Set((data || []).map(r => r.id));
+    } catch { return new Set(); }
+  },
+  async impostaSezioneNascosta(id, nascosta) {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('sezioni').update({ nascosta: !!nascosta }).eq('id', id).select('id');
+    if (error) throw error;
+    // Nessuna riga toccata senza errore: le RLS l'hanno filtrata.
+    if (!data?.length) throw new Error('Modifica non salvata: serve la patch del 12/11 sul database, oppure non hai i permessi.');
+  },
+
   // Elenco dei profili con i rispettivi permessi di sezione: le RLS lo
   // restituiscono per intero solo al super admin (policy prof_admin_read e
   // autor_sa_read), a chiunque altro solo il proprio.
