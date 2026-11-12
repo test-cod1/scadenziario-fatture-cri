@@ -522,6 +522,8 @@ Accanto c'è **Elimina**, che è un'altra cosa: cancella l'account per sempre da
 
 Quello che l'eliminazione **non** porta via: le fatture, le assistenze, i trasporti e i preventivi che quella persona aveva inserito restano tutti, e perdono solo il collegamento al suo account (`created_by` diventa vuoto). Il registro modifiche continua a mostrare nome ed email di chi ha fatto ogni operazione, perché li salva come testo e non come riferimento all'account. Non si può eliminare se stessi né un altro super admin: in quel caso va prima tolto il ruolo dal database.
 
+**Accesso con nome e cognome.** Quando più persone condividono una casella (per esempio genova.amministrazione@liguria.cri.it), Supabase vuole comunque un'email diversa per account: si usano gli alias «+» della casella (`genova.amministrazione+nayyab@…`), che Gmail recapita alla casella comune insieme ai link di recupero password. Per non dover ricordare l'alias, l'account può entrare scrivendo **nome e cognome** nel campo del login (maiuscole, accenti e ordine delle parole non contano). Il nome sta in `app_metadata.nome_accesso` dell'utente Supabase, che si scrive solo con la service role key (dalla dashboard: Authentication → utente → *Raw app metadata*); [`/api/email-accesso`](functions/api/email-accesso.js) lo traduce nell'email e il login prosegue come sempre. Gli account senza quel campo si trovano solo per email. Oggi lo hanno Duray Nayyab e Maria Rita Bassino (solo Scadenziario).
+
 Le **impostazioni di sezione** sono un'altra cosa: per lo scadenziario stanno in *Impostazioni scadenziario* (scadenza di default e registro modifiche) e le vede l'admin di quella sezione, non il super admin in quanto tale.
 
 ## Struttura del progetto

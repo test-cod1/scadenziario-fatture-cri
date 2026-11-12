@@ -9,7 +9,7 @@ export function renderLogin(app, onDone, { avviso = '' } = {}) {
   clear(app);
   const wrap = el(`<div class="login-wrap"><div class="login">
     ${BRAND}
-    <div class="field"><label>Email</label><input type="text" id="email" placeholder="nome@cri.it" autocomplete="username"></div>
+    <div class="field"><label>Email oppure nome e cognome</label><input type="text" id="email" placeholder="nome@cri.it · Mario Rossi" autocomplete="username"></div>
     ${campoPassword('pw', 'Password', '••••••••', 'current-password')}
     <button class="btn primary" id="go" style="width:100%;justify-content:center;margin-top:6px">Accedi</button>
     <div style="text-align:center;margin-top:14px"><a href="#" id="forgot" style="font-size:13px">Password dimenticata?</a></div>
@@ -38,8 +38,8 @@ function renderRichiestaReset(app, onDone, emailPrecompilata = '') {
   clear(app);
   const wrap = el(`<div class="login-wrap"><div class="login">
     ${BRAND}
-    <div class="banner info" style="margin-bottom:18px"><div class="bi">🔑</div><div><b>Recupero password</b><div class="small">Inserisci la tua email: ti invieremo un link per impostare una nuova password.</div></div></div>
-    <div class="field"><label>Email</label><input type="text" id="email" placeholder="nome@cri.it" autocomplete="username" value="${esc(emailPrecompilata)}"></div>
+    <div class="banner info" style="margin-bottom:18px"><div class="bi">🔑</div><div><b>Recupero password</b><div class="small">Inserisci la tua email (oppure nome e cognome, se entri così): ti invieremo un link per impostare una nuova password.</div></div></div>
+    <div class="field"><label>Email oppure nome e cognome</label><input type="text" id="email" placeholder="nome@cri.it · Mario Rossi" autocomplete="username" value="${esc(emailPrecompilata)}"></div>
     <button class="btn primary" id="send" style="width:100%;justify-content:center;margin-top:6px">Invia link di recupero</button>
     <button class="btn" id="back" style="width:100%;justify-content:center;margin-top:10px">← Torna al login</button>
     <div id="msg" style="font-size:13px;margin-top:12px;text-align:center"></div>
@@ -51,7 +51,7 @@ function renderRichiestaReset(app, onDone, emailPrecompilata = '') {
   wrap.querySelector('#send').addEventListener('click', async () => {
     const email = wrap.querySelector('#email').value.trim();
     msg.style.color = 'var(--danger)';
-    if (!email) { msg.textContent = 'Inserisci la tua email.'; return; }
+    if (!email) { msg.textContent = 'Inserisci la tua email oppure nome e cognome.'; return; }
     const btn = wrap.querySelector('#send'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Invio…';
     try {
@@ -116,7 +116,7 @@ export function renderResetPassword(app, onDone, { invite = false, obbligatorio 
 function traduci(m) {
   if (!m) return '';
   const s = String(m).toLowerCase();
-  if (s.includes('invalid login credentials')) return 'Email o password non corretti.';
+  if (s.includes('invalid login credentials')) return 'Credenziali non corrette: controlla email (o nome e cognome) e password.';
   if (s.includes('email not confirmed')) return 'Email non confermata.';
   if (s.includes('rate limit') || s.includes('too many') || s.includes('for security purposes')) return 'Troppi tentativi, riprova tra qualche minuto.';
   if (s.includes('different from the old') || s.includes('should be different')) return 'La nuova password deve essere diversa da quella attuale.';

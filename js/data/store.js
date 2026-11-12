@@ -2,6 +2,21 @@
 //  DATA LAYER — Supabase: auth, fatture, pagamenti, log, storage PDF
 // ============================================================
 import { residuoFattura } from '../lib/numeri.js';
+import { sembraEmail } from '../lib/nomeAccesso.mjs';
+
+// Chi scrive nome e cognome invece dell'email: il server dice a quale email
+// corrisponde (solo per gli account che hanno un nome di accesso, vedi
+// js/lib/nomeAccesso.mjs), poi tutto prosegue come con l'email.
+async function emailDiAccesso(identificativo) {
+  if (sembraEmail(identificativo)) return identificativo;
+  const res = await fetch('/api/email-accesso', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ nome: identificativo }),
+  });
+  const d = await res.json().catch(() => ({}));
+  if (!res.ok || !d.email) throw new Error(d.error || 'Nome o password non corretti.');
+  return d.email;
+}
 
 async function sbClient() { const { getSupabase } = await import('../lib/supabase.js'); return getSupabase(); }
 async function sbProfile(sb, userId) {
@@ -48,7 +63,8 @@ export const auth = {
     ]);
     return utenteDaProfilo(data.user, prof, sezioni);
   },
-  async signIn(email, password) {
+  async signIn(identificativo, password) {
+    const email = await emailDiAccesso(identificativo);
     const sb = await sbClient();
     const { data, error } = await sb.auth.signInWithPassword({ email, password });
     if (error) throw error;
@@ -61,7 +77,8 @@ export const auth = {
   async signOut() {
     const sb = await sbClient(); await sb.auth.signOut();
   },
-  async resetPassword(email) {
+  async resetPassword(identificativo) {
+    const email = await emailDiAccesso(identificativo);
     const sb = await sbClient();
     const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
     if (error) throw error;

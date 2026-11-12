@@ -22,6 +22,7 @@ import { onRequestPost as telegramConfiguraPost } from '../api/telegram-configur
 import { onRequestPost as datiFatturazionePost } from '../api/dati-fatturazione.js';
 import { onRequestPost as patentiPost } from '../api/patenti.js';
 import { onRequestPost as centroCondivisoPost } from '../api/centro-condiviso.js';
+import { onRequestPost as emailAccessoPost } from '../api/email-accesso.js';
 
 export const ROUTES = {
   '/api/estrai-fattura': { POST: estraiFatturaPost },
@@ -52,6 +53,9 @@ export const ROUTES = {
   // Pagina pubblica di sola lettura di un centro di costo (Analisi): la apre
   // chi ha ricevuto il link, senza login (vedi l'intestazione del file).
   '/api/centro-condiviso': { POST: centroCondivisoPost },
+  // Login con nome e cognome: traduce il nome nell'email dell'account, prima
+  // del login e quindi senza (vedi l'intestazione del file).
+  '/api/email-accesso': { POST: emailAccessoPost },
 };
 
 // Risposta per un metodo non previsto su una route esistente. Senza, la
