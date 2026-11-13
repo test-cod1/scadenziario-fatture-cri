@@ -245,7 +245,7 @@ export function apriSollecitoRapido(rec, ctx, onSaved) {
 export function apriNoteRapide(rec, ctx, onSaved) {
   const body = el(`<div>
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.cliente)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''}</p>
-    <div class="field"><label>Note</label><textarea id="nt-testo" rows="5" placeholder="Es. accordi col cliente, solleciti telefonici, riferimenti…">${esc(rec.note || '')}</textarea></div>
+    <div class="field"><label>Note</label><textarea id="nt-testo" rows="5">${esc(rec.note || '')}</textarea></div>
   </div>`);
   const footer = el(`<div style="display:flex;gap:10px;width:100%">
     ${rec.note ? '<button class="btn" id="nt-rimuovi">Cancella note</button>' : ''}
