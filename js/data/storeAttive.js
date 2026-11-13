@@ -180,6 +180,16 @@ export const fattureAttive = {
     if (error) throw error;
     return data;
   },
+
+  // Aggiorna solo le note della fattura: azione rapida dalla colonna "Note"
+  // della dashboard, come segnaSollecito. Testo vuoto = note tolte (null).
+  async salvaNote(id, note) {
+    const sb = await sbClient();
+    const testo = (note || '').trim() || null;
+    const { data, error } = await sb.from('fatture_attive').update({ note: testo }).eq('id', id).select().single();
+    if (error) throw error;
+    return data;
+  },
 };
 
 function withResiduo(f) {

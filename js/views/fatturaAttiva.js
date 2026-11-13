@@ -238,6 +238,41 @@ export function apriSollecitoRapido(rec, ctx, onSaved) {
   if (rimuovi) rimuovi.addEventListener('click', () => salva(null));
 }
 
+// ============================================================
+//  Note rapide — aperte cliccando sulla colonna "Note" in dashboard, per
+//  scrivere o correggere le note senza aprire l'intero editor.
+// ============================================================
+export function apriNoteRapide(rec, ctx, onSaved) {
+  const body = el(`<div>
+    <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.cliente)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''}</p>
+    <div class="field"><label>Note</label><textarea id="nt-testo" rows="5" placeholder="Es. accordi col cliente, solleciti telefonici, riferimenti…">${esc(rec.note || '')}</textarea></div>
+  </div>`);
+  const footer = el(`<div style="display:flex;gap:10px;width:100%">
+    ${rec.note ? '<button class="btn" id="nt-rimuovi">Cancella note</button>' : ''}
+    <div style="flex:1"></div>
+    <button class="btn" id="nt-cancel">Annulla</button>
+    <button class="btn primary" id="nt-save">Salva</button>
+  </div>`);
+  const { close } = openModal({ title: 'Note della fattura', body, footer });
+  const area = body.querySelector('#nt-testo');
+  setTimeout(() => { area.focus(); area.setSelectionRange(area.value.length, area.value.length); }, 0);
+  footer.querySelector('#nt-cancel').addEventListener('click', close);
+  const salva = async (valore) => {
+    try {
+      await fattureAttive.salvaNote(rec.id, valore);
+      toast((valore || '').trim() ? 'Note salvate' : 'Note cancellate', 'ok');
+      close();
+      onSaved();
+    } catch (e) { toast('Errore: ' + e.message, 'err'); }
+  };
+  footer.querySelector('#nt-save').addEventListener('click', () => salva(area.value));
+  const rimuovi = footer.querySelector('#nt-rimuovi');
+  if (rimuovi) rimuovi.addEventListener('click', async () => {
+    if (!await confirmDialog('Cancellare le note di questa fattura?', { danger: true, okLabel: 'Cancella' })) return;
+    salva(null);
+  });
+}
+
 function renderIncassi(node, rec, ctx, onChange) {
   clear(node);
   const wrap = el(`<div class="card" style="margin-top:6px"><div class="card-h">Incassi / acconti</div><div class="card-b">

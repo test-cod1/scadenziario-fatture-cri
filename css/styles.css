@@ -116,6 +116,11 @@ details.card[open]>summary .archivio-freccia{transform:rotate(90deg)}
 .card .card-b{padding:18px}
 
 .chip{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:600;padding:3px 9px;border-radius:999px;background:var(--bg);color:var(--ink-soft);border:1px solid var(--line)}
+/* Colonna "Note" dello scadenziario attivo: il testo resta su una riga,
+   troncato coi puntini; per intero nel tooltip e nella finestra che apre. */
+.nota-cella{max-width:220px}
+.nota-testo{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--ink-soft);cursor:pointer}
+.nota-testo:hover{color:var(--ink)}
 .chip.red{background:var(--cri-red-soft);color:var(--cri-red-dark);border-color:transparent}
 .chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
 .chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}

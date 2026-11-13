@@ -16,6 +16,7 @@ const apriUploadAttive = daEditor('apriUploadAttive');
 const apriIncassoRapido = daEditor('apriIncassoRapido');
 const apriNuovaNotaCreditoAttiva = daEditor('apriNuovaNotaCreditoAttiva');
 const apriSollecitoRapido = daEditor('apriSollecitoRapido');
+const apriNoteRapide = daEditor('apriNoteRapide');
 
 const STATO_LABEL = { da_incassare: 'Da incassare', incassata_parziale: 'Incassata parz.', incassata: 'Incassata', stornata: 'Stornata' };
 const STATO_CHIP = { da_incassare: 'warn', incassata_parziale: 'red', incassata: 'ok', stornata: 'info' };
@@ -31,6 +32,7 @@ const COLONNE = {
   stato:     { get: f => ORDINE_STATO[f.stato], tipo: 'numero' },
   residuo:   { get: f => f._residuo, tipo: 'numero' },
   sollecito: { get: f => f.data_sollecito, tipo: 'data' },
+  note:      { get: f => f.note, tipo: 'testo' },
 };
 
 // Vedi il commento gemello in dashboard.js: periodi su mese e anno interi,
@@ -374,7 +376,7 @@ function renderTable(node, righe, ctx, ricarica, sort, onSort) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura trovata con questi filtri.</p></div>`)); return; }
   const table = el(`<table class="tbl tbl-fatture"><thead><tr>
-    ${thOrdinabile('Cliente', 'cliente', sort)}${thOrdinabile('N. Fattura', 'numero', sort)}${thOrdinabile('Data', 'data', sort)}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}${thOrdinabile('Sollecito', 'sollecito', sort)}<th></th>
+    ${thOrdinabile('Cliente', 'cliente', sort)}${thOrdinabile('N. Fattura', 'numero', sort)}${thOrdinabile('Data', 'data', sort)}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}${thOrdinabile('Sollecito', 'sollecito', sort)}${thOrdinabile('Note', 'note', sort)}<th></th>
   </tr></thead><tbody></tbody></table>`);
   collegaOrdinamento(table, onSort);
   const tbody = table.querySelector('tbody');
@@ -389,13 +391,15 @@ function renderTable(node, righe, ctx, ricarica, sort, onSort) {
       </td>
       <td class="money money-col">${fmtEuro(f._residuo)}</td>
       <td><span class="chip ${f.data_sollecito ? 'info' : ''}" data-sollecito title="Clicca per aggiornare il sollecito">${f.data_sollecito ? '🔔 ' + fmtDate(f.data_sollecito) : '— nessuno'}</span></td>
+      <td class="nota-cella"><span class="${f.note ? 'nota-testo' : 'chip'}" data-note title="${f.note ? esc(f.note) + '\n\n' : ''}Clicca per ${f.note ? 'modificare le' : 'aggiungere le'} note">${f.note ? '📝 ' + esc(f.note) : '+ nota'}</span></td>
       <td style="text-align:right"><button class="btn ghost sm" data-edit>✏️</button></td>
     </tr>`);
-    rendiCliccabile(tr, (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]') && !e.target.closest('[data-sollecito]')) apriEditorAttiva(f.id, ctx, ricarica); });
+    rendiCliccabile(tr, (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]') && !e.target.closest('[data-sollecito]') && !e.target.closest('[data-note]')) apriEditorAttiva(f.id, ctx, ricarica); });
     tr.querySelector('[data-edit]').addEventListener('click', (e) => { e.stopPropagation(); apriEditorAttiva(f.id, ctx, ricarica); });
     const chipStato = tr.querySelector('[data-stato]');
     if (chipStato) rendiCliccabile(chipStato, (e) => { e.stopPropagation(); apriIncassoRapido(f, ctx, ricarica); });
     rendiCliccabile(tr.querySelector('[data-sollecito]'), (e) => { e.stopPropagation(); apriSollecitoRapido(f, ctx, ricarica); });
+    rendiCliccabile(tr.querySelector('[data-note]'), (e) => { e.stopPropagation(); apriNoteRapide(f, ctx, ricarica); });
     tbody.appendChild(tr);
   }
   node.appendChild(table);
