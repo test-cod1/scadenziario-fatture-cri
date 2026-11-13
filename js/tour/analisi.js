@@ -26,9 +26,14 @@ export function passi(ctx) {
       testo: 'La somma dei movimenti di tutte le attività nel periodo. È quello che si sta seguendo, non il bilancio del Comitato.',
     },
     {
+      selettore: '.an-anni',
+      titolo: 'Anno per anno',
+      testo: 'Tutte le attività insieme, un anno per riga, con le uscite confrontate con l\'anno prima. Il periodo scelto sopra è evidenziato; un clic su un anno lo sceglie per tutta la pagina.',
+    },
+    {
       selettore: '.cc-lista',
       titolo: 'Una riga per attività',
-      testo: 'In cima quelle in perdita: è la riga per cui si apre questa pagina. Cliccando il nome si apre il conto nel dettaglio, movimento per movimento: è lì che si aggiungono entrate e uscite.',
+      testo: 'In cima quelle in perdita: è la riga per cui si apre questa pagina. Cliccando il nome si apre il conto dell\'attività: lì si aggiungono entrate e uscite, ognuna con la sua categoria, e ci sono i grafici dell\'andamento e delle spese per categoria. Il pulsante «🔗 Condividi» crea un link di sola lettura per chi non ha il portale (senza le note): mandalo solo a chi deve vedere quei numeri.',
     },
     ...(admin ? [{
       selettore: '[data-nuovo]',

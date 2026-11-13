@@ -13,12 +13,17 @@ export function passi() {
     {
       hash: '#/direttore/impegni',
       titolo: 'Tour guidato',
-      testo: 'Un breve giro nella sezione Direttore: le cose da fare della direzione, tenute in ordine di peso invece che di arrivo. Usa «Avanti» per proseguire, oppure «Salta tour» in qualsiasi momento.',
+      testo: 'Un breve giro nella sezione Direttore: le cose da fare della direzione, tenute in ordine di peso invece che di arrivo, e le idee annotate al volo in attesa di essere valutate. Usa «Avanti» per proseguire, oppure «Salta tour» in qualsiasi momento.',
     },
     {
       selettore: '.grid.stats',
       titolo: 'Cosa guardare per primo',
-      testo: 'Quante cose sono aperte, quante sono già scadute e quante scadono entro sette giorni. I riquadri degli scaduti e della settimana sono anche filtri: un clic e l\'elenco qui sotto mostra solo quelli.',
+      testo: 'Quante cose sono aperte, quante sono già scadute, quante scadono entro sette giorni e quante non hanno ancora una data. I riquadri degli scaduti e della settimana sono anche filtri: un clic e l\'elenco qui sotto mostra solo quelli.',
+    },
+    {
+      selettore: '.toolbar',
+      titolo: 'Ritrovare qualcosa',
+      testo: 'La prima tendina decide cosa vedere: le cose da fare (come si apre la pagina), i fatti, o tutto. Le altre due filtrano per urgenza e importanza, e la ricerca guarda anche nei dettagli.',
     },
     {
       selettore: '.dir-lista',
@@ -28,12 +33,7 @@ export function passi() {
     {
       selettore: '.dir-spunta',
       titolo: 'Fatto, con un clic',
-      testo: 'La spunta si dà dall\'elenco, senza aprire niente: è il gesto che si fa più spesso. L\'impegno scende fra i fatti e ci resta, con la data — se lo si è segnato per sbaglio, basta ricliccare.',
-    },
-    {
-      selettore: '.toolbar',
-      titolo: 'Ritrovare qualcosa',
-      testo: 'La prima tendina decide cosa vedere: le cose da fare (come si apre la pagina), i fatti, o tutto. Le altre due filtrano per urgenza e importanza, e la ricerca guarda anche nei dettagli.',
+      testo: 'La spunta si dà dall\'elenco, senza aprire niente: è il gesto che si fa più spesso. L\'impegno sparisce dalle cose da fare e passa fra i fatti, con la data; se il clic era sbagliato, per cinque secondi compare «Annulla» — e dopo lo si ritrova scegliendo «Fatti» nella prima tendina.',
     },
     {
       hash: '#/direttore/calendario',
@@ -71,6 +71,17 @@ export function passi() {
       selettore: '[data-peso]',
       titolo: 'Dove finirà',
       testo: 'Man mano che scegli, questa riga dice in che parte dell\'elenco comparirà l\'impegno. Serve a non dover indovinare l\'effetto delle tre scelte: se non è dove ti aspetti, cambia un livello e guarda di nuovo.',
+    },
+    {
+      hash: '#/direttore/idee',
+      selettore: '#idea-testo',
+      titolo: 'Le idee',
+      testo: 'Non tutto è già un impegno: un\'idea si scrive qui in una riga, così come viene, e si sistema dopo. Ognuna ha uno stato — nuova, in valutazione, approvata, realizzata, scartata — e quelle buone diventano un impegno con «→ Impegno», senza ricopiarle.',
+    },
+    {
+      selettore: '[data-tg]',
+      titolo: 'Le idee da Telegram',
+      testo: 'Le idee vengono quando si è in giro: collegando il tuo account Telegram al bot del portale, ogni messaggio che gli scrivi diventa un\'idea qui, con il tuo nome. Il comando /idee mostra le ultime.',
     },
     {
       hash: '#/direttore/impegni',

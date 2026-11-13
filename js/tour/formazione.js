@@ -30,7 +30,7 @@ export function passi() {
     {
       selettore: '.card .tbl-wrap',
       titolo: 'L\'elenco',
-      testo: 'Una riga per preventivo, dal più recente: i corsi che contiene, quanti discenti in tutto e il totale. Clicca la riga per riaprirlo.',
+      testo: 'Una riga per preventivo, dal più recente per data del documento: i corsi che contiene, quanti discenti in tutto e il totale. Se l\'azienda ha già mandato i dati per la fattura, sotto il nome compare «📩 dati di fatturazione ricevuti». Clicca la riga per riaprirlo.',
     },
     {
       selettore: '[data-stato]',
@@ -40,21 +40,21 @@ export function passi() {
     {
       selettore: '[data-copia]',
       titolo: 'Duplicare e rinnovare',
-      testo: 'Il pulsante ⧉ crea una copia come nuova bozza, con la data di oggi. Fra le aziende da ricontattare diventa «Prepara rinnovo»: lo stesso preventivo, pronto da aggiornare e mandare. Il numero di protocollo non viene mai copiato — è il numero di quel documento. Accanto ci sono il Word, la stampa in PDF e l\'eliminazione.',
+      testo: 'Il pulsante ⧉ crea una copia come nuova bozza, con la data di oggi. Fra le aziende da ricontattare diventa «Prepara rinnovo»: lo stesso preventivo, pronto da aggiornare e mandare. Il numero di protocollo non viene mai copiato — è il numero di quel documento. Su un preventivo confermato c\'è anche «📅 Pianifica», che crea i corsi da fissare. Accanto ci sono il Word e la stampa in PDF; l\'eliminazione è riservata agli amministratori.',
     },
     {
       hash: '#/formazione/nuovo',
       selettore: '.page-head .inline',
       titolo: 'Un preventivo nuovo',
-      testo: 'Siamo entrati nella creazione di un preventivo: cinque passi numerati, dall\'alto in basso. Da qui vedi l\'anteprima, scarichi il documento in Word, lo stampi in PDF oppure salvi (anche con Ctrl+S): finché non salvi nulla viene registrato, e accanto al titolo compare «Modifiche non salvate».',
+      testo: 'Siamo entrati nella creazione di un preventivo: sei passi numerati, dall\'alto in basso. Da qui vedi l\'anteprima, scarichi il documento in Word, lo stampi in PDF oppure salvi (anche con Ctrl+S): finché non salvi nulla viene registrato, e accanto al titolo compare «Modifiche non salvate». Quando il preventivo è confermato, qui compare anche «📅 Corsi».',
     },
     {
       selettore: '#cliente',
       titolo: 'A chi va il preventivo',
-      testo: 'Azienda, partita IVA e indirizzo finiscono nell\'intestazione del documento, sotto «Spett.le». Basta iniziare a scrivere il nome: le aziende già in rubrica vengono suggerite, e sceglierne una compila tutto il resto. Con «Salva in rubrica» ci metti quella che hai appena scritto. Il referente diventa la riga «Alla c.a.».',
+      testo: 'Azienda, partita IVA e indirizzo finiscono nell\'intestazione del documento, sotto «Spett.le». Basta iniziare a scrivere il nome: le aziende già in rubrica vengono suggerite, e sceglierne una compila tutto il resto, oppure usa «Scegli dalla rubrica». Con «Salva in rubrica» ci metti quella che hai appena scritto. Il referente diventa la riga «Alla c.a.».',
     },
     {
-      selettore: '.cal-azioni',
+      selettore: '.catalogo-corsi',
       titolo: 'Scegliere i corsi',
       testo: 'Un riquadro per ogni corso del catalogo, con durata e prezzo: un clic e il corso entra nel preventivo, già compilato. Il segno ✓ dice quali hai già scelto. «Corso fuori catalogo» serve per la richiesta una tantum, che scrivi a mano senza sporcare il catalogo.',
     },
@@ -84,6 +84,11 @@ export function passi() {
       testo: 'L\'oggetto lo propone l\'app in base ai corsi che hai scelto («PREVENTIVO CORSI BLSD») e resta riscrivibile: da quando lo tocchi, non viene più sovrascritto. Il protocollo accanto lo compili tu quando serve — la numerazione la tiene il registro del Comitato, non questa app — e allora nel documento compare «Prot. n. …» sopra la data.',
     },
     {
+      selettore: '.df-corpo',
+      titolo: 'I dati per la fattura',
+      testo: 'Il sesto passo: salvato il preventivo, crei un link da mandare all\'azienda, che apre un modulo dove scrive da sé i dati per la fattura elettronica — anche quelli della PA, come codice ufficio, CIG e CUP. Il link compare anche nel documento (PDF e Word) e vale 120 giorni. Quando i dati arrivano, un clic li riporta nel destinatario.',
+    },
+    {
       selettore: '.summary',
       titolo: 'Il conto, in tempo reale',
       testo: 'A destra il riepilogo si aggiorna a ogni modifica: corso per corso con i discenti, la trasferta, gli sconti, l\'IVA e il totale, anche in lettere come richiede il documento. Sotto, «Prima di inviarlo» spunta quello che c\'è e segnala quello che manca — un corso rimasto a 0 €, i discenti ancora da definire — prima che il preventivo esca.',
@@ -97,7 +102,7 @@ export function passi() {
       hash: '#/formazione/corsi',
       selettore: '.grid.stats',
       titolo: 'Il registro dei corsi',
-      testo: 'Quando un preventivo è confermato, «Pianifica i corsi» crea un corso da fissare per ogni sua riga. Qui li ritrovi tutti: quelli ancora senza date, quelli in programma, quelli già passati ma non registrati e quelli svolti. I riquadri sono filtri, come nell\'elenco dei preventivi.',
+      testo: 'Quando un preventivo è confermato, «Pianifica i corsi» crea un corso da fissare per ogni sua riga. Qui li ritrovi tutti: quelli ancora senza date, quelli in programma, quelli già passati ma non registrati e quelli svolti. I riquadri sono filtri, come nell\'elenco dei preventivi. Con «Nuovo corso» ne registri uno anche senza preventivo.',
     },
     {
       selettore: '.toolbar',
@@ -135,7 +140,7 @@ export function passi() {
     {
       selettore: '#testi textarea',
       titolo: 'I testi fissi',
-      testo: 'Premessa, frasi sulla sede, oneri di segreteria, le due righe sull\'IVA, validità dell\'offerta e saluti finali: sono le parti del documento uguali per tutti i preventivi. Si scrivono una volta e valgono da lì in poi — utile quando cambia una formula di legge, perché non serve rifare il sito. Dalla frase sulla validità l\'elenco ricava dopo quanti giorni un\'offerta inviata è scaduta.',
+      testo: 'Premessa, frasi sulla sede, voce della trasferta, oneri di segreteria, le due righe sull\'IVA, validità dell\'offerta e saluti finali: sono le parti del documento uguali per tutti i preventivi. Si scrivono una volta e valgono da lì in poi — utile quando cambia una formula di legge, perché non serve rifare il sito. Dalla frase sulla validità l\'elenco ricava dopo quanti giorni un\'offerta inviata è scaduta.',
     },
     {
       hash: '#/formazione/preventivi',

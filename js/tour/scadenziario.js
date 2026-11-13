@@ -87,15 +87,28 @@ export function passi(ctx) {
       testo: 'Qui vedi quanto c\'è ancora da incassare in totale e quanto hai già incassato questo mese e quest\'anno. Le card "Da incassare" e "Incassato questo mese" sono cliccabili: filtrano subito la tabella su quelle fatture.',
     },
     {
+      selettore: '#tbl-zone',
+      titolo: 'Incassi, solleciti e note',
+      testo: 'Ogni riga parte dal numero della fattura. Clicca sullo stato per registrare un incasso, su «Sollecito» per segnare la data dell\'ultimo sollecito al cliente, e su «Note» per scrivere un appunto sulla fattura senza aprirla. Un clic sul resto della riga apre la fattura intera.',
+    },
+    {
       hash: '#/scadenziario/attive/report',
       selettore: '.nav a[data-nav="report"]',
       titolo: 'Report clienti',
       testo: 'Anche qui trovi un Report con l\'andamento degli incassi per cliente nel tempo.',
     },
+    {
+      hash: '#/scadenziario/attive/clienti',
+      selettore: '.nav a[data-nav="clienti"]',
+      titolo: 'Clienti',
+      testo: admin
+        ? 'Lo stesso cliente a volte è scritto in modi diversi sulle fatture. Qui trovi tutte le grafie dei nomi e unifichi quelle che indicano lo stesso cliente, così report e ricerche li contano insieme.'
+        : 'Lo stesso cliente a volte è scritto in modi diversi sulle fatture. Qui trovi tutte le grafie dei nomi e quelle da unificare: a unificarle è un amministratore.',
+    },
   ];
   if (admin) {
     passi.push({
-      hash: '#/scadenziario/passive/impostazioni',
+      hash: '#/scadenziario/impostazioni',
       selettore: '.page-head h1',
       titolo: 'Impostazioni',
       testo: 'Visibile solo agli amministratori dello scadenziario: da qui imposti la scadenza di default per le fatture senza data e consulti il registro di tutte le modifiche. Gli utenti del portale e i loro permessi si gestiscono invece in «Utenti e autorizzazioni».',

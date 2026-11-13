@@ -9,8 +9,8 @@
 //  quindi si può seguire anche in mezzo al lavoro.
 //
 //  Un passo il cui elemento non compare viene saltato dal motore: è quello
-//  che succede sui passi del registro quando il mese è vuoto, e sui due
-//  passi delle impostazioni per chi è operatore e non admin di sezione.
+//  che succede sui passi del registro quando il mese è vuoto, e sul passo
+//  del riepilogo quando non c'è ancora nessun dipendente.
 // ============================================================
 
 export function passi() {
@@ -33,7 +33,7 @@ export function passi() {
     {
       selettore: '.toolbar',
       titolo: 'Trovare una riga',
-      testo: 'Filtri per dipendente e per tipo, più una ricerca libera su causale, servizio e note. Serve quando a fine mese qualcuno chiede conto di una serata: cerchi il suo nome e vedi solo le sue righe.',
+      testo: 'Filtri per dipendente e per tipo, più una ricerca libera che guarda anche causale, servizio e note. Serve quando a fine mese qualcuno chiede conto di una serata: cerchi il suo nome e vedi solo le sue righe.',
     },
     {
       selettore: '.card .tbl-wrap',
@@ -59,17 +59,17 @@ export function passi() {
     {
       selettore: '#f-data',
       titolo: 'Il giorno',
-      testo: 'Parte da oggi, perché di norma si registra a fine turno. Sotto compare il giorno della settimana, e un avviso se stai indicando una data futura o un sabato o una domenica — non sono errori, ma val la pena accorgersene.',
-    },
-    {
-      selettore: '.form-row.three',
-      titolo: 'Gli orari e le ore',
-      testo: 'Gli orari si scelgono sul quadrante — prima l\'ora, poi i minuti — e le ore si calcolano da sole, mezzanotte compresa: un rientro dalle 22 all\'1 fa tre ore, non meno ventuno. Il numero resta correggibile a mano, perché un arrotondamento concordato a voce vale più del calcolo.',
+      testo: 'Parte da oggi, perché di norma si registra a fine turno. Sotto compare il giorno della settimana, e un avviso se è un sabato, una domenica o un festivo, o se stai indicando una data futura — non sono errori, ma val la pena accorgersene.',
     },
     {
       selettore: '.str-tipi',
       titolo: 'Il tipo decide il segno',
       testo: 'Straordinario e cambio turno sono ore in più; recupero sono ore restituite. Le ore si scrivono sempre positive e il segno lo mette il tipo: sul foglio di carta i recuperi erano numeri negativi in mezzo agli altri, e un meno dimenticato falsava il totale del mese.',
+    },
+    {
+      selettore: '.form-row.three',
+      titolo: 'Gli orari e le ore',
+      testo: 'Gli orari si scelgono sul quadrante — prima l\'ora, poi i minuti — e le ore si calcolano da sole, mezzanotte compresa: un rientro dalle 22 all\'1 fa tre ore, non meno ventuno. Il numero resta correggibile a mano, perché un arrotondamento concordato a voce vale più del calcolo.',
     },
     {
       selettore: '#f-causale',
@@ -91,7 +91,7 @@ export function passi() {
       hash: '#/straordinari/dipendenti',
       selettore: '[data-nuovo]',
       titolo: 'I dipendenti',
-      testo: 'L\'elenco da cui si sceglie chi ha fatto lo straordinario: cognome, nome e un promemoria, nient\'altro. Non è una copia del personale dell\'ente. Accanto a ogni nome c\'è il suo saldo del mese in corso.',
+      testo: 'Con «Nuovo dipendente» si aggiunge un nome all\'elenco da cui si sceglie chi ha fatto lo straordinario: cognome, nome e un promemoria, nient\'altro. Non è una copia del personale dell\'ente. Accanto a ogni nome c\'è il suo saldo del mese in corso.',
     },
     {
       selettore: '.card .tbl-wrap',

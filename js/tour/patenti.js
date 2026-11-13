@@ -13,12 +13,17 @@ export function passi() {
     {
       selettore: '.grid.stats',
       titolo: 'A che punto siamo',
-      testo: 'Quante richieste sono nuove, in lavorazione o completate. Ogni riquadro è anche un filtro.',
+      testo: 'Quante richieste sono nuove, in lavorazione o completate. Se qualcuno ha risposto «No» su un documento di Gaia compare anche «Serve supporto»: è lo stesso numero che si vede accanto a Patenti nel menu, e si spegne quando la richiesta passa «In lavorazione». Ogni riquadro è anche un filtro.',
     },
     {
       selettore: '.toolbar',
       titolo: 'Ritrovare una richiesta',
-      testo: 'Cerca per nome o cognome, o filtra per stato e per patente. «Da gestire» nasconde quelle già completate.',
+      testo: 'Cerca per nome o cognome, o filtra per stato e per patente. «Da gestire» nasconde quelle già completate; «Serve supporto» mostra solo chi ha chiesto aiuto con i documenti.',
+    },
+    {
+      selettore: '.tbl-wrap',
+      titolo: 'Lavorare una richiesta',
+      testo: 'Una riga per richiesta, dalla più recente. «Documenti su Gaia» dice se manca qualcosa; lo stato si cambia dalla tendina della riga, e con ✏️ si scrive una nota della segreteria.',
     },
     {
       hash: '#/patenti/link',
@@ -35,7 +40,12 @@ export function passi() {
       hash: '#/patenti/domande',
       selettore: '.faq-elenco',
       titolo: 'Domande e risposte',
-      testo: 'Requisiti, visita medica, prova pratica, rinnovo e patente digitale, ognuna con l\'articolo del Testo Unico da cui viene. I volontari le trovano anche in fondo al modulo.',
+      testo: 'Requisiti, visita medica, prova pratica, rinnovo e patente digitale, ognuna con la sua fonte: l\'articolo del Testo Unico o la procedura del Comitato. Si cercano per parola. I volontari le trovano in fondo al modulo nei primi passaggi, mentre scelgono che cosa chiedere.',
+    },
+    {
+      selettore: '.tour-fab',
+      titolo: 'Tour completato',
+      testo: 'Puoi rivedere questo tour quando vuoi da questo pulsante.',
     },
   ];
 }

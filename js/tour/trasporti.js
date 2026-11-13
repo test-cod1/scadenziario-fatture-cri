@@ -29,13 +29,13 @@ export function passi() {
     {
       selettore: '.card .tbl-wrap',
       titolo: 'L\'elenco',
-      testo: 'Ogni riga è un preventivo: clicca per riaprirlo e modificarlo. In fondo alla riga i due pulsanti stampano il preventivo in PDF o lo eliminano.',
+      testo: 'Ogni riga è un preventivo: clicca per riaprirlo e modificarlo. In fondo alla riga i pulsanti scaricano il preventivo in Word, lo stampano in PDF o lo eliminano.',
     },
     {
       hash: '#/trasporti/nuovo',
       selettore: '.page-head .inline',
       titolo: 'Un preventivo nuovo',
-      testo: 'Siamo entrati nella creazione di un preventivo. Da qui torni all\'elenco, stampi il documento da consegnare al cliente oppure salvi il lavoro: finché non salvi, nulla viene registrato.',
+      testo: 'Siamo entrati nella creazione di un preventivo. Da qui torni all\'elenco, vedi l\'anteprima, scarichi il documento in Word o lo stampi in PDF, oppure salvi il lavoro: finché non salvi, nulla viene registrato.',
     },
     {
       selettore: '#mezzo',
@@ -89,9 +89,24 @@ export function passi() {
       testo: 'Qui vivono i mezzi con i loro consumi reali: è la base del calcolo del carburante, quindi tenerli aggiornati è ciò che rende affidabili tutti i preventivi.',
     },
     {
+      selettore: '#pastoCosto',
+      titolo: 'I parametri di calcolo',
+      testo: 'Costo del pasto, tariffa al chilometro proposta, pedaggi esteri al chilometro e tariffe orarie di medico e infermiere: sono i valori con cui parte ogni preventivo nuovo. Dentro il singolo preventivo restano tutti modificabili.',
+    },
+    {
       selettore: '#update-eu',
       titolo: 'Prezzi carburante europei',
       testo: 'Per i viaggi all\'estero: un clic scarica il bollettino settimanale della Commissione Europea e aggiorna i prezzi di tutti i Paesi UE in un colpo solo. I valori restano comunque modificabili a mano nella tabella qui sotto.',
+    },
+    {
+      selettore: '#f-ruolo',
+      titolo: 'La firma',
+      testo: 'Ruolo e nome di chi firma: sono le due righe in fondo a ogni preventivo, così non vanno riscritte ogni volta. Lasciando vuoto il nome resta la sola qualifica.',
+    },
+    {
+      selettore: '.card textarea',
+      titolo: 'I testi fissi',
+      testo: 'Premessa, avvertenza, regime IVA e saluti finali: sono le parti del documento uguali per tutti i preventivi. Si scrivono una volta e valgono da lì in poi; la riga dell\'IVA, se lasciata vuota, non compare.',
     },
     {
       hash: '#/trasporti/preventivi',

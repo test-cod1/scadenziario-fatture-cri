@@ -40,7 +40,7 @@ export function passi() {
     {
       selettore: '[data-copia]',
       titolo: 'Duplicare',
-      testo: 'Il pulsante ⧉ crea una copia del preventivo come nuova bozza, con la data di oggi: le assistenze si ripetono, e ricopiare venti campi a mano non ha senso. Accanto ci sono il Word, la stampa in PDF e l\'eliminazione.',
+      testo: 'Il pulsante ⧉ crea una copia del preventivo come nuova bozza, con la data di oggi: le assistenze si ripetono, e ricopiare venti campi a mano non ha senso. Accanto ci sono il Word e la stampa in PDF; l\'eliminazione, che non si può annullare, è riservata agli amministratori.',
     },
     {
       hash: '#/assistenze/nuovo',
@@ -84,9 +84,14 @@ export function passi() {
       testo: 'Facoltativo e utilizzabile in due modi anche insieme: una percentuale sul totale e un importo fisso da togliere. Nel documento compaiono il totale pieno, gli sconti applicati e il totale da corrispondere.',
     },
     {
+      selettore: '.df-corpo',
+      titolo: 'I dati per la fattura',
+      testo: 'In fondo alla pagina, una volta salvato il preventivo, crei un link da mandare al cliente: apre un modulo dove scrive da sé ragione sociale, partita IVA, codice destinatario o PEC. Il link compare anche nel documento (PDF e Word), prima dei saluti, e vale 120 giorni. Quando il cliente ha risposto, un clic riporta i suoi dati nel destinatario.',
+    },
+    {
       selettore: '.summary',
       titolo: 'Il conto, in tempo reale',
-      testo: 'A destra il riepilogo si aggiorna a ogni modifica: il dettaglio voce per voce con le ore complessive, gli eventuali sconti e il totale del preventivo, anche in lettere come richiede il documento.',
+      testo: 'A destra il riepilogo si aggiorna a ogni modifica: il dettaglio voce per voce (le ore per le voci a ore, la quantità per quelle a prezzo fisso), gli eventuali sconti e il totale del preventivo, anche in lettere come richiede il documento. Se una voce è rimasta a 0 €, sotto compare un avviso.',
     },
     {
       selettore: '#btn-word',
