@@ -286,8 +286,9 @@ if (piano.daInserire.length) {
   for (let i = 0; i < piano.daInserire.length; i += BLOCCO) {
     const pezzo = piano.daInserire.slice(i, i + BLOCCO).map(r => ({
       cliente: r.cliente, numero_fattura: r.numero, data_fattura: r.data,
+      // Niente note: sono di chi usa lo scadenziario, che le scrive dalla
+      // colonna "Note". La provenienza resta nel registro modifiche.
       importo: r.importo, stato: 'da_incassare',
-      note: `[Registro fatture attive del ${data_it(oggi.toISOString().slice(0, 10))}]`,
     }));
     try {
       await chiedi('fatture_attive', { method: 'POST', headers: { Prefer: 'return=minimal' }, body: JSON.stringify(pezzo) });
