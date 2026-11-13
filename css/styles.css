@@ -121,6 +121,10 @@ details.card[open]>summary .archivio-freccia{transform:rotate(90deg)}
 .nota-cella{max-width:220px}
 .nota-testo{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px;color:var(--ink-soft);cursor:pointer}
 .nota-testo:hover{color:var(--ink)}
+/* Scadenziario attivo: "N." è la prima colonna e resta stretta; i chip di
+   Sollecito e Note non vanno a capo ("— nessuno", "+ nota" su una riga). */
+.tbl-attive .num-col{width:1%;white-space:nowrap}
+.tbl-attive .chip{white-space:nowrap}
 .chip.red{background:var(--cri-red-soft);color:var(--cri-red-dark);border-color:transparent}
 .chip.ok{background:var(--ok-soft);color:var(--ok);border-color:transparent}
 .chip.warn{background:var(--warn-soft);color:var(--warn);border-color:transparent}
@@ -342,6 +346,10 @@ tr.scaduta:hover td{background:#fbdcdd}
      nasconderebbe dati sbagliati.*/
   .tbl-fatture th:nth-child(2),.tbl-fatture td:nth-child(2),
   .tbl-fatture th:nth-child(3),.tbl-fatture td:nth-child(3){display:none}
+  /* Nello scadenziario attivo il numero è la prima colonna e il cliente la
+     seconda: si nasconde il numero e si rimette in vista il cliente. */
+  .tbl-attive th:nth-child(1),.tbl-attive td:nth-child(1){display:none}
+  .tbl-attive th:nth-child(2),.tbl-attive td:nth-child(2){display:table-cell}
 
   /* Pulsanti del footer di modali/editor: se non ci stanno su una riga,
      vanno impilati a piena larghezza invece di restare compressi o uscire

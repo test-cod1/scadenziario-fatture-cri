@@ -375,15 +375,17 @@ function renderAlertAttive(node, tutte, giorniAllerta) {
 function renderTable(node, righe, ctx, ricarica, sort, onSort) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura trovata con questi filtri.</p></div>`)); return; }
-  const table = el(`<table class="tbl tbl-fatture"><thead><tr>
-    ${thOrdinabile('Cliente', 'cliente', sort)}${thOrdinabile('N. Fattura', 'numero', sort)}${thOrdinabile('Data', 'data', sort)}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}${thOrdinabile('Sollecito', 'sollecito', sort)}${thOrdinabile('Note', 'note', sort)}<th></th>
+  // Il numero sta in testa e si intitola solo "N.": è una colonna stretta,
+  // e lo spazio recuperato va alla colonna Note.
+  const table = el(`<table class="tbl tbl-fatture tbl-attive"><thead><tr>
+    ${thOrdinabile('N.', 'numero', sort)}${thOrdinabile('Cliente', 'cliente', sort)}${thOrdinabile('Data', 'data', sort)}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}${thOrdinabile('Sollecito', 'sollecito', sort)}${thOrdinabile('Note', 'note', sort)}<th></th>
   </tr></thead><tbody></tbody></table>`);
   collegaOrdinamento(table, onSort);
   const tbody = table.querySelector('tbody');
   for (const f of ordinaRighe(righe, sort, COLONNE)) {
     const tr = el(`<tr>
+      <td class="num-col">${esc(f.numero_fattura || '—')}</td>
       <td>${esc(f.cliente)}</td>
-      <td>${esc(f.numero_fattura || '—')}</td>
       <td>${fmtDate(f.data_fattura)}</td>
       <td class="money money-col">${fmtEuro(f.importo)}</td>
       <td>
