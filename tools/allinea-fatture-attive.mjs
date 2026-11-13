@@ -286,8 +286,8 @@ if (piano.daInserire.length) {
   for (let i = 0; i < piano.daInserire.length; i += BLOCCO) {
     const pezzo = piano.daInserire.slice(i, i + BLOCCO).map(r => ({
       cliente: r.cliente, numero_fattura: r.numero, data_fattura: r.data,
-      // Niente note: sono di chi usa lo scadenziario, che le scrive dalla
-      // colonna "Note". La provenienza resta nel registro modifiche.
+      // Niente note, qui e negli incassi più sotto: sono di chi usa lo
+      // scadenziario. La provenienza resta nel registro modifiche.
       importo: r.importo, stato: 'da_incassare',
     }));
     try {
@@ -319,7 +319,6 @@ if (piano.daIncassare.length) {
       fattura_attiva_id: f.id,
       importo: Number(f.importo),
       data_incasso: r.incassata,
-      note: `[Registro fatture attive del ${data_it(oggi.toISOString().slice(0, 10))}]`,
     });
   }
   const BLOCCO = 100;
