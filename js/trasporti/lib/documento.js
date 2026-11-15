@@ -97,8 +97,12 @@ export function costruisciBlocchi(prev, imp) {
     ['Data del servizio', prev.data_servizio ? fmtData(prev.data_servizio) : 'da concordare'],
     ['Percorrenza', `${num(inp.kmTotali, 1)} km ${andataRitorno ? '(andata e ritorno)' : '(sola andata)'}`],
     ['Mezzo impiegato', mezzo?.nome || inp.mezzoId || '—'],
-    ['Equipaggio', `${num(inp.persone)} ${Number(inp.persone) === 1 ? 'persona' : 'persone'}`],
   ];
+  // Senza persone indicate la riga non si stampa: «Equipaggio: 0 persone» su
+  // un preventivo mandato al cliente è solo un errore in vista.
+  if (Number(inp.persone) > 0) {
+    datiServizio.push(['Equipaggio', `${num(inp.persone)} ${Number(inp.persone) === 1 ? 'persona' : 'persone'}`]);
+  }
   if (inp.pernottamentoOn && Number(inp.notti) > 0) {
     datiServizio.push(['Pernottamento', `${num(inp.notti)} ${Number(inp.notti) === 1 ? 'notte' : 'notti'}`]);
   }

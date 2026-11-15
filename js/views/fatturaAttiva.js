@@ -90,9 +90,17 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
     const hint = body.querySelector('#upload-hint');
     const status = body.querySelector('#upload-status');
     clear(status);
+    impostaNotaCredito(null);
     hint.textContent = 'Lettura in corso…';
     try {
       const estratti = await estraiCampiDaFile(file);
+      // Vedi il commento gemello in fattura.js: una nota di credito non si
+      // compila come fattura da incassare.
+      if (estratti.nota_credito) {
+        hint.textContent = '';
+        impostaNotaCredito(estratti);
+        return;
+      }
       if (estratti.cliente) body.querySelector('#f-cliente').value = estratti.cliente;
       if (estratti.numero_fattura) body.querySelector('#f-numero').value = estratti.numero_fattura;
       if (estratti.data_fattura) body.querySelector('#f-data').value = estratti.data_fattura;
@@ -106,6 +114,35 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
       status.appendChild(bannerErroreLettura(err.message));
     }
   });
+
+  // Nota di credito letta dal file (vedi la gemella in fattura.js).
+  let notaCreditoLetta = null;
+  function impostaNotaCredito(estratti) {
+    notaCreditoLetta = estratti;
+    const salva = footer.querySelector('#save');
+    salva.disabled = !!estratti;
+    salva.title = estratti ? 'Una nota di credito non si registra come fattura' : '';
+    if (!estratti) return;
+    const banner = el(`<div class="banner warn" style="margin-top:10px"><div class="bi">↩️</div><div>
+      <b>Questo documento è una nota di credito${estratti.tipo_documento ? ` (${esc(estratti.tipo_documento)})` : ''}</b>
+      <div class="small">Non va registrato come fattura da incassare: si registra come storno della fattura a cui si riferisce${estratti.riferimento ? ` (n. ${esc(estratti.riferimento)})` : ''}.</div>
+      <button type="button" class="btn primary sm" style="margin-top:8px">↩️ Registra come nota di credito</button>
+    </div></div>`);
+    banner.querySelector('button').addEventListener('click', () => {
+      close();
+      apriNuovaNotaCreditoAttiva(ctx, onSaved, null, {
+        numero: estratti.numero_fattura,
+        data: estratti.data_fattura,
+        note: [estratti.cliente, estratti.importo != null ? `totale ${testoDecimale(estratti.importo)} €` : ''].filter(Boolean).join(' · '),
+        cerca: estratti.riferimento || estratti.cliente || '',
+        collegate: estratti.collegate,
+        partita_iva: estratti.partita_iva,
+        nome: estratti.cliente,
+        importo: estratti.importo,
+      });
+    });
+    body.querySelector('#upload-status').appendChild(banner);
+  }
 
   function mostraAnteprima(file) {
     const col = body.querySelector('#preview-col');
@@ -138,6 +175,7 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
     catch (e) { toast('Errore: ' + e.message, 'err'); }
   });
   footer.querySelector('#save').addEventListener('click', async () => {
+    if (notaCreditoLetta) return;
     const err = body.querySelector('#err'); err.textContent = '';
     const payload = {
       id: id || undefined,

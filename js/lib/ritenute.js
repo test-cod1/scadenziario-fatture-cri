@@ -168,7 +168,10 @@ export function riepilogoMesi(fatture, versamenti, oggi) {
 //  Ritorna l'importo, o null se le note non ne indicano uno chiaro.
 // ------------------------------------------------------------
 export function ritenutaDaNote(note) {
-  const m = String(note || '').match(/ritenuta(?:\s+d['’]\s*acconto)?\s*(?:di|pari a|:)?\s*(?:€|eur(?:o)?)?\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)\s*(?:€|eur)?/i);
+  // Il numero deve finire lì: senza `(?![.,]?\d)` la prima alternativa si
+  // accontentava delle prime cifre e "1200.00€" (come lo scrive l'XML)
+  // diventava 120, "250.50€" diventava 250.
+  const m = String(note || '').match(/ritenuta(?:\s+d['’]\s*acconto)?\s*(?:di|pari a|:)?\s*(?:€|eur(?:o)?)?\s*(\d{1,3}(?:[.\s]\d{3})*(?:,\d{1,2})?|\d+(?:[.,]\d{1,2})?)(?![.,]?\d)\s*(?:€|eur)?/i);
   if (!m) return null;
   let t = m[1].replace(/\s/g, '');
   // "1.234,56" all'italiana, oppure "1234.56" come lo scrive l'XML

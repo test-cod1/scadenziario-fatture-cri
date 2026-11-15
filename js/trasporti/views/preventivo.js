@@ -111,15 +111,21 @@ export async function renderPreventivo(view, id, ctx) {
         <div class="hint" id="carb-hint"></div>
       </div>
     </div>
+    <div class="form-row three">
+      <!-- Sempre visibile: serve al documento (riga «Equipaggio») e al
+           pernottamento a persona, non solo ai pasti. Stava nella card dei
+           pasti, nascosta finché i pasti erano spenti (il default). -->
+      <div class="field"><label>Persone in squadra</label><input type="number" min="0" id="persone" value="${esc(prev.input.persone ?? '')}"></div>
+    </div>
     <div id="itin-dynamic"></div>`, { collapsible: false });
   main.appendChild(cItin);
   const itinBody = cItin.querySelector('#itin-dynamic');
   renderItinerario();
 
-  // ================= SEZIONE 3: EQUIPAGGIO E PASTI =================
-  const cEq = card('Equipaggio e pasti', `
+  // ================= SEZIONE 3: PASTI =================
+  // Le persone in squadra stanno nella card del percorso, sempre visibile.
+  const cEq = card('Pasti', `
     <div class="form-row three">
-      <div class="field"><label>Persone in squadra</label><input type="number" min="0" id="persone" value="${esc(prev.input.persone ?? '')}"></div>
       <div class="field"><label>Pasti a persona</label><input type="number" min="0" id="pastiPersona" value="${esc(prev.input.pastiPersona ?? '')}"></div>
       <div class="field"><label>Costo a pasto (€)</label><input ${CAMPO_DECIMALE} id="pastoCosto" value="${testoDecimale(prev.input.pastoCosto)}"></div>
     </div>`);

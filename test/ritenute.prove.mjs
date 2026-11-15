@@ -93,6 +93,16 @@ prova('ritenuta letta dalle note scritte dall’XML o a mano', () => {
   uguale(ritenutaDaNote(null), null);
 });
 
+prova('ritenuta dalle note: il numero si legge per intero, non solo le prime cifre', () => {
+  uguale(ritenutaDaNote("meno ritenuta d'acconto 1200.00€: importo da pagare 4800.00€."), 1200);
+  uguale(ritenutaDaNote("ritenuta d'acconto 1234.56€"), 1234.56);
+  uguale(ritenutaDaNote("ritenuta d'acconto 250.50€"), 250.5);
+  uguale(ritenutaDaNote("ritenuta d'acconto 153.85€"), 153.85);
+  uguale(ritenutaDaNote('ritenuta di 1.234 euro'), 1234);
+  uguale(ritenutaDaNote('ritenuta 1.23 euro'), 1.23);
+  uguale(ritenutaDaNote('ritenuta 40.'), 40);
+});
+
 prova('nomi e date dei mesi', () => {
   uguale(nomeMese('2026-05'), 'maggio 2026');
   uguale(primoDelMese('2026-05'), '2026-05-01');

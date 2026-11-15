@@ -124,6 +124,16 @@ prova('NON mostra al cliente la spesa viva né il margine', async () => {
   falso(/margine/i.test(t));
 });
 
+prova('equipaggio: la riga c’è con le persone indicate, sparisce senza', async () => {
+  const { htmlPreventivo } = await mod('/js/trasporti/lib/stampa.js');
+  const { DEFAULT_IMPOSTAZIONI } = await mod('/js/trasporti/calc.js');
+  const con = soloTesto(await htmlPreventivo(tPrev, DEFAULT_IMPOSTAZIONI));
+  vero(/Equipaggio\s*3 persone/.test(con), 'con 3 persone la riga si stampa');
+  const senza = { ...tPrev, input: { ...tPrev.input, persone: '', pastiOn: false } };
+  const t = soloTesto(await htmlPreventivo(senza, DEFAULT_IMPOSTAZIONI));
+  falso(/Equipaggio/.test(t), '«Equipaggio: 0 persone» non deve arrivare al cliente');
+});
+
 prova('il carburante non è una voce a sé (è dentro la tariffa al km)', async () => {
   const { htmlPreventivo } = await mod('/js/trasporti/lib/stampa.js');
   const { DEFAULT_IMPOSTAZIONI, calcola } = await mod('/js/trasporti/calc.js');

@@ -9,7 +9,8 @@
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
 import { generaPassword, ALFABETO_PASSWORD } from '../functions/api/crea-utente.js';
-import { LIMITI } from '../functions/_lib/quota.js';
+import { LIMITI, consumaQuota } from '../functions/_lib/quota.js';
+import { intestazioneUtente } from '../functions/_lib/auth.js';
 import { HEADER_SICUREZZA } from '../js/lib/securityHeaders.mjs';
 
 gruppo('Sicurezza — password provvisoria');
@@ -80,4 +81,50 @@ prova('le intestazioni di sicurezza dicono le cose che devono dire', () => {
   vero(!/unsafe-eval/.test(csp), 'unsafe-eval nella CSP');
   vero(/frame-ancestors 'none'/.test(csp), 'manca frame-ancestors: la pagina sarebbe incorniciabile');
   uguale(h['X-Content-Type-Options'], 'nosniff');
+});
+
+gruppo('Sicurezza — tetto giornaliero degli endpoint');
+
+// fetch finto: registra le intestazioni mandate al contatore e risponde come
+// gli si dice (un numero, oppure un errore HTTP).
+async function conFetchFinto(risposta, fn) {
+  const originale = globalThis.fetch;
+  const viste = [];
+  globalThis.fetch = async (url, opzioni = {}) => {
+    viste.push(opzioni.headers || {});
+    return risposta();
+  };
+  try { return { esito: await fn(), viste }; } finally { globalThis.fetch = originale; }
+}
+const richiesta = (auth) => new Request('https://esempio.test/api/x', { method: 'POST', headers: auth ? { Authorization: auth } : {} });
+
+prova('il token arriva al contatore sempre come «Bearer …», anche se il client lo manda nudo', async () => {
+  uguale(intestazioneUtente(richiesta('abc.def.ghi')), 'Bearer abc.def.ghi');
+  uguale(intestazioneUtente(richiesta('bearer   abc.def.ghi ')), 'Bearer abc.def.ghi');
+  uguale(intestazioneUtente(richiesta(null)), '');
+  const { viste } = await conFetchFinto(() => new Response('3', { status: 200 }),
+    () => consumaQuota(richiesta('abc.def.ghi'), {}, 'promemoria-prova'));
+  uguale(viste[0].Authorization, 'Bearer abc.def.ghi', 'senza «Bearer» PostgREST la vedeva anonima e il tetto saltava');
+});
+
+prova('oltre il tetto si ferma, sotto si passa', async () => {
+  const sopra = await conFetchFinto(() => new Response(String(LIMITI['promemoria-prova'] + 1)),
+    () => consumaQuota(richiesta('Bearer t'), {}, 'promemoria-prova'));
+  uguale(sopra.esito.ok, false);
+  const sotto = await conFetchFinto(() => new Response('1'),
+    () => consumaQuota(richiesta('Bearer t'), {}, 'promemoria-prova'));
+  uguale(sotto.esito.ok, true);
+});
+
+prova('email di prova: se il contatore non risponde si blocca, le altre funzioni passano', async () => {
+  const avviso = console.warn; console.warn = () => {};
+  try {
+    const email = await conFetchFinto(() => new Response('{}', { status: 401 }),
+      () => consumaQuota(richiesta('Bearer t'), {}, 'promemoria-prova', { bloccaSeNonRisponde: true }));
+    uguale(email.esito.ok, false);
+    uguale(email.esito.nonDisponibile, true);
+    const ai = await conFetchFinto(() => { throw new Error('rete giù'); },
+      () => consumaQuota(richiesta('Bearer t'), {}, 'estrai-fattura'));
+    uguale(ai.esito.ok, true, 'la lettura delle fatture non si ferma per un contatore che manca');
+  } finally { console.warn = avviso; }
 });

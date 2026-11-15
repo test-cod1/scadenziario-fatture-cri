@@ -22,7 +22,7 @@
 //  danno peggiore del rischio che il tetto evita.
 // ============================================================
 
-import { SUPABASE_URL, SUPABASE_ANON_KEY } from './auth.js';
+import { SUPABASE_URL, SUPABASE_ANON_KEY, intestazioneUtente } from './auth.js';
 
 // Quante chiamate al giorno per persona. Sono generosi rispetto all'uso
 // normale (qualche decina di fatture al giorno nei giorni di punta, un
@@ -40,12 +40,22 @@ export const LIMITI = {
 
 // Restituisce { ok: true } se la chiamata può procedere, altrimenti
 // { ok: false, conteggio, limite } — chi la chiama risponde 429.
-export async function consumaQuota(request, env, endpoint) {
+//
+// `bloccaSeNonRisponde`: per le email il «se il contatore non risponde si
+// lascia passare» (vedi il commento in testa) è il rischio sbagliato da
+// correre — una email di prova in meno non ferma il lavoro di nessuno, una
+// quota del servizio email esaurita fa saltare i promemoria di tutti. In quel
+// caso torna { ok: false, nonDisponibile: true }.
+export async function consumaQuota(request, env, endpoint, { bloccaSeNonRisponde = false } = {}) {
   const limite = LIMITI[endpoint];
   if (!limite) return { ok: true };
 
   const url = (env && env.SUPABASE_URL) || SUPABASE_URL;
   const anonKey = (env && env.SUPABASE_ANON_KEY) || SUPABASE_ANON_KEY;
+  const nonRisponde = (motivo) => {
+    console.warn(`[quota] contatore di ${endpoint} non disponibile (${motivo}): ${bloccaSeNonRisponde ? 'richiesta bloccata' : 'si lascia passare'}`);
+    return bloccaSeNonRisponde ? { ok: false, nonDisponibile: true } : { ok: true };
+  };
 
   let conteggio;
   try {
@@ -53,20 +63,20 @@ export async function consumaQuota(request, env, endpoint) {
       method: 'POST',
       headers: {
         apikey: anonKey,
-        Authorization: request.headers.get('Authorization') || '',
+        Authorization: intestazioneUtente(request),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ p_endpoint: endpoint }),
     });
     // Patch non ancora eseguita (404 sulla funzione) o database
     // momentaneamente irraggiungibile: si passa. Vedi il commento in testa.
-    if (!res.ok) return { ok: true };
+    if (!res.ok) return nonRisponde(`HTTP ${res.status}`);
     conteggio = Number(await res.json());
-  } catch {
-    return { ok: true };
+  } catch (e) {
+    return nonRisponde(e?.message || 'errore di rete');
   }
 
-  if (!Number.isFinite(conteggio)) return { ok: true };
+  if (!Number.isFinite(conteggio)) return nonRisponde('risposta non numerica');
   if (conteggio > limite) return { ok: false, conteggio, limite };
   return { ok: true };
 }

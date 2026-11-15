@@ -193,9 +193,18 @@ export async function apriEditor(id, ctx, onSaved) {
     const hint = body.querySelector('#upload-hint');
     const status = body.querySelector('#upload-status');
     clear(status);
+    impostaNotaCredito(null);
     hint.textContent = 'Lettura in corso…';
     try {
       const estratti = await estraiCampiDaFile(file);
+      // Un TD04/TD08 è uno storno, non un debito: come nel caricamento
+      // multiplo (vedi mostraComeNotaCredito in apriUpload), qui non si
+      // compila la fattura ma si propone la registrazione della nota.
+      if (estratti.nota_credito) {
+        hint.textContent = '';
+        impostaNotaCredito(estratti);
+        return;
+      }
       if (estratti.fornitore) body.querySelector('#f-fornitore').value = estratti.fornitore;
       if (estratti.numero_fattura) body.querySelector('#f-numero').value = estratti.numero_fattura;
       if (estratti.data_fattura) body.querySelector('#f-data').value = estratti.data_fattura;
@@ -211,6 +220,37 @@ export async function apriEditor(id, ctx, onSaved) {
       status.appendChild(bannerErroreLettura(err.message));
     }
   });
+
+  // Nota di credito letta dal file: il Salva come fattura si spegne e al suo
+  // posto c'è il pulsante che apre la registrazione dello storno, già
+  // compilata. `null` torna allo stato normale (si è scelto un altro file).
+  let notaCreditoLetta = null;
+  function impostaNotaCredito(estratti) {
+    notaCreditoLetta = estratti;
+    const salva = footer.querySelector('#save');
+    salva.disabled = !!estratti;
+    salva.title = estratti ? 'Una nota di credito non si registra come fattura' : '';
+    if (!estratti) return;
+    const banner = el(`<div class="banner warn" style="margin-top:10px"><div class="bi">↩️</div><div>
+      <b>Questo documento è una nota di credito${estratti.tipo_documento ? ` (${esc(estratti.tipo_documento)})` : ''}</b>
+      <div class="small">Non va registrato come fattura da pagare: si registra come storno della fattura a cui si riferisce${estratti.riferimento ? ` (n. ${esc(estratti.riferimento)})` : ''}.</div>
+      <button type="button" class="btn primary sm" style="margin-top:8px">↩️ Registra come nota di credito</button>
+    </div></div>`);
+    banner.querySelector('button').addEventListener('click', () => {
+      close();
+      apriNuovaNotaCredito(ctx, onSaved, null, {
+        numero: estratti.numero_fattura,
+        data: estratti.data_fattura,
+        note: [estratti.fornitore, estratti.importo != null ? `totale ${testoDecimale(estratti.importo)} €` : ''].filter(Boolean).join(' · '),
+        cerca: estratti.riferimento || estratti.fornitore || '',
+        collegate: estratti.collegate,
+        partita_iva: estratti.partita_iva,
+        nome: estratti.fornitore,
+        importo: estratti.importo,
+      });
+    });
+    body.querySelector('#upload-status').appendChild(banner);
+  }
 
   // L'anteprima resta solo lato client (URL.createObjectURL): il file non
   // viene mai inviato altrove né conservato, serve solo per il confronto
@@ -246,6 +286,7 @@ export async function apriEditor(id, ctx, onSaved) {
     catch (e) { toast('Errore: ' + e.message, 'err'); }
   });
   footer.querySelector('#save').addEventListener('click', async () => {
+    if (notaCreditoLetta) return;
     const err = body.querySelector('#err'); err.textContent = '';
     const payload = {
       id: id || undefined,

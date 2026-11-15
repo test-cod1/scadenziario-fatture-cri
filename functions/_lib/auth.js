@@ -18,6 +18,17 @@
 export const SUPABASE_URL = 'https://xmfqozojjplccnnttwxu.supabase.co';
 export const SUPABASE_ANON_KEY = 'sb_publishable_Cm8yAHlD3TZSjW0fW53_fw_OmfeWJT3';
 
+// Il token dell'utente, sempre nella forma «Bearer <token>» ('' se manca).
+// requireUser accetta l'intestazione anche senza «Bearer »: se le altre
+// chiamate la inoltrassero così com'è, PostgREST la tratterebbe come
+// anonima. Per ruolo_sezione voleva dire solo «nessun accesso», ma per
+// consuma_quota il contatore non rispondeva e il tetto saltava (così si
+// mandavano email di prova senza limite). Una sola forma per tutti.
+export function intestazioneUtente(request) {
+  const token = (request.headers.get('Authorization') || '').replace(/^Bearer\s+/i, '').trim();
+  return token ? `Bearer ${token}` : '';
+}
+
 // Ruolo dell'utente autenticato in una sezione del portale ('admin',
 // 'operatore' oppure null se non vi ha accesso). Si appoggia alla funzione
 // ruolo_sezione() del database — la stessa che governa le RLS — chiamata con
@@ -31,7 +42,7 @@ export async function ruoloSezione(request, env, sezione) {
       method: 'POST',
       headers: {
         apikey: anonKey,
-        Authorization: request.headers.get('Authorization') || '',
+        Authorization: intestazioneUtente(request),
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({ p_sezione: sezione }),
@@ -53,7 +64,7 @@ export async function ruoloUtente(request, env, userId) {
   const anonKey = (env && env.SUPABASE_ANON_KEY) || SUPABASE_ANON_KEY;
   try {
     const res = await fetch(`${url}/rest/v1/profili?id=eq.${userId}&select=ruolo`, {
-      headers: { apikey: anonKey, Authorization: request.headers.get('Authorization') || '' },
+      headers: { apikey: anonKey, Authorization: intestazioneUtente(request) },
     });
     if (!res.ok) return null;
     const data = await res.json();

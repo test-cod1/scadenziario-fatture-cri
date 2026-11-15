@@ -49,7 +49,8 @@ export async function onRequestPost(context) {
     // funzione consuma_quota non lo registra), quindi va fermato qui.
     if (!accessi.size) return json({ error: 'Il tuo account non ha accesso a nessuna sezione che manda promemoria.' }, 403);
     if (!profilo?.email) return json({ error: 'Profilo senza email.' }, 400);
-    const quota = await consumaQuota(request, env, 'promemoria-prova');
+    const quota = await consumaQuota(request, env, 'promemoria-prova', { bloccaSeNonRisponde: true });
+    if (quota.nonDisponibile) return json({ error: 'Invio di prova non disponibile in questo momento: riprova tra qualche minuto.' }, 503);
     if (!quota.ok) return json(errore429('promemoria-prova', quota), 429);
     const dati = await leggiDati(base, key, {
       passive: accessi.has('scadenziario') && pref.fatture_passive,

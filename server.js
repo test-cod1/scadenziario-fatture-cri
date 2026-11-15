@@ -53,8 +53,31 @@ const NON_SERVIBILI = new Set([
     .map(r => r.replace(/\/$/, '')),
 ].map(v => v.toLowerCase()));
 function nonServibile(relativo) {
-  const primoPezzo = relativo.split(path.sep)[0].toLowerCase();
-  return NON_SERVIBILI.has(primoPezzo) || primoPezzo.startsWith('.');
+  const pezzi = relativo.split(path.sep).map(s => s.toLowerCase());
+  return NON_SERVIBILI.has(pezzi[0])
+    // Nessun file o cartella nascosta, a qualunque livello.
+    || pezzi.some(s => s.startsWith('.'))
+    // Nomi corti 8.3 di Windows: "/DEV~1.VAR" apriva .dev.vars (e
+    // "/CLAUDE~1/…" la cartella .claude) scavalcando il confronto sul nome.
+    // Nessun file del sito ha una tilde nel nome.
+    || pezzi.some(s => s.includes('~'));
+}
+
+// Percorso vero del file sul disco, con i nomi lunghi: è su questo che si
+// ripete il controllo, così nessun altro alias (nomi corti, maiuscole,
+// collegamenti) può portare a un file escluso. null se il file non c'è.
+function percorsoReale(file) {
+  try { return fs.realpathSync.native(file); } catch { return null; }
+}
+
+// Con l'ascolto solo su questo computer (il default) si risponde solo a chi
+// chiama il server col suo nome locale: una pagina web qualunque che facesse
+// puntare un suo dominio a 127.0.0.1 (DNS rebinding) non può leggere i file.
+const HOST_LOCALI = new Set(['localhost', '127.0.0.1', '[::1]']);
+function hostAmmesso(intestazione) {
+  if (HOST !== '127.0.0.1') return true;
+  const nome = String(intestazione || '').replace(/:\d+$/, '').toLowerCase();
+  return HOST_LOCALI.has(nome);
 }
 
 const TYPES = {
@@ -66,6 +89,7 @@ const TYPES = {
 };
 
 const server = http.createServer(async (req, res) => {
+  if (!hostAmmesso(req.headers.host)) { res.writeHead(403, { 'Content-Type': 'text/plain' }); return res.end('Forbidden'); }
   const u = new URL(req.url, `http://${req.headers.host}`);
 
   if (u.pathname.startsWith('/api/')) return apiFunction(req, res, u.pathname);
@@ -83,7 +107,13 @@ const server = http.createServer(async (req, res) => {
   // dagli asset serviti dal Worker: in locale mancava, e `GET /.dev.vars`
   // restituiva in chiaro la chiave Gemini e la service_role key di Supabase.
   if (nonServibile(path.relative(ROOT, file))) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
-  fs.readFile(file, (err, data) => {
+  const reale = percorsoReale(file);
+  const radiceReale = percorsoReale(ROOT);
+  if (!reale || !radiceReale || !reale.startsWith(radiceReale + path.sep)
+      || nonServibile(path.relative(radiceReale, reale))) {
+    res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found');
+  }
+  fs.readFile(reale, (err, data) => {
     if (err) { res.writeHead(404, { 'Content-Type': 'text/plain' }); return res.end('Not found'); }
     res.writeHead(200, Object.assign({
       'Content-Type': TYPES[path.extname(file)] || 'application/octet-stream',
