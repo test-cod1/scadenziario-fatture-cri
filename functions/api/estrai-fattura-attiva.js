@@ -11,6 +11,7 @@
 import { requireUser, ruoloSezione } from '../_lib/auth.js';
 import { consumaQuota, errore429 } from '../_lib/quota.js';
 import { MODELLO_GEMINI } from '../_lib/gemini.mjs';
+import { normalizzaPartitaIva } from '../../js/lib/xmlFattura.js';
 
 const SCHEMA = {
   type: 'OBJECT',
@@ -85,17 +86,33 @@ export async function onRequestPost(context) {
   }
   if (!res.ok) {
     if (res.status === 429) return json({ error: 'Quota gratuita giornaliera di Gemini esaurita: riprova più tardi.' }, 429);
-    let msg = `Estrazione non riuscita (${res.status}).`;
-    try { const e = await res.json(); msg = e?.error?.message || msg; } catch {}
-    return json({ error: msg }, res.status);
+    // Il testo di Gemini va nei log, non al browser, e il suo codice non
+    // diventa il nostro: un 403 della NOSTRA chiave arrivava al portale come
+    // «non autorizzato». Distinto resta solo il file che Gemini non sa
+    // leggere (400), perché lì chi carica può fare qualcosa.
+    let dettaglio = '';
+    try { const e = await res.json(); dettaglio = e?.error?.message || ''; } catch {}
+    console.error(`[estrai-fattura] Gemini ${res.status}: ${String(dettaglio).slice(0, 300)}`);
+    if (res.status === 400) return json({ error: 'Il documento non si è potuto leggere: prova con un altro file o compila i campi a mano.' }, 422);
+    return json({ error: 'Lettura automatica non disponibile in questo momento: riprova tra poco o compila i campi a mano.' }, 502);
   }
 
-  const data = await res.json();
+  let data;
+  try { data = await res.json(); }
+  catch { return json({ error: 'Risposta AI non interpretabile.' }, 502); }
   const text = data?.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) return json({ error: 'Risposta AI vuota: il documento potrebbe non essere leggibile.' }, 502);
 
   let estratti;
   try { estratti = JSON.parse(text); } catch { return json({ error: 'Risposta AI non interpretabile.' }, 502); }
+
+  // La partita IVA nella stessa forma di quella letta dall'XML (IT + 11 cifre,
+  // senza spazi): l'AI la restituisce a volte senza paese o con gli spazi, e
+  // il confronto per stringa la faceva sembrare un altro soggetto (Report,
+  // controllo dei doppioni, abbinamento delle note di credito).
+  if (estratti && typeof estratti === 'object' && 'partita_iva' in estratti) {
+    estratti.partita_iva = normalizzaPartitaIva(estratti.partita_iva);
+  }
 
   return json({ estratti });
 }

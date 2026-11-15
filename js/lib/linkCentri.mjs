@@ -57,3 +57,29 @@ export function nuovoCodiceLink(nome) {
   const n = nomeNelLink(nome);
   return n ? `${n}-${casuale()}` : casuale();
 }
+
+// ------------------------------------------------------------
+//  Scadenza del link (link_scade_il, patch 2026-11-15)
+//  Un link mandato a un revisore o al referente di una convenzione serve per
+//  un periodo, non per sempre: quando la si sceglie, il link vale fino a
+//  quel giorno compreso. Le durate proposte, in mesi (0 = senza scadenza).
+// ------------------------------------------------------------
+export const DURATE_LINK = [
+  { mesi: 1, etichetta: '1 mese' },
+  { mesi: 3, etichetta: '3 mesi' },
+  { mesi: 6, etichetta: '6 mesi' },
+  { mesi: 12, etichetta: '1 anno' },
+  { mesi: 0, etichetta: 'Senza scadenza' },
+];
+export const DURATA_LINK_PREDEFINITA = 6;
+
+// Il giorno di scadenza a `mesi` mesi da `oggi` ('AAAA-MM-GG'), o null per
+// 0. Dal 31 gennaio, un mese porta al 28 (o 29) febbraio, non al 3 marzo.
+export function scadenzaLink(oggi, mesi) {
+  if (!mesi) return null;
+  const [a, m, g] = oggi.split('-').map(Number);
+  const totale = m - 1 + mesi;
+  const anno = a + Math.floor(totale / 12), mese = totale % 12;
+  const ultimo = new Date(Date.UTC(anno, mese + 1, 0)).getUTCDate();
+  return `${anno}-${String(mese + 1).padStart(2, '0')}-${String(Math.min(g, ultimo)).padStart(2, '0')}`;
+}

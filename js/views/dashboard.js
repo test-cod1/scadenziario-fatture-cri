@@ -1,6 +1,6 @@
 import { fatture, pagamenti, proposte } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast, rendiCliccabile, todayISO, sommaGiorniISO, fineMeseISO, parseEuro } from '../lib/ui.js';
-import { FILTRO_FORNITORE_KEY } from '../lib/filtriReport.js';
+import { FILTRO_FORNITORE_KEY, leggiFiltroSoggetto, nelSoggetto } from '../lib/filtriReport.js';
 import { CAMPO_DECIMALE } from '../lib/importi.js';
 import { ordinaRighe, prossimoOrdinamento, thOrdinabile, collegaOrdinamento } from '../lib/ordinaTabella.js';
 
@@ -77,13 +77,19 @@ export async function renderDashboard(view, ctx) {
 
   // `sort` nullo = ordine di arrivo dal database (per scadenza). Non lo tocca
   // «Azzera filtri»: l'ordinamento non è un filtro, non toglie righe.
-  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, sort: null };
+  // `soggetto`: il fornitore scelto nel Report, come gruppo (partita IVA e
+  // grafie del nome), vedi lib/filtriReport.js. Nullo = nessun filtro.
+  const state = { q: '', soggetto: null, stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, sort: null };
   const onSort = (campo) => { state.sort = prossimoOrdinamento(state.sort, campo); refreshTable(); };
   // Arrivo da un click su un fornitore nel Report: preimposta la ricerca e
   // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
   // nella dashboard finché non viene aperto di nuovo il Report.
   const filtroFornitore = sessionStorage.getItem(FILTRO_FORNITORE_KEY);
-  if (filtroFornitore !== null) { state.q = filtroFornitore; sessionStorage.removeItem(FILTRO_FORNITORE_KEY); }
+  if (filtroFornitore !== null) {
+    const filtro = leggiFiltroSoggetto(filtroFornitore);
+    if (filtro.partita_iva) state.soggetto = filtro; else state.q = filtro.testo;
+    sessionStorage.removeItem(FILTRO_FORNITORE_KEY);
+  }
 
   const wrap = el(`<div>
     <div class="page-head">
@@ -113,6 +119,7 @@ export async function renderDashboard(view, ctx) {
       <input ${CAMPO_DECIMALE} id="f-max" placeholder="Importo max €" style="width:120px">
       <button class="btn ghost sm" id="f-reset">Azzera filtri</button>
     </div>
+    <div class="muted" id="filtro-soggetto" style="font-size:13px;margin:-8px 0 10px" hidden></div>
     <div class="muted" id="nota-filtri" style="font-size:13px;margin:-8px 0 10px"></div>
     <div class="card"><div class="card-b tbl-wrap" id="tbl-zone"></div></div>
     <details class="card" id="archivio" style="margin-top:22px">
@@ -183,12 +190,13 @@ export async function renderDashboard(view, ctx) {
   }
 
   function filtriAttivi() {
-    return !!(state.q || state.stato || state.da || state.aData || state.importoMin || state.importoMax);
+    return !!(state.q || state.soggetto || state.stato || state.da || state.aData || state.importoMin || state.importoMax);
   }
 
   function applyFilters(sorgente = tutte) {
     let r = sorgente;
     if (state.soloAperte) r = r.filter(f => !STATI_CHIUSI.includes(f.stato));
+    if (state.soggetto) r = r.filter(f => nelSoggetto(state.soggetto, f, 'fornitore'));
     if (state.q) {
       const q = state.q.toLowerCase();
       r = r.filter(f => (q === 'f24' && f.tipo_documento === 'f24') || (f.fornitore || '').toLowerCase().includes(q) || (f.numero_fattura || '').toLowerCase().includes(q) || (f.note || '').toLowerCase().includes(q));
@@ -219,7 +227,7 @@ export async function renderDashboard(view, ctx) {
   // ancora aperte, azzerando gli altri filtri per lo stesso motivo di
   // filtraInScadenza7 qui sotto.
   function filtraSoloAperte() {
-    Object.assign(state, { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: true });
+    Object.assign(state, { q: '', soggetto: null, stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: true });
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   }
@@ -229,7 +237,7 @@ export async function renderDashboard(view, ctx) {
   // data fino a ieri incluso.
   function filtraScadute() {
     const isoIeri = sommaGiorniISO(todayISO(), -1);
-    Object.assign(state, { q: '', stato: '', da: '', aData: isoIeri, importoMin: '', importoMax: '', soloAperte: true });
+    Object.assign(state, { q: '', soggetto: null, stato: '', da: '', aData: isoIeri, importoMin: '', importoMax: '', soloAperte: true });
     wrap.querySelector('#q').value = '';
     wrap.querySelector('#f-stato').value = '';
     wrap.querySelector('#f-da').value = '';
@@ -246,7 +254,7 @@ export async function renderDashboard(view, ctx) {
   function filtraInScadenza7() {
     const isoOggi = todayISO();
     const isoTra7 = sommaGiorniISO(isoOggi, 7);
-    Object.assign(state, { q: '', stato: '', da: isoOggi, aData: isoTra7, importoMin: '', importoMax: '', soloAperte: true });
+    Object.assign(state, { q: '', soggetto: null, stato: '', da: isoOggi, aData: isoTra7, importoMin: '', importoMax: '', soloAperte: true });
     wrap.querySelector('#q').value = '';
     wrap.querySelector('#f-stato').value = '';
     wrap.querySelector('#f-da').value = isoOggi;
@@ -258,6 +266,7 @@ export async function renderDashboard(view, ctx) {
 
   function refreshTable() {
     renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica, proposteInAttesa, state.sort, onSort);
+    mostraFiltroSoggetto();
     mostraNotaSenzaScadenza();
     // Appena si cerca o si filtra, l'archivio va caricato e filtrato anche
     // lui: chi cerca una fattura del 2025 già pagata deve trovarla, non
@@ -274,6 +283,18 @@ export async function renderDashboard(view, ctx) {
     if (!archivioCaricato) { zona.textContent = contaArchivio; return; }
     const trovate = applyFilters(archivio).length;
     zona.textContent = filtriAttivi() ? `${trovate} di ${archivio.length}` : archivio.length;
+  }
+
+  // Il filtro per soggetto non ha un campo suo nella barra: si dice qui quale
+  // fornitore si sta guardando, con il modo di toglierlo (lo toglie anche
+  // «Azzera filtri»).
+  function mostraFiltroSoggetto() {
+    const zona = wrap.querySelector('#filtro-soggetto');
+    clear(zona);
+    zona.hidden = !state.soggetto;
+    if (!state.soggetto) return;
+    zona.appendChild(el(`<span>Solo le fatture di <b>${esc(state.soggetto.nome || 'questo fornitore')}</b> (P.IVA ${esc(state.soggetto.partita_iva)}), con tutte le grafie del nome. <button type="button" class="btn ghost sm">Togli</button></span>`));
+    zona.querySelector('button').addEventListener('click', () => { state.soggetto = null; refreshTable(); });
   }
 
   // Un filtro per data esclude necessariamente le fatture prive di scadenza:
@@ -333,7 +354,7 @@ export async function renderDashboard(view, ctx) {
   wrap.querySelector('#f-min').addEventListener('input', debounce(e => { state.importoMin = e.target.value; state.soloAperte = false; refreshTable(); }, 250));
   wrap.querySelector('#f-max').addEventListener('input', debounce(e => { state.importoMax = e.target.value; state.soloAperte = false; refreshTable(); }, 250));
   wrap.querySelector('#f-reset').addEventListener('click', () => {
-    Object.assign(state, { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false });
+    Object.assign(state, { q: '', soggetto: null, stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false });
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   });

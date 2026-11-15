@@ -14,6 +14,15 @@ import { centesimi, inLettere } from '../lib/numeri.js';
 // perché il documento della sezione lo prende da questo file.
 export { inLettere };
 
+// Prezzi e quantità non possono essere negativi: il lettore degli importi
+// accetta il meno (serve altrove), ma qui una voce a −50 € o una quantità −2
+// nel calendario toglierebbero soldi dal totale senza che il documento dica
+// perché. Si portano a zero, come fa n() nei trasporti.
+export function nonNegativo(v) {
+  const x = Number(v);
+  return Number.isFinite(x) ? Math.max(0, x) : 0;
+}
+
 export const DEFAULT_IMPOSTAZIONI = {
   // I prezzi partono a zero di proposito: meglio un preventivo palesemente da
   // completare che uno con numeri inventati che sembrano veri.
@@ -100,11 +109,10 @@ export function calcola(prev) {
     const dettaglio = [];
     let importoRiga = 0;
     for (const v of voci) {
-      const qta = Number(r.qta?.[v.id]) || 0;
+      const qta = nonNegativo(r.qta?.[v.id]);
       if (!qta) continue;
-      const importo = v.tipo === 'fissa'
-        ? qta * (Number(v.prezzo) || 0)
-        : qta * ore * (Number(v.prezzo) || 0);
+      const prezzo = nonNegativo(v.prezzo);
+      const importo = v.tipo === 'fissa' ? qta * prezzo : qta * ore * prezzo;
       importoRiga += importo;
       dettaglio.push({ voceId: v.id, nome: v.nome, qta, ore, importo });
       const agg = perVoce.get(v.id);
@@ -161,4 +169,15 @@ export function calcolaSconti(prev, totaleLordo) {
     sconti.push({ tipo: 'valore', importo, ridotto: importo < centesimi(valore), richiesto: centesimi(valore) });
   }
   return sconti;
+}
+
+// Il «Valore totale» dell'elenco: solo i preventivi ancora in piedi, cioè
+// inviati o confermati. Le bozze non sono ancora un'offerta e gli annullati
+// non lo sono più: sommandoli il riquadro cresceva a ogni duplicato di prova
+// e non calava quando un cliente rinunciava.
+export const STATI_CON_VALORE = ['inviato', 'confermato'];
+export function valoreTotale(preventivi) {
+  return centesimi((preventivi || [])
+    .filter(p => STATI_CON_VALORE.includes(p?.stato))
+    .reduce((s, p) => s + (Number(p.totale) || 0), 0));
 }

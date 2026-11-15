@@ -20,6 +20,10 @@ import { fraseLinkFatturazione } from '../../lib/datiFatturazione.mjs';
 
 const euro = (n) => Number(n || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const num = (n, d = 0) => Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d });
+// Una percentuale si scrive con i decimali che ha, fino a due: con uno solo
+// il 12,25% concordato diventava «12,3%» nel documento.
+const numPerc = (n) => Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
 
 export function fmtData(iso) {
   if (!iso) return '';
@@ -209,7 +213,7 @@ function testoSenzaTotale(prev, r) {
   const perc = Math.min(Math.max(Number(prev?.sconto_percentuale) || 0, 0), 100);
   const valore = Math.max(Number(prev?.sconto_valore) || 0, 0);
   const sconti = [
-    perc > 0 ? `lo sconto del ${num(perc, perc % 1 ? 1 : 0)}%` : '',
+    perc > 0 ? `lo sconto del ${numPerc(perc)}%` : '',
     valore > 0 ? `uno sconto di ${euro(valore)}` : '',
   ].filter(Boolean);
   if (r.trasferta > 0) t += ', più la trasferta indicata in tabella';
@@ -221,7 +225,7 @@ function testoSenzaTotale(prev, r) {
 // altrimenti il cliente vede un importo sottratto senza sapere su cosa.
 export function etichettaSconto(s) {
   if (s.tipo !== 'percentuale') return 'Sconto';
-  return `Sconto ${num(s.percentuale, s.percentuale % 1 ? 1 : 0)}%`;
+  return `Sconto ${numPerc(s.percentuale)}%`;
 }
 
 // Nome del file (PDF o Word) proposto al salvataggio.

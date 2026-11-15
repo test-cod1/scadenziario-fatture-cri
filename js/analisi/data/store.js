@@ -78,14 +78,19 @@ export const centri = {
   // Il link di sola lettura (conto#codice, vedi js/lib/linkCentri.mjs). Crearne uno
   // nuovo invalida quello vecchio; `null` lo disattiva. Il codice viene da
   // nuovoCodiceLink(): il nome dell'attività più dieci caratteri casuali.
-  async impostaLink(id, attivo, nome = '') {
+  // `scadeIl` ('AAAA-MM-GG' o null = senza scadenza): l'ultimo giorno in cui
+  // il link apre il conto (patch-2026-11-15-revisione-esterna.sql).
+  async impostaLink(id, attivo, nome = '', scadeIl = null) {
     const sb = await sbClient();
     const { nuovoCodiceLink } = await import('../../lib/linkCentri.mjs');
     const riga = attivo
-      ? { link_token: nuovoCodiceLink(nome), link_creato_il: nowISO(), updated_at: nowISO() }
-      : { link_token: null, link_creato_il: null, updated_at: nowISO() };
+      ? { link_token: nuovoCodiceLink(nome), link_creato_il: nowISO(), link_scade_il: scadeIl, updated_at: nowISO() }
+      : { link_token: null, link_creato_il: null, link_scade_il: null, updated_at: nowISO() };
     const { data, error } = await sb.from('centri_costo').update(riga).eq('id', id).select().single();
     if (error) {
+      if (/link_scade_il/.test(String(error.message))) {
+        throw new Error('La scadenza dei link non è ancora attiva: va eseguita supabase/patch-2026-11-15-revisione-esterna.sql nel database.');
+      }
       if (/link_token/.test(String(error.message))) {
         throw new Error('Il link non è ancora attivo: va eseguita supabase/patch-2026-11-11-link-centri.sql nel database.');
       }

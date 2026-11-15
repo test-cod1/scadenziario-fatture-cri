@@ -11,9 +11,12 @@ export const CONFIG = {
   // ---- Punto di partenza FISSO (sede CRI) --------------------------------
   // Ogni preventivo parte sempre da qui. Le coordinate sono un fallback:
   // il geocoder OpenRouteService le riconferma comunque.
+  // Il CAP è quello della carta intestata ufficiale (assets/
+  // carta-intestata.dotx, «Corso Aldo Gastaldi, 11/5 - 16131 Genova»): qui
+  // c'era 16145, che non è il CAP di Corso Gastaldi.
   partenza: {
     label: 'Sede CRI — Corso Aldo Gastaldi 11, Genova',
-    indirizzo: 'Corso Aldo Gastaldi 11, 16145 Genova, Italia',
+    indirizzo: 'Corso Aldo Gastaldi 11, 16131 Genova, Italia',
     lon: 8.96999,
     lat: 44.40560,
   },

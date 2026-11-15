@@ -1,5 +1,5 @@
 import { preventivi } from '../data/store.js';
-import { calcola, inLettere, oreTurno } from '../calc.js';
+import { calcola, inLettere, oreTurno, nonNegativo } from '../calc.js';
 import { fmtOre, etichettaSconto } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO, sommaGiorniISO } from '../../lib/ui.js';
 import { collegaOrologio } from '../../lib/orologio.js';
@@ -246,14 +246,14 @@ export async function renderPreventivo(view, id, ctx) {
       </div>`);
       const [chk, prezzo] = [riga.querySelector('input[type=checkbox]'), riga.querySelector('input[inputmode=decimal]')];
       chk.addEventListener('change', () => {
-        if (chk.checked) prev.voci.push({ ...t, prezzo: leggiDecimaleO0(prezzo.value) });
+        if (chk.checked) prev.voci.push({ ...t, prezzo: nonNegativo(leggiDecimaleO0(prezzo.value)) });
         else prev.voci = prev.voci.filter(v => v.id !== t.id);
         disegnaVoci(); disegnaCalendario(); aggiorna();
       });
       prezzo.addEventListener('input', () => {
         const v = prev.voci.find(x => x.id === t.id);
         if (!v) return;
-        v.prezzo = leggiDecimaleO0(prezzo.value);
+        v.prezzo = nonNegativo(leggiDecimaleO0(prezzo.value));
         // Si aggiorna il segno sulla riga senza ridisegnarla: mentre si
         // scrive il prezzo, il campo deve restare sotto le dita.
         const manca = !v.prezzo;
@@ -345,7 +345,7 @@ export async function renderPreventivo(view, id, ctx) {
       tr.querySelectorAll('[data-voce]').forEach(input => {
         input.addEventListener('input', () => {
           r.qta = r.qta || {};
-          r.qta[input.dataset.voce] = Number(input.value) || 0;
+          r.qta[input.dataset.voce] = nonNegativo(input.value);
           aggiorna();
         });
       });

@@ -59,11 +59,21 @@ export async function onRequestPost(context) {
   } catch (e) { return json({ error: 'OpenRouteService non raggiungibile.' }, 502); }
 
   if (!res.ok) {
-    let msg = `Calcolo percorso non riuscito (${res.status}).`;
-    try { const e = await res.json(); msg = e?.error?.message || e?.error || msg; } catch {}
-    return json({ error: msg }, res.status);
+    // Il dettaglio di OpenRouteService va nei log, non al browser, e il suo
+    // codice non diventa il nostro: un 401/403 della NOSTRA chiave arrivava
+    // al portale come «non sei autorizzato». Resta distinto solo il caso
+    // utile a chi compila: fra quei punti un percorso non c'è (400/404).
+    let dettaglio = '';
+    try { const e = await res.json(); dettaglio = e?.error?.message || e?.error || ''; } catch {}
+    console.error(`[route] OpenRouteService ${res.status}: ${String(dettaglio).slice(0, 300)}`);
+    if (res.status === 400 || res.status === 404) {
+      return json({ error: 'Nessun percorso stradale trovato fra questi punti: controlla gli indirizzi.' }, 422);
+    }
+    return json({ error: 'Calcolo del percorso non disponibile in questo momento: riprova tra poco o inserisci i km a mano.' }, 502);
   }
-  const data = await res.json();
+  let data;
+  try { data = await res.json(); }
+  catch { return json({ error: 'Risposta non valida dal servizio dei percorsi.' }, 502); }
   return json(data);
 }
 

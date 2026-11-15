@@ -46,8 +46,14 @@ export async function onRequestGet(context) {
   // compresa l'osservabilità di Cloudflare.
   try { res = await fetch(api.toString(), { headers: { 'Accept': 'application/json', 'Authorization': env.ORS_KEY } }); }
   catch (e) { return json({ error: 'OpenRouteService non raggiungibile.' }, 502); }
-  if (!res.ok) return json({ error: `Geocoding non riuscito (${res.status}).` }, res.status);
-  const data = await res.json();
+  // Vedi /api/route: il codice di OpenRouteService non diventa il nostro.
+  if (!res.ok) {
+    console.error(`[geocode] OpenRouteService ${res.status}`);
+    return json({ error: 'Ricerca degli indirizzi non disponibile in questo momento: riprova tra poco.' }, 502);
+  }
+  let data;
+  try { data = await res.json(); }
+  catch { return json({ error: 'Risposta non valida dal servizio degli indirizzi.' }, 502); }
   return json(data);
 }
 

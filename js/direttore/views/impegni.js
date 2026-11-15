@@ -9,7 +9,7 @@
 //  tenere mai l'elenco aggiornato.
 // ============================================================
 import { impegni as store } from '../data/store.js';
-import { LIVELLI, livelloDi, ordina, totali, etichettaScadenza, giorniAllaScadenza } from '../calc.js';
+import { LIVELLI, livelloDi, ordina, totali, etichettaScadenza, giorniAllaScadenza, giornoLocale } from '../calc.js';
 import { el, clear, esc, toast, confirmDialog, rendiCliccabile, fmtDate } from '../../lib/ui.js';
 
 export async function renderImpegni(view, ctx) {
@@ -139,7 +139,7 @@ export async function renderImpegni(view, ctx) {
           <span class="chip liv-${esc(i.importanza)}" title="Quanto pesa il risultato">Importanza ${esc(imp.label.toLowerCase())}</span>
           <span class="chip liv-${esc(i.urgenza)}" title="Quanto preme il tempo">Urgenza ${esc(u.label.toLowerCase())}</span>
           <span class="chip sca-${esc(sca.stato)}" title="${i.scadenza ? esc(fmtDate(i.scadenza)) : 'Nessuna scadenza indicata'}">${esc(sca.testo)}</span>
-          ${i.fatto && i.fatto_il ? `<span class="chip ok">fatto il ${esc(fmtDate(i.fatto_il.slice(0, 10)))}</span>` : ''}
+          ${i.fatto && i.fatto_il ? `<span class="chip ok">fatto il ${esc(fmtDate(giornoLocale(i.fatto_il)))}</span>` : ''}
         </div>
       </div>
       <div class="dir-azioni">

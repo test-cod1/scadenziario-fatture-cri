@@ -65,7 +65,10 @@ export async function onRequestPost(context) {
     await inviaEmail(env, { a: profilo.email, oggetto: '[Prova] ' + email.oggetto, html: email.html, testo: email.testo });
     return json({ ok: true, email: profilo.email, vuoto: email.vuoto });
   } catch (e) {
-    return json({ error: e.message }, 502);
+    // Il messaggio può contenere pezzi della risposta del servizio email o
+    // del database: nei log sì, al browser no.
+    console.error('[promemoria-prova]', e);
+    return json({ error: 'Invio di prova non riuscito: riprova tra poco. Se continua, avvisa un amministratore del portale.' }, 502);
   }
 }
 

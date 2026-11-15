@@ -471,6 +471,19 @@ Dopo averle eseguite, la sezione Scadenze va assegnata alle persone dalla pagina
 
 - [`patch-2026-11-07-f24-e-note-credito.sql`](supabase/patch-2026-11-07-f24-e-note-credito.sql): la colonna `tipo_documento` sulle fatture passive (`fattura` o `f24`) e la correzione di `note_credito`, che sul database in uso aveva ancora `fattura_id` e `importo` obbligatori della prima versione — per questo registrare una nota di credito passiva dall'app falliva sempre.
 
+### Patch del 15/11/2026 (da eseguire nel SQL Editor, PRIMA di pubblicare il codice)
+
+- [`patch-2026-11-15-revisione-esterna.sql`](supabase/patch-2026-11-15-revisione-esterna.sql), dalla revisione esterna dello stesso giorno:
+  - **limite di tentativi per chi non ha fatto il login** (tabella `limiti_anonimi`, funzione `consuma_limite_anonimo`, chiamabile solo dal server): vale per l'accesso con nome e cognome e per i link dei centri di costo. Senza la patch i limiti non contano, ma niente si rompe;
+  - **codice Telegram** da 10 caratteri invece di 8 esadecimali;
+  - **messaggi Telegram doppi**: lo stesso aggiornamento rimandato da Telegram non salva l'idea due volte (`telegram_aggiornamenti`);
+  - le due funzioni dei trigger su `auth.users` fissano il `search_path`;
+  - **scadenza dei link dei centri di costo** (`link_scade_il`): si sceglie quando si crea il link (1, 3, 6 mesi, un anno o senza scadenza). I link creati prima restano senza scadenza.
+
+È idempotente e `schema.sql` la contiene già.
+
+**Accesso con nome e cognome.** Da questa versione l'endpoint `/api/email-accesso` non restituisce più l'email: il login con nome e password lo fa il server, che al browser rimanda solo la sessione, e il recupero della password per nome risponde sempre allo stesso modo. Da controllare una volta in Supabase → Authentication → Sign In / Providers che **«Allow new users to sign up»** sia spento: gli account li crea solo il super admin dal portale.
+
 ### Registro modifiche del portale
 
 Ogni inserimento, modifica o cancellazione, in **tutte** le sezioni — preventivi, impegni, centri di costo, straordinari, permessi degli utenti, oltre alle fatture — finisce nella tabella `registro`, scritta da un trigger del database: chi, quando, su quale riga, e per le modifiche i campi cambiati con il valore di prima e di dopo. Lo legge solo il super admin, dalla voce **📜 Registro modifiche** del menu; nessuno lo può modificare o cancellare via API. Si conserva tre anni. I due registri storici dello scadenziario (Impostazioni → Registro) restano come sono.
@@ -513,7 +526,7 @@ Accanto c'è **Elimina**, che è un'altra cosa: cancella l'account per sempre da
 
 Quello che l'eliminazione **non** porta via: le fatture, le assistenze, i trasporti e i preventivi che quella persona aveva inserito restano tutti, e perdono solo il collegamento al suo account (`created_by` diventa vuoto). Il registro modifiche continua a mostrare nome ed email di chi ha fatto ogni operazione, perché li salva come testo e non come riferimento all'account. Non si può eliminare se stessi né un altro super admin: in quel caso va prima tolto il ruolo dal database.
 
-**Accesso con nome e cognome.** Quando più persone condividono una casella (per esempio genova.amministrazione@liguria.cri.it), Supabase vuole comunque un'email diversa per account: si usano gli alias «+» della casella (`genova.amministrazione+nayyab@…`), che Gmail recapita alla casella comune insieme ai link di recupero password. Per non dover ricordare l'alias, l'account può entrare scrivendo **nome e cognome** nel campo del login (maiuscole, accenti e ordine delle parole non contano). Il nome sta in `app_metadata.nome_accesso` dell'utente Supabase, che si scrive solo con la service role key (dalla dashboard: Authentication → utente → *Raw app metadata*); [`/api/email-accesso`](functions/api/email-accesso.js) lo traduce nell'email e il login prosegue come sempre. Gli account senza quel campo si trovano solo per email. Oggi lo hanno Duray Nayyab e Maria Rita Bassino (solo Scadenziario).
+**Accesso con nome e cognome.** Quando più persone condividono una casella (per esempio genova.amministrazione@liguria.cri.it), Supabase vuole comunque un'email diversa per account: si usano gli alias «+» della casella (`genova.amministrazione+nayyab@…`), che Gmail recapita alla casella comune insieme ai link di recupero password. Per non dover ricordare l'alias, l'account può entrare scrivendo **nome e cognome** nel campo del login (maiuscole, accenti e ordine delle parole non contano). Il nome sta in `app_metadata.nome_accesso` dell'utente Supabase, che si scrive solo con la service role key (dalla dashboard: Authentication → utente → *Raw app metadata*); [`/api/email-accesso`](functions/api/email-accesso.js) riceve nome e password, fa il login al posto del browser e gli rimanda solo la sessione: l'email non esce mai, e nome sbagliato, password sbagliata o omonimi danno la stessa risposta (con un limite di tentativi per indirizzo e per nome). Gli account senza quel campo si trovano solo per email. Oggi lo hanno Duray Nayyab e Maria Rita Bassino (solo Scadenziario).
 
 **Card nascoste.** In home il super admin vede sotto ogni card un interruttore, *👁 Visibile a tutti* / *🙈 Nascosta agli altri*. Una card nascosta sparisce dalla home di chi **non** è abilitato a quella sezione (niente card col lucchetto), mentre chi è abilitato continua a vederla; per il super admin resta, sbiadita e tratteggiata. È solo una scelta di cosa disegnare: la protezione dei dati resta quella delle autorizzazioni. Serve [`patch-2026-11-12-card-nascoste.sql`](supabase/patch-2026-11-12-card-nascoste.sql) (colonna `sezioni.nascosta`, modificabile solo dal super admin); senza, le card restano tutte visibili e l'interruttore dà errore.
 

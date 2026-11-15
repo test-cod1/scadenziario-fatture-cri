@@ -1,5 +1,6 @@
 import { preventivi } from '../data/store.js';
 import { fmtData } from '../lib/documento.js';
+import { valoreTotale } from '../calc.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO } from '../../lib/ui.js';
 import { dataAmmessa } from '../date.js';
 // Import statico, non import() al clic: la stampa apre una finestra, e Safari
@@ -61,7 +62,8 @@ export async function renderDashboard(view, ctx) {
         <div class="s">${bozze.length} ${bozze.length === 1 ? 'bozza' : 'bozze'}</div></div>`),
       el(`<div class="stat"><div class="k">Confermati</div><div class="v">${confermati.length}</div>
         <div class="s">${fmtEuro(confermati.reduce((s, p) => s + Number(p.totale || 0), 0))}</div></div>`),
-      el(`<div class="stat"><div class="k">Valore totale</div><div class="v">${fmtEuro(list.reduce((s, p) => s + Number(p.totale || 0), 0))}</div></div>`),
+      el(`<div class="stat"><div class="k">Valore totale</div><div class="v">${fmtEuro(valoreTotale(list))}</div>
+        <div class="s">inviati e confermati</div></div>`),
     );
   }
 

@@ -5,9 +5,13 @@ import { buildXlsxBlob } from './xlsx.js';
 // (testo/valuta/data) così Excel non deve indovinarlo da solo — è proprio
 // quel meccanismo a rompersi con i numeri di fattura lunghi (diventano
 // notazione scientifica) e con le date (restano testo, non riconosciute).
-const COLS = [
+// Partita IVA, ritenuta e codice tributo servono a chi riconcilia il foglio
+// col gestionale o prepara l'F24: senza, andavano ricercati fattura per
+// fattura nell'app. Le colonne senza dato restano celle vuote, non zeri.
+export const COLS = [
   { header: 'Tipo', tipo: 'testo', get: r => r.tipo_documento === 'f24' ? 'F24' : 'Fattura' },
   { header: 'Fornitore', tipo: 'testo', get: r => r.fornitore },
+  { header: 'Partita IVA', tipo: 'testo', get: r => r.partita_iva || '' },
   { header: 'N. Fattura', tipo: 'testo', get: r => r.numero_fattura || '' },
   { header: 'Data', tipo: 'data', get: r => r.data_fattura },
   { header: 'Importo', tipo: 'valuta', get: r => r.importo },
@@ -18,6 +22,8 @@ const COLS = [
   // Residuo e il foglio sembrava sbagliato.
   { header: 'Stornato', tipo: 'valuta', get: r => r._stornato || 0 },
   { header: 'Residuo', tipo: 'valuta', get: r => r._residuo },
+  { header: "Ritenuta d'acconto", tipo: 'valuta', get: r => Number(r.ritenuta) > 0 ? Number(r.ritenuta) : '' },
+  { header: 'Codice tributo', tipo: 'testo', get: r => Number(r.ritenuta) > 0 ? (r.ritenuta_codice_tributo || '') : '' },
   { header: 'Metodo', tipo: 'testo', get: r => r.metodo_pagamento || '' },
   { header: 'Note', tipo: 'testo', get: r => r.note || '' },
 ];
@@ -84,8 +90,9 @@ export function exportPDF(righe, titolo = 'Scadenziario fatture') {
 //  FATTURE ATTIVE — stesse funzioni sopra, adattate al lessico
 //  cliente/incasso e con la colonna "Sollecito" in più.
 // ============================================================
-const COLS_ATTIVE = [
+export const COLS_ATTIVE = [
   { header: 'Cliente', tipo: 'testo', get: r => r.cliente },
+  { header: 'Partita IVA', tipo: 'testo', get: r => r.partita_iva || '' },
   { header: 'N. Fattura', tipo: 'testo', get: r => r.numero_fattura || '' },
   { header: 'Data', tipo: 'data', get: r => r.data_fattura },
   { header: 'Importo', tipo: 'valuta', get: r => r.importo },

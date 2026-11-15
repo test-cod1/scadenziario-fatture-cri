@@ -26,7 +26,7 @@ prova('toglie la vocale davanti a uno e otto', () => {
 
 prova('gestisce migliaia e milioni', () => {
   uguale(inLettere(1000), 'mille/00');
-  uguale(inLettere(1743), 'millesettecentoquarantatre/00');
+  uguale(inLettere(1743), 'millesettecentoquarantatré/00');
   uguale(inLettere(2500), 'duemilacinquecento/00');
   // Il caso per cui esiste sottoMilione(): un milione era "diecicentomila".
   uguale(inLettere(1000000), 'unmilione/00');

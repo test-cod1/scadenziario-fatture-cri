@@ -47,12 +47,29 @@ export async function caricaCarta() {
 // interni dei disegni. Le righe ripetute si scartano: nel piè di pagina
 // "www.cri.it" compare più volte perché è sia scritta sia parte di un
 // riquadro.
-function righeTesto(file, nome) {
+//
+// Il testo di un <w:t> è XML: una «&» nel modello arriva come «&amp;», e va
+// riportata a «&» qui. Altrimenti stampaBlocchi, che giustamente rifà
+// l'escape di tutto quello che mette nella pagina, stamperebbe «&amp;amp;».
+export function righeTesto(file, nome) {
   const xml = new TextDecoder().decode(file[nome] || new Uint8Array());
   const righe = xml.split(/<w:p[ >]/).slice(1).map(par =>
-    [...par.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map(m => m[1]).join('').trim()
+    [...par.matchAll(/<w:t[^>]*>([^<]*)<\/w:t>/g)].map(m => decodificaEntita(m[1])).join('').trim()
   ).filter(Boolean);
   return [...new Set(righe)];
+}
+
+// Le cinque entità predefinite dell'XML più i riferimenti numerici (&#38;,
+// &#x26;). Una sola passata: decodificando a cascata, «&amp;lt;» (che nel
+// modello vuol dire il testo «&lt;») diventerebbe «<».
+const ENTITA = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'" };
+export function decodificaEntita(testo) {
+  return String(testo).replace(/&(?:#x([0-9a-f]+)|#(\d+)|(amp|lt|gt|quot|apos));/gi, (intera, esa, dec, nome) => {
+    // I nomi in XML distinguono le maiuscole: «&AMP;» non è un'entità.
+    if (nome) return ENTITA[nome] ?? intera;
+    const codice = esa ? parseInt(esa, 16) : Number(dec);
+    return codice > 0 && codice <= 0x10FFFF ? String.fromCodePoint(codice) : intera;
+  });
 }
 
 // Le immagini finiscono nel PDF come data: URI (la CSP del sito le consente):

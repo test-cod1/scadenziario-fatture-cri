@@ -59,16 +59,24 @@ export async function ruoloSezione(request, env, sezione) {
 // service key): serve per verificare lato server che chi chiama un endpoint
 // sensibile (es. creazione utenti) sia davvero un super admin, senza fidarsi
 // di un flag mandato dal client.
+//
+// Chi ha ancora la password provvisoria vale come 'in_attesa', come già
+// per ruolo_sezione() nel database: finché non ne imposta una sua, la
+// password che conosce l'ha scritta qualcun altro (e magari viaggiata per
+// email), quindi non deve poter creare o eliminare utenti né toccare il bot.
 export async function ruoloUtente(request, env, userId) {
   const url = (env && env.SUPABASE_URL) || SUPABASE_URL;
   const anonKey = (env && env.SUPABASE_ANON_KEY) || SUPABASE_ANON_KEY;
   try {
-    const res = await fetch(`${url}/rest/v1/profili?id=eq.${userId}&select=ruolo`, {
+    const res = await fetch(`${url}/rest/v1/profili?id=eq.${encodeURIComponent(userId)}&select=ruolo,deve_cambiare_password`, {
       headers: { apikey: anonKey, Authorization: intestazioneUtente(request) },
     });
     if (!res.ok) return null;
     const data = await res.json();
-    return data?.[0]?.ruolo || null;
+    const profilo = data?.[0];
+    if (!profilo) return null;
+    if (profilo.deve_cambiare_password) return 'in_attesa';
+    return profilo.ruolo || null;
   } catch {
     return null;
   }

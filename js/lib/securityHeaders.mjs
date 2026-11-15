@@ -15,8 +15,11 @@
 //     esm.sh, da cui si scaricava il client Supabase a ogni avvio: adesso
 //     quella libreria sta in js/vendor/ e nessun host esterno può più
 //     eseguire codice nella pagina che maneggia le credenziali;
-//   - connect-src: le chiamate REST/Storage/Auth vanno a *.supabase.co, più
-//     le nostre /api/*;
+//   - connect-src: le chiamate REST/Storage/Auth vanno al NOSTRO progetto
+//     Supabase (lo stesso indirizzo di js/config.js, lo controlla
+//     test/sicurezza.prove.mjs), più le nostre /api/*. Fino al 15/11/2026
+//     c'era *.supabase.co: un codice iniettato avrebbe potuto spedire dati a
+//     un progetto Supabase qualunque, anche di qualcun altro;
 //   - style-src consente gli stili inline perché le viste usano attributi
 //     style="..." su molti elementi;
 //   - niente script inline: la stampa PDF è avviata dal codice del sito;
@@ -31,7 +34,7 @@ const CSP = [
   "style-src 'self' 'unsafe-inline'",
   "img-src 'self' data: blob:",
   "font-src 'self' data:",
-  "connect-src 'self' https://*.supabase.co",
+  "connect-src 'self' https://xmfqozojjplccnnttwxu.supabase.co",
   "frame-src 'self' blob:",
   "frame-ancestors 'none'",
   "base-uri 'self'",

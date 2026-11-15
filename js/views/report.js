@@ -1,6 +1,6 @@
 import { fatture } from '../data/store.js';
 import { el, clear, esc, fmtEuro, fmtEuroCompatto, rendiCliccabile, cellaCsv } from '../lib/ui.js';
-import { FILTRO_FORNITORE_KEY } from '../lib/filtriReport.js';
+import { FILTRO_FORNITORE_KEY, separaF24, valoreFiltroSoggetto } from '../lib/filtriReport.js';
 import { raggruppaPerSoggetto } from '../lib/soggetti.js';
 
 const MESI = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
@@ -61,8 +61,10 @@ export async function renderReport(view, ctx) {
     return r;
   }
 
+  // Le rate F24 restano fuori da fatturato, spesa per fornitore e grafico
+  // (vedi separaF24): hanno una card a parte, sotto le altre.
   function gruppiFornitori() {
-    let gruppi = perFornitore(filtrate());
+    let gruppi = perFornitore(separaF24(filtrate()).fatture);
     const termine = state.ricerca.trim().toLowerCase();
     if (termine) gruppi = gruppi.filter(g => g.fornitore.toLowerCase().includes(termine));
     return ordina(gruppi, state.sort, 'fornitore');
@@ -92,11 +94,11 @@ export async function renderReport(view, ctx) {
   }
 
   function refresh() {
-    const righe = filtrate();
+    const { fatture: righe, f24 } = separaF24(filtrate());
     mostraNotaFiltri();
-    renderStats(wrap.querySelector('#r-stats'), righe);
+    renderStats(wrap.querySelector('#r-stats'), righe, f24);
     disegnaFornitori();
-    renderMesiChart(wrap.querySelector('#r-mesi'), perMese(righe, tutte, state.da, state.a));
+    renderMesiChart(wrap.querySelector('#r-mesi'), perMese(righe, separaF24(tutte).fatture, state.da, state.a));
   }
 
   refresh();
@@ -129,7 +131,7 @@ function media(numeri) {
   return numeri.length ? numeri.reduce((s, n) => s + n, 0) / numeri.length : null;
 }
 
-function renderStats(node, righe) {
+function renderStats(node, righe, f24 = []) {
   clear(node);
   const fatturato = righe.reduce((s, f) => s + Number(f.importo || 0), 0);
   const pagato = righe.reduce((s, f) => s + f._pagato, 0);
@@ -144,6 +146,11 @@ function renderStats(node, righe) {
     { k: 'TEMPO MEDIO DI PAGAMENTO', v: mediaGiorni !== null ? Math.round(mediaGiorni) + ' giorni' : '—', s: `${giorni.length} fatture saldate`, cls: '' },
   ];
   if (stornato > 0) cards.push({ k: 'STORNATO (NOTE DI CREDITO)', v: fmtEuro(stornato), s: righe.filter(f => f._stornato > 0).length + ' fatture', cls: '' });
+  if (f24.length) {
+    const totaleF24 = f24.reduce((s, f) => s + Number(f.importo || 0), 0);
+    const residuoF24 = f24.reduce((s, f) => s + (f._residuo || 0), 0);
+    cards.push({ k: 'F24 (IMPOSTE, ESCLUSE DAI TOTALI)', v: fmtEuro(totaleF24), s: `${f24.length} ${f24.length === 1 ? 'rata' : 'rate'}${residuoF24 > 0 ? ' · da pagare ' + fmtEuro(residuoF24) : ''}`, cls: '' });
+  }
   for (const c of cards) node.appendChild(el(`<div class="stat ${c.cls}"><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`));
 }
 
@@ -153,7 +160,7 @@ function renderStats(node, righe) {
 // fanno una riga sola (vedi lib/soggetti.js).
 function perFornitore(righe) {
   return raggruppaPerSoggetto(righe, 'fornitore').map(s => {
-    const g = { fornitore: s.nome, partita_iva: s.partita_iva, n: 0, fatturato: 0, pagato: 0, stornato: 0, residuo: 0, giorni: [] };
+    const g = { fornitore: s.nome, partita_iva: s.partita_iva, filtro: valoreFiltroSoggetto(s, 'fornitore'), n: 0, fatturato: 0, pagato: 0, stornato: 0, residuo: 0, giorni: [] };
     for (const f of s.righe) {
       g.n++; g.fatturato += Number(f.importo || 0); g.pagato += f._pagato; g.stornato += (f._stornato || 0); g.residuo += f._residuo;
       const gp = giorniPagamento(f);
@@ -195,7 +202,9 @@ function thOrdinabile(label, campo, extraClass, sort) {
 
 // Cliccando una riga si passa alla dashboard fatture già filtrata su quel
 // fornitore (via sessionStorage, letto una tantum da renderDashboard): utile
-// quando un residuo alto fa venire la domanda "quali fatture pesano?".
+// quando un residuo alto fa venire la domanda "quali fatture pesano?". Il
+// filtro è il gruppo intero (partita IVA e tutte le grafie del nome), non il
+// solo nome prevalente: vedi valoreFiltroSoggetto.
 function renderFornitori(node, gruppi, ricerca, ctx, sort, onSort) {
   clear(node);
   if (!gruppi.length) {
@@ -226,7 +235,7 @@ function renderFornitori(node, gruppi, ricerca, ctx, sort, onSort) {
       <td>${g.giorniMedi !== null ? Math.round(g.giorniMedi) + ' gg' : '—'}</td>
     </tr>`);
     rendiCliccabile(tr, () => {
-      sessionStorage.setItem(FILTRO_FORNITORE_KEY, g.fornitore === '—' ? '' : g.fornitore);
+      sessionStorage.setItem(FILTRO_FORNITORE_KEY, g.filtro);
       ctx.go('#/scadenziario/passive/fatture');
     });
     tbody.appendChild(tr);

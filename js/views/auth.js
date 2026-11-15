@@ -21,9 +21,15 @@ export function renderLogin(app, onDone, { avviso = '' } = {}) {
   const err = wrap.querySelector('#err');
   if (avviso) err.textContent = avviso;
   async function doLogin(email, pw) {
+    // Un secondo clic (o Invio) mentre il primo accesso è in corso mandava
+    // un'altra richiesta, che contava come tentativo in più nei limiti.
+    const btn = wrap.querySelector('#go');
+    if (btn.disabled) return;
     err.textContent = '';
+    btn.disabled = true;
     try { await auth.signIn(email, pw); onDone(); }
     catch (e) { err.textContent = traduci(e.message) || 'Accesso non riuscito'; }
+    finally { btn.disabled = false; }
   }
   wrap.querySelector('#go').addEventListener('click', () =>
     doLogin(wrap.querySelector('#email').value.trim(), wrap.querySelector('#pw').value));

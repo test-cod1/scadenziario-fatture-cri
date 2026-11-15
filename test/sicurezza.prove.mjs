@@ -128,3 +128,11 @@ prova('email di prova: se il contatore non risponde si blocca, le altre funzioni
     uguale(ai.esito.ok, true, 'la lettura delle fatture non si ferma per un contatore che manca');
   } finally { console.warn = avviso; }
 });
+
+prova('connect-src apre solo il nostro progetto Supabase, lo stesso di js/config.js', async () => {
+  const { CONFIG } = await import('../js/config.js');
+  const csp = HEADER_SICUREZZA['Content-Security-Policy'] || '';
+  const connect = (csp.match(/connect-src ([^;]+)/) || [])[1] || '';
+  vero(connect.split(/\s+/).includes(CONFIG.supabase.url), `connect-src senza ${CONFIG.supabase.url}: il portale non potrebbe parlare col database`);
+  vero(!connect.includes('*'), 'niente caratteri jolly: un host qualunque potrebbe ricevere i dati');
+});

@@ -66,7 +66,10 @@ export async function onRequestPost(context) {
     if (msg.tipo === 'aiuto') return rispondi(TESTI.aiuto);
 
     if (msg.tipo === 'collega') {
-      if (!/^[A-Z0-9]{8}$/.test(msg.codice)) return rispondi(TESTI.codiceNonValido);
+      // 10 caratteri dal 15/11/2026 (patch-2026-11-15-revisione-esterna.sql),
+      // 8 prima: per i codici generati prima dell'aggiornamento, validi al
+      // massimo 15 minuti, si accettano ancora anche quelli.
+      if (!/^[A-Z0-9]{8,12}$/.test(msg.codice)) return rispondi(TESTI.codiceNonValido);
       const righe = await db(`telegram_collegamenti?select=utente_id,codice_scade&codice=eq.${msg.codice}`);
       const r = righe[0];
       if (!r || !r.codice_scade || new Date(r.codice_scade) < new Date()) return rispondi(TESTI.codiceNonValido);
@@ -99,6 +102,9 @@ export async function onRequestPost(context) {
       return rispondi(testoUltimeIdee(ultime));
     }
 
+    // Telegram rimanda lo stesso aggiornamento se la nostra risposta tarda o
+    // si perde: senza questo controllo l'idea si salvava due volte.
+    if (await giaRicevuto(db, update?.update_id)) return json({});
     await db('idee_direttore', {
       method: 'POST',
       body: JSON.stringify({ testo: msg.testo, origine: 'telegram', autore_id: utenteId, autore_nome: profilo.nome || profilo.email }),
@@ -106,6 +112,24 @@ export async function onRequestPost(context) {
     return rispondi(TESTI.ideaSalvata);
   } catch {
     return rispondi(TESTI.errore);
+  }
+}
+
+// Registra l'update_id e dice se era già passato di qui. La tabella
+// (telegram_aggiornamenti) ha update_id come chiave: l'inserimento di un
+// doppione non aggiunge righe, e PostgREST restituisce l'elenco vuoto.
+// Se la tabella non c'è ancora (patch non eseguita) non si blocca niente.
+async function giaRicevuto(db, updateId) {
+  if (!Number.isInteger(updateId)) return false;
+  try {
+    const inserite = await db('telegram_aggiornamenti', {
+      method: 'POST',
+      headers: { Prefer: 'resolution=ignore-duplicates,return=representation' },
+      body: JSON.stringify({ update_id: updateId }),
+    });
+    return Array.isArray(inserite) && inserite.length === 0;
+  } catch {
+    return false;
   }
 }
 

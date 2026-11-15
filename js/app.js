@@ -141,6 +141,24 @@ function renderNonAbilitato() {
   });
 }
 
+// Sessione finita senza «Esci» (token non rinnovabile, uscita da un'altra
+// scheda). Il login si apre in uno strato SOPRA la pagina, invece di
+// sostituirla: una scheda o una fattura a metà restano lì sotto, e dopo
+// l'accesso si salvano come se niente fosse. Se però entra un ALTRO utente,
+// la pagina dell'utente di prima non deve restargli davanti: si ricarica.
+function sessioneScaduta() {
+  if (!currentUser || document.querySelector('.sessione-scaduta')) return;
+  const prima = currentUser.id;
+  const strato = el('<div class="sessione-scaduta" role="dialog" aria-modal="true" aria-label="Sessione scaduta" style="position:fixed;inset:0;z-index:10000;overflow:auto"></div>');
+  document.body.appendChild(strato);
+  renderLogin(strato, async () => {
+    const utente = await auth.current();
+    if (!utente || utente.id !== prima) { location.hash = '#/home'; location.reload(); return; }
+    currentUser = utente;
+    strato.remove();
+  }, { avviso: 'La sessione è scaduta o è stata chiusa: accedi di nuovo per continuare. Quello che stavi facendo è ancora qui sotto.' });
+}
+
 let _routerBound = false;
 async function startApp() {
   // Utenti creati da un super admin con password provvisoria (vedi
@@ -152,7 +170,11 @@ async function startApp() {
   }
   if (currentUser.ruoloPortale === 'in_attesa') return renderNonAbilitato();
   renderShell();
-  if (!_routerBound) { window.addEventListener('hashchange', route); _routerBound = true; }
+  if (!_routerBound) {
+    window.addEventListener('hashchange', route);
+    auth.alTerminareSessione(sessioneScaduta).catch(() => {});
+    _routerBound = true;
+  }
   if (!location.hash) location.hash = '#/home';
   else route();
 }

@@ -6,7 +6,7 @@
 //  dice quando cade (con cinque secondi per annullare).
 // ============================================================
 import { scadenze as store } from '../data/store.js';
-import { stato, etichetta, ordina, totali, ricorrenzaDi } from '../calc.js';
+import { stato, etichetta, ordina, totali, ricorrenzaDi, giornoLocale } from '../calc.js';
 import { el, clear, esc, toast, confirmDialog, rendiCliccabile, fmtDate, fmtEuro } from '../../lib/ui.js';
 
 export async function renderElenco(view, ctx) {
@@ -126,7 +126,7 @@ export async function renderElenco(view, ctx) {
           <span class="chip">${esc(s.categoria)}</span>
           ${ric.mesi ? `<span class="chip" title="Si ripete">🔁 ${esc(ric.label.toLowerCase())}</span>` : ''}
           ${s.importo != null ? `<span class="chip">${esc(fmtEuro(s.importo))}</span>` : ''}
-          ${s.fatta && s.fatta_il ? `<span class="chip ok">fatta il ${esc(fmtDate(s.fatta_il.slice(0, 10)))}</span>` : ''}
+          ${s.fatta && s.fatta_il ? `<span class="chip ok">fatta il ${esc(fmtDate(giornoLocale(s.fatta_il)))}</span>` : ''}
         </div>
       </div>
       <div class="dir-azioni">

@@ -5,7 +5,7 @@
 //  cosa no (le note, l'id, gli altri centri, qualunque scrittura).
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
-import { onRequestPost, CAMPI_MOVIMENTO } from '../functions/api/centro-condiviso.js';
+import { onRequestPost, CAMPI_MOVIMENTO, LIMITE_CENTRO, oggiRoma } from '../functions/api/centro-condiviso.js';
 import { nuovoToken } from '../js/lib/datiFatturazione.mjs';
 import { nuovoCodiceLink, nomeNelLink, formaValida, casuale } from '../js/lib/linkCentri.mjs';
 
@@ -41,10 +41,11 @@ prova('valgono la forma nuova e quella dei link già creati, nient\'altro', () =
   }
 });
 const ENV = { SUPABASE_SERVICE_ROLE_KEY: 'chiave', SUPABASE_URL: 'https://db.finto' };
-let db, richieste;
+let db, richieste, tentativi = 1;
 
 function nuovoDb() {
   richieste = [];
+  tentativi = 1;
   db = {
     centri_costo: [
       { id: 'c1', nome: 'Automedica', descrizione: 'Golf 1', inizio: null, fine: null, chiuso: false, link_token: TOKEN },
@@ -64,6 +65,9 @@ async function finto(url, opzioni = {}) {
   const u = new URL(url);
   richieste.push({ metodo: opzioni.method || 'GET', url: u });
   const tabella = u.pathname.split('/').pop();
+  // Il contatore dei tentativi (functions/_lib/limiti.js): risponde col
+  // numero scritto in `tentativi`.
+  if (tabella === 'consuma_limite_anonimo') return new Response(String(tentativi), { status: 200 });
   let righe = [...(db[tabella] || [])];
   for (const [k, v] of u.searchParams) {
     if (v.startsWith('eq.')) righe = righe.filter(r => String(r[k]) === v.slice(3));
@@ -121,11 +125,42 @@ prova('un codice malformato non arriva nemmeno al database', async () => {
 prova('l\'endpoint legge soltanto', async () => {
   nuovoDb();
   await chiama({ token: TOKEN });
-  vero(richieste.length > 0 && richieste.every(q => q.metodo === 'GET'));
+  const letture = richieste.filter(q => !q.url.pathname.endsWith('/rpc/consuma_limite_anonimo'));
+  vero(letture.length > 0 && letture.every(q => q.metodo === 'GET'), 'sui dati solo letture (l’unica scrittura è il contatore dei tentativi)');
 });
 
 prova('senza la chiave di servizio la pagina dice che non è disponibile', async () => {
   nuovoDb();
   const r = await chiama({ token: TOKEN }, {});
   uguale(r.status, 503);
+});
+
+prova('un link con la scadenza vale fino a quel giorno compreso, poi è come inesistente', async () => {
+  nuovoDb();
+  const oggi = oggiRoma();
+  db.centri_costo[0].link_scade_il = oggi;
+  uguale((await chiama({ token: TOKEN })).status, 200, 'l’ultimo giorno il link vale ancora');
+  db.centri_costo[0].link_scade_il = '2020-01-01';
+  const scaduto = await chiama({ token: TOKEN });
+  const inesistente = await chiama({ token: nuovoToken() });
+  uguale(scaduto.status, 404);
+  uguale(scaduto.corpo.error, inesistente.corpo.error, 'non si distingue un link scaduto da uno che non esiste');
+  db.centri_costo[0].link_scade_il = null;
+  uguale((await chiama({ token: TOKEN })).status, 200, 'senza scadenza vale sempre');
+});
+
+prova('troppe aperture dallo stesso indirizzo: 429 prima di leggere i dati', async () => {
+  nuovoDb();
+  tentativi = LIMITE_CENTRO.massimo + 1;
+  const r = await chiama({ token: TOKEN });
+  uguale(r.status, 429);
+  vero(!richieste.some(q => q.url.pathname.endsWith('/centri_costo')), 'i dati non si leggono');
+});
+
+prova('la scadenza scelta cade il giorno giusto, anche a fine mese', async () => {
+  const { scadenzaLink } = await import('../js/lib/linkCentri.mjs');
+  uguale(scadenzaLink('2026-11-15', 6), '2027-05-15');
+  uguale(scadenzaLink('2026-01-31', 1), '2026-02-28');
+  uguale(scadenzaLink('2027-12-31', 12), '2028-12-31');
+  uguale(scadenzaLink('2026-11-15', 0), null);
 });

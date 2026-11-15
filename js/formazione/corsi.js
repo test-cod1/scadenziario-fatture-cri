@@ -24,9 +24,27 @@ export const ESITI = [
 // «4,5 ore»). La durata resta testo perché finisce così nel documento; per
 // sommare le ore erogate serve il numero. Senza un numero riconoscibile si
 // restituisce null, e nella scheda lo si scrive a mano.
+//
+// I minuti contano: «2 ore e 30» dava 2, e mezz'ora a corso spariva dalle
+// ore erogate. Si riconoscono le forme che si scrivono davvero — «2h30»,
+// «2 ore e 30 minuti», «2,5 ore», «90 minuti». Un numero dopo le ore vale
+// come minuti solo se è sotto i 60 e non è seguito da un'altra parola: in
+// «8 ore e 2 moduli» il 2 non sono minuti.
 export function oreDaDurata(testo) {
-  const m = String(testo || '').match(/(\d+(?:[.,]\d+)?)\s*(?:ore|h\b|ora)/i);
-  return m ? Number(m[1].replace(',', '.')) : null;
+  const t = String(testo || '');
+  const conOre = t.match(/(\d+(?:[.,]\d+)?)\s*(?:ore|ora|h)(?![a-zà-ù])(?:\s*(?:e\s+)?(\d{1,2})(?:\s*(?:minuti|minuto|min)(?![a-zà-ù])|\s*'|(?!\s*[a-zà-ù\d])))?/i);
+  if (conOre) {
+    const ore = Number(conOre[1].replace(',', '.'));
+    const minuti = conOre[2] ? Number(conOre[2]) : 0;
+    return minuti < 60 ? arrotondaOre(ore + minuti / 60) : ore;
+  }
+  const soloMinuti = t.match(/(\d+)\s*(?:minuti|minuto|min(?![a-zà-ù])|')/i);
+  return soloMinuti ? arrotondaOre(Number(soloMinuti[1]) / 60) : null;
+}
+
+// Due decimali bastano: 20 minuti sono 0,33 ore, non 0,3333….
+function arrotondaOre(n) {
+  return Math.round(n * 100) / 100;
 }
 
 // Chi c'era. Con l'elenco nominativo i presenti si contano da lì — chi è

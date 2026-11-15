@@ -51,6 +51,11 @@ export function inLettere(importo) {
     const testa = milioni === 1 ? 'unmilione' : sottoMilione(milioni) + 'milioni';
     parole = testa + (resto ? sottoMilione(resto) : '');
   }
+  // «Tre» in fondo a un numero composto vuole l'accento: ventitré,
+  // centotré, milletré. Si guarda solo la fine della parola intera, perché
+  // il tre che apre o sta in mezzo resta senza (tremila, ventitremila,
+  // tremilioni), e il 3 da solo è «tre».
+  if (parole.length > 3 && parole.endsWith('tre')) parole = parole.slice(0, -3) + 'tré';
   return `${parole}/${String(cent).padStart(2, '0')}`;
 }
 

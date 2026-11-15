@@ -62,6 +62,23 @@ export const ROUTES = {
 // richiesta proseguiva verso gli asset statici, che per /api/... rispondevano
 // con la pagina "non trovato" — un errore fuorviante (sembra un endpoint
 // inesistente) al posto di quello vero.
+// Rete di sicurezza per un'eccezione non gestita dentro una function (una
+// risposta non JSON di un servizio esterno, un bug): senza, Cloudflare
+// rispondeva con la sua pagina d'errore 1101, senza le nostre intestazioni
+// di sicurezza e con un testo che il portale non sa leggere. Il dettaglio
+// resta nei log.
+export async function eseguiProtetto(gestore, contesto, percorso) {
+  try {
+    return await gestore(contesto);
+  } catch (e) {
+    console.error(`[api] ${percorso}:`, e);
+    return new Response(
+      JSON.stringify({ error: 'Errore interno del server: riprova tra poco.' }),
+      { status: 500, headers: { 'Content-Type': 'application/json', 'Cache-Control': 'no-store' } },
+    );
+  }
+}
+
 export function metodoNonAmmesso(route) {
   return new Response(
     JSON.stringify({ error: 'Metodo non ammesso.' }),

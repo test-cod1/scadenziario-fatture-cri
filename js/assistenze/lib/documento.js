@@ -13,6 +13,10 @@ import { fraseLinkFatturazione } from '../../lib/datiFatturazione.mjs';
 
 const euro = (n) => Number(n || 0).toLocaleString('it-IT', { style: 'currency', currency: 'EUR' });
 const num = (n, d = 0) => Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: d, maximumFractionDigits: d });
+// Una percentuale si scrive con i decimali che ha, fino a due: con uno solo
+// il 12,25% concordato diventava «12,3%» nel documento.
+const numPerc = (n) => Number(n || 0).toLocaleString('it-IT', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+
 
 export function fmtData(iso) {
   if (!iso) return '';
@@ -168,7 +172,7 @@ export function costruisciBlocchi(prev, imp) {
 // altrimenti il cliente vede un importo sottratto senza sapere su cosa.
 export function etichettaSconto(s) {
   if (s.tipo !== 'percentuale') return 'Sconto';
-  return `Sconto ${num(s.percentuale, s.percentuale % 1 ? 1 : 0)}%`;
+  return `Sconto ${numPerc(s.percentuale)}%`;
 }
 
 // Nome del file (PDF o Word) proposto al salvataggio.

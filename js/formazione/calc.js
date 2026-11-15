@@ -18,6 +18,17 @@ import { centesimi, inLettere } from '../lib/numeri.js';
 
 export { inLettere };
 
+// Un prezzo non può essere negativo: il lettore degli importi accetta il
+// meno perché serve anche dove il segno ha senso, ma qui un corso a −55 € × 2
+// toglierebbe 110 € dal totale senza che il documento dica perché. Come n()
+// nei trasporti, si porta a zero; il null («non compilato») resta null,
+// perché chi chiama distingue il campo vuoto dallo zero.
+export function nonNegativo(v) {
+  if (v === null || v === undefined) return null;
+  const x = Number(v);
+  return Number.isFinite(x) ? Math.max(0, x) : 0;
+}
+
 // Aliquota ordinaria, l'unica che serve qui: la formazione o è esente (art.
 // 10) o, quando non lo è, sconta l'aliquota piena.
 export const ALIQUOTA_IVA = 22;
@@ -152,8 +163,8 @@ export function rigaDaCorso(corso) {
 export function calcola(prev) {
   const righe = (prev.righe || []).map(r => {
     const discenti = Math.max(0, Number(r.discenti) || 0);
-    const prezzo = Number(r.prezzo) || 0;
-    const listino = Number(r.listino) || 0;
+    const prezzo = nonNegativo(Number(r.prezzo) || 0);
+    const listino = nonNegativo(Number(r.listino) || 0);
     return {
       ...r, discenti, prezzo, listino,
       importo: centesimi(discenti * prezzo),

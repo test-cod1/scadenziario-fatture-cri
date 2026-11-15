@@ -4,21 +4,24 @@
 import { residuoFattura } from '../lib/numeri.js';
 import { sembraEmail } from '../lib/nomeAccesso.mjs';
 
-// Chi scrive nome e cognome invece dell'email: il server dice a quale email
-// corrisponde (solo per gli account che hanno un nome di accesso, vedi
-// js/lib/nomeAccesso.mjs), poi tutto prosegue come con l'email.
-async function emailDiAccesso(identificativo) {
-  if (sembraEmail(identificativo)) return identificativo;
+// Chi scrive nome e cognome invece dell'email (solo gli account con un nome
+// di accesso, vedi js/lib/nomeAccesso.mjs): l'accesso e il recupero della
+// password li fa il server, che non rivela mai a quale email corrisponde il
+// nome (vedi functions/api/email-accesso.js). Al browser torna la sessione.
+async function chiediPerNome(corpo) {
   const res = await fetch('/api/email-accesso', {
     method: 'POST', headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ nome: identificativo }),
+    body: JSON.stringify(corpo),
   });
   const d = await res.json().catch(() => ({}));
-  if (!res.ok || !d.email) throw new Error(d.error || 'Nome o password non corretti.');
-  return d.email;
+  if (!res.ok) throw new Error(d.error || 'Nome o password non corretti.');
+  return d;
 }
 
 async function sbClient() { const { getSupabase } = await import('../lib/supabase.js'); return getSupabase(); }
+// Vero dopo un «Esci» chiesto qui: la fine della sessione è voluta e non va
+// trattata come una sessione scaduta (vedi auth.alTerminareSessione).
+let uscitaVolontaria = false;
 async function sbProfile(sb, userId) {
   const { data } = await sb.from('profili').select('*').eq('id', userId).single();
   return data;
@@ -64,9 +67,14 @@ export const auth = {
     return utenteDaProfilo(data.user, prof, sezioni);
   },
   async signIn(identificativo, password) {
-    const email = await emailDiAccesso(identificativo);
     const sb = await sbClient();
-    const { data, error } = await sb.auth.signInWithPassword({ email, password });
+    let data, error;
+    if (sembraEmail(identificativo)) {
+      ({ data, error } = await sb.auth.signInWithPassword({ email: identificativo, password }));
+    } else {
+      const sessione = await chiediPerNome({ nome: identificativo, password });
+      ({ data, error } = await sb.auth.setSession({ access_token: sessione.access_token, refresh_token: sessione.refresh_token }));
+    }
     if (error) throw error;
     const [prof, sezioni] = await Promise.all([
       sbProfile(sb, data.user.id),
@@ -75,12 +83,28 @@ export const auth = {
     return utenteDaProfilo(data.user, prof, sezioni);
   },
   async signOut() {
+    uscitaVolontaria = true;
     const sb = await sbClient(); await sb.auth.signOut();
   },
-  async resetPassword(identificativo) {
-    const email = await emailDiAccesso(identificativo);
+  // Chiama `cb` quando la sessione finisce SENZA che lo si sia chiesto qui
+  // con «Esci»: il token non si è potuto rinnovare (revocato, scaduto dopo
+  // giorni di computer spento, password cambiata altrove) oppure si è usciti
+  // da un'altra scheda. Senza, il portale restava aperto e le letture,
+  // fatte ormai da anonimo, tornavano elenchi VUOTI (la RLS non dà errore,
+  // filtra): «nessuna fattura» invece di «accedi di nuovo».
+  async alTerminareSessione(cb) {
     const sb = await sbClient();
-    const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+    sb.auth.onAuthStateChange((evento) => {
+      if (evento === 'SIGNED_OUT' && !uscitaVolontaria) cb();
+    });
+  },
+  async resetPassword(identificativo) {
+    if (!sembraEmail(identificativo)) {
+      await chiediPerNome({ nome: identificativo, azione: 'recupero' });
+      return;
+    }
+    const sb = await sbClient();
+    const { error } = await sb.auth.resetPasswordForEmail(identificativo, { redirectTo: location.origin + location.pathname });
     if (error) throw error;
   },
   async updatePassword(nuovaPassword) {

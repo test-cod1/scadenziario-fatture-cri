@@ -1,5 +1,5 @@
 import { preventivi, clienti } from '../data/store.js';
-import { calcola, inLettere, rigaDaCorso, oggettoProposto, nomeBreve, ALIQUOTA_IVA } from '../calc.js';
+import { calcola, inLettere, nonNegativo, rigaDaCorso, oggettoProposto, nomeBreve, ALIQUOTA_IVA } from '../calc.js';
 import { etichettaSconto } from '../lib/documento.js';
 import { el, clear, esc, toast, confirmDialog, fmtEuro, todayISO } from '../../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
@@ -414,14 +414,14 @@ export async function renderPreventivo(view, id, ctx) {
             // riservato, è il listino ripetuto: correggendo il listino lo si
             // porta dietro, invece di lasciare un prezzo vecchio che sembra
             // uno sconto.
-            const nuovo = leggiDecimale(input.value);
+            const nuovo = nonNegativo(leggiDecimale(input.value));
             if ((Number(r.prezzo) || 0) === (Number(r.listino) || 0)) {
               r.prezzo = nuovo;
               riga.querySelector('[data-k=prezzo]').value = testoDecimale(nuovo);
             }
             r.listino = nuovo;
           } else if (k === 'prezzo') {
-            r[k] = leggiDecimale(input.value);
+            r[k] = nonNegativo(leggiDecimale(input.value));
           } else if (k === 'discenti') {
             r[k] = input.value === '' ? null : Number(input.value) || 0;
           } else {

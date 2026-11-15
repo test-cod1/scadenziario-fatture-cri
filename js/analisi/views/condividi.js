@@ -7,7 +7,8 @@
 //  Si risolve con il centro aggiornato, o null se non è cambiato niente.
 // ============================================================
 import { centri } from '../data/store.js';
-import { el, esc, toast, openModal, confirmDialog, fmtDateTime } from '../../lib/ui.js';
+import { el, esc, toast, openModal, confirmDialog, fmtDateTime, fmtDate, todayISO } from '../../lib/ui.js';
+import { DURATE_LINK, DURATA_LINK_PREDEFINITA, scadenzaLink } from '../../lib/linkCentri.mjs';
 
 // «/conto» e non «/conto.html»: è la forma che Cloudflare serve e che si
 // legge meglio in un messaggio.
@@ -16,6 +17,7 @@ export const urlCondiviso = token => `${location.origin}/conto#${token}`;
 export function apriCondividi(centro, { admin }) {
   return new Promise(res => {
     let esito = null;
+    let durata = DURATA_LINK_PREDEFINITA;
     const body = el('<div></div>');
     const foot = el('<div style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap"></div>');
     const { close } = openModal({ title: `Condividi «${centro.nome}»`, body, footer: foot, onClose: () => res(esito) });
@@ -30,9 +32,16 @@ export function apriCondividi(centro, { admin }) {
           <div class="field" style="margin:0">
             <label for="cd-link">Link</label>
             <input type="text" id="cd-link" readonly value="${esc(link)}">
-            <div class="hint">Attivo dal ${esc(fmtDateTime(centro.link_creato_il))}. Mostra sempre i dati aggiornati.</div>
+            <div class="hint">Attivo dal ${esc(fmtDateTime(centro.link_creato_il))}. ${testoScadenza()} Mostra sempre i dati aggiornati.</div>
           </div>`
-        : `<p class="hint" style="margin:0">${admin ? 'Nessun link attivo.' : 'Nessun link attivo: può crearlo un amministratore della sezione.'}</p>`}`;
+        : `<p class="hint" style="margin:0">${admin ? 'Nessun link attivo.' : 'Nessun link attivo: può crearlo un amministratore della sezione.'}</p>`}
+        ${admin ? `
+          <div class="field" style="margin:12px 0 0;max-width:260px">
+            <label for="cd-durata">${link ? 'Validità del prossimo link' : 'Validità del link'}</label>
+            <select id="cd-durata">${DURATE_LINK.map(d => `<option value="${d.mesi}" ${d.mesi === durata ? 'selected' : ''}>${esc(d.etichetta)}</option>`).join('')}</select>
+            <div class="hint">Dopo l'ultimo giorno il link smette di funzionare da solo.</div>
+          </div>` : ''}`;
+      body.querySelector('#cd-durata')?.addEventListener('change', e => { durata = Number(e.target.value); });
       foot.innerHTML = `
         ${link && admin ? '<button class="btn" data-togli>Disattiva</button><button class="btn" data-rinnova>Cambia link</button>' : ''}
         ${link ? '<button class="btn primary" data-copia>Copia il link</button>' : ''}
@@ -55,10 +64,18 @@ export function apriCondividi(centro, { admin }) {
       });
     }
 
+    function testoScadenza() {
+      if (!centro.link_scade_il) return 'Senza scadenza.';
+      return centro.link_scade_il < todayISO()
+        ? `<b>Scaduto il ${esc(fmtDate(centro.link_scade_il))}</b>: non funziona più, creane uno nuovo.`
+        : `Valido fino al ${esc(fmtDate(centro.link_scade_il))} compreso.`;
+    }
+
     async function imposta(attivo, messaggio) {
       foot.querySelectorAll('button').forEach(b => { b.disabled = true; });
       try {
-        Object.assign(centro, await centri.impostaLink(centro.id, attivo, centro.nome));
+        const scadeIl = attivo ? scadenzaLink(todayISO(), durata) : null;
+        Object.assign(centro, await centri.impostaLink(centro.id, attivo, centro.nome, scadeIl));
         esito = centro;
         toast(messaggio, 'ok');
       } catch (e) { toast(e.message, 'err'); }

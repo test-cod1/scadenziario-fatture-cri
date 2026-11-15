@@ -5,6 +5,9 @@
 node_modules/
 .git/
 .wrangler/
+# Impostazioni locali degli strumenti di sviluppo: con un `wrangler deploy`
+# lanciato dal proprio computer sarebbero finite fra i file scaricabili.
+.claude/
 .dev.vars
 wrangler.jsonc
 worker.js

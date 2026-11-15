@@ -7,7 +7,7 @@
 //  le risposte e si danno gli errori giusti sulle /api/* sbagliate.
 // ============================================================
 
-import { ROUTES, metodoNonAmmesso } from './_lib/rotte.js';
+import { ROUTES, metodoNonAmmesso, eseguiProtetto } from './_lib/rotte.js';
 import { conSicurezza } from './_lib/sicurezza.js';
 
 export async function onRequest(context) {
@@ -28,7 +28,9 @@ export async function onRequest(context) {
     ), 'api');
   }
 
-  const res = await context.next();
+  // Su Pages la function la chiama context.next(): la rete di sicurezza per
+  // le eccezioni (vedi eseguiProtetto) si mette attorno a quella chiamata.
+  const res = api ? await eseguiProtetto(() => context.next(), context, pathname) : await context.next();
   // Un FILE che non esiste (un modulo rinominato da un deploy e chiesto da
   // una scheda rimasta aperta, un'icona sbagliata): Pages risponde con
   // index.html e stato 200, il ripiego pensato per le pagine. Il browser

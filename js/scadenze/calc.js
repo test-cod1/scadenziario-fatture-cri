@@ -117,3 +117,21 @@ export function successiva(s) {
   const { id, created_at, updated_at, created_by, fatta, fatta_il, ...resto } = s;
   return { ...resto, data_scadenza: data, fatta: false, fatta_il: null, precedente_id: id };
 }
+
+// Il giorno in cui è stato segnato un timestamp, nel fuso di chi guarda
+// (o in quello indicato). fatta_il/fatto_il arrivano dal database in UTC:
+// tagliarne i primi dieci caratteri dava il giorno di Greenwich, e una cosa
+// segnata fatta alle 00:30 di notte in Italia risultava «fatta il» giorno
+// prima. Una data già senza ora resta com'è.
+export function giornoLocale(istante, fuso) {
+  if (!istante) return '';
+  const testo = String(istante);
+  if (/^\d{4}-\d{2}-\d{2}$/.test(testo)) return testo;
+  const d = new Date(testo);
+  if (Number.isNaN(d.getTime())) return testo.slice(0, 10);
+  const parti = new Intl.DateTimeFormat('en-CA', {
+    timeZone: fuso, year: 'numeric', month: '2-digit', day: '2-digit',
+  }).formatToParts(d);
+  const v = (tipo) => parti.find(p => p.type === tipo).value;
+  return `${v('year')}-${v('month')}-${v('day')}`;
+}

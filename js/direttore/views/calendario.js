@@ -20,7 +20,7 @@
 import { impegni as store } from '../data/store.js';
 import {
   GIORNI_SETTIMANA, grigliaMese, perGiorno, meseDi, meseValido, spostaMese,
-  nomeMese, nomeGiorno, oggiISO, livelloDi, etichettaScadenza, giorniAllaScadenza,
+  nomeMese, nomeGiorno, oggiISO, livelloDi, etichettaScadenza, giorniAllaScadenza, giornoLocale,
 } from '../calc.js';
 import { el, clear, esc, toast, rendiCliccabile, fmtDate } from '../../lib/ui.js';
 
@@ -167,7 +167,7 @@ export async function renderCalendario(view, ctx, mese) {
           <span class="chip liv-${esc(i.importanza)}" title="Quanto pesa il risultato">Importanza ${esc(imp.label.toLowerCase())}</span>
           <span class="chip liv-${esc(i.urgenza)}" title="Quanto preme il tempo">Urgenza ${esc(u.label.toLowerCase())}</span>
           <span class="chip sca-${esc(sca.stato)}" title="${esc(fmtDate(i.scadenza))}">${esc(sca.testo)}</span>
-          ${i.fatto && i.fatto_il ? `<span class="chip ok">fatto il ${esc(fmtDate(i.fatto_il.slice(0, 10)))}</span>` : ''}
+          ${i.fatto && i.fatto_il ? `<span class="chip ok">fatto il ${esc(fmtDate(giornoLocale(i.fatto_il)))}</span>` : ''}
         </div>
       </div>
       <div class="dir-azioni">

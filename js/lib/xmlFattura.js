@@ -252,6 +252,9 @@ function traduciModalita(codice) {
 //    2. la somma dei DatiRiepilogo (imponibile + imposta di ogni aliquota),
 //       che è il totale ricostruito secondo il tracciato;
 //    3. la somma delle rate di pagamento indicate nel documento.
+//  Nel caso 2 va aggiunta l'imposta di bollo (DatiBollo/ImportoBollo): fa
+//  parte del totale dovuto ma non sta nei DatiRiepilogo, e senza di lei la
+//  fattura restava aperta per 2€ che nessuno avrebbe mai pagato.
 function calcolaImporto(body, datiGen, rate) {
   const dichiarato = datiGen ? numero(txt(datiGen, 'ImportoTotaleDocumento')) : null;
   if (dichiarato) return dichiarato;
@@ -265,10 +268,23 @@ function calcolaImporto(body, datiGen, rate) {
     totale += (imponibile || 0) + (imposta || 0);
     conteggiati++;
   }
-  if (conteggiati) return arrotonda(totale);
+  if (conteggiati) return arrotonda(totale + bolloDaAggiungere(body, datiGen));
 
   const daRate = rate.reduce((s, r) => s + (r.importo || 0), 0);
   return daRate > 0 ? arrotonda(daRate) : null;
+}
+
+// Molti gestionali, oltre a dichiarare il bollo in DatiBollo, lo riaddebitano
+// con una riga di dettaglio ("Rimborso imposta di bollo", Natura N1): così è
+// già dentro un DatiRiepilogo, e sommarlo di nuovo lo conterebbe due volte.
+// Lo si aggiunge quindi solo se nessuna riga di dettaglio di pari importo
+// parla di bollo.
+function bolloDaAggiungere(body, datiGen) {
+  const bollo = datiGen ? numero(txt(datiGen, 'ImportoBollo')) : null;
+  if (!bollo || bollo <= 0) return 0;
+  const giaInRiga = allTags(body, 'DettaglioLinee').some(l =>
+    /bollo/i.test(txt(l, 'Descrizione')) && Math.abs((numero(txt(l, 'PrezzoTotale')) || 0) - bollo) < 0.005);
+  return giaInRiga ? 0 : bollo;
 }
 
 // ------------------------------------------------------------
@@ -287,6 +303,19 @@ export function identificativoFiscale(nodo) {
   }
   const cf = txt(nodo, 'CodiceFiscale').replace(/\s+/g, '').toUpperCase();
   return cf || null;
+}
+
+// La stessa forma di identificativoFiscale, per un identificativo arrivato
+// come testo (la lettura AI di un PDF): "IT01234567890", "it 0123 4567 890"
+// e "01234567890" sono la stessa partita IVA, ma confrontate come stringhe
+// facevano due fornitori diversi nel Report e sfuggivano al controllo dei
+// doppioni. Undici cifre senza paese sono una partita IVA italiana (dall'XML
+// arriva sempre col paese davanti); il resto (codice fiscale, partite IVA
+// estere già col prefisso) resta com'è, senza spazi e in maiuscolo.
+export function normalizzaPartitaIva(valore) {
+  const v = String(valore == null ? '' : valore).replace(/[\s.\-/]+/g, '').toUpperCase();
+  if (!v) return null;
+  return /^\d{11}$/.test(v) ? 'IT' + v : v;
 }
 
 // ------------------------------------------------------------
@@ -355,10 +384,29 @@ function datiFiscali(body, datiGen, totale, verbo) {
   };
 }
 
-// Nel tracciato FatturaPA i decimali usano il punto, ma qualche gestionale
-// esporta la virgola: la accettiamo comunque invece di restituire NaN.
-function numero(s) {
-  const n = parseFloat(String(s == null ? '' : s).trim().replace(',', '.'));
+// Nel tracciato FatturaPA i decimali usano il punto ("1234.56"), ma qualche
+// gestionale esporta la virgola, a volte con i separatori delle migliaia
+// ("1.234,56"). Prima si sostituiva solo la PRIMA virgola e parseFloat si
+// fermava al punto: "1.234,56" diventava 1.234, mille volte meno, senza
+// alcun errore. La regola: con punti e virgole insieme, il decimale è
+// l'ultimo dei due e l'altro fa le migliaia; con le sole virgole, decimale è
+// l'ultima; con i soli punti, un punto solo è il decimale del tracciato
+// (anche "1.234": PrezzoUnitario ammette fino a 8 decimali), più punti sono
+// migliaia. Locale e non preso da ui.js: questo modulo non deve tirarsi
+// dietro il DOM (lo importano anche le Functions).
+export function numero(s) {
+  let t = String(s == null ? '' : s).replace(/\s+/g, '');
+  if (!t) return null;
+  const virgola = t.lastIndexOf(','), punto = t.lastIndexOf('.');
+  if (virgola >= 0 && punto >= 0) {
+    t = virgola > punto ? t.replace(/\./g, '').replace(',', '.') : t.replace(/,/g, '');
+  } else if (virgola >= 0) {
+    t = t.slice(0, virgola).replace(/,/g, '') + '.' + t.slice(virgola + 1);
+  } else if (t.indexOf('.') !== punto) {
+    t = t.replace(/\./g, '');
+  }
+  if (!/^[+-]?(\d+\.?\d*|\.\d+)$/.test(t)) return null;
+  const n = parseFloat(t);
   return Number.isFinite(n) ? n : null;
 }
 
@@ -397,7 +445,7 @@ export async function leggiXmlFattura(file) {
   if (String(file.name || "").toLowerCase().endsWith(".p7m")) {
     throw new Error("Non sono riuscito a estrarre la fattura dal file firmato (.p7m).");
   }
-  return new TextDecoder("utf-8").decode(buf);
+  return decodifica(buf);
 }
 
 // Ritaglia il documento XML dai byte grezzi: da inizio dichiarazione
@@ -416,7 +464,22 @@ function xmlDaBytes(bytes) {
     for (inizio = radice; inizio >= 0 && bytes[inizio] !== 0x3c; inizio--);
   }
   if (inizio < 0 || fine <= inizio) return null;
-  return new TextDecoder("utf-8").decode(bytes.subarray(inizio, fine));
+  return decodifica(bytes.subarray(inizio, fine));
+}
+
+// Il tracciato ammette anche file in ISO-8859-1 / windows-1252, che alcuni
+// gestionali producono ancora: decodificandoli sempre come UTF-8, «Società»
+// diventava «Societ�» nel nome del fornitore e nelle note. Si legge quindi
+// la codifica dalla dichiarazione XML (ASCII in tutte queste codifiche,
+// quindi leggibile prima di sapere quale sia) e si usa quella; se manca o
+// non è una codifica conosciuta, UTF-8 come prima.
+function decodifica(bytes) {
+  const testa = new TextDecoder('latin1').decode(bytes.subarray(0, 300));
+  const m = testa.match(/<\?xml[^>]*?encoding\s*=\s*["']([^"']+)["']/i);
+  if (m) {
+    try { return new TextDecoder(m[1].trim()).decode(bytes); } catch { /* codifica sconosciuta: UTF-8 */ }
+  }
+  return new TextDecoder('utf-8').decode(bytes);
 }
 
 function primaOccorrenza(bytes, testo) {

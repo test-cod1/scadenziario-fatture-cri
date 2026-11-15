@@ -12,7 +12,7 @@
 //  stanno in functions/_lib/ e valgono per tutte e due.
 // ============================================================
 
-import { ROUTES, metodoNonAmmesso } from './functions/_lib/rotte.js';
+import { ROUTES, metodoNonAmmesso, eseguiProtetto } from './functions/_lib/rotte.js';
 import { conSicurezza } from './functions/_lib/sicurezza.js';
 
 export default {
@@ -28,7 +28,7 @@ export default {
       // context.waitUntil(...) — /api/prezzo-italia lo usa per salvare la
       // risposta nella cache edge, e senza andava in eccezione (error 1101).
       const contesto = { request, env, ctx, waitUntil: (p) => ctx.waitUntil(p) };
-      return conSicurezza(await route[request.method](contesto), 'api');
+      return conSicurezza(await eseguiProtetto(route[request.method], contesto, url.pathname), 'api');
     }
     return conSicurezza(await env.ASSETS.fetch(request));
   },

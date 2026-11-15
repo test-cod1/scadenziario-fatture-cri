@@ -43,6 +43,7 @@ function nuovoDb() {
     autorizzazioni: [{ utente_id: UTENTE, sezione: 'direttore' }],
     telegram_collegamenti: [{ utente_id: UTENTE, chat_id: null, codice: 'AB12CD34', codice_scade: new Date(Date.now() + 600000).toISOString() }],
     idee_direttore: [],
+    telegram_aggiornamenti: [],
   };
 }
 // Un PostgREST minimo: select con filtri eq/neq, insert, patch, delete. Si
@@ -59,7 +60,12 @@ const finto = async (url, opz = {}) => {
   const righe = db[tabella];
   const metodo = opz.method || 'GET';
   if (metodo === 'GET') return new Response(JSON.stringify(righe.filter(passa)), { status: 200 });
-  if (metodo === 'POST') { righe.push(JSON.parse(opz.body)); return new Response('[]', { status: 201 }); }
+  if (metodo === 'POST') {
+    const riga = JSON.parse(opz.body);
+    // telegram_aggiornamenti ha update_id come chiave: il doppione non entra.
+    if (tabella === 'telegram_aggiornamenti' && righe.some(r => r.update_id === riga.update_id)) return new Response('[]', { status: 201 });
+    righe.push(riga); return new Response(JSON.stringify([riga]), { status: 201 });
+  }
   if (metodo === 'PATCH') { righe.filter(passa).forEach(r => Object.assign(r, JSON.parse(opz.body))); return new Response('[]', { status: 200 }); }
   if (metodo === 'DELETE') { db[tabella] = righe.filter(r => !passa(r)); return new Response('[]', { status: 200 }); }
 };
@@ -108,4 +114,27 @@ prova('webhook: codice scaduto, o utente senza più accesso al Direttore', async
   db.autorizzazioni = [];
   vero((await chiama(msg('idea'))).corpo.text.includes('accesso'), 'chi ha perso l\'accesso scrive ancora');
   uguale(db.idee_direttore.length, 0);
+});
+
+prova('webhook: lo stesso aggiornamento rimandato da Telegram non duplica l’idea', async () => {
+  nuovoDb();
+  await chiama(msg('/collega AB12CD34'));
+  const u = { ...msg('Idea mandata una volta sola'), update_id: 9001 };
+  await chiama(u);
+  await chiama(u);
+  uguale(db.idee_direttore.length, 1);
+  await chiama({ ...msg('Un’altra idea'), update_id: 9002 });
+  uguale(db.idee_direttore.length, 2);
+});
+
+prova('webhook: senza la tabella degli aggiornamenti l’idea entra lo stesso', async () => {
+  nuovoDb();
+  delete db.telegram_aggiornamenti;
+  await chiama(msg('/collega AB12CD34'));
+  await chiama({ ...msg('Idea prima della patch'), update_id: 7 });
+  uguale(db.idee_direttore.length, 1);
+});
+
+prova('i codici nuovi da 10 caratteri si riconoscono', () => {
+  uguale(interpreta(msg('/start ABCDEFGHJK'))?.codice, 'ABCDEFGHJK');
 });
