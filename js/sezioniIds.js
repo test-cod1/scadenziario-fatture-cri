@@ -27,4 +27,5 @@ export const ID_SEZIONI = [
   'analisi',
   'scadenze',
   'patenti',
+  'sturline',
 ];

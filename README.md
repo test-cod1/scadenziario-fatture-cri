@@ -12,6 +12,7 @@ Portale gestionale della CRI di Genova. Dopo il login si sceglie una **sezione**
 | **Direttore** | attiva: gli impegni della direzione, ordinati per urgenza, importanza e scadenza |
 | **Analisi** | attiva: i centri di costo — entrate e uscite della singola attività, registrate nella sezione e staccate dallo scadenziario |
 | **Patenti** | attiva: le richieste di emissione o rinnovo delle patenti CRI che i volontari mandano da un modulo pubblico, con le domande e risposte |
+| **Progetto Sturline** | attiva: le idee per il recupero delle due ville di Via Sturla — primi contatti, fonti di sostegno, fondazioni, aziende, istituzioni, stampa e idee per la raccolta — da consultare e cercare. I contenuti stanno in [`js/sturline/dati.js`](js/sturline/dati.js); serve [`patch-2026-11-16-sturline.sql`](supabase/patch-2026-11-16-sturline.sql) per poter abilitare gli utenti |
 
 I permessi hanno due livelli: il **ruolo di portale** (`super_admin`, che gestisce utenti e autorizzazioni di tutti, oppure `utente`) e il **ruolo di sezione** (`admin` o `operatore`, uno per ogni sezione a cui si è abilitati). Vedi "Gestire gli utenti dall'app".
 

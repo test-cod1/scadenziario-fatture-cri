@@ -487,6 +487,10 @@ async function route() {
       const { renderPatenti } = await import('./patenti/sezione.js');
       return await disegna(z => renderPatenti(z, ctx, sub, param));
     }
+    if (sezione.id === 'sturline') {
+      const { renderSturline } = await import('./sturline/sezione.js');
+      return await disegna(z => renderSturline(z, ctx, sub, param));
+    }
     if (sezione.id === 'analisi') {
       const { renderAnalisi } = await import('./analisi/sezione.js');
       return await disegna(z => renderAnalisi(z, ctx, sub, param));

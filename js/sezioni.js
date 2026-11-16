@@ -48,6 +48,10 @@ const ICONE = {
   // Una tessera: la foto a sinistra e le righe dei dati, cioè una patente.
   patenti: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
     <rect x="2" y="7" width="32" height="22" rx="3"/><circle cx="11" cy="16" r="3.2"/><path d="M6 24c1-3 3-4 5-4s4 1 5 4"/><path d="M20 14h9M20 19h9M20 24h6"/></svg>`,
+  // Una villa: il tetto a capanna, le colonne e il portone. Il progetto è
+  // il recupero delle ville di Via Sturla.
+  sturline: `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+    <path d="M3 14 18 4l15 10"/><path d="M6 14v18M30 14v18M3 32h30"/><path d="M11 18v9M25 18v9"/><path d="M15 32v-7a3 3 0 0 1 6 0v7"/></svg>`,
 };
 
 export const SEZIONI = [
@@ -224,6 +228,31 @@ export const SEZIONI = [
     ],
     tour: () => import('./tour/patenti.js'),
     icona: ICONE.patenti,
+  },
+  {
+    id: 'sturline',
+    label: 'Progetto Sturline',
+    descrizione: 'Il recupero delle ville di Via Sturla: contatti, fonti di sostegno, fondazioni, aziende, istituzioni e idee.',
+    emoji: '🏡',
+    // Un verde oliva: è un progetto, non un gestionale di tutti i giorni,
+    // e il colore non si confonde con le altre card della home.
+    colore: '#3f6212',
+    ombra: 'rgba(63,98,18,.22)',
+    tipo: 'interna',
+    home: '#/sturline/panoramica',
+    // Le pagine sono quelle di js/sturline/dati.js (PAGINE): se se ne
+    // aggiunge una, va aggiunta anche qui.
+    menu: [
+      { id: 'panoramica', icon: '🧭', label: 'Panoramica' },
+      { id: 'sostegno', icon: '💶', label: 'Fonti di sostegno' },
+      { id: 'fondazioni', icon: '🏛️', label: 'Fondazioni' },
+      { id: 'aziende', icon: '🏢', label: 'Aziende e immobiliare' },
+      { id: 'istituzioni', icon: '🗳️', label: 'Istituzioni' },
+      { id: 'stampa', icon: '📰', label: 'Stampa' },
+      { id: 'idee', icon: '💡', label: 'Idee' },
+    ],
+    tour: () => import('./tour/sturline.js'),
+    icona: ICONE.sturline,
   },
 ];
 

@@ -82,7 +82,8 @@ insert into public.sezioni (id, etichetta, ordine) values
   ('direttore',    'Direttore',             6),
   ('analisi',      'Analisi',               7),
   ('scadenze',     'Scadenze',              8),
-  ('patenti',      'Patenti',               9)
+  ('patenti',      'Patenti',               9),
+  ('sturline',     'Progetto Sturline',    10)
 on conflict (id) do update set etichetta = excluded.etichetta, ordine = excluded.ordine;
 
 -- ---------- AUTORIZZAZIONI (utente x sezione x ruolo) ----------

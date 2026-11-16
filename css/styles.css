@@ -1445,3 +1445,30 @@ p.pt-testo{margin:0 0 8px}
 .telefono .pagina-pubblica .form-row{grid-template-columns:1fr}
 .telefono .pagina-pubblica .pt-patenti{grid-template-columns:1fr}
 
+
+/* ---------- Sezione Progetto Sturline (js/sturline/) ---------- */
+.stl-cerca{margin:0 0 14px;max-width:560px}
+.stl-indice{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 16px}
+.stl-indice a{font-size:13px;font-weight:600;padding:6px 12px;border-radius:999px;background:var(--card);border:1px solid var(--line);color:var(--ink);text-decoration:none}
+.stl-indice a:hover{border-color:#3f6212;color:#3f6212}
+.stl-capitoli{display:flex;flex-direction:column;gap:16px}
+.stl-capitolo{scroll-margin-top:16px}
+.stl-capitolo h2{margin:0 0 4px;font-size:18px;display:flex;align-items:center;gap:8px}
+.stl-nota{margin:0 0 6px}
+.stl-gruppo h3{font-size:12.5px;text-transform:uppercase;letter-spacing:.04em;color:#3f6212;margin:18px 0 6px}
+.stl-voci{list-style:none;margin:0;padding:0}
+.stl-voce{padding:9px 0;border-top:1px solid var(--line);line-height:1.5;font-size:14px}
+.stl-voci>.stl-voce:first-child{border-top:0}
+.stl-voce>b{display:block}
+.stl-testo{color:var(--ink-soft)}
+.stl-sotto{margin:8px 0 2px;padding:8px 12px 8px 28px;background:var(--bg);border-radius:10px;font-size:13.5px;color:var(--ink-soft);display:grid;gap:3px}
+.stl-sotto b{color:var(--ink);font-weight:600}
+.stl-riepilogo{display:flex;flex-direction:column;gap:16px}
+.stl-mappa{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:12px}
+.stl-tessera{display:flex;gap:12px;align-items:flex-start;padding:16px;color:inherit;text-decoration:none;transition:border-color .15s,transform .15s}
+.stl-tessera:hover{border-color:#3f6212;transform:translateY(-1px)}
+.stl-tessera-ico{flex:none;width:40px;height:40px;border-radius:12px;background:#ecfccb;display:grid;place-items:center;font-size:21px}
+.stl-tessera-testo{display:flex;flex-direction:column;gap:3px;min-width:0;font-size:13.5px;color:var(--ink-soft);line-height:1.4}
+.stl-tessera-testo b{color:var(--ink);font-size:15px}
+.stl-tessera-n{font-size:12px;font-weight:600;color:#3f6212}
+.stl-vuoto{margin-top:20px}
