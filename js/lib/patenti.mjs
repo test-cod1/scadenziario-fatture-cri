@@ -101,7 +101,7 @@ export const GIORNI_LAVORAZIONE = '2-3 giorni lavorativi';
 // chiede uno per uno (Sì / No): con tutti Sì la richiesta parte normale,
 // con almeno un No può chiedere supporto alla segreteria.
 export const DOCUMENTI_GAIA = [
-  { id: 'fototessera', domanda: 'Hai caricato su Gaia una <b>fototessera formale</b>?', breve: 'fototessera formale' },
+  { id: 'fototessera', domanda: 'Hai caricato su Gaia una <b>fototessera formale</b>?', breve: 'fototessera formale', guida: 'fototessera' },
   { id: 'patente_civile', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della patente civile</b>?', breve: 'patente civile, fronte e retro' },
   { id: 'carta_identita', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della carta d\'identità</b>?', breve: 'carta d\'identità, fronte e retro' },
 ];

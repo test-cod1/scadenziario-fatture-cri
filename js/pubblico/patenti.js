@@ -203,7 +203,7 @@ function passoGaia() {
       rispondi «No, mi serve supporto»: la segreteria ti aiuterà.</p>
     <div class="pt-domande">
       ${documenti().map(d => `<fieldset class="pt-domanda">
-        <legend>${d.domanda}</legend>
+        <legend>${d.domanda}${d.guida ? ` <button type="button" class="pt-guida-apri" data-guida="${d.guida}">Scopri come fare</button>` : ''}</legend>
         <div class="pt-sino">
           <label class="pp-tipo"><input type="radio" name="${d.id}" value="si" ${stato.gaia[d.id] === true ? 'checked' : ''}> <span>Sì</span></label>
           <label class="pp-tipo"><input type="radio" name="${d.id}" value="no" ${stato.gaia[d.id] === false ? 'checked' : ''}> <span>No, mi serve supporto</span></label>
@@ -326,6 +326,50 @@ const SECONDI_LETTURA = 10;
 // illeggibili: si mostra solo la colonna del menu (ritagliata con il CSS,
 // .pt-ritaglio), che così appare grande. Toccandola si apre l'immagine
 // intera.
+// Le guide che si aprono dal link «Scopri come fare» accanto a una
+// domanda sui documenti: un popup con i passaggi su Gaia e le schermate.
+const GUIDE = {
+  fototessera: {
+    titolo: 'Come caricare la fototessera su Gaia',
+    corpo: `
+      <h4 class="pt-sottotitolo">1. Apri «Fotografie»</h4>
+      <p class="pt-testo">Entra su <b>Gaia</b> e, nel menu a sinistra sotto <b>Persona</b>, tocca <b>Fotografie</b>.</p>
+      <figure class="pt-esempio"><a href="img/patenti/gaia-fotografie.png" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
+        <img src="img/patenti/gaia-fotografie.png" width="847" height="597" loading="lazy"
+          alt="Gaia, menu Persona: la voce «Fotografie» è cerchiata e indicata da una freccia."></a>
+        <figcaption>Gaia → Persona → <b>Fotografie</b></figcaption></figure>
+      <h4 class="pt-sottotitolo">2. Carica la «Fototessera (formale)»</h4>
+      <p class="pt-testo">Nella pagina ci sono due foto: usa il riquadro <b>Fototessera (formale)</b>, non la «Foto del profilo».
+        È la foto che vedono i delegati per identificarti e che viene stampata sul tesserino: usa una foto recente,
+        a viso scoperto e di fronte, su sfondo chiaro, come quella di un documento.</p>
+      <figure class="pt-esempio"><a href="img/patenti/gaia-fototessera.png" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
+        <img src="img/patenti/gaia-fototessera.png" width="800" height="576" loading="lazy"
+          alt="Gaia, pagina Fotografie: il riquadro «Fototessera (formale)» è evidenziato e indicato da una freccia."></a>
+        <figcaption>Il riquadro <b>Fototessera (formale)</b></figcaption></figure>`,
+  },
+};
+
+function apriGuida(id) {
+  const g = GUIDE[id];
+  if (!g) return;
+  const dlg = document.createElement('dialog');
+  dlg.className = 'modal pt-guida';
+  dlg.setAttribute('aria-labelledby', 'pt-guida-titolo');
+  dlg.innerHTML = `
+    <div class="m-h"><h3 id="pt-guida-titolo">${esc(g.titolo)}</h3>
+      <button type="button" class="pt-guida-chiudi" aria-label="Chiudi">✕</button></div>
+    <div class="m-b">${g.corpo}</div>
+    <div class="m-f"><button type="button" class="btn primary pt-guida-ok">Ho capito</button></div>`;
+  const chiudi = () => dlg.close();
+  dlg.querySelector('.pt-guida-chiudi').addEventListener('click', chiudi);
+  dlg.querySelector('.pt-guida-ok').addEventListener('click', chiudi);
+  // Un tocco fuori dal riquadro (sullo sfondo scuro) chiude.
+  dlg.addEventListener('click', (e) => { if (e.target === dlg) chiudi(); });
+  dlg.addEventListener('close', () => dlg.remove());
+  document.body.appendChild(dlg);
+  dlg.showModal();
+}
+
 function schermataGaia(src, alt, didascalia) {
   return `<figure class="pt-esempio pt-gaia">
     <a class="pt-ritaglio" href="${src}" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
@@ -420,6 +464,7 @@ function collega() {
       supporto.hidden = !serve;
     };
     form.querySelectorAll('.pt-domanda input').forEach(c => c.addEventListener('change', aggiorna));
+    form.querySelectorAll('[data-guida]').forEach(b => b.addEventListener('click', () => apriGuida(b.dataset.guida)));
     aggiorna();
   }
   if (qui === 'visita') {
