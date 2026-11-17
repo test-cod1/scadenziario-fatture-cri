@@ -332,13 +332,14 @@ const GUIDE = {
   fototessera: {
     titolo: 'Come caricare la fototessera su Gaia',
     corpo: `
-      <h4 class="pt-sottotitolo">1. Apri «Fotografie»</h4>
+      <p class="pt-guida-intro">Sono <b>2 passaggi</b>: scorri in basso per vederli tutti e due.</p>
+      <h4 class="pt-sottotitolo"><span class="pt-guida-n">1</span> Apri «Fotografie»</h4>
       <p class="pt-testo">Entra su <b>Gaia</b> e, nel menu a sinistra sotto <b>Persona</b>, tocca <b>Fotografie</b>.</p>
       <figure class="pt-esempio"><a href="img/patenti/gaia-fotografie.png" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
         <img src="img/patenti/gaia-fotografie.png" width="847" height="597" loading="lazy"
           alt="Gaia, menu Persona: la voce «Fotografie» è cerchiata e indicata da una freccia."></a>
         <figcaption>Gaia → Persona → <b>Fotografie</b></figcaption></figure>
-      <h4 class="pt-sottotitolo">2. Carica la «Fototessera (formale)»</h4>
+      <h4 class="pt-sottotitolo" data-ultimo-passo><span class="pt-guida-n">2</span> Carica la «Fototessera (formale)»</h4>
       <p class="pt-testo">Nella pagina ci sono due foto: usa il riquadro <b>Fototessera (formale)</b>, non la «Foto del profilo».
         È la foto che vedono i delegati per identificarti e che viene stampata sul tesserino: usa una foto recente,
         a viso scoperto e di fronte, su sfondo chiaro, come quella di un documento.</p>
@@ -359,7 +360,23 @@ function apriGuida(id) {
     <div class="m-h"><h3 id="pt-guida-titolo">${esc(g.titolo)}</h3>
       <button type="button" class="pt-guida-chiudi" aria-label="Chiudi">✕</button></div>
     <div class="m-b">${g.corpo}</div>
-    <div class="m-f"><button type="button" class="btn primary pt-guida-ok">Ho capito</button></div>`;
+    <div class="m-f"><button type="button" class="pt-guida-scorri">↓ Scorri: c'è il passaggio 2</button>
+      <button type="button" class="btn primary pt-guida-ok">Ho capito</button></div>`;
+  // Finché il passaggio 2 non si vede, in fondo resta l'avviso che c'è
+  // ancora da scorrere (toccandolo ci si arriva).
+  const ultimo = dlg.querySelector('[data-ultimo-passo]');
+  const scorri = dlg.querySelector('.pt-guida-scorri');
+  scorri.addEventListener('click', () => ultimo.scrollIntoView({ behavior: 'smooth', block: 'start' }));
+  // Il passaggio 2 conta come visto quando il suo titolo sta sopra la
+  // barra in fondo con «Ho capito».
+  const piede = dlg.querySelector('.m-f');
+  const controlla = () => {
+    if (ultimo.getBoundingClientRect().bottom <= piede.getBoundingClientRect().top) {
+      scorri.hidden = true;
+      dlg.removeEventListener('scroll', controlla);
+    }
+  };
+  dlg.addEventListener('scroll', controlla, { passive: true });
   const chiudi = () => dlg.close();
   dlg.querySelector('.pt-guida-chiudi').addEventListener('click', chiudi);
   dlg.querySelector('.pt-guida-ok').addEventListener('click', chiudi);
@@ -368,6 +385,7 @@ function apriGuida(id) {
   dlg.addEventListener('close', () => dlg.remove());
   document.body.appendChild(dlg);
   dlg.showModal();
+  controlla(); // su uno schermo alto il passaggio 2 si vede già
 }
 
 function schermataGaia(src, alt, didascalia) {

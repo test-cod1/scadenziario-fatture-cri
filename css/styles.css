@@ -1314,10 +1314,17 @@ p.pt-testo{margin:0 0 8px}
 .pt-guida-apri:hover{color:#0b5c72}
 dialog.pt-guida{padding:0;border:0;color:var(--ink)}
 dialog.pt-guida::backdrop{background:rgba(15,20,25,.45)}
-.pt-guida .pt-sottotitolo{margin-top:0}
+.pt-guida .pt-sottotitolo{margin-top:0;scroll-margin-top:80px}
 .pt-guida .pt-esempio{margin-bottom:18px}
 .pt-guida-chiudi{background:none;border:0;font-size:18px;line-height:1;padding:6px;cursor:pointer;color:var(--ink-soft)}
 .pt-guida .m-f .btn{width:auto}
+.pt-guida .m-f{align-items:center}
+.pt-guida-intro{margin:0 0 14px;padding:10px 12px;border-radius:10px;background:var(--info-soft);color:var(--ink);font-size:14px}
+.pt-guida-n{display:inline-grid;place-items:center;width:24px;height:24px;margin-right:6px;border-radius:50%;background:var(--cri-red);color:#fff;font-size:13px;vertical-align:1px}
+.pt-guida-scorri{margin-right:auto;background:none;border:0;padding:4px 0;font:inherit;font-size:14px;font-weight:700;color:#0e7490;cursor:pointer;animation:pt-rimbalzo 1.6s ease-in-out infinite}
+.pt-guida-scorri[hidden]{display:none}
+@keyframes pt-rimbalzo{0%,100%{transform:translateY(0)}50%{transform:translateY(3px)}}
+@media (prefers-reduced-motion:reduce){.pt-guida-scorri{animation:none}}
 .pt-sino .pp-tipo{flex:1;justify-content:center;font-weight:600}
 .pt-sino .pp-tipo:has(input[value=no]:checked){border-color:var(--warn);background:var(--warn-soft)}
 .pt-conferma{align-items:flex-start;line-height:1.45}
