@@ -117,9 +117,12 @@ export const FOTO_PATENTE_CRI = {
   breve: 'foto della patente CRI in scadenza o scaduta (via email)',
 };
 
-// I documenti chiesti per quel tipo di richiesta.
+// I documenti chiesti per quel tipo di richiesta. Per il rinnovo la
+// patente civile non si chiede: al suo posto c'è la foto della patente CRI.
 export function documentiRichiesti(tipo) {
-  return tipo === 'rinnovo' ? [...DOCUMENTI_GAIA, FOTO_PATENTE_CRI] : DOCUMENTI_GAIA;
+  return tipo === 'rinnovo'
+    ? [...DOCUMENTI_GAIA.filter(d => d.id !== 'patente_civile'), FOTO_PATENTE_CRI]
+    : DOCUMENTI_GAIA;
 }
 
 // I documenti che mancano a una richiesta salvata (quelli non confermati).

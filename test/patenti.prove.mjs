@@ -61,13 +61,17 @@ prova('chi ha tutti i documenti non può chiedere supporto', () => {
   uguale(Object.keys(controllaRichiesta({ ...OK, supporto: true }).errori), ['documenti_gaia']);
 });
 
-prova('per il rinnovo serve anche la foto della patente CRI inviata per email', () => {
+prova('per il rinnovo serve la foto della patente CRI, non la patente civile', () => {
   const RINNOVO = { ...OK, tipo: 'rinnovo' };
   uguale(Object.keys(controllaRichiesta(RINNOVO).errori), ['documenti_gaia'], 'i tre documenti su Gaia non bastano');
   const r = controllaRichiesta({ ...RINNOVO, documenti_gaia: { ...TUTTI, foto_patente_cri: true } });
   vero(r.ok, JSON.stringify(r.errori));
   uguale(r.dati.documenti_gaia.at(-1), 'foto_patente_cri');
   uguale(documentiMancanti(['fototessera', 'patente_civile', 'carta_identita'], 'rinnovo').map(d => d.id), ['foto_patente_cri']);
+  uguale(documentiMancanti(['fototessera', 'carta_identita', 'foto_patente_cri'], 'rinnovo'), [], 'la patente civile non serve');
+  const s = controllaRichiesta({ ...RINNOVO, documenti_gaia: { fototessera: true, carta_identita: true, foto_patente_cri: true } });
+  vero(s.ok, JSON.stringify(s.errori));
+  vero(!s.dati.documenti_gaia.includes('patente_civile'));
   vero(controllaRichiesta({ ...RINNOVO, supporto: true }).ok, 'senza la foto può chiedere supporto');
 });
 

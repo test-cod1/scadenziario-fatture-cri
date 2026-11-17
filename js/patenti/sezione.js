@@ -74,7 +74,7 @@ function renderLink(view) {
         <li><b>Richiesta</b>: ottenere una nuova patente CRI o rinnovare quella che si ha.</li>
         <li><b>Patente</b>: quale (da 1 a 8), la più alta; per una nuova, con la patente civile di partenza.</li>
         <li><b>Documenti</b>: una domanda per documento, «Sì» o «No, mi serve supporto» —
-          <ul style="margin:2px 0 4px">${DOCUMENTI_GAIA.map(d => `<li>${esc(d.breve)}</li>`).join('')}<li>solo per il rinnovo: ${esc(FOTO_PATENTE_CRI.breve)}</li></ul>
+          <ul style="margin:2px 0 4px">${DOCUMENTI_GAIA.map(d => `<li>${esc(d.breve)}</li>`).join('')}<li>solo per il rinnovo: ${esc(FOTO_PATENTE_CRI.breve)}, al posto della patente civile</li></ul>
           Con un «No» la richiesta arriva segnata «serve supporto», con un'email di avviso.</li>
         <li><b>Test dei riflessi</b>: solo per le patenti 5, 6, 7 e 8, da confermare.</li>
         <li><b>Visita medica</b>: entrare nel gruppo WhatsApp e chiedere di prenotarla (dalla 5 in su, dopo il test dei riflessi), con un messaggio già pronto; da confermare.</li>

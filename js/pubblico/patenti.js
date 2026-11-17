@@ -57,7 +57,7 @@ const stato = {
   tipo: '',          // 'nuova' | 'rinnovo'
   patente: '',
   // Per documento: true (Sì), false (No, mi serve supporto) o null (non ancora risposto).
-  gaia: Object.fromEntries(documentiRichiesti('rinnovo').map(d => [d.id, null])),
+  gaia: Object.fromEntries([...documentiRichiesti('nuova'), ...documentiRichiesti('rinnovo')].map(d => [d.id, null])),
   visita: false,     // confermato di aver capito come prenotare la visita medica
   letto: false,      // confermato di aver letto come prosegue la procedura
   riflessi: false,   // confermato di aver letto le indicazioni sul test dei riflessi
@@ -65,8 +65,8 @@ const stato = {
 };
 
 const rinnovo = () => stato.tipo === 'rinnovo';
-// I documenti da confermare: per il rinnovo c'è in più la foto della
-// patente CRI mandata per email.
+// I documenti da confermare: per il rinnovo non c'è la patente civile e
+// c'è in più la foto della patente CRI mandata per email.
 const documenti = () => documentiRichiesti(stato.tipo);
 
 function stepper() {
