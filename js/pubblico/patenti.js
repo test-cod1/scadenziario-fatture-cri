@@ -328,27 +328,73 @@ const SECONDI_LETTURA = 10;
 // intera.
 // Le guide che si aprono dal link «Scopri come fare» accanto a una
 // domanda sui documenti: un popup con i passaggi su Gaia e le schermate.
+// Le schermate di Gaia usate dalle guide.
+const SCHERMATA_DOCUMENTI = {
+  src: 'img/patenti/gaia-documenti.png', w: 847, h: 597,
+  alt: 'Gaia, menu Persona: la voce «Documenti» è cerchiata e indicata da una freccia.',
+  didascalia: 'Gaia → Persona → <b>Documenti</b>',
+};
+const passoDocumenti = {
+  titolo: 'Apri «Documenti»',
+  testo: 'Entra su <b>Gaia</b> e, nel menu a sinistra sotto <b>Persona</b>, tocca <b>Documenti</b>.',
+  schermata: SCHERMATA_DOCUMENTI,
+};
+const passoAggiungi = (tipo, src, w, h) => ({
+  titolo: 'Aggiungi il documento',
+  testo: `A destra, nel riquadro <b>Aggiungi documento</b>:
+    <ul class="pt-testo"><li>in <b>Tipo</b> scegli <b>${tipo}</b>;</li>
+      <li>in <b>File</b> tocca <b>Scegli file</b> e seleziona la scansione <b>fronte e retro</b> (tutte e due le facce nello stesso file);</li>
+      <li>in <b>Data di scadenza</b> scrivi la scadenza del documento;</li>
+      <li>tocca <b>Carica</b>. Il documento compare a sinistra, in <b>Documenti caricati</b>.</li></ul>`,
+  schermata: { src, w, h, alt: `Gaia, pagina Documenti: il riquadro «Aggiungi documento» con Tipo «${tipo}» è evidenziato e indicato da una freccia.`,
+    didascalia: `Il riquadro <b>Aggiungi documento</b>, con Tipo «${tipo}»` },
+});
+
+// Le guide che si aprono dal link «Scopri come fare» accanto a una
+// domanda sui documenti: un popup con i passaggi su Gaia e le schermate.
 const GUIDE = {
   fototessera: {
     titolo: 'Come caricare la fototessera su Gaia',
-    corpo: `
-      <p class="pt-guida-intro">Sono <b>2 passaggi</b>: scorri in basso per vederli tutti e due.</p>
-      <h4 class="pt-sottotitolo"><span class="pt-guida-n">1</span> Apri «Fotografie»</h4>
-      <p class="pt-testo">Entra su <b>Gaia</b> e, nel menu a sinistra sotto <b>Persona</b>, tocca <b>Fotografie</b>.</p>
-      <figure class="pt-esempio"><a href="img/patenti/gaia-fotografie.png" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
-        <img src="img/patenti/gaia-fotografie.png" width="847" height="597" loading="lazy"
-          alt="Gaia, menu Persona: la voce «Fotografie» è cerchiata e indicata da una freccia."></a>
-        <figcaption>Gaia → Persona → <b>Fotografie</b></figcaption></figure>
-      <h4 class="pt-sottotitolo" data-ultimo-passo><span class="pt-guida-n">2</span> Carica la «Fototessera (formale)»</h4>
-      <p class="pt-testo">Nella pagina ci sono due foto: usa il riquadro <b>Fototessera (formale)</b>, non la «Foto del profilo».
-        È la foto che vedono i delegati per identificarti e che viene stampata sul tesserino: usa una foto recente,
-        a viso scoperto e di fronte, su sfondo chiaro, come quella di un documento.</p>
-      <figure class="pt-esempio"><a href="img/patenti/gaia-fototessera.png" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
-        <img src="img/patenti/gaia-fototessera.png" width="800" height="576" loading="lazy"
-          alt="Gaia, pagina Fotografie: il riquadro «Fototessera (formale)» è evidenziato e indicato da una freccia."></a>
-        <figcaption>Il riquadro <b>Fototessera (formale)</b></figcaption></figure>`,
+    passi: [
+      {
+        titolo: 'Apri «Fotografie»',
+        testo: 'Entra su <b>Gaia</b> e, nel menu a sinistra sotto <b>Persona</b>, tocca <b>Fotografie</b>.',
+        schermata: { src: 'img/patenti/gaia-fotografie.png', w: 847, h: 597,
+          alt: 'Gaia, menu Persona: la voce «Fotografie» è cerchiata e indicata da una freccia.',
+          didascalia: 'Gaia → Persona → <b>Fotografie</b>' },
+      },
+      {
+        titolo: 'Carica la «Fototessera (formale)»',
+        testo: `Nella pagina ci sono due foto: usa il riquadro <b>Fototessera (formale)</b>, non la «Foto del profilo».
+          È la foto che vedono i delegati per identificarti e che viene stampata sul tesserino: usa una foto recente,
+          a viso scoperto e di fronte, su sfondo chiaro, come quella di un documento.`,
+        schermata: { src: 'img/patenti/gaia-fototessera.png', w: 800, h: 576,
+          alt: 'Gaia, pagina Fotografie: il riquadro «Fototessera (formale)» è evidenziato e indicato da una freccia.',
+          didascalia: 'Il riquadro <b>Fototessera (formale)</b>' },
+      },
+    ],
+  },
+  patente_civile: {
+    titolo: 'Come caricare la patente civile su Gaia',
+    passi: [passoDocumenti, passoAggiungi('Patente Civile', 'img/patenti/gaia-documenti-patente-civile.png', 1178, 736)],
+  },
+  carta_identita: {
+    titolo: "Come caricare la carta d'identità su Gaia",
+    passi: [passoDocumenti, passoAggiungi("Carta d'identità", 'img/patenti/gaia-documenti-carta-identita.png', 1227, 706)],
   },
 };
+
+function corpoGuida(g) {
+  const n = g.passi.length;
+  return `
+    <p class="pt-guida-intro">Sono <b>${n} passaggi</b>: scorri in basso per vederli tutti.</p>
+    ${g.passi.map((p, i) => `
+      <h4 class="pt-sottotitolo"${i === n - 1 ? ' data-ultimo-passo' : ''}><span class="pt-guida-n">${i + 1}</span> ${esc(p.titolo)}</h4>
+      <div class="pt-testo pt-guida-testo">${p.testo}</div>
+      <figure class="pt-esempio"><a href="${p.schermata.src}" target="_blank" rel="noopener" aria-label="Apri l'immagine intera">
+        <img src="${p.schermata.src}" width="${p.schermata.w}" height="${p.schermata.h}" loading="lazy" alt="${esc(p.schermata.alt)}"></a>
+        <figcaption>${p.schermata.didascalia} · <span class="pt-ingrandisci">tocca per ingrandire</span></figcaption></figure>`).join('')}`;
+}
 
 function apriGuida(id) {
   const g = GUIDE[id];
@@ -359,8 +405,8 @@ function apriGuida(id) {
   dlg.innerHTML = `
     <div class="m-h"><h3 id="pt-guida-titolo">${esc(g.titolo)}</h3>
       <button type="button" class="pt-guida-chiudi" aria-label="Chiudi">✕</button></div>
-    <div class="m-b">${g.corpo}</div>
-    <div class="m-f"><button type="button" class="pt-guida-scorri">↓ Scorri: c'è il passaggio 2</button>
+    <div class="m-b">${corpoGuida(g)}</div>
+    <div class="m-f"><button type="button" class="pt-guida-scorri">↓ Scorri: c'è il passaggio ${g.passi.length}</button>
       <button type="button" class="btn primary pt-guida-ok">Ho capito</button></div>`;
   // Finché il passaggio 2 non si vede, in fondo resta l'avviso che c'è
   // ancora da scorrere (toccandolo ci si arriva).

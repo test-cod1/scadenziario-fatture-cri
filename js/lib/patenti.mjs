@@ -102,8 +102,8 @@ export const GIORNI_LAVORAZIONE = '2-3 giorni lavorativi';
 // con almeno un No può chiedere supporto alla segreteria.
 export const DOCUMENTI_GAIA = [
   { id: 'fototessera', domanda: 'Hai caricato su Gaia una <b>fototessera formale</b>?', breve: 'fototessera formale', guida: 'fototessera' },
-  { id: 'patente_civile', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della patente civile</b>?', breve: 'patente civile, fronte e retro' },
-  { id: 'carta_identita', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della carta d\'identità</b>?', breve: 'carta d\'identità, fronte e retro' },
+  { id: 'patente_civile', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della patente civile</b>?', breve: 'patente civile, fronte e retro', guida: 'patente_civile' },
+  { id: 'carta_identita', domanda: 'Hai caricato su Gaia la <b>scansione fronte e retro della carta d\'identità</b>?', breve: 'carta d\'identità, fronte e retro', guida: 'carta_identita' },
 ];
 
 // Per il rinnovo serve in più la foto della patente CRI in scadenza (o già

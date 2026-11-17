@@ -1319,6 +1319,12 @@ dialog.pt-guida::backdrop{background:rgba(15,20,25,.45)}
 .pt-guida-chiudi{background:none;border:0;font-size:18px;line-height:1;padding:6px;cursor:pointer;color:var(--ink-soft)}
 .pt-guida .m-f .btn{width:auto}
 .pt-guida .m-f{align-items:center}
+.pt-guida-testo{margin:0 0 10px}
+/* Le immagini hanno già il loro spazio prima di caricarsi: così all'apertura
+   si sa subito se il passaggio successivo è fuori dallo schermo. */
+.pt-guida .pt-esempio a{display:block}
+.pt-guida .pt-esempio img{display:block;margin:0 auto}
+.pt-guida-testo ul.pt-testo{margin:6px 0 0}
 .pt-guida-intro{margin:0 0 14px;padding:10px 12px;border-radius:10px;background:var(--info-soft);color:var(--ink);font-size:14px}
 .pt-guida-n{display:inline-grid;place-items:center;width:24px;height:24px;margin-right:6px;border-radius:50%;background:var(--cri-red);color:#fff;font-size:13px;vertical-align:1px}
 .pt-guida-scorri{margin-right:auto;background:none;border:0;padding:4px 0;font:inherit;font-size:14px;font-weight:700;color:#0e7490;cursor:pointer;animation:pt-rimbalzo 1.6s ease-in-out infinite}
