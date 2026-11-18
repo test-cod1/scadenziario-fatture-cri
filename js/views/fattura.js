@@ -336,9 +336,8 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
     </div>
     <div id="qp-err" style="color:var(--danger);font-size:13px"></div>
   </div>`);
-  const isAdmin = ctx.user.ruolo === 'admin';
   const footer = el(`<div style="display:flex;gap:10px;width:100%">
-    ${isAdmin ? '<button class="btn ghost" id="qp-proponi">Proponi pagamento</button>' : ''}
+    <button class="btn ghost" id="qp-proponi">Proponi pagamento</button>
     <div style="flex:1"></div>
     <button class="btn" id="qp-cancel">Annulla</button>
     <button class="btn primary" id="qp-save">Registra pagamento</button>
@@ -369,10 +368,11 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
 }
 
 // ============================================================
-//  Proposta di pagamento — l'operatore la invia, ma non registra il
-//  pagamento vero e proprio: solo l'admin, confermandola, lo fa (vedi
-//  proposte.confermare in data/store.js). Stessa forma della finestra di
-//  pagamento rapido, così l'esperienza resta coerente fra i due ruoli.
+//  Proposta di pagamento — per quando il pagamento lo esegue l'admin:
+//  confermandola, lo registra lui (vedi proposte.confermare in
+//  data/store.js). Dal 18/11/2026 anche l'operatore può registrare un
+//  pagamento direttamente; la proposta resta per quando paga qualcun altro.
+//  Stessa forma della finestra di pagamento rapido.
 // ============================================================
 export function apriProponiPagamento(rec, ctx, onSaved) {
   const body = el(`<div>
@@ -421,21 +421,22 @@ export function apriProponiPagamento(rec, ctx, onSaved) {
   });
 }
 
+// Registrare e rimuovere pagamenti è di chi ha accesso allo scadenziario,
+// operatore o admin (patch-2026-11-18-pagamenti-operatori.sql). Ogni
+// aggiunta e rimozione resta nel registro modifiche col nome di chi l'ha
+// fatta.
 function renderPagamenti(node, rec, ctx, onChange) {
   clear(node);
-  const isAdmin = ctx.user.ruolo === 'admin';
   const wrap = el(`<div class="card" style="margin-top:6px"><div class="card-h">Pagamenti / acconti</div><div class="card-b">
     <div class="pag-list"></div>
     <div class="residuo-box"><span>Pagato: <b>${fmtEuro(rec._pagato)}</b></span>${rec._stornato > 0 ? `<span>Stornato: <b>${fmtEuro(rec._stornato)}</b></span>` : ''}<span>Residuo: <b>${fmtEuro(rec._residuo)}</b></span></div>
-    ${isAdmin ? '<button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi pagamento</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>' : ''}
-    ${rec._residuo > 0
-      ? `<button class="btn ${isAdmin ? 'ghost' : ''} sm" style="margin-top:10px" id="proponi-pag">+ Proponi pagamento</button>${isAdmin ? '' : '<p class="hint" style="margin-top:8px">Solo l\'amministratore registra i pagamenti effettivi: qui puoi solo proporli.</p>'}`
-      : ''}
+    <button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi pagamento</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>
+    ${rec._residuo > 0 ? '<button class="btn ghost sm" style="margin-top:10px" id="proponi-pag">+ Proponi pagamento</button>' : ''}
   </div></div>`);
   const list = wrap.querySelector('.pag-list');
   for (const p of (rec.pagamenti || []).slice().sort((a, b) => (a.data_pagamento || '').localeCompare(b.data_pagamento || ''))) {
-    const row = el(`<div class="pag-row"><span>${fmtDate(p.data_pagamento)} · ${fmtEuro(p.importo)} ${p.metodo ? '· ' + esc(p.metodo) : ''} ${p.note ? '· ' + esc(p.note) : ''}</span>${isAdmin ? `<button class="rm" data-id="${p.id}">✕</button>` : ''}</div>`);
-    if (isAdmin) row.querySelector('.rm').addEventListener('click', async () => {
+    const row = el(`<div class="pag-row"><span>${fmtDate(p.data_pagamento)} · ${fmtEuro(p.importo)} ${p.metodo ? '· ' + esc(p.metodo) : ''} ${p.note ? '· ' + esc(p.note) : ''}</span><button class="rm" data-id="${p.id}">✕</button></div>`);
+    row.querySelector('.rm').addEventListener('click', async () => {
       if (!await confirmDialog('Rimuovere questo pagamento?', { danger: true, okLabel: 'Rimuovi' })) return;
       try {
         await pagamenti.remove(p.id);
@@ -447,46 +448,44 @@ function renderPagamenti(node, rec, ctx, onChange) {
   }
   if (!(rec.pagamenti || []).length) list.appendChild(el('<div class="muted" style="font-size:13px">Nessun pagamento registrato.</div>'));
 
-  if (isAdmin) {
-    wrap.querySelector('#add-pag').addEventListener('click', () => {
-      const formZone = wrap.querySelector('#add-pag-form');
-      formZone.style.display = 'block';
-      clear(formZone);
-      const f = el(`<div class="form-row three" style="align-items:end">
-        <div class="field"><label>Data</label><input type="date" id="p-data" value="${todayISO()}"></div>
-        <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="p-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
-        <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
-      </div><button class="btn primary sm" id="p-save">Registra pagamento</button>`);
-      formZone.appendChild(f);
-      // Il pulsante va disabilitato durante la scrittura come in tutti gli
-      // altri form del progetto: senza, un doppio click registrava due
-      // pagamenti identici sulla stessa fattura.
-      f.querySelector('#p-save').addEventListener('click', async () => {
-        const importo = parseEuro(f.querySelector('#p-importo').value);
-        const data_pagamento = f.querySelector('#p-data').value;
-        if (!importo || importo <= 0 || !data_pagamento) { toast('Inserisci data e importo validi', 'err'); return; }
-        if (!await confermaSeSuperaResiduo(importo, rec._residuo, () => fatture.get(rec.id))) return;
-        const btn = f.querySelector('#p-save'); const old = btn.innerHTML;
-        btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
-        try {
-          await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null }, ctx.user);
-          toast('Pagamento registrato', 'ok');
-          onChange(await fatture.get(rec.id));   // ridisegna tutto: il pulsante qui sopra non esiste più
-        } catch (e) {
-          toast('Errore: ' + e.message, 'err');
-          btn.disabled = false; btn.innerHTML = old;
-        }
-      });
+  wrap.querySelector('#add-pag').addEventListener('click', () => {
+    const formZone = wrap.querySelector('#add-pag-form');
+    formZone.style.display = 'block';
+    clear(formZone);
+    const f = el(`<div class="form-row three" style="align-items:end">
+      <div class="field"><label>Data</label><input type="date" id="p-data" value="${todayISO()}"></div>
+      <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="p-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
+      <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
+    </div><button class="btn primary sm" id="p-save">Registra pagamento</button>`);
+    formZone.appendChild(f);
+    // Il pulsante va disabilitato durante la scrittura come in tutti gli
+    // altri form del progetto: senza, un doppio click registrava due
+    // pagamenti identici sulla stessa fattura.
+    f.querySelector('#p-save').addEventListener('click', async () => {
+      const importo = parseEuro(f.querySelector('#p-importo').value);
+      const data_pagamento = f.querySelector('#p-data').value;
+      if (!importo || importo <= 0 || !data_pagamento) { toast('Inserisci data e importo validi', 'err'); return; }
+      if (!await confermaSeSuperaResiduo(importo, rec._residuo, () => fatture.get(rec.id))) return;
+      const btn = f.querySelector('#p-save'); const old = btn.innerHTML;
+      btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Registrazione…';
+      try {
+        await pagamenti.add(rec.id, { importo, data_pagamento, metodo: f.querySelector('#p-metodo').value || null }, ctx.user);
+        toast('Pagamento registrato', 'ok');
+        onChange(await fatture.get(rec.id));   // ridisegna tutto: il pulsante qui sopra non esiste più
+      } catch (e) {
+        toast('Errore: ' + e.message, 'err');
+        btn.disabled = false; btn.innerHTML = old;
+      }
     });
-  }
+  });
   const btnProponi = wrap.querySelector('#proponi-pag');
   if (btnProponi) btnProponi.addEventListener('click', () => apriProponiPagamento(rec, ctx, aggiornaDopo(() => fatture.get(rec.id), onChange)));
   node.appendChild(wrap);
 }
 
 // ============================================================
-//  Note di credito — documenti ricevuti dai fornitori: a differenza dei
-//  pagamenti veri e propri, anche l'operatore può registrarle e rimuoverle.
+//  Note di credito — documenti ricevuti dai fornitori: come i pagamenti,
+//  anche l'operatore può registrarle e rimuoverle.
 // ============================================================
 function renderNoteCredito(node, rec, ctx, onChange) {
   clear(node);

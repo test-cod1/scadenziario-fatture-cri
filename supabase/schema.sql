@@ -645,11 +645,47 @@ create policy fatture_write on public.fatture for all
 
 drop policy if exists pagamenti_read on public.pagamenti;
 create policy pagamenti_read on public.pagamenti for select using (public.puo_leggere());
--- Solo l'admin scrive pagamenti: è lui che li esegue davvero. L'operatore
--- può solo proporli (vedi proposte_pagamento più sotto).
+-- Registrare e rimuovere pagamenti è di chi ha accesso allo scadenziario,
+-- operatore o admin (fino al 17/11/2026 solo l'admin: vedi
+-- patch-2026-11-18-pagamenti-operatori.sql). created_by deve essere chi
+-- scrive. Modificarli resta dell'admin: l'app non lo fa e il registro
+-- modifiche traccia solo aggiunte e rimozioni.
 drop policy if exists pagamenti_write on public.pagamenti;
-create policy pagamenti_write on public.pagamenti for all
+drop policy if exists pagamenti_insert on public.pagamenti;
+create policy pagamenti_insert on public.pagamenti for insert
+  with check (public.puo_scrivere() and created_by = auth.uid());
+drop policy if exists pagamenti_update on public.pagamenti;
+create policy pagamenti_update on public.pagamenti for update
   using (public.e_admin()) with check (public.e_admin());
+drop policy if exists pagamenti_delete on public.pagamenti;
+create policy pagamenti_delete on public.pagamenti for delete
+  using (public.puo_scrivere());
+
+-- Un pagamento registrato direttamente chiude l'unica proposta ancora in
+-- attesa per quella fattura (vedi pagamenti.add in js/data/store.js). È una
+-- funzione e non un UPDATE dal client perché le RLS delle proposte lasciano
+-- decidere solo l'admin: per l'operatore la proposta restava aperta, e
+-- confermarla dopo faceva un pagamento doppio.
+create or replace function public.chiudi_proposta_unica(p_pagamento_id uuid)
+returns uuid language plpgsql security definer set search_path = public as $$
+declare v_fattura uuid; v_ids uuid[]; v_nome text;
+begin
+  if not public.puo_scrivere() then raise exception 'Non autorizzato'; end if;
+  select fattura_id into v_fattura from public.pagamenti
+    where id = p_pagamento_id and created_by = auth.uid();
+  if v_fattura is null then return null; end if;
+  select array_agg(id) into v_ids from public.proposte_pagamento
+    where fattura_id = v_fattura and stato = 'proposta';
+  if coalesce(array_length(v_ids, 1), 0) <> 1 then return null; end if;
+  select nome into v_nome from public.log_utente_info();
+  update public.proposte_pagamento
+     set stato = 'confermata', pagamento_id = p_pagamento_id,
+         decisa_da = auth.uid(), decisa_da_nome = v_nome, decisa_il = now()
+   where id = v_ids[1] and stato = 'proposta';
+  return v_ids[1];
+end; $$;
+revoke execute on function public.chiudi_proposta_unica(uuid) from public, anon;
+grant execute on function public.chiudi_proposta_unica(uuid) to authenticated;
 
 -- Il versamento delle ritenute è un pagamento vero: lo segna solo l'admin.
 drop policy if exists ritenute_versamenti_read on public.ritenute_versamenti;
@@ -658,9 +694,8 @@ drop policy if exists ritenute_versamenti_write on public.ritenute_versamenti;
 create policy ritenute_versamenti_write on public.ritenute_versamenti for all
   using (public.e_admin()) with check (public.e_admin());
 
--- A differenza dei pagamenti (dove scrive solo l'admin, perché è lui che li
--- esegue davvero), le note di credito sono documenti ricevuti dai fornitori:
--- anche l'operatore può registrarle, come già può fare con le fatture.
+-- Le note di credito sono documenti ricevuti dai fornitori: anche
+-- l'operatore può registrarle, come fa con le fatture e i pagamenti.
 drop policy if exists note_credito_read on public.note_credito;
 create policy note_credito_read on public.note_credito for select using (public.puo_leggere());
 drop policy if exists note_credito_write on public.note_credito;

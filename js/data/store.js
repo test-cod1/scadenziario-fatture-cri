@@ -513,6 +513,14 @@ export const pagamenti = {
     // insieme faceva sparire il secondo acconto come se fosse stato pagato.
     // Con più proposte aperte non si può indovinare quale sia stata pagata:
     // restano dove sono, e l'admin decide dalla pagina "Proposte".
+    //
+    // Lo fa il database (chiudi_proposta_unica): da quando registra i
+    // pagamenti anche l'operatore, che per le RLS non vede le proposte altrui
+    // e non può deciderle, dal client la proposta restava aperta. Se la
+    // funzione non c'è ancora (patch non eseguita), si torna al modo di prima,
+    // che per l'admin funziona.
+    const { error: errChiudi } = await sb.rpc('chiudi_proposta_unica', { p_pagamento_id: data.id });
+    if (!errChiudi) return data;
     const { data: pendenti } = await sb.from('proposte_pagamento')
       .select('id').eq('fattura_id', fatturaId).eq('stato', 'proposta');
     if (pendenti?.length === 1) {

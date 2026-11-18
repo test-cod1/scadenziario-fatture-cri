@@ -16,7 +16,6 @@ const daEditor = (nome) => (...argomenti) => import('./fattura.js')
 const apriEditor = daEditor('apriEditor');
 const apriUpload = daEditor('apriUpload');
 const apriPagamentoRapido = daEditor('apriPagamentoRapido');
-const apriProponiPagamento = daEditor('apriProponiPagamento');
 const apriNuovaNotaCredito = daEditor('apriNuovaNotaCredito');
 
 const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata', stornata: 'Stornata' };
@@ -441,8 +440,10 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort)
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura trovata con questi filtri.</p></div>`)); return; }
   const isAdmin = ctx.user.ruolo === 'admin';
-  const azione = isAdmin ? apriPagamentoRapido : apriProponiPagamento;
-  const titoloChip = isAdmin ? 'Clicca per segnare un pagamento' : 'Clicca per proporre un pagamento';
+  // Anche l'operatore registra i pagamenti (dal 18/11/2026): il chip apre
+  // per tutti il pagamento rapido, che offre a sua volta «Proponi pagamento».
+  const azione = apriPagamentoRapido;
+  const titoloChip = 'Clicca per segnare un pagamento';
   const oggi = todayISO();
   const table = el(`<table class="tbl tbl-fatture"><thead><tr>
     ${thOrdinabile('Fornitore', 'fornitore', sort)}${thOrdinabile('N. Fattura', 'numero', sort)}${thOrdinabile('Data', 'data', sort)}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Scadenza', 'scadenza', sort)}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}<th></th>

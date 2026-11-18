@@ -46,7 +46,7 @@ export function passi(ctx) {
       titolo: 'La tabella',
       testo: admin
         ? 'Clicca su una riga per aprire e modificare la fattura, oppure sul suo stato per registrare subito un pagamento.'
-        : 'Clicca su una riga per aprire la fattura, oppure sul suo stato per proporre un pagamento: lo confermerà un amministratore.',
+        : 'Clicca su una riga per aprire la fattura, oppure sul suo stato per registrare subito un pagamento (o proporlo a un amministratore).',
     },
     {
       selettore: '#archivio',
