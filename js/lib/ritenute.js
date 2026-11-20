@@ -184,3 +184,46 @@ export function ritenutaDaNote(note) {
 // Il primo giorno del mese, nella forma che la tabella ritenute_versamenti
 // vuole ('2026-05' → '2026-05-01').
 export function primoDelMese(mese) { return `${mese.slice(0, 7)}-01`; }
+
+// ------------------------------------------------------------
+//  Testo per la consulente del lavoro
+//  Il messaggio da mandarle per un mese: quali ritenute sono state operate
+//  sui pagamenti del mese, una riga per pagamento, con il totale (per
+//  codice tributo) e la scadenza dell'F24. Testo semplice, da incollare in
+//  una mail o in un messaggio. `m` è un elemento di riepilogoMesi.
+// ------------------------------------------------------------
+const euroTesto = (n) => {
+  const [int, dec] = (Math.round((Number(n) || 0) * 100) / 100).toFixed(2).split('.');
+  return '€ ' + int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec;
+};
+const dataTesto = (iso) => iso ? iso.slice(0, 10).split('-').reverse().join('/') : '';
+
+export function testoConsulente(m) {
+  const codici = Object.entries(m.perCodice || {});
+  const righe = m.righe.map((r, i) => {
+    const f = r.fattura;
+    const chi = f.fornitore + (f.partita_iva ? ` (P.IVA/C.F. ${f.partita_iva})` : '');
+    const doc = [f.numero_fattura ? `fattura n. ${f.numero_fattura}` : 'fattura', f.data_fattura ? `del ${dataTesto(f.data_fattura)}` : '']
+      .filter(Boolean).join(' ');
+    const parziale = cent(r.quota) !== cent(f.ritenuta) ? ` (quota della ritenuta totale di ${euroTesto(f.ritenuta)}, fattura pagata a rate)` : '';
+    return `${i + 1}. ${chi}\n   ${doc}, pagata il ${dataTesto(r.pagamento.data_pagamento)}\n`
+      + `   importo pagato ${euroTesto(r.pagamento.importo)} — ritenuta ${euroTesto(r.quota)}${parziale} — codice tributo ${f.ritenuta_codice_tributo || CODICE_TRIBUTO_DEFAULT}`;
+  });
+  const totale = codici.length > 1
+    ? `Totale da versare: ${euroTesto(m.totale)}, così suddiviso:\n` + codici.map(([c, v]) => `- codice tributo ${c}: ${euroTesto(v)}`).join('\n')
+    : `Totale da versare: ${euroTesto(m.totale)}${codici.length ? ` (codice tributo ${codici[0][0]})` : ''}`;
+  return [
+    `Oggetto: ritenute d'acconto da versare — pagamenti di ${nomeMese(m.mese)}`,
+    '',
+    'Buongiorno,',
+    '',
+    `le comunico le ritenute d'acconto operate sui pagamenti di ${nomeMese(m.mese)}, da versare con F24 entro il ${dataTesto(m.scadenza)}:`,
+    '',
+    righe.join('\n\n'),
+    '',
+    totale,
+    '',
+    'Resto a disposizione per qualsiasi chiarimento.',
+    'Cordiali saluti',
+  ].join('\n');
+}

@@ -107,3 +107,18 @@ prova('nomi e date dei mesi', () => {
   uguale(nomeMese('2026-05'), 'maggio 2026');
   uguale(primoDelMese('2026-05'), '2026-05-01');
 });
+
+prova('testo per la consulente: ogni pagamento, il totale e la scadenza', async () => {
+  const { testoConsulente } = await import(pathToFileURL(RADICE + '/js/lib/ritenute.js').href);
+  const f1 = fattura({ partita_iva: '01234567890', numero_fattura: '12', data_fattura: '2026-10-03',
+    pagamenti: [{ id: 'p1', importo: 800, data_pagamento: '2026-10-20' }] });
+  const f2 = fattura({ id: 'f2', fornitore: 'Agenzia Bianchi', importo: 3000, ritenuta: 1234.5, ritenuta_codice_tributo: '1038',
+    pagamenti: [{ id: 'p2', importo: 1500, data_pagamento: '2026-10-25' }] });
+  const [m] = riepilogoMesi([f1, f2], [], '2026-11-05');
+  const t = testoConsulente(m);
+  for (const atteso of ['pagamenti di ottobre 2026', 'entro il 16/11/2026', 'Studio Rossi (P.IVA/C.F. 01234567890)',
+    'fattura n. 12 del 03/10/2026, pagata il 20/10/2026', 'ritenuta € 200,00', 'codice tributo 1040: € 200,00',
+    'codice tributo 1038: € 617,25', 'Totale da versare: € 817,25', 'quota della ritenuta totale di € 1.234,50']) {
+    if (!t.includes(atteso)) throw new Error('manca «' + atteso + '» in:\n' + t);
+  }
+});

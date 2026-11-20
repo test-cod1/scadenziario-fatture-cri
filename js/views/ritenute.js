@@ -11,7 +11,7 @@
 import { ritenute } from '../data/store.js';
 import { el, clear, esc, fmtDate, fmtEuro, toast, todayISO, openModal, confirmDialog, parseEuro, rendiCliccabile, cellaCsv } from '../lib/ui.js';
 import { CAMPO_DECIMALE, testoDecimale } from '../lib/importi.js';
-import { riepilogoMesi, nomeMese, primoDelMese, ritenutaDaNote, quoteRitenute, scadenzaVersamento, CODICE_TRIBUTO_DEFAULT } from '../lib/ritenute.js';
+import { riepilogoMesi, nomeMese, primoDelMese, ritenutaDaNote, quoteRitenute, scadenzaVersamento, testoConsulente, CODICE_TRIBUTO_DEFAULT } from '../lib/ritenute.js';
 
 const apriEditor = (...a) => import('./fattura.js').then(m => m.apriEditor(...a))
   .catch(e => toast('Impossibile aprire la fattura: ' + e.message, 'err'));
@@ -187,12 +187,37 @@ export async function renderRitenute(view, ctx) {
       vz.appendChild(el(`<div class="muted" style="font-size:13px;margin-bottom:10px">✅ Versato il <b style="color:var(--ink)">${fmtDate(m.versamento.data_versamento)}</b>: ${fmtEuro(m.versamento.importo)}${m.versamento.note ? ' — ' + esc(m.versamento.note) : ''}</div>`));
     }
     const az = card.querySelector('.rt-azioni');
+    if (m.righe.length) {
+      const t = el(`<button class="btn ghost sm" title="Il messaggio con le ritenute del mese, da copiare e mandare alla consulente del lavoro">✉️ Testo per la consulente</button>`);
+      t.addEventListener('click', () => apriTestoConsulente(m));
+      az.appendChild(t);
+    }
     if (isAdmin && (m.stato !== 'in_corso' || m.versamento)) {
       const b = el(`<button class="btn ${m.versamento ? 'ghost' : 'primary'} sm">${m.versamento ? 'Modifica versamento' : 'Segna versato'}</button>`);
       b.addEventListener('click', () => apriVersamento(m));
       az.appendChild(b);
     }
     return card;
+  }
+
+  function apriTestoConsulente(m) {
+    const body = el(`<div>
+      <p style="margin-top:0" class="muted">Il testo è già pronto: si può ritoccare qui prima di copiarlo.${m.stato === 'in_corso' ? ' <b style="color:var(--ink)">Attenzione: il mese non è ancora finito, potrebbero aggiungersi altri pagamenti.</b>' : ''}</p>
+      <textarea id="tc-testo" rows="18" style="width:100%;font-family:inherit;font-size:13.5px;line-height:1.5"></textarea>
+    </div>`);
+    body.querySelector('#tc-testo').value = testoConsulente(m);
+    const footer = el(`<div style="display:flex;gap:10px;width:100%">
+      <div style="flex:1"></div>
+      <button class="btn" id="tc-chiudi">Chiudi</button>
+      <button class="btn primary" id="tc-copia">📋 Copia il testo</button>
+    </div>`);
+    const { close } = openModal({ title: 'Testo per la consulente — ' + nomeMese(m.mese), body, footer, wide: true });
+    footer.querySelector('#tc-chiudi').addEventListener('click', close);
+    footer.querySelector('#tc-copia').addEventListener('click', async () => {
+      const ta = body.querySelector('#tc-testo');
+      try { await navigator.clipboard.writeText(ta.value); toast('Testo copiato', 'ok'); }
+      catch { ta.select(); toast('Copia non riuscita: il testo è selezionato, premi Ctrl+C', 'err'); }
+    });
   }
 
   function apriVersamento(m) {
