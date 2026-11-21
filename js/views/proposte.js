@@ -3,6 +3,7 @@ import { el, clear, esc, openModal, confirmDialog, toast, fmtEuro, fmtDate, toda
 import { METODI } from '../lib/xmlFattura.js';
 import { confermaSeSuperaResiduo } from '../lib/documenti.js';
 import { CAMPO_DECIMALE, testoDecimale } from '../lib/importi.js';
+import { totaleProposte, testoPresidente } from '../lib/proposte.js';
 
 const ESITO_CHIP = { proposta: 'warn', confermata: 'ok', rifiutata: 'danger' };
 const ESITO_LABEL = { proposta: 'In attesa', confermata: 'Confermata', rifiutata: 'Rifiutata' };
@@ -18,7 +19,7 @@ export async function renderProposte(view, ctx) {
       ? 'Proposte inviate dagli operatori: confermale quando esegui davvero il pagamento, o rifiutale.'
       : 'Le tue proposte di pagamento: le crei da "Fatture", cliccando sullo stato di una fattura non ancora saldata.'}</p></div></div>
     <div class="card" style="margin-bottom:22px">
-      <div class="card-h">In attesa</div>
+      <div class="card-h"><span>In attesa <span class="muted" id="p-totale" style="font-weight:600"></span></span><span id="p-azioni"></span></div>
       <div class="card-b tbl-wrap" id="p-attesa"></div>
     </div>
     <div class="card">
@@ -45,6 +46,17 @@ export async function renderProposte(view, ctx) {
     const inAttesa = righe.filter(r => r.stato === 'proposta');
     const storico = righe.filter(r => r.stato !== 'proposta');
     renderInAttesa(wrap.querySelector('#p-attesa'), inAttesa, ctx, ricarica);
+    // Il totale si ricalcola a ogni disegno, cioè ogni volta che una
+    // proposta viene aggiunta, ritirata, confermata o rifiutata.
+    wrap.querySelector('#p-totale').textContent = inAttesa.length
+      ? `· ${inAttesa.length === 1 ? '1 fattura' : inAttesa.length + ' fatture'} · totale ${fmtEuro(totaleProposte(inAttesa))}` : '';
+    const az = wrap.querySelector('#p-azioni');
+    clear(az);
+    if (inAttesa.length) {
+      const b = el(`<button class="btn ghost sm" title="Il messaggio con le fatture proposte e il totale, da copiare e mandare al presidente">✉️ Testo per il presidente</button>`);
+      b.addEventListener('click', () => apriTestoPresidente(inAttesa));
+      az.appendChild(b);
+    }
     renderStorico(wrap.querySelector('#p-storico'), storico);
   }
 
@@ -95,7 +107,32 @@ function renderInAttesa(node, righe, ctx, ricarica) {
     }
     tbody.appendChild(tr);
   }
+  table.appendChild(el(`<tfoot><tr style="font-weight:700">
+    <td colspan="3">Totale proposto (${righe.length === 1 ? '1 fattura' : righe.length + ' fatture'})</td>
+    <td class="money money-col">${fmtEuro(totaleProposte(righe))}</td>
+    <td colspan="${isAdmin ? 5 : 4}"></td>
+  </tr></tfoot>`));
   node.appendChild(table);
+}
+
+function apriTestoPresidente(righe) {
+  const body = el(`<div>
+    <p style="margin-top:0" class="muted">Il testo è già pronto: si può ritoccare qui prima di copiarlo.</p>
+    <textarea id="tp-testo" rows="16" style="width:100%;font-family:inherit;font-size:13.5px;line-height:1.5"></textarea>
+  </div>`);
+  body.querySelector('#tp-testo').value = testoPresidente(righe);
+  const footer = el(`<div style="display:flex;gap:10px;width:100%">
+    <div style="flex:1"></div>
+    <button class="btn" id="tp-chiudi">Chiudi</button>
+    <button class="btn primary" id="tp-copia">📋 Copia</button>
+  </div>`);
+  const { close } = openModal({ title: 'Testo per il presidente', body, footer, wide: true });
+  footer.querySelector('#tp-chiudi').addEventListener('click', close);
+  footer.querySelector('#tp-copia').addEventListener('click', async () => {
+    const ta = body.querySelector('#tp-testo');
+    try { await navigator.clipboard.writeText(ta.value); toast('Testo copiato', 'ok'); }
+    catch { ta.select(); toast('Copia non riuscita: il testo è selezionato, premi Ctrl+C', 'err'); }
+  });
 }
 
 function renderStorico(node, righe) {

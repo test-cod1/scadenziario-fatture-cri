@@ -655,7 +655,7 @@ export const proposte = {
     const tutte = [];
     for (let da = 0; ; da += BLOCCO) {
       const { data, error } = await sb.from('proposte_pagamento')
-        .select('*, fatture(fornitore, numero_fattura, importo, scadenza, stato, pagamenti(*), note_credito_righe(*))')
+        .select('*, fatture(fornitore, numero_fattura, data_fattura, importo, scadenza, stato, pagamenti(*), note_credito_righe(*))')
         .order('created_at', { ascending: false })
         .order('id', { ascending: true })   // ordine stabile: senza, i blocchi possono sovrapporsi
         .range(da, da + BLOCCO - 1);

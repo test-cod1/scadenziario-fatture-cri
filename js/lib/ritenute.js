@@ -192,11 +192,12 @@ export function primoDelMese(mese) { return `${mese.slice(0, 7)}-01`; }
 //  codice tributo) e la scadenza dell'F24. Testo semplice, da incollare in
 //  una mail o in un messaggio. `m` è un elemento di riepilogoMesi.
 // ------------------------------------------------------------
-const euroTesto = (n) => {
+// Esportate perché servono anche al testo per il presidente (lib/proposte.js).
+export const euroTesto = (n) => {
   const [int, dec] = (Math.round((Number(n) || 0) * 100) / 100).toFixed(2).split('.');
   return '€ ' + int.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + ',' + dec;
 };
-const dataTesto = (iso) => iso ? iso.slice(0, 10).split('-').reverse().join('/') : '';
+export const dataTesto = (iso) => iso ? iso.slice(0, 10).split('-').reverse().join('/') : '';
 
 export function testoConsulente(m) {
   const codici = Object.entries(m.perCodice || {});
