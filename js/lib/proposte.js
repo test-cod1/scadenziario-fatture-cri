@@ -1,9 +1,9 @@
 // ============================================================
 //  Proposte di pagamento: totale e testo per il presidente
 //  Il totale delle proposte in attesa (sommato in centesimi, così non
-//  si accumulano gli arrotondamenti) e il messaggio da copiare e mandare
-//  al presidente: una riga per fattura proposta — fornitore, numero, data
-//  e importo — e in fondo il totale. Testo semplice, da incollare in una
+//  si accumulano gli arrotondamenti) e l'elenco da copiare e mandare al
+//  presidente: una riga per fattura proposta — fornitore, numero, data e
+//  importo — e in fondo il totale. Testo semplice, da incollare in una
 //  mail o in un messaggio. `righe` sono gli elementi di proposte.list().
 // ============================================================
 import { euroTesto, dataTesto } from './ritenute.js';
@@ -22,20 +22,7 @@ export function testoPresidente(righe) {
       .filter(Boolean).join(' ');
     return `${i + 1}. ${f.fornitore || 'Fornitore non indicato'} — ${doc} — ${euroTesto(r.importo)}`;
   });
-  return [
-    'Oggetto: proposta di pagamento fatture',
-    '',
-    'Buongiorno Presidente,',
-    '',
-    righe.length === 1
-      ? 'si propone il pagamento della seguente fattura:'
-      : `si propone il pagamento delle seguenti ${righe.length} fatture:`,
-    '',
-    elenco.join('\n'),
-    '',
-    `Totale: ${euroTesto(totale)}`,
-    '',
-    'Resto a disposizione per qualsiasi chiarimento.',
-    'Cordiali saluti',
-  ].join('\n');
+  // Solo l'elenco e il totale, senza oggetto né saluti: il resto del
+  // messaggio lo scrive chi lo manda.
+  return [...elenco, '', `Totale: ${euroTesto(totale)}`].join('\n');
 }

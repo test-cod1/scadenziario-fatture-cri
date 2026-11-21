@@ -20,12 +20,12 @@ prova('il totale si somma al centesimo e segue le proposte aggiunte o tolte', ()
   uguale(totaleProposte([]), 0);
 });
 
-prova('testo per il presidente: ogni fattura e il totale', () => {
-  const t = testoPresidente(righe);
-  for (const atteso of ['seguenti 3 fatture', '1. Officina Rossi — fattura n. 12/A del 03/10/2026 — € 0,10',
-    '2. Carburanti Bianchi — fattura n. 7 — € 0,20', '3. Studio Verdi — fattura del 01/11/2026 — € 1.234,50',
-    'Totale: € 1.234,80']) {
-    if (!t.includes(atteso)) throw new Error('manca «' + atteso + '» in:\n' + t);
-  }
-  if (!testoPresidente(righe.slice(0, 1)).includes('della seguente fattura:')) throw new Error('singolare sbagliato');
+prova('testo per il presidente: solo l’elenco delle fatture e il totale', () => {
+  uguale(testoPresidente(righe), [
+    '1. Officina Rossi — fattura n. 12/A del 03/10/2026 — € 0,10',
+    '2. Carburanti Bianchi — fattura n. 7 — € 0,20',
+    '3. Studio Verdi — fattura del 01/11/2026 — € 1.234,50',
+    '',
+    'Totale: € 1.234,80',
+  ].join('\n'));
 });
