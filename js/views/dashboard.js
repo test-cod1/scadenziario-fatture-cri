@@ -69,19 +69,20 @@ function confiniPeriodoCorrente() {
 }
 
 export async function renderDashboard(view, ctx) {
-  let tutte = [], pagatoMese = 0, pagatoAnno = 0, contaArchivio = 0, proposteInAttesa = new Map();
+  let tutte = [], pagatoMese = 0, pagatoAnno = 0, contaArchivio = 0, proposteInAttesa = new Map(), aggiornato = null;
   try {
     const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
     // Le proposte in attesa partono insieme alle altre letture: prima
     // aspettavano che fossero finite tutte, un giro di rete in più a ogni
     // apertura. caricaProposteInAttesa non fallisce mai (in caso di errore
     // restituisce un elenco vuoto), quindi non può far cadere le altre.
-    [tutte, pagatoMese, pagatoAnno, contaArchivio, proposteInAttesa] = await Promise.all([
+    [tutte, pagatoMese, pagatoAnno, contaArchivio, proposteInAttesa, aggiornato] = await Promise.all([
       fatture.listAperte(),
       pagamenti.sommaPeriodo(inizioMese, fineMese),
       pagamenti.sommaPeriodo(inizioAnno, fineAnno),
       fatture.contaArchivio(),
       caricaProposteInAttesa(),
+      caricaAggiornamento(),
     ]);
   }
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
@@ -109,7 +110,7 @@ export async function renderDashboard(view, ctx) {
 
   const wrap = el(`<div>
     <div class="page-head">
-      <div><h1>Scadenziario Fatture</h1><p>Fatture fornitori — Croce Rossa Italiana — Comitato di Genova</p></div>
+      <div><h1>Scadenziario Fatture</h1><p>Fatture fornitori — Croce Rossa Italiana — Comitato di Genova</p><p class="aggiornato" id="aggiornato" hidden></p></div>
       <div class="actions">
         <button class="btn" id="exp-csv">📊 Esporta Excel</button>
         <button class="btn" id="exp-pdf">🖨️ Esporta PDF</button>
@@ -174,6 +175,7 @@ export async function renderDashboard(view, ctx) {
 
   disegnaStats();
   renderAlert(wrap.querySelector('#alert-zone'), tutte);
+  renderAggiornamento(wrap.querySelector('#aggiornato'), aggiornato);
   if (state.q) wrap.querySelector('#q').value = state.q;
 
   function disegnaStats() {
@@ -351,12 +353,13 @@ export async function renderDashboard(view, ctx) {
       const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
       // Niente `let contaArchivio` qui: dichiararlo di nuovo mascherava quello
       // esterno, che restava fermo al valore del primo caricamento.
-      [tutte, pagatoMese, pagatoAnno, contaArchivio, proposteInAttesa] = await Promise.all([
+      [tutte, pagatoMese, pagatoAnno, contaArchivio, proposteInAttesa, aggiornato] = await Promise.all([
         fatture.listAperte(),
         pagamenti.sommaPeriodo(inizioMese, fineMese),
         pagamenti.sommaPeriodo(inizioAnno, fineAnno),
         fatture.contaArchivio(),
         caricaProposteInAttesa(),
+        caricaAggiornamento(),
       ]);
       // L'archivio va riletto se era già stato scaricato, non solo se il
       // pannello è aperto: da quando ricerca ed export lo usano, può essere in
@@ -364,6 +367,7 @@ export async function renderDashboard(view, ctx) {
       if (archivioCaricato) { archivioCaricato = false; await caricaArchivio(); }
       disegnaStats();
       renderAlert(wrap.querySelector('#alert-zone'), tutte);
+      renderAggiornamento(wrap.querySelector('#aggiornato'), aggiornato);
       refreshTable();
     } catch (e) {
       toast('Aggiornamento non riuscito: ' + e.message + ' — ricarica la pagina.', 'err');
@@ -420,6 +424,27 @@ export async function renderDashboard(view, ctx) {
 async function caricaProposteInAttesa() {
   try { return await proposte.conteggioInAttesa(); }
   catch { return new Map(); }
+}
+
+// Data dell'ultima fattura e dell'ultimo pagamento registrati, per sapere a
+// colpo d'occhio fin dove è aggiornato lo scadenziario. Come le proposte,
+// non fa mai cadere la pagina: se la lettura non riesce la riga non compare.
+async function caricaAggiornamento() {
+  try {
+    const [fattura, pagamento] = await Promise.all([fatture.ultima(), pagamenti.ultimo()]);
+    return { fattura, pagamento };
+  } catch { return null; }
+}
+
+function renderAggiornamento(node, aggiornato) {
+  clear(node);
+  const { fattura, pagamento } = aggiornato || {};
+  node.hidden = !fattura && !pagamento;
+  if (node.hidden) return;
+  const pezzi = [];
+  if (fattura) pezzi.push(`ultima fattura del <b>${fmtDate(fattura.data_fattura)}</b>${fattura.fornitore ? ` (${esc(fattura.fornitore)})` : ''}`);
+  if (pagamento) pezzi.push(`ultimo pagamento del <b>${fmtDate(pagamento.data_pagamento)}</b>${pagamento.fornitore ? ` (${esc(pagamento.fornitore)})` : ''}`);
+  node.innerHTML = 'Aggiornato a: ' + pezzi.join(' · ');
 }
 
 // `tutte` è il sottoinsieme "attivo" (fatture.listAperte): esclude le

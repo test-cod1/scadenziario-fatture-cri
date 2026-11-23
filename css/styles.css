@@ -114,6 +114,9 @@ details.card[open]>summary .archivio-freccia{transform:rotate(90deg)}
 .stat.accent{border-left:4px solid var(--cri-red)}
 .stat.warn{border-left:4px solid var(--warn)}
 .stat.ok{border-left:4px solid var(--ok)}
+/* Riga «Aggiornato a: …» sotto il titolo dello scadenziario passivo. */
+.page-head .aggiornato{margin-top:6px;font-size:13px;color:var(--ink-soft)}
+.page-head .aggiornato b{color:var(--ink)}
 /* Interruttore «Biscione» sulla card «Da pagare» dello scadenziario passivo:
    acceso il totale comprende il debito con Il Biscione, spento lo esclude. */
 .stat{position:relative}

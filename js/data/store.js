@@ -341,6 +341,17 @@ export const fatture = {
     if (error) throw error;
     return count || 0;
   },
+  // La fattura con la data più recente fra quelle registrate (rate F24
+  // escluse): dice in cima alla pagina fino a quando è aggiornato lo
+  // scadenziario. Nessuna fattura → null.
+  async ultima() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('fatture').select('data_fattura, fornitore')
+      .not('data_fattura', 'is', null).or('tipo_documento.is.null,tipo_documento.neq.f24')
+      .order('data_fattura', { ascending: false }).limit(1);
+    if (error) throw error;
+    return data[0] || null;
+  },
   // `nuovo: true` forza l'INSERT anche se rec.id è valorizzato: serve per
   // creare la fattura con un id generato lato client, così l'eventuale
   // allegato può essere caricato PRIMA dell'insert e la creazione risulta
@@ -493,6 +504,17 @@ export const noteCredito = {
 //  PAGAMENTI (acconti / rate)
 // ---------------------------------------------------------------
 export const pagamenti = {
+  // Il pagamento con la data più recente, col fornitore della sua fattura:
+  // come fatture.ultima, per dire fin dove è aggiornato lo scadenziario.
+  async ultimo() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('pagamenti').select('data_pagamento, fatture(fornitore)')
+      .not('data_pagamento', 'is', null)
+      .order('data_pagamento', { ascending: false }).limit(1);
+    if (error) throw error;
+    const p = data[0];
+    return p ? { data_pagamento: p.data_pagamento, fornitore: p.fatture?.fornitore || '' } : null;
+  },
   // `decisore` è opzionale: serve solo per etichettare le eventuali proposte
   // di pagamento che questo pagamento chiude (vedi sotto), non per il
   // pagamento in sé.
