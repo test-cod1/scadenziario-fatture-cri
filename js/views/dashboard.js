@@ -177,7 +177,7 @@ export async function renderDashboard(view, ctx) {
   if (state.q) wrap.querySelector('#q').value = state.q;
 
   function disegnaStats() {
-    renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraScadute, filtraInScadenza7, pagatoMese, pagatoAnno, conBiscione, cambiaBiscione);
+    renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraScadute, pagatoMese, pagatoAnno, conBiscione, cambiaBiscione);
   }
 
   // L'interruttore cambia il totale della card; se la tabella sta mostrando
@@ -256,8 +256,9 @@ export async function renderDashboard(view, ctx) {
   }
 
   // Clic sulla card "Da pagare (totale)": filtra la tabella sulle fatture
-  // ancora aperte, azzerando gli altri filtri per lo stesso motivo di
-  // filtraInScadenza7 qui sotto.
+  // ancora aperte, azzerando gli altri filtri perché altrimenti potrebbero
+  // contraddirla silenziosamente (es. uno stato già scelto che esclude
+  // proprio quelle fatture).
   function filtraSoloAperte() {
     Object.assign(state, { q: '', soggetto: null, stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: true, senzaBiscione: !conBiscione });
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
@@ -274,23 +275,6 @@ export async function renderDashboard(view, ctx) {
     wrap.querySelector('#f-stato').value = '';
     wrap.querySelector('#f-da').value = '';
     wrap.querySelector('#f-a').value = isoIeri;
-    wrap.querySelector('#f-min').value = '';
-    wrap.querySelector('#f-max').value = '';
-    refreshTable();
-  }
-
-  // Clic sulla card "In scadenza (7 giorni)": filtra la tabella sotto sulle
-  // sole fatture di quella card (stesso calcolo di renderStats), azzerando
-  // gli altri filtri perché altrimenti potrebbero contraddirla silenziosamente
-  // (es. uno stato già scelto che esclude proprio quelle fatture).
-  function filtraInScadenza7() {
-    const isoOggi = todayISO();
-    const isoTra7 = sommaGiorniISO(isoOggi, 7);
-    Object.assign(state, { q: '', soggetto: null, stato: '', da: isoOggi, aData: isoTra7, importoMin: '', importoMax: '', soloAperte: true, senzaBiscione: false });
-    wrap.querySelector('#q').value = '';
-    wrap.querySelector('#f-stato').value = '';
-    wrap.querySelector('#f-da').value = isoOggi;
-    wrap.querySelector('#f-a').value = isoTra7;
     wrap.querySelector('#f-min').value = '';
     wrap.querySelector('#f-max').value = '';
     refreshTable();
@@ -387,7 +371,7 @@ export async function renderDashboard(view, ctx) {
   }
 
   // Un tocco manuale a un qualsiasi altro filtro esce dalla vista "solo
-  // aperte" impostata da filtraInScadenza7: altrimenti scegliere ad es. lo
+  // aperte" impostata dalle card in cima: altrimenti scegliere ad es. lo
   // stato "Pagata" darebbe sempre zero risultati, in contraddizione silenziosa
   // con quel filtro rimasto attivo dietro le quinte.
   const onSearch = debounce(v => { state.q = v; state.soloAperte = false; state.senzaBiscione = false; refreshTable(); }, 250);
@@ -444,7 +428,7 @@ async function caricaProposteInAttesa() {
 // fatture ancora aperte, sempre presenti in `tutte` a prescindere dall'anno)
 // tranne "Pagato questo mese/anno", che infatti arriva già calcolato da fuori
 // (pagamenti.sommaPeriodo, indipendente da cosa è archiviato).
-function renderStats(node, tutte, onClickTotale, onClickScadute, onClickInScadenza7, pagatoMese, pagatoAnno, conBiscione, onCambiaBiscione) {
+function renderStats(node, tutte, onClickTotale, onClickScadute, pagatoMese, pagatoAnno, conBiscione, onCambiaBiscione) {
   clear(node);
   const nonPagate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
   const daPagare = conBiscione ? nonPagate : nonPagate.filter(f => !eBiscione(f));
@@ -453,12 +437,10 @@ function renderStats(node, tutte, onClickTotale, onClickScadute, onClickInScaden
   const scadute = nonPagate.filter(f => f.scadenza && f.scadenza < oggi);
   const totaleScaduto = scadute.reduce((s, f) => s + f._residuo, 0);
   const annoCorrente = oggi.slice(0, 4);
-  const inScadenza7 = nonPagate.filter(f => { const g = giorniDa(f.scadenza); return g !== null && g >= 0 && g <= 7; });
 
   const cards = [
     { k: conBiscione ? 'DA PAGARE (TOTALE)' : 'DA PAGARE (SENZA BISCIONE)', v: fmtEuro(totaleDovuto), s: `${daPagare.length} fatture`, cls: 'accent', onClick: onClickTotale, titolo: 'Filtra la tabella su queste fatture', interruttore: true },
     { k: 'SCADUTO E NON PAGATO', v: fmtEuro(totaleScaduto), s: `${scadute.length} fatture in ritardo`, cls: totaleScaduto > 0 ? 'warn' : '', onClick: onClickScadute, titolo: 'Filtra la tabella su queste fatture' },
-    { k: 'IN SCADENZA (7 GIORNI)', v: inScadenza7.length, s: fmtEuro(inScadenza7.reduce((s, f) => s + f._residuo, 0)), cls: '', onClick: onClickInScadenza7, titolo: 'Filtra la tabella su queste fatture' },
     { k: 'PAGATO QUESTO MESE', v: fmtEuro(pagatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok' },
     { k: 'PAGATO QUEST\'ANNO', v: fmtEuro(pagatoAnno), s: annoCorrente, cls: 'ok' },
   ];
@@ -488,7 +470,7 @@ function renderAlert(node, tutte) {
   const parts = [];
   if (scadute.length) parts.push(`<b>⚠️ ${scadute.length} fattura/e scadute e non pagate</b>`);
   if (entro7.length) parts.push(`<div style="margin-top:${scadute.length ? '10px' : '0'}"><b>⏰ ${entro7.length} fattura/e in scadenza nei prossimi 7 giorni</b></div>`);
-  node.appendChild(el(`<div class="banner ${scadute.length ? 'danger' : 'warn'}"><div class="bi">${scadute.length ? '⚠️' : '⏰'}</div><div>${parts.join('')}</div></div>`));
+  node.appendChild(el(`<div class="banner ${scadute.length ? 'danger' : 'warn'}"><div>${parts.join('')}</div></div>`));
 }
 
 function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort) {
