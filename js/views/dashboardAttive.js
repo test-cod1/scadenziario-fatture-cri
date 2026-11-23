@@ -62,16 +62,16 @@ async function giorniAllertaIncasso() {
 }
 
 export async function renderDashboardAttive(view, ctx) {
-  let tutte = [], incassatoMese = 0, incassatoAnno = 0, contaArchivio = 0, giorniAllerta = GIORNI_ALLERTA_FALLBACK, ultimaFattura = null;
+  let tutte = [], incassatoMese = 0, incassatoAnno = 0, contaArchivio = 0, giorniAllerta = GIORNI_ALLERTA_FALLBACK, aggiornato = null;
   try {
     const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
-    [tutte, incassatoMese, incassatoAnno, contaArchivio, giorniAllerta, ultimaFattura] = await Promise.all([
+    [tutte, incassatoMese, incassatoAnno, contaArchivio, giorniAllerta, aggiornato] = await Promise.all([
       fattureAttive.listAperte(),
       incassi.sommaPeriodo(inizioMese, fineMese),
       incassi.sommaPeriodo(inizioAnno, fineAnno),
       fattureAttive.contaArchivio(),
       giorniAllertaIncasso(),
-      caricaUltimaFattura(),
+      caricaAggiornamento(),
     ]);
   }
   catch (e) { view.appendChild(el(`<div class="empty-state"><div class="big">⚠️</div><p>Errore nel caricamento: ${esc(e.message)}</p></div>`)); return; }
@@ -149,7 +149,7 @@ export async function renderDashboardAttive(view, ctx) {
 
   renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraIncassatoMese, incassatoMese, incassatoAnno);
   renderAlertAttive(wrap.querySelector('#alert-zone'), tutte, giorniAllerta);
-  renderAggiornamento(wrap.querySelector('#aggiornato'), ultimaFattura);
+  renderAggiornamento(wrap.querySelector('#aggiornato'), aggiornato);
   if (state.q) wrap.querySelector('#q').value = state.q;
 
   // Vedi il commento gemello in dashboard.js: l'archivio si carica alla prima
@@ -279,19 +279,19 @@ export async function renderDashboardAttive(view, ctx) {
       const { inizioMese, fineMese, inizioAnno, fineAnno } = confiniPeriodoCorrente();
       // Niente `let contaArchivio` qui: dichiararlo di nuovo mascherava quello
       // esterno, che restava fermo al valore del primo caricamento.
-      [tutte, incassatoMese, incassatoAnno, contaArchivio, ultimaFattura] = await Promise.all([
+      [tutte, incassatoMese, incassatoAnno, contaArchivio, aggiornato] = await Promise.all([
         fattureAttive.listAperte(),
         incassi.sommaPeriodo(inizioMese, fineMese),
         incassi.sommaPeriodo(inizioAnno, fineAnno),
         fattureAttive.contaArchivio(),
-        caricaUltimaFattura(),
+        caricaAggiornamento(),
       ]);
       // L'archivio va riletto se era già stato scaricato, non solo se il
       // pannello è aperto: ricerca ed export lo usano anche a pannello chiuso.
       if (archivioCaricato) { archivioCaricato = false; await caricaArchivio(); }
       renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraIncassatoMese, incassatoMese, incassatoAnno);
       renderAlertAttive(wrap.querySelector('#alert-zone'), tutte, giorniAllerta);
-      renderAggiornamento(wrap.querySelector('#aggiornato'), ultimaFattura);
+      renderAggiornamento(wrap.querySelector('#aggiornato'), aggiornato);
       refreshTable();
     } catch (e) {
       toast('Aggiornamento non riuscito: ' + e.message + ' — ricarica la pagina.', 'err');
@@ -344,18 +344,25 @@ export async function renderDashboardAttive(view, ctx) {
 // mese/anno" arriva già calcolato da fuori (incassi.sommaPeriodo,
 // indipendente da cosa è archiviato) — vedi il commento gemello in
 // dashboard.js.
-// Data dell'ultima fattura emessa registrata, per sapere fin dove è
-// aggiornato lo scadenziario attivo. Non fa mai cadere la pagina: se la
-// lettura non riesce la riga non compare.
-async function caricaUltimaFattura() {
-  try { return await fattureAttive.ultima(); }
-  catch { return null; }
+// Data dell'ultima fattura emessa e dell'ultimo incasso registrati, per
+// sapere fin dove è aggiornato lo scadenziario attivo. Non fa mai cadere la
+// pagina: se la lettura non riesce la riga non compare.
+async function caricaAggiornamento() {
+  try {
+    const [fattura, incasso] = await Promise.all([fattureAttive.ultima(), incassi.ultimo()]);
+    return { fattura, incasso };
+  } catch { return null; }
 }
 
-function renderAggiornamento(node, fattura) {
+function renderAggiornamento(node, aggiornato) {
   clear(node);
-  node.hidden = !fattura;
-  if (fattura) node.innerHTML = `Aggiornato a: ultima fattura del <b>${fmtDate(fattura.data_fattura)}</b>`;
+  const { fattura, incasso } = aggiornato || {};
+  node.hidden = !fattura && !incasso;
+  if (node.hidden) return;
+  const pezzi = [];
+  if (fattura) pezzi.push(`ultima fattura del <b>${fmtDate(fattura.data_fattura)}</b>`);
+  if (incasso) pezzi.push(`ultimo incasso del <b>${fmtDate(incasso.data_incasso)}</b>`);
+  node.innerHTML = 'Aggiornato a: ' + pezzi.join(' · ');
 }
 
 function renderStats(node, tutte, onClickTotale, onClickIncassatoMese, incassatoMese, incassatoAnno) {

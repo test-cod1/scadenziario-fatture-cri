@@ -287,6 +287,16 @@ export const incassi = {
     }
     return centesimi / 100;
   },
+  // Data dell'incasso più recente registrato, per la riga «Aggiornato a»
+  // (vedi il gemello pagamenti.ultimo in store.js).
+  async ultimo() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('incassi').select('data_incasso')
+      .not('data_incasso', 'is', null)
+      .order('data_incasso', { ascending: false }).limit(1);
+    if (error) throw error;
+    return data[0] || null;
+  },
 };
 
 // ---------------------------------------------------------------
