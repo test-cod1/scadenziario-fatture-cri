@@ -207,6 +207,10 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
 // ============================================================
 //  Incasso rapido — popup minimale aperto cliccando sul chip di stato in
 //  dashboard, per registrare un incasso senza aprire l'intero editor.
+// Quasi tutti i clienti pagano con bonifico: è la scelta già pronta quando
+// si registra un incasso, salvo che la fattura indichi un altro metodo.
+const METODO_INCASSO_PREDEFINITO = 'bonifico';
+
 // ============================================================
 export function apriIncassoRapido(rec, ctx, onSaved) {
   const body = el(`<div>
@@ -214,7 +218,7 @@ export function apriIncassoRapido(rec, ctx, onSaved) {
     <div class="form-row three" style="align-items:end">
       <div class="field"><label>Data</label><input type="date" id="qp-data" value="${todayISO()}"></div>
       <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="qp-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
-      <div class="field"><label>Metodo</label><select id="qp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_incasso === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
+      <div class="field"><label>Metodo</label><select id="qp-metodo">${METODI.map(m => `<option value="${esc(m)}" ${(rec.metodo_incasso || METODO_INCASSO_PREDEFINITO) === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
     </div>
     <div id="qp-err" style="color:var(--danger);font-size:13px"></div>
   </div>`);
@@ -340,7 +344,7 @@ function renderIncassi(node, rec, ctx, onChange) {
     const f = el(`<div class="form-row three" style="align-items:end">
       <div class="field"><label>Data</label><input type="date" id="p-data" value="${todayISO()}"></div>
       <div class="field"><label>Importo (€)</label><input ${CAMPO_DECIMALE} id="p-importo" value="${testoDecimaleOVuoto(rec._residuo)}"></div>
-      <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}">${m || '—'}</option>`).join('')}</select></div>
+      <div class="field"><label>Metodo</label><select id="p-metodo">${METODI.map(m => `<option value="${esc(m)}" ${(rec.metodo_incasso || METODO_INCASSO_PREDEFINITO) === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
     </div><button class="btn primary sm" id="p-save">Registra incasso</button>`);
     formZone.appendChild(f);
     // Vedi il commento gemello in fattura.js: senza disabilitare il pulsante,
