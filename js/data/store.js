@@ -346,7 +346,7 @@ export const fatture = {
   // scadenziario. Nessuna fattura → null.
   async ultima() {
     const sb = await sbClient();
-    const { data, error } = await sb.from('fatture').select('data_fattura, fornitore')
+    const { data, error } = await sb.from('fatture').select('data_fattura')
       .not('data_fattura', 'is', null).or('tipo_documento.is.null,tipo_documento.neq.f24')
       .order('data_fattura', { ascending: false }).limit(1);
     if (error) throw error;
@@ -504,16 +504,15 @@ export const noteCredito = {
 //  PAGAMENTI (acconti / rate)
 // ---------------------------------------------------------------
 export const pagamenti = {
-  // Il pagamento con la data più recente, col fornitore della sua fattura:
-  // come fatture.ultima, per dire fin dove è aggiornato lo scadenziario.
+  // Il pagamento con la data più recente: come fatture.ultima, per dire fin
+  // dove è aggiornato lo scadenziario.
   async ultimo() {
     const sb = await sbClient();
-    const { data, error } = await sb.from('pagamenti').select('data_pagamento, fatture(fornitore)')
+    const { data, error } = await sb.from('pagamenti').select('data_pagamento')
       .not('data_pagamento', 'is', null)
       .order('data_pagamento', { ascending: false }).limit(1);
     if (error) throw error;
-    const p = data[0];
-    return p ? { data_pagamento: p.data_pagamento, fornitore: p.fatture?.fornitore || '' } : null;
+    return data[0] || null;
   },
   // `decisore` è opzionale: serve solo per etichettare le eventuali proposte
   // di pagamento che questo pagamento chiude (vedi sotto), non per il

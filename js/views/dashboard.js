@@ -442,8 +442,8 @@ function renderAggiornamento(node, aggiornato) {
   node.hidden = !fattura && !pagamento;
   if (node.hidden) return;
   const pezzi = [];
-  if (fattura) pezzi.push(`ultima fattura del <b>${fmtDate(fattura.data_fattura)}</b>${fattura.fornitore ? ` (${esc(fattura.fornitore)})` : ''}`);
-  if (pagamento) pezzi.push(`ultimo pagamento del <b>${fmtDate(pagamento.data_pagamento)}</b>${pagamento.fornitore ? ` (${esc(pagamento.fornitore)})` : ''}`);
+  if (fattura) pezzi.push(`ultima fattura del <b>${fmtDate(fattura.data_fattura)}</b>`);
+  if (pagamento) pezzi.push(`ultimo pagamento del <b>${fmtDate(pagamento.data_pagamento)}</b>`);
   node.innerHTML = 'Aggiornato a: ' + pezzi.join(' · ');
 }
 
