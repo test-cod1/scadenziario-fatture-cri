@@ -78,8 +78,10 @@ export async function renderDashboardAttive(view, ctx) {
   let archivioCaricato = false;
   let archivio = [];   // fatture chiuse di anni precedenti, caricate su richiesta (vedi caricaArchivio)
 
-  // `sort` nullo = ordine di arrivo; «Azzera filtri» non lo tocca (vedi dashboard.js).
-  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, soloIncassateMese: false, sort: null };
+  // All'apertura la tabella parte dalle fatture più recenti (data decrescente);
+  // un clic sulle intestazioni cambia ordine. «Azzera filtri» non lo tocca
+  // (vedi dashboard.js).
+  const state = { q: '', stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, soloIncassateMese: false, sort: { campo: 'data', dir: 'desc' } };
   const onSort = (campo) => { state.sort = prossimoOrdinamento(state.sort, campo); refreshTable(); };
   // Arrivo da un click su un cliente nel Report: preimposta la ricerca e
   // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
