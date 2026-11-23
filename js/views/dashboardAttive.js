@@ -396,7 +396,7 @@ function renderAlertAttive(node, tutte, giorniAllerta) {
   const nonIncassate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato) && f.data_fattura);
   const oltreSoglia = nonIncassate.filter(f => { const g = giorniDa(f.data_fattura); return g !== null && -g > giorniAllerta; });
   if (!oltreSoglia.length) return;
-  node.appendChild(el(`<div class="banner danger"><div class="bi">⚠️</div><div><b>⚠️ ${oltreSoglia.length} fattura/e emesse da oltre ${giorniAllerta} giorni e non ancora incassate</b></div></div>`));
+  node.appendChild(el(`<div class="banner danger"><div><b>⚠️ ${oltreSoglia.length} fattura/e emesse da oltre ${giorniAllerta} giorni e non ancora incassate</b></div></div>`));
 }
 
 function renderTable(node, righe, ctx, ricarica, sort, onSort) {
