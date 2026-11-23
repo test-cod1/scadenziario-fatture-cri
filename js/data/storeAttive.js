@@ -79,6 +79,16 @@ export const fattureAttive = {
     }
     return tutte.map(withResiduo);
   },
+  // Data della fattura più recente registrata, per la riga «Aggiornato a»
+  // in cima alla dashboard (vedi il gemello fatture.ultima in store.js).
+  async ultima() {
+    const sb = await sbClient();
+    const { data, error } = await sb.from('fatture_attive').select('data_fattura')
+      .not('data_fattura', 'is', null)
+      .order('data_fattura', { ascending: false }).limit(1);
+    if (error) throw error;
+    return data[0] || null;
+  },
   // Conteggio leggero (nessuna riga scaricata) da mostrare accanto al menu a
   // scomparsa anche prima di aprirlo.
   async contaArchivio() {
