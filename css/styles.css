@@ -93,9 +93,11 @@ a{color:var(--cri-red);text-decoration:none}
 /* ---------- Cards / grid ---------- */
 .grid{display:grid;gap:16px}
 .stats{grid-template-columns:repeat(auto-fit,minmax(190px,1fr))}
-.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow);min-width:0}
+.stat{background:var(--card);border:1px solid var(--line);border-radius:var(--radius);padding:18px 18px 16px;box-shadow:var(--shadow);min-width:0;container-type:inline-size}
 .stat .k{font-size:12.5px;color:var(--ink-soft);font-weight:600;text-transform:uppercase;letter-spacing:.03em}
-.stat .v{font-size:30px;font-weight:800;margin-top:6px;letter-spacing:-.02em;overflow-wrap:break-word}
+/* La cifra resta su una riga, simbolo € compreso: il carattere si rimpicciolisce
+   con la larghezza della card (container query) invece di andare a capo. */
+.stat .v{font-size:30px;font-size:clamp(18px,14cqi,30px);font-weight:800;margin-top:6px;letter-spacing:-.02em;white-space:nowrap}
 .stat .s{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
 .stat-clickable{cursor:pointer}
 .stat-clickable:hover{box-shadow:0 0 0 2px var(--line) inset}
