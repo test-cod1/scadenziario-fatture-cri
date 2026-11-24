@@ -18,6 +18,7 @@ const apriEditor = daEditor('apriEditor');
 const apriUpload = daEditor('apriUpload');
 const apriPagamentoRapido = daEditor('apriPagamentoRapido');
 const apriNuovaNotaCredito = daEditor('apriNuovaNotaCredito');
+const apriPagamentoMultiplo = daEditor('apriPagamentoMultiplo');
 
 const STATO_LABEL = { da_pagare: 'Da pagare', pagata_parziale: 'Pagata parz.', pagata: 'Pagata', stornata: 'Stornata' };
 const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok', stornata: 'info' };
@@ -362,8 +363,10 @@ export async function renderDashboard(view, ctx) {
       <div class="barra-selezione-azioni">
         <button type="button" class="btn sm" data-copia title="Copia la cifra per incollarla nel bonifico">📋 Copia importo</button>
         <button type="button" class="btn ghost sm" data-svuota>Deseleziona</button>
+        <button type="button" class="btn primary sm" data-paga title="Registra un pagamento per ciascuna fattura selezionata">✓ Segna come ${t.n === 1 ? 'pagata' : 'pagate'}</button>
       </div>
     </div>`));
+    zona.querySelector('[data-paga]').addEventListener('click', () => apriPagamentoMultiplo(scelte, ctx, ricarica, proposteInAttesa));
     zona.querySelector('[data-svuota]').addEventListener('click', () => { selezionate.clear(); refreshTable(); });
     zona.querySelector('[data-copia]').addEventListener('click', async () => {
       // Senza simbolo né punti delle migliaia: è come lo vogliono i campi

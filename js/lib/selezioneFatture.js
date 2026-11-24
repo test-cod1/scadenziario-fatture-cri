@@ -25,6 +25,31 @@ export function totaleSelezione(righe) {
   return { n: righe.length, residuo: residuo / 100, importo: importo / 100, giaVersato: (importo - residuo) / 100 };
 }
 
+// Prima di registrare il pagamento unico si rilegge ogni fattura: nel
+// frattempo qualcuno può aver segnato un acconto o una nota di credito.
+// `fresche` è una Map id -> fattura riletta (assente = rilettura fallita: si
+// tiene il residuo che si ha). Si paga sempre il residuo ATTUALE; le fatture
+// ormai saldate escono, quelle cambiate si elencano per chiedere conferma.
+export function preparaPagamentoUnico(scelte, fresche) {
+  const cent = (n) => Math.round((Number(n) || 0) * 100);
+  const daPagare = [], cambiate = [], saldate = [];
+  for (const f of scelte) {
+    const fresca = fresche.get(f.id);
+    const attuale = fresca && Number.isFinite(Number(fresca._residuo)) ? Number(fresca._residuo) : Number(f._residuo);
+    if (!selezionabile({ ...f, ...(fresca || {}), _residuo: attuale })) { saldate.push(f); continue; }
+    if (cent(attuale) !== cent(f._residuo)) cambiate.push({ fattura: f, prima: Number(f._residuo), ora: attuale });
+    daPagare.push({ fattura: f, importo: attuale });
+  }
+  return { daPagare, cambiate, saldate, totale: totaleSelezione(daPagare.map(r => ({ _residuo: r.importo, importo: r.importo }))).residuo };
+}
+
+// Nota scritta su ciascun pagamento, così in un secondo momento (estratto
+// conto, controllo) si capisce che quella riga fa parte di un bonifico unico.
+export function notaPagamentoUnico(n, totale, aggiunta = '') {
+  const base = `Pagamento unico di ${n} fatture, totale ${totale.toFixed(2).replace('.', ',')} €`;
+  return aggiunta ? `${base} — ${aggiunta}` : base;
+}
+
 // Tiene solo le scelte ancora valide dopo una ricarica: una fattura appena
 // segnata come pagata (o sparita) non deve restare nel totale.
 export function potaSelezione(ids, righe) {

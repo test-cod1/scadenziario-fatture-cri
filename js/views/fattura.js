@@ -5,6 +5,7 @@ import { renderAnteprimaFile, bannerErroreLettura, bannerAbbinamento, fileToBase
 import { CAMPO_DECIMALE, testoDecimale, testoDecimaleOVuoto } from '../lib/importi.js';
 import { abbinaNotaCredito } from '../lib/soggetti.js';
 import { CODICI_TRIBUTO, CODICE_TRIBUTO_DEFAULT } from '../lib/ritenute.js';
+import { totaleSelezione, preparaPagamentoUnico, notaPagamentoUnico } from '../lib/selezioneFatture.js';
 
 export { METODI };
 
@@ -419,6 +420,105 @@ export function apriProponiPagamento(rec, ctx, onSaved) {
       btn.disabled = false; btn.innerHTML = old;
     }
   });
+}
+
+// ============================================================
+//  Pagamento unico di più fatture — dalla barra del totale in dashboard
+//  (caselle di selezione). Un solo bonifico paga il residuo di ciascuna
+//  fattura scelta: si registra un pagamento per fattura, con la stessa data,
+//  lo stesso metodo e una nota che dice che fanno parte di un pagamento unico.
+//  Come il pagamento rapido, offre anche «Proponi pagamento» per quando
+//  paga qualcun altro (una proposta per fattura).
+// ============================================================
+export function apriPagamentoMultiplo(scelte, ctx, onSaved, proposteInAttesa = new Map()) {
+  const t = totaleSelezione(scelte);
+  const conProposte = scelte.filter(f => (proposteInAttesa.get(f.id) || 0) > 0).length;
+  const body = el(`<div>
+    <p class="muted" style="margin:0 0 10px;font-size:14px">Si registra un pagamento per ogni fattura, pari al suo residuo, tutti con la stessa data e lo stesso metodo.</p>
+    <div class="tbl-wrap"><table class="tbl" style="font-size:13.5px"><thead><tr><th>Fornitore</th><th>N. fattura</th><th>Scadenza</th><th class="money-col">Residuo</th></tr></thead><tbody>
+      ${scelte.map(f => `<tr><td>${esc(f.fornitore)}${(proposteInAttesa.get(f.id) || 0) > 0 ? ' <span class="chip" title="Proposta di pagamento in attesa">📨</span>' : ''}</td><td>${esc(f.numero_fattura || '—')}</td><td>${fmtDate(f.scadenza)}</td><td class="money money-col">${fmtEuro(f._residuo)}</td></tr>`).join('')}
+      <tr><td colspan="3"><b>Totale</b></td><td class="money money-col"><b>${fmtEuro(t.residuo)}</b></td></tr>
+    </tbody></table></div>
+    ${conProposte ? `<p class="muted" style="font-size:13px;margin:8px 0 0">📨 ${conProposte === 1 ? 'Una fattura ha' : conProposte + ' fatture hanno'} già una proposta di pagamento in attesa: registrando il pagamento, se è l'unica, si chiude da sola.</p>` : ''}
+    <div class="form-row three" style="align-items:end;margin-top:14px">
+      <div class="field"><label>Data</label><input type="date" id="pm-data" value="${todayISO()}"></div>
+      <div class="field"><label>Metodo</label><select id="pm-metodo">${METODI.map(m => `<option value="${esc(m)}" ${m === 'bonifico' ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
+      <div class="field"><label>Nota (opzionale)</label><input type="text" id="pm-note" placeholder="es. CRO del bonifico"></div>
+    </div>
+    <div id="pm-err" style="color:var(--danger);font-size:13px"></div>
+  </div>`);
+  const footer = el(`<div style="display:flex;gap:10px;width:100%;flex-wrap:wrap">
+    <button class="btn ghost" id="pm-proponi">Proponi pagamento</button>
+    <div style="flex:1"></div>
+    <button class="btn" id="pm-cancel">Annulla</button>
+    <button class="btn primary" id="pm-save">${scelte.length === 1 ? 'Registra il pagamento' : `Registra ${scelte.length} pagamenti`}</button>
+  </div>`);
+  const { close } = openModal({ title: scelte.length === 1 ? 'Segna come pagata' : `Segna come pagate — ${scelte.length} fatture`, body, footer, wide: true });
+  footer.querySelector('#pm-cancel').addEventListener('click', close);
+  footer.querySelector('#pm-save').addEventListener('click', () => esegui('registra'));
+  footer.querySelector('#pm-proponi').addEventListener('click', () => esegui('proponi'));
+
+  let inCorso = false;
+  async function esegui(modo) {
+    if (inCorso) return;
+    const err = body.querySelector('#pm-err'); err.textContent = '';
+    const data = body.querySelector('#pm-data').value;
+    const metodo = body.querySelector('#pm-metodo').value || null;
+    const notaUtente = body.querySelector('#pm-note').value.trim();
+    if (modo === 'registra' && !data) { err.textContent = 'Indica la data del pagamento.'; return; }
+    const pulsanti = footer.querySelectorAll('button');
+    const btn = footer.querySelector(modo === 'registra' ? '#pm-save' : '#pm-proponi');
+    const old = btn.innerHTML;
+    const blocca = (si, testo) => { inCorso = si; pulsanti.forEach(b => { b.disabled = si; }); btn.innerHTML = si ? `<span class="spinner sm"></span> ${testo}` : old; };
+    blocca(true, 'Controllo…');
+
+    // Rilettura: nel frattempo qualcuno può aver pagato o stornato.
+    const fresche = new Map();
+    await Promise.all(scelte.map(f => fatture.get(f.id).then(r => fresche.set(f.id, r)).catch(() => {})));
+    const prep = preparaPagamentoUnico(scelte, fresche);
+    if (!prep.daPagare.length) {
+      blocca(false);
+      err.textContent = 'Nel frattempo queste fatture risultano già saldate: non c\'è nulla da pagare.';
+      onSaved();
+      return;
+    }
+    if (prep.cambiate.length || prep.saldate.length) {
+      const righe = [
+        ...prep.saldate.map(f => `${f.fornitore} ${f.numero_fattura || ''}: già saldata, si esclude`),
+        ...prep.cambiate.map(c => `${c.fattura.fornitore} ${c.fattura.numero_fattura || ''}: residuo passato da ${fmtEuro(c.prima)} a ${fmtEuro(c.ora)}`),
+      ];
+      const ok = await confirmDialog(`Nel frattempo alcune fatture sono cambiate. ${righe.join('; ')}. Il nuovo totale è ${fmtEuro(prep.totale)}. Procedere?`, { okLabel: 'Procedi' });
+      if (!ok) { blocca(false); return; }
+    }
+
+    const n = prep.daPagare.length;
+    const note = n > 1 ? notaPagamentoUnico(n, prep.totale, notaUtente) : (notaUtente || null);
+    // Uno alla volta: se la rete cade a metà si sa esattamente quali sono
+    // andati a buon fine, e quelli restano registrati.
+    const riusciti = [], falliti = [];
+    for (const [i, r] of prep.daPagare.entries()) {
+      blocca(true, `${modo === 'registra' ? 'Registrazione' : 'Invio'} ${i + 1}/${n}…`);
+      try {
+        if (modo === 'registra') await pagamenti.add(r.fattura.id, { importo: r.importo, data_pagamento: data, metodo, note }, ctx.user);
+        else await proposte.create(r.fattura.id, { importo: r.importo, data_prevista: data || null, metodo, note }, ctx.user);
+        riusciti.push(r);
+      } catch (e) { falliti.push({ ...r, errore: e.message }); }
+    }
+    close();
+    onSaved();
+    const cosa = modo === 'registra' ? (riusciti.length === 1 ? 'pagamento registrato' : 'pagamenti registrati') : (riusciti.length === 1 ? 'proposta inviata' : 'proposte inviate');
+    if (!falliti.length) { toast(`${riusciti.length} ${cosa} — totale ${fmtEuro(prep.totale)}`, 'ok'); return; }
+    // Esito parziale: non deve passare inosservato, quindi una finestra e
+    // non un avviso che sparisce. Le fatture non riuscite restano spuntate.
+    const totRiusciti = totaleSelezione(riusciti.map(r => ({ _residuo: r.importo, importo: r.importo }))).residuo;
+    const corpo = el(`<div style="font-size:14px">
+      <p style="margin:0 0 10px"><b>${riusciti.length} su ${n}</b> ${cosa} (${fmtEuro(totRiusciti)}). ${falliti.length === 1 ? 'Non è andata a buon fine questa, che resta selezionata' : 'Non sono andate a buon fine queste, che restano selezionate'} per riprovare:</p>
+      <ul style="margin:0;padding-left:18px">${falliti.map(r => `<li>${esc(r.fattura.fornitore)} ${esc(r.fattura.numero_fattura || '')} — ${fmtEuro(r.importo)}: ${esc(r.errore)}</li>`).join('')}</ul>
+    </div>`);
+    const piede = el('<div><button class="btn primary">Ho capito</button></div>');
+    const esito = openModal({ title: 'Pagamento non completo', body: corpo, footer: piede });
+    piede.querySelector('button').addEventListener('click', esito.close);
+  }
 }
 
 // Registrare e rimuovere pagamenti è di chi ha accesso allo scadenziario,
