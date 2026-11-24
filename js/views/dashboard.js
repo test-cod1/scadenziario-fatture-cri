@@ -3,6 +3,7 @@ import { el, clear, esc, fmtDate, fmtEuro, giorniDa, debounce, toast, rendiClicc
 import { FILTRO_FORNITORE_KEY, leggiFiltroSoggetto, nelSoggetto } from '../lib/filtriReport.js';
 import { CAMPO_DECIMALE } from '../lib/importi.js';
 import { ordinaRighe, prossimoOrdinamento, thOrdinabile, collegaOrdinamento } from '../lib/ordinaTabella.js';
+import { selezionabile, totaleSelezione, potaSelezione } from '../lib/selezioneFatture.js';
 
 // L'editor della fattura (con la lettura degli XML e l'anteprima dei file) e
 // l'export Excel/PDF (con il generatore xlsx e lo zip) si caricano al primo
@@ -101,6 +102,15 @@ export async function renderDashboard(view, ctx) {
   let conBiscione = leggiConBiscione();
   const state = { q: '', soggetto: null, stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, senzaBiscione: false, pagato: null, sort: null };
   const onSort = (campo) => { state.sort = prossimoOrdinamento(state.sort, campo); refreshTable(); };
+  // Fatture spuntate per sommarne il residuo (vedi lib/selezioneFatture.js).
+  // Restano spuntate anche cambiando ricerca o filtri, così si possono
+  // mettere insieme fatture trovate con ricerche diverse; la barra in fondo
+  // dice quante di loro non sono in vista.
+  const selezionate = new Set();
+  const selezione = {
+    ids: selezionate,
+    cambia(ids, si) { for (const id of ids) { if (si) selezionate.add(id); else selezionate.delete(id); } refreshTable(); },
+  };
   // Arrivo da un click su un fornitore nel Report: preimposta la ricerca e
   // consuma subito la chiave, altrimenti resterebbe applicata a ogni rientro
   // nella dashboard finché non viene aperto di nuovo il Report.
@@ -144,6 +154,7 @@ export async function renderDashboard(view, ctx) {
     <div class="muted" id="filtro-pagato" style="font-size:13px;margin:-8px 0 10px" hidden></div>
     <div class="muted" id="nota-filtri" style="font-size:13px;margin:-8px 0 10px"></div>
     <div class="card"><div class="card-b tbl-wrap" id="tbl-zone"></div></div>
+    <div class="barra-selezione" id="barra-selezione" role="status" aria-live="polite" hidden></div>
     <details class="card" id="archivio" style="margin-top:22px">
       <summary class="card-h">
         <span>📁 Archivio fatture concluse (<span id="archivio-conta">${contaArchivio}</span>)</span>
@@ -305,7 +316,9 @@ export async function renderDashboard(view, ctx) {
   }
 
   function refreshTable() {
-    renderTable(wrap.querySelector("#tbl-zone"), applyFilters(), ctx, ricarica, proposteInAttesa, state.sort, onSort);
+    const visibili = applyFilters();
+    renderTable(wrap.querySelector("#tbl-zone"), visibili, ctx, ricarica, proposteInAttesa, state.sort, onSort, selezione);
+    mostraSelezione(visibili);
     mostraFiltroSoggetto();
     mostraFiltroBiscione();
     mostraFiltroPagato();
@@ -325,6 +338,40 @@ export async function renderDashboard(view, ctx) {
     if (!archivioCaricato) { zona.textContent = contaArchivio; return; }
     const trovate = applyFilters(archivio).length;
     zona.textContent = filtriAttivi() ? `${trovate} di ${archivio.length}` : archivio.length;
+  }
+
+  // Barra in fondo con il totale delle fatture spuntate: c'è solo finché se
+  // ne spunta almeno una.
+  function mostraSelezione(visibili) {
+    const zona = wrap.querySelector('#barra-selezione');
+    clear(zona);
+    const scelte = tutte.filter(f => selezionate.has(f.id));
+    zona.hidden = !scelte.length;
+    if (!scelte.length) return;
+    const t = totaleSelezione(scelte);
+    const idVisibili = new Set(visibili.map(f => f.id));
+    const nascoste = scelte.filter(f => !idVisibili.has(f.id)).length;
+    const dettagli = [];
+    if (t.giaVersato > 0) dettagli.push(`importo ${fmtEuro(t.importo)}, già pagato o stornato ${fmtEuro(t.giaVersato)}`);
+    if (nascoste) dettagli.push(`<b>${nascoste === 1 ? '1 non è in vista' : nascoste + ' non sono in vista'}</b> con i filtri attuali`);
+    zona.appendChild(el(`<div class="barra-selezione-in">
+      <div class="barra-selezione-testo">
+        <div><b>${t.n === 1 ? '1 fattura selezionata' : t.n + ' fatture selezionate'}</b> · Totale da pagare <b class="barra-selezione-totale">${fmtEuro(t.residuo)}</b></div>
+        ${dettagli.length ? `<div class="barra-selezione-nota">${dettagli.join(' · ')}</div>` : ''}
+      </div>
+      <div class="barra-selezione-azioni">
+        <button type="button" class="btn sm" data-copia title="Copia la cifra per incollarla nel bonifico">📋 Copia importo</button>
+        <button type="button" class="btn ghost sm" data-svuota>Deseleziona</button>
+      </div>
+    </div>`));
+    zona.querySelector('[data-svuota]').addEventListener('click', () => { selezionate.clear(); refreshTable(); });
+    zona.querySelector('[data-copia]').addEventListener('click', async () => {
+      // Senza simbolo né punti delle migliaia: è come lo vogliono i campi
+      // importo dei bonifici on line.
+      const cifra = t.residuo.toFixed(2).replace('.', ',');
+      try { await navigator.clipboard.writeText(cifra); toast(`Copiato: ${cifra}`); }
+      catch { toast('Copia non riuscita: seleziona la cifra a mano.', 'err'); }
+    });
   }
 
   // Il filtro per soggetto non ha un campo suo nella barra: si dice qui quale
@@ -397,6 +444,7 @@ export async function renderDashboard(view, ctx) {
       // pannello è aperto: da quando ricerca ed export lo usano, può essere in
       // memoria anche a pannello chiuso.
       if (archivioCaricato) { archivioCaricato = false; await caricaArchivio(); }
+      potaSelezione(selezionate, tutte);
       disegnaStats();
       renderAlert(wrap.querySelector('#alert-zone'), tutte);
       renderAggiornamento(wrap.querySelector('#aggiornato'), aggiornato);
@@ -530,9 +578,18 @@ function renderAlert(node, tutte) {
   node.appendChild(el(`<div class="banner ${scadute.length ? 'danger' : 'warn'}"><div>${parts.join('')}</div></div>`));
 }
 
-function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort) {
+// `selezione` ({ ids, cambia }) aggiunge la colonna delle caselle per sommare
+// più fatture; l'archivio non la passa: lì sono tutte già chiuse.
+function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort, selezione = null) {
   clear(node);
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">🧾</div><p>Nessuna fattura trovata con questi filtri.</p></div>`)); return; }
+  // La casella in intestazione spunta (o toglie) le sole fatture in vista che
+  // si possono pagare: cercato un fornitore, un clic le prende tutte.
+  const spuntabili = selezione ? righe.filter(selezionabile).map(f => f.id) : [];
+  const nSpuntate = spuntabili.filter(id => selezione.ids.has(id)).length;
+  const thSelezione = !selezione ? '' : `<th class="col-sel">${spuntabili.length
+    ? `<input type="checkbox" class="sel-fattura" data-sel-tutte aria-label="Seleziona tutte le fatture da pagare in elenco" title="Seleziona tutte le fatture da pagare in elenco" ${nSpuntate === spuntabili.length ? 'checked' : ''}>`
+    : ''}</th>`;
   const isAdmin = ctx.user.ruolo === 'admin';
   // Anche l'operatore registra i pagamenti (dal 18/11/2026): il chip apre
   // per tutti il pagamento rapido, che offre a sua volta «Proponi pagamento».
@@ -540,17 +597,21 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort)
   const titoloChip = 'Clicca per segnare un pagamento';
   const oggi = todayISO();
   const table = el(`<table class="tbl tbl-fatture"><thead><tr>
-    ${thOrdinabile('Fornitore', 'fornitore', sort)}${thOrdinabile('N. Fattura', 'numero', sort)}${thOrdinabile('Data', 'data', sort)}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Scadenza', 'scadenza', sort)}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}<th></th>
+    ${thSelezione}${thOrdinabile('Fornitore', 'fornitore', sort)}${thOrdinabile('N. Fattura', 'numero', sort).replace('<th', '<th data-col-secondaria')}${thOrdinabile('Data', 'data', sort).replace('<th', '<th data-col-secondaria')}${thOrdinabile('Importo', 'importo', sort, 'money-col')}${thOrdinabile('Scadenza', 'scadenza', sort)}${thOrdinabile('Stato', 'stato', sort)}${thOrdinabile('Residuo', 'residuo', sort, 'money-col')}<th></th>
   </tr></thead><tbody></tbody></table>`);
   collegaOrdinamento(table, onSort);
   const tbody = table.querySelector('tbody');
   for (const f of ordinaRighe(righe, sort, COLONNE)) {
     const scaduta = !STATI_CHIUSI.includes(f.stato) && f.scadenza && f.scadenza < oggi;
     const nProposte = proposteInAttesa ? (proposteInAttesa.get(f.id) || 0) : 0;
-    const tr = el(`<tr class="${scaduta ? 'scaduta' : ''}">
-      <td>${f.tipo_documento === 'f24' ? '<span class="chip" title="Rata di modello F24, non una fattura">F24</span> ' : ''}${esc(f.fornitore)}${Number(f.ritenuta) > 0 ? ` <span class="chip" title="Ritenuta d'acconto ${esc(fmtEuro(f.ritenuta))}: si versa con l'F24 entro il 16 del mese dopo il pagamento">RA</span>` : ''}</td>
-      <td>${esc(f.numero_fattura || '—')}</td>
-      <td>${fmtDate(f.data_fattura)}</td>
+    const spuntata = !!selezione && selezione.ids.has(f.id);
+    const tdSelezione = !selezione ? '' : `<td class="col-sel" data-sel-cella>${selezionabile(f)
+      ? `<input type="checkbox" class="sel-fattura" data-sel aria-label="Seleziona per il totale: ${esc(f.fornitore)} ${esc(f.numero_fattura || '')}" ${spuntata ? 'checked' : ''}>`
+      : ''}</td>`;
+    const tr = el(`<tr class="${scaduta ? 'scaduta' : ''}${spuntata ? ' selezionata' : ''}">
+      ${tdSelezione}<td>${f.tipo_documento === 'f24' ? '<span class="chip" title="Rata di modello F24, non una fattura">F24</span> ' : ''}${esc(f.fornitore)}${Number(f.ritenuta) > 0 ? ` <span class="chip" title="Ritenuta d'acconto ${esc(fmtEuro(f.ritenuta))}: si versa con l'F24 entro il 16 del mese dopo il pagamento">RA</span>` : ''}</td>
+      <td data-col-secondaria>${esc(f.numero_fattura || '—')}</td>
+      <td data-col-secondaria>${fmtDate(f.data_fattura)}</td>
       <td class="money money-col">${fmtEuro(f.importo)}</td>
       <td>${fmtDate(f.scadenza)}</td>
       <td>
@@ -560,11 +621,29 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort)
       <td class="money money-col">${fmtEuro(f._residuo)}</td>
       <td style="text-align:right"><button class="btn ghost sm" data-edit>✏️</button></td>
     </tr>`);
-    rendiCliccabile(tr, (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]')) apriEditor(f.id, ctx, ricarica); });
+    rendiCliccabile(tr, (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]') && !e.target.closest('[data-sel-cella]')) apriEditor(f.id, ctx, ricarica); });
+    // Tutta la cella della casella la spunta (bersaglio più comodo), senza
+    // aprire la fattura come farebbe il clic sul resto della riga.
+    const cellaSel = tr.querySelector('[data-sel-cella]');
+    if (cellaSel) {
+      const casella = cellaSel.querySelector('[data-sel]');
+      cellaSel.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (!casella) return;
+        if (e.target !== casella) casella.checked = !casella.checked;
+        selezione.cambia([f.id], casella.checked);
+      });
+      cellaSel.addEventListener('keydown', (e) => e.stopPropagation());
+    }
     tr.querySelector('[data-edit]').addEventListener('click', (e) => { e.stopPropagation(); apriEditor(f.id, ctx, ricarica); });
     const chipStato = tr.querySelector('[data-stato]');
     if (chipStato) rendiCliccabile(chipStato, (e) => { e.stopPropagation(); azione(f, ctx, ricarica); });
     tbody.appendChild(tr);
+  }
+  const selTutte = table.querySelector('[data-sel-tutte]');
+  if (selTutte) {
+    selTutte.indeterminate = nSpuntate > 0 && nSpuntate < spuntabili.length;
+    selTutte.addEventListener('click', (e) => { e.stopPropagation(); selezione.cambia(spuntabili, selTutte.checked); });
   }
   node.appendChild(table);
 }

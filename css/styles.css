@@ -182,6 +182,26 @@ th.money-col,td.money-col{text-align:right}
 tr.scaduta td{background:var(--danger-soft)}
 tr.scaduta:hover td{background:#fbdcdd}
 
+/* Caselle per sommare più fatture e barra del totale (scadenziario passivo,
+   vedi js/lib/selezioneFatture.js). La riga spuntata ha un filo rosso a
+   sinistra: si distingue anche quando è già colorata perché scaduta. */
+table.tbl th.col-sel,table.tbl td.col-sel{width:1%;padding-right:2px;text-align:center}
+table.tbl td.col-sel{cursor:pointer}
+.sel-fattura{width:17px;height:17px;margin:0;vertical-align:middle;cursor:pointer;accent-color:var(--cri-red)}
+tr.selezionata td{background:var(--cri-red-soft)}
+tr.selezionata td:first-child{box-shadow:inset 3px 0 0 var(--cri-red)}
+.barra-selezione{position:sticky;bottom:16px;z-index:30;margin-top:12px}
+.barra-selezione[hidden]{display:none}
+.barra-selezione-in{display:flex;align-items:center;justify-content:space-between;gap:12px 20px;flex-wrap:wrap;
+  background:var(--card);border:1px solid var(--line);border-left:4px solid var(--cri-red);border-radius:12px;
+  padding:12px 16px;box-shadow:var(--shadow-alta);font-size:14px}
+.barra-selezione-totale{font-size:17px;font-variant-numeric:tabular-nums;white-space:nowrap}
+.barra-selezione-nota{font-size:12.5px;color:var(--ink-soft);margin-top:2px}
+.barra-selezione-azioni{display:flex;gap:8px;flex-wrap:wrap}
+/* Il tasto tondo della guida coprirebbe i pulsanti della barra: finché c'è
+   una selezione si fa da parte. */
+body:has(.barra-selezione:not([hidden])) .tour-fab{display:none}
+
 /* ---------- Banner ---------- */
 .banner{border-radius:var(--radius);padding:15px 18px;display:flex;gap:12px;align-items:flex-start;margin-bottom:18px}
 .banner>div{min-width:0}
@@ -362,8 +382,14 @@ tr.scaduta:hover td{background:#fbdcdd}
      orizzontale. Solo su questa tabella (classe tbl-fatture): le altre
      tabelle dell'app hanno colonne diverse, nasconderle allo stesso modo
      nasconderebbe dati sbagliati.*/
-  .tbl-fatture th:nth-child(2),.tbl-fatture td:nth-child(2),
-  .tbl-fatture th:nth-child(3),.tbl-fatture td:nth-child(3){display:none}
+  /* Nello scadenziario passivo la prima colonna può essere quella delle
+     caselle di selezione: le due da nascondere si riconoscono dall'attributo
+     data-col-secondaria, non dalla posizione. */
+  .tbl-fatture [data-col-secondaria],
+  .tbl-attive th:nth-child(2),.tbl-attive td:nth-child(2),
+  .tbl-attive th:nth-child(3),.tbl-attive td:nth-child(3){display:none}
+  /* La barra del totale sta sopra la navigazione fissata in basso. */
+  .barra-selezione{bottom:120px}
   /* Nello scadenziario attivo il numero è la prima colonna e il cliente la
      seconda: si nasconde il numero e si rimette in vista il cliente. */
   .tbl-attive th:nth-child(1),.tbl-attive td:nth-child(1){display:none}
