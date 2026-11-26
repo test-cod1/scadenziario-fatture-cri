@@ -1,16 +1,14 @@
 // ============================================================
 //  ACCESSO CON NOME E COGNOME
-//  Alcuni account entrano scrivendo nome e cognome invece dell'email.
-//  Serve quando più persone condividono la stessa casella: Supabase vuole
-//  un'email diversa per ogni account, quindi ognuna ha un alias «+» della
-//  casella comune (genova.amministrazione+nayyab@…, che Gmail recapita a
-//  genova.amministrazione@…), ma un alias così non lo ricorda nessuno.
+//  Tutti possono entrare scrivendo nome e cognome invece dell'email.
+//  Il nome è quello del profilo, come compare in Utenti. In più, chi
+//  condivide una casella (Supabase vuole un'email diversa per ogni account,
+//  quindi ognuno ha un alias «+» della casella comune, che nessuno ricorda)
+//  può avere un nome di accesso in app_metadata.nome_accesso.
 //
-//  Il nome con cui si entra sta in app_metadata.nome_accesso dell'utente
-//  Supabase: lo scrive solo la service role key (l'utente non può
-//  cambiarselo da sé), e un account senza quel campo si trova solo per email.
-//  /api/email-accesso traduce il nome nell'email, poi il login prosegue
-//  come sempre dal browser verso Supabase — con i suoi limiti ai tentativi.
+//  Entrambi li scrive solo un amministratore (l'utente non può cambiarseli
+//  da sé). /api/email-accesso trova l'account dal nome e fa il login lato
+//  server, con i suoi limiti ai tentativi; l'email non torna al browser.
 //
 //  Il confronto ignora maiuscole, accenti, spazi in più e l'ordine delle
 //  parole: «Duray Nayyab», «nayyab duray» e « DURAY  NAYYAB » sono la

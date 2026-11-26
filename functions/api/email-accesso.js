@@ -5,9 +5,10 @@
 //  Corpo:  { nome, password }               → { access_token, refresh_token }
 //          { nome, azione: 'recupero' }     → { ok: true }   (sempre)
 //
-//  Senza login, perché serve prima del login. Vale solo per gli account che
-//  hanno un nome di accesso in app_metadata.nome_accesso (vedi
-//  js/lib/nomeAccesso.mjs): sono quelli di chi condivide una casella email.
+//  Senza login, perché serve prima del login. Vale per tutti gli account: il
+//  nome è quello del profilo (come compare in Utenti) oppure, per chi
+//  condivide una casella email, il nome di accesso in app_metadata (vedi
+//  js/lib/nomeAccesso.mjs e emailDelNome più sotto).
 //
 //  Fino al 15/11/2026 questo endpoint restituiva l'EMAIL corrispondente al
 //  nome, e il login lo faceva poi il browser. Così chiunque, senza nessuna
@@ -115,9 +116,22 @@ export async function onRequestPost(context) {
   return json({ access_token: sessione.access_token, refresh_token: sessione.refresh_token });
 }
 
-// L'email dell'account che ha quel nome di accesso, oppure null (anche
-// quando due account hanno lo stesso nome: meglio non indovinare chi è).
+// L'email dell'account che ha quel nome, oppure null (anche quando due
+// account hanno lo stesso nome: meglio non indovinare chi è). Un account si
+// trova per il nome di accesso (app_metadata.nome_accesso, le caselle
+// condivise) oppure per il nome del suo profilo, cioè quello che compare in
+// Utenti: così entra con nome e cognome chiunque, non solo chi condivide una
+// casella. Entrambi li scrive solo un amministratore: il nome del profilo
+// l'utente non può cambiarselo (patch-2026-09-27-sicurezza.sql), e il
+// user_metadata — che invece può — qui non si guarda.
 async function emailDelNome(base, key, cercato) {
+  const resProfili = await fetch(`${base}/rest/v1/profili?select=id,nome`, {
+    headers: { apikey: key, Authorization: `Bearer ${key}` },
+  });
+  if (!resProfili.ok) throw new Error(`profili: ${resProfili.status}`);
+  const nomeProfilo = new Map((await resProfili.json()).map(p => [p.id, p.nome]));
+  const corrisponde = (u) => [u.app_metadata?.nome_accesso, nomeProfilo.get(u.id)]
+    .some(n => n && normalizzaNome(n) === cercato);
   let trovati = [];
   // Gli utenti del portale sono qualche decina: si scorrono tutti.
   for (let pagina = 1; pagina <= 20; pagina++) {
@@ -126,7 +140,7 @@ async function emailDelNome(base, key, cercato) {
     });
     if (!res.ok) throw new Error(`utenti: ${res.status}`);
     const { users = [] } = await res.json();
-    trovati = trovati.concat(users.filter(u => u.app_metadata?.nome_accesso && normalizzaNome(u.app_metadata.nome_accesso) === cercato));
+    trovati = trovati.concat(users.filter(corrisponde));
     if (users.length < 200) break;
   }
   return trovati.length === 1 ? trovati[0].email : null;

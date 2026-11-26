@@ -1,8 +1,8 @@
 // ============================================================
 //  Login con nome e cognome (/api/email-accesso), su un Auth finto.
-//  Le prove fissano che il nome si trova comunque lo si scriva, e che si
-//  trovano SOLO gli account con un nome di accesso: gli altri restano
-//  raggiungibili per email e basta.
+//  Le prove fissano che il nome si trova comunque lo si scriva, per il nome
+//  di accesso (caselle condivise) o per il nome del profilo, e MAI per il
+//  user_metadata, che l'utente può cambiarsi da sé.
 // ============================================================
 import { gruppo, prova, uguale, vero } from './aiuto.mjs';
 import { bloccoIp } from '../functions/_lib/limiti.js';
@@ -26,15 +26,21 @@ prova('con la chiocciola è un\'email, senza è un nome', () => {
 
 const ENV = { SUPABASE_SERVICE_ROLE_KEY: 'chiave', SUPABASE_URL: 'https://db.finto' };
 const UTENTI = [
-  { email: 'genova.amministrazione+nayyab@liguria.cri.it', app_metadata: { nome_accesso: 'Duray Nayyab' } },
-  { email: 'genova.amministrazione+bassino@liguria.cri.it', app_metadata: { nome_accesso: 'Maria Rita Bassino' } },
-  { email: 'mario.rossi@cri.it', app_metadata: {}, user_metadata: { nome: 'Mario Rossi' } },
+  { id: 'u1', email: 'genova.amministrazione+nayyab@liguria.cri.it', app_metadata: { nome_accesso: 'Duray Nayyab' } },
+  { id: 'u2', email: 'genova.amministrazione+bassino@liguria.cri.it', app_metadata: { nome_accesso: 'Maria Rita Bassino' } },
+  { id: 'u3', email: 'mario.rossi@cri.it', app_metadata: {}, user_metadata: { nome: 'Mario Rossi' } },
+  { id: 'u4', email: 'federica.bianchi@cri.it', app_metadata: {}, user_metadata: { nome: 'Nome Inventato' } },
+];
+// Il nome del profilo (tabella profili) lo scrive solo un amministratore.
+const PROFILI = [
+  { id: 'u1', nome: 'Duray Nayyab' }, { id: 'u2', nome: 'Maria Rita Bassino' },
+  { id: 'u3', nome: null }, { id: 'u4', nome: 'Federica Bianchi' },
 ];
 
 // Auth finto: elenco utenti, login con la password giusta ('giusta'),
 // recupero password, e il contatore dei tentativi (che qui dice sempre il
 // numero che gli si passa in `tentativi`). Registra le chiamate fatte.
-async function chiedi(corpo, { utenti = UTENTI, tentativi = 1 } = {}) {
+async function chiedi(corpo, { utenti = UTENTI, profili = PROFILI, tentativi = 1 } = {}) {
   const fetchVero = globalThis.fetch;
   const chiamate = [];
   globalThis.fetch = async (url, opz = {}) => {
@@ -44,6 +50,10 @@ async function chiedi(corpo, { utenti = UTENTI, tentativi = 1 } = {}) {
     if (u.startsWith('https://db.finto/auth/v1/admin/users')) {
       vero(!opz.method || opz.method === 'GET', 'sugli utenti solo letture');
       return new Response(JSON.stringify({ users: utenti }), { status: 200 });
+    }
+    if (u.startsWith('https://db.finto/rest/v1/profili')) {
+      vero(!opz.method || opz.method === 'GET', 'sui profili solo letture');
+      return new Response(JSON.stringify(profili), { status: 200 });
     }
     if (u.startsWith('https://db.finto/rest/v1/rpc/consuma_limite_anonimo')) return new Response(String(tentativi), { status: 200 });
     if (u.startsWith('https://db.finto/auth/v1/token?grant_type=password')) {
@@ -70,13 +80,28 @@ prova('nome e password giusti danno la sessione, e l’email non esce mai', asyn
   uguale(login.dati.email, UTENTI[0].email, 'il login lo fa il server con l’email giusta');
 });
 
+prova('chiunque entra con il nome del suo profilo, anche senza nome di accesso', async () => {
+  const r = await chiedi({ nome: 'bianchi federica', password: 'giusta' });
+  uguale(r.status, 200);
+  uguale(r.chiamate.find(c => c.url.includes('grant_type=password')).dati.email, 'federica.bianchi@cri.it');
+});
+
+prova('il nome che l’utente può cambiarsi da sé (user_metadata) non conta', async () => {
+  for (const nome of ['Nome Inventato', 'Mario Rossi']) {
+    const r = await chiedi({ nome, password: 'giusta' });
+    uguale({ status: r.status, corpo: r.corpo }, { status: 401, corpo: { error: NON_TROVATO } }, nome);
+  }
+});
+
 prova('nome sconosciuto, password sbagliata e omonimi rispondono allo stesso modo', async () => {
-  const doppi = [...UTENTI, { email: 'altra@cri.it', app_metadata: { nome_accesso: 'Nayyab Duray' } }];
+  const doppi = [...UTENTI, { id: 'u5', email: 'altra@cri.it', app_metadata: { nome_accesso: 'Nayyab Duray' } }];
+  const omonimiProfilo = [...PROFILI, { id: 'u5', nome: 'Federica Bianchi' }];
   const casi = [
-    await chiedi({ nome: 'Mario Rossi', password: 'giusta' }),        // senza nome di accesso
+    await chiedi({ nome: 'Mario Rossi', password: 'giusta' }),        // nome solo in user_metadata
     await chiedi({ nome: 'Nessuno Qui', password: 'giusta' }),
     await chiedi({ nome: 'Duray Nayyab', password: 'sbagliata' }),
     await chiedi({ nome: 'Duray Nayyab', password: 'giusta' }, { utenti: doppi }),
+    await chiedi({ nome: 'Federica Bianchi', password: 'giusta' }, { utenti: doppi, profili: omonimiProfilo }),
   ];
   for (const r of casi) uguale({ status: r.status, corpo: r.corpo }, { status: 401, corpo: { error: NON_TROVATO } });
   uguale((await chiedi('non json')).status, 400);
