@@ -25,17 +25,17 @@ const STATO_CHIP = { da_pagare: 'warn', pagata_parziale: 'red', pagata: 'ok', st
 const STATI_CHIUSI = ['pagata', 'stornata']; // niente altro da pagare: il chip non apre più pagamento/proposta
 
 // Il debito con la cooperativa Il Biscione pesa da solo quanto tutto il resto
-// messo insieme: la card «Da pagare» ha un interruttore per vedere il totale
-// con o senza di lui. Si riconosce dal nome (nelle fatture registrate non c'è
-// la partita IVA). La scelta si ricorda su questo browser; le altre card non
-// cambiano.
+// messo insieme: le card «Da pagare» e «Scaduto e non pagato» hanno ciascuna
+// un interruttore per vedere il totale con o senza di lui, indipendenti fra
+// loro. Si riconosce dal nome (nelle fatture registrate non c'è la partita
+// IVA). La scelta si ricorda su questo browser; le card «Pagato» non cambiano.
 const eBiscione = (f) => /biscione/i.test(f.fornitore || '');
-const CHIAVE_BISCIONE = 'scadenziario.daPagareConBiscione';
-function leggiConBiscione() {
-  try { return localStorage.getItem(CHIAVE_BISCIONE) !== 'no'; } catch { return true; }
+const CHIAVI_BISCIONE = { totale: 'scadenziario.daPagareConBiscione', scaduto: 'scadenziario.scadutoConBiscione' };
+function leggiConBiscione(quale) {
+  try { return localStorage.getItem(CHIAVI_BISCIONE[quale]) !== 'no'; } catch { return true; }
 }
-function salvaConBiscione(v) {
-  try { localStorage.setItem(CHIAVE_BISCIONE, v ? 'si' : 'no'); } catch { /* niente memoria: pazienza */ }
+function salvaConBiscione(quale, v) {
+  try { localStorage.setItem(CHIAVI_BISCIONE[quale], v ? 'si' : 'no'); } catch { /* niente memoria: pazienza */ }
 }
 
 // Colonne ordinabili con un clic sull'intestazione. Lo stato si ordina per
@@ -100,7 +100,7 @@ export async function renderDashboard(view, ctx) {
   // `pagato`: { da, a, etichetta } impostato dal clic su «Pagato questo
   // mese/anno»: solo le fatture con almeno un pagamento in quel periodo. Si
   // toglie come `senzaBiscione`.
-  let conBiscione = leggiConBiscione();
+  const conBiscione = { totale: leggiConBiscione('totale'), scaduto: leggiConBiscione('scaduto') };
   const state = { q: '', soggetto: null, stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: false, senzaBiscione: false, pagato: null, sort: null };
   const onSort = (campo) => { state.sort = prossimoOrdinamento(state.sort, campo); refreshTable(); };
   // Fatture spuntate per sommarne il residuo (vedi lib/selezioneFatture.js).
@@ -198,14 +198,14 @@ export async function renderDashboard(view, ctx) {
     renderStats(wrap.querySelector('#stats'), tutte, filtraSoloAperte, filtraScadute, () => filtraPagato('mese'), () => filtraPagato('anno'), pagatoMese, pagatoAnno, conBiscione, cambiaBiscione);
   }
 
-  // L'interruttore cambia il totale della card; se la tabella sta mostrando
-  // proprio le fatture di quella card, segue anche lei.
-  function cambiaBiscione(v) {
-    conBiscione = v;
-    salvaConBiscione(v);
+  // L'interruttore cambia il totale della sua card; se la tabella sta
+  // mostrando proprio le fatture di quella card, segue anche lei.
+  function cambiaBiscione(quale, v) {
+    conBiscione[quale] = v;
+    salvaConBiscione(quale, v);
     disegnaStats();
-    const vistaTotale = state.soloAperte && !state.da && !state.aData;
-    if (vistaTotale) { state.senzaBiscione = !v; refreshTable(); }
+    const vista = !state.soloAperte || state.da ? null : state.aData ? 'scaduto' : 'totale';
+    if (vista === quale) { state.senzaBiscione = !v; refreshTable(); }
   }
 
   // L'archivio si carica solo alla prima apertura (evento nativo "toggle"
@@ -282,7 +282,7 @@ export async function renderDashboard(view, ctx) {
   // contraddirla silenziosamente (es. uno stato già scelto che esclude
   // proprio quelle fatture).
   function filtraSoloAperte() {
-    Object.assign(state, { q: '', soggetto: null, stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: true, senzaBiscione: !conBiscione, pagato: null });
+    Object.assign(state, { q: '', soggetto: null, stato: '', da: '', aData: '', importoMin: '', importoMax: '', soloAperte: true, senzaBiscione: !conBiscione.totale, pagato: null });
     wrap.querySelectorAll('#q,#f-stato,#f-da,#f-a,#f-min,#f-max').forEach(i => i.value = '');
     refreshTable();
   }
@@ -306,7 +306,7 @@ export async function renderDashboard(view, ctx) {
   // data fino a ieri incluso.
   function filtraScadute() {
     const isoIeri = sommaGiorniISO(todayISO(), -1);
-    Object.assign(state, { q: '', soggetto: null, stato: '', da: '', aData: isoIeri, importoMin: '', importoMax: '', soloAperte: true, senzaBiscione: false, pagato: null });
+    Object.assign(state, { q: '', soggetto: null, stato: '', da: '', aData: isoIeri, importoMin: '', importoMax: '', soloAperte: true, senzaBiscione: !conBiscione.scaduto, pagato: null });
     wrap.querySelector('#q').value = '';
     wrap.querySelector('#f-stato').value = '';
     wrap.querySelector('#f-da').value = '';
@@ -389,7 +389,7 @@ export async function renderDashboard(view, ctx) {
     zona.querySelector('button').addEventListener('click', () => { state.soggetto = null; refreshTable(); });
   }
 
-  // Con l'interruttore spento il clic su «Da pagare» lascia fuori il
+  // Con l'interruttore spento il clic su «Da pagare» o «Scaduto» lascia fuori il
   // Biscione: lo si dice, altrimenti mancherebbero righe senza un perché.
   function mostraFiltroBiscione() {
     const zona = wrap.querySelector('#filtro-biscione');
@@ -539,16 +539,16 @@ function renderAggiornamento(node, aggiornato) {
 function renderStats(node, tutte, onClickTotale, onClickScadute, onClickPagatoMese, onClickPagatoAnno, pagatoMese, pagatoAnno, conBiscione, onCambiaBiscione) {
   clear(node);
   const nonPagate = tutte.filter(f => !STATI_CHIUSI.includes(f.stato));
-  const daPagare = conBiscione ? nonPagate : nonPagate.filter(f => !eBiscione(f));
+  const daPagare = conBiscione.totale ? nonPagate : nonPagate.filter(f => !eBiscione(f));
   const totaleDovuto = daPagare.reduce((s, f) => s + f._residuo, 0);
   const oggi = todayISO();
-  const scadute = nonPagate.filter(f => f.scadenza && f.scadenza < oggi);
+  const scadute = (conBiscione.scaduto ? nonPagate : nonPagate.filter(f => !eBiscione(f))).filter(f => f.scadenza && f.scadenza < oggi);
   const totaleScaduto = scadute.reduce((s, f) => s + f._residuo, 0);
   const annoCorrente = oggi.slice(0, 4);
 
   const cards = [
-    { k: conBiscione ? 'DA PAGARE (TOTALE)' : 'DA PAGARE (SENZA BISCIONE)', v: fmtEuro(totaleDovuto), s: `${daPagare.length} fatture`, cls: 'accent', onClick: onClickTotale, titolo: 'Filtra la tabella su queste fatture', interruttore: true },
-    { k: 'SCADUTO E NON PAGATO', v: fmtEuro(totaleScaduto), s: `${scadute.length} fatture in ritardo`, cls: totaleScaduto > 0 ? 'warn' : '', onClick: onClickScadute, titolo: 'Filtra la tabella su queste fatture' },
+    { k: conBiscione.totale ? 'DA PAGARE (TOTALE)' : 'DA PAGARE (SENZA BISCIONE)', v: fmtEuro(totaleDovuto), s: `${daPagare.length} fatture`, cls: 'accent', onClick: onClickTotale, titolo: 'Filtra la tabella su queste fatture', interruttore: 'totale' },
+    { k: conBiscione.scaduto ? 'SCADUTO E NON PAGATO' : 'SCADUTO (SENZA BISCIONE)', v: fmtEuro(totaleScaduto), s: `${scadute.length} fatture in ritardo`, cls: totaleScaduto > 0 ? 'warn' : '', onClick: onClickScadute, titolo: 'Filtra la tabella su queste fatture', interruttore: 'scaduto' },
     { k: 'PAGATO QUESTO MESE', v: fmtEuro(pagatoMese), s: new Date().toLocaleDateString('it-IT', { month: 'long', year: 'numeric' }), cls: 'ok', onClick: onClickPagatoMese, titolo: 'Filtra la tabella sulle fatture pagate questo mese' },
     { k: 'PAGATO QUEST\'ANNO', v: fmtEuro(pagatoAnno), s: annoCorrente, cls: 'ok', onClick: onClickPagatoAnno, titolo: 'Filtra la tabella sulle fatture pagate quest\'anno' },
   ];
@@ -556,12 +556,12 @@ function renderStats(node, tutte, onClickTotale, onClickScadute, onClickPagatoMe
     const cardEl = el(`<div class="stat ${c.cls}" ${c.titolo ? `title="${esc(c.titolo)}"` : ''}><div class="k">${esc(c.k)}</div><div class="v">${c.v}</div><div class="s">${esc(String(c.s))}</div></div>`);
     if (c.onClick) { cardEl.classList.add('stat-clickable'); rendiCliccabile(cardEl, c.onClick); }
     if (c.interruttore) {
-      const sw = el(`<label class="interruttore" title="Acceso: il totale comprende Il Biscione. Spento: lo lascia fuori."><input type="checkbox" role="switch" ${conBiscione ? 'checked' : ''}><span class="interruttore-pista" aria-hidden="true"></span>Biscione</label>`);
+      const sw = el(`<label class="interruttore" title="Acceso: il totale comprende Il Biscione. Spento: lo lascia fuori."><input type="checkbox" role="switch" ${conBiscione[c.interruttore] ? 'checked' : ''}><span class="interruttore-pista" aria-hidden="true"></span>Biscione</label>`);
       // Il clic e i tasti sull'interruttore non devono arrivare alla card,
       // che altrimenti filtrerebbe la tabella.
       sw.addEventListener('click', e => e.stopPropagation());
       sw.addEventListener('keydown', e => e.stopPropagation());
-      sw.querySelector('input').addEventListener('change', e => onCambiaBiscione(e.target.checked));
+      sw.querySelector('input').addEventListener('change', e => onCambiaBiscione(c.interruttore, e.target.checked));
       cardEl.appendChild(sw);
     }
     node.appendChild(cardEl);
