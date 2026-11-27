@@ -1,31 +1,49 @@
 // ============================================================
-//  CENTRI DI COSTO — il quadro d'insieme.
-//  Una riga per attività: quanto è entrato, quanto è uscito, quanto
-//  resta. I numeri sono i movimenti registrati in Analisi, che è staccata
-//  dallo scadenziario: la somma delle righe è quello che si sta seguendo,
-//  non il bilancio del Comitato, e la pagina lo dice.
-//
-//  L'ordine mette in alto le attività in perdita. Non è un giudizio: è
-//  che un elenco alfabetico costringe a leggerlo tutto per trovare la
-//  riga per cui si è aperta la pagina.
+//  CENTRI DI COSTO — la griglia da cui si sceglie l'attività.
+//  Una card per centro, come le card delle sezioni nella home: ogni
+//  centro è un conto a sé, e questa pagina non somma i centri fra loro.
+//  Un totale di attività diverse, con periodi diversi, non risponde a
+//  nessuna domanda e in cima alla pagina sembrava il bilancio del
+//  Comitato. Entrate, uscite, saldo e grafici stanno dentro il centro,
+//  dove valgono per quell'attività sola.
 // ============================================================
 import { caricaTutto, centri as storeCentri } from '../data/store.js';
-import { quadro, vociDi, anni, perAnno } from '../calc.js';
-import { el, clear, esc, toast, fmtDate, rendiCliccabile, confirmDialog } from '../../lib/ui.js';
-import { fmtEuro } from '../formato.js';
-import { barraPeriodo, intervallo, nomePeriodo } from './periodo.js';
+import { vociDi } from '../calc.js';
+import { el, clear, esc, toast, fmtDate, confirmDialog } from '../../lib/ui.js';
 import { apriSchedaCentro } from './scheda.js';
-import { tabellaAnni } from './grafici.js';
+
+// I colori delle card: toni pieni e scuri come quelli della home, perché
+// il testo bianco si legga. Il colore di un centro dipende solo dal suo
+// id, così non cambia quando se ne aggiunge o se ne toglie un altro.
+const COLORI = [
+  ['#1e40af', 'rgba(30,64,175,.22)'],
+  ['#0f766e', 'rgba(15,118,110,.22)'],
+  ['#9d174d', 'rgba(157,23,77,.22)'],
+  ['#3f6212', 'rgba(63,98,18,.22)'],
+  ['#92400e', 'rgba(146,64,14,.22)'],
+  ['#0e7490', 'rgba(14,116,144,.22)'],
+  ['#5b21b6', 'rgba(91,33,182,.22)'],
+  ['#374151', 'rgba(0,0,0,.18)'],
+];
+
+export function coloreDi(id) {
+  const t = String(id ?? '');
+  let h = 0;
+  for (let i = 0; i < t.length; i++) h = (h * 31 + t.charCodeAt(i)) >>> 0;
+  return COLORI[h % COLORI.length];
+}
+
+// Una cartellina: un conto a sé, che si apre.
+const ICONA = `<svg viewBox="0 0 36 36" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+  <path d="M3 9a3 3 0 0 1 3-3h8l4 4h12a3 3 0 0 1 3 3v15a3 3 0 0 1-3 3H6a3 3 0 0 1-3-3z"/><path d="M12 21h12"/></svg>`;
 
 export async function renderCentri(view, ctx) {
   const admin = ctx.ruolo === 'admin';
-  const stato = { anno: String(new Date().getFullYear()), da: '', a: '' };
-  Object.assign(stato, intervallo(stato.anno));
 
   view.appendChild(el(`<div class="page-head">
     <div>
       <h1>Centri di costo</h1>
-      <p>Entrate e uscite, attività per attività</p>
+      <p>Ogni attività ha il suo conto: aprila per vederne entrate e uscite</p>
     </div>
     <div class="actions">
       ${admin ? '<button class="btn primary" data-nuovo>➕ Nuovo centro</button>' : ''}
@@ -44,23 +62,9 @@ export async function renderCentri(view, ctx) {
     return;
   }
 
-  const barra = barraPeriodo(anni(dati.movimenti), stato, disegna);
-  const stats = el('<div class="grid stats" style="margin:0 0 20px"></div>');
-  const anniBox = el('<div class="card" style="margin-bottom:18px"><div class="card-b"></div></div>');
-  const lista = el('<div class="cc-lista"></div>');
-  const nota = el('<div class="an-nota"></div>');
-
+  const griglia = el('<div class="home-grid cc-griglia"></div>');
   clear(zona);
-  zona.append(barra, stats, anniBox, lista, nota);
-
-  // Come nella pagina del singolo centro: un clic su un anno della tabella
-  // sposta anche la tendina, e tutta la pagina guarda quell'anno.
-  function scegliAnno(anno) {
-    stato.anno = anno;
-    Object.assign(stato, intervallo(anno));
-    barra.querySelector('#f-anno').value = anno;
-    disegna();
-  }
+  zona.append(griglia);
 
   if (admin) {
     view.querySelector('[data-nuovo]').addEventListener('click', async () => {
@@ -72,36 +76,9 @@ export async function renderCentri(view, ctx) {
   }
 
   function disegna() {
-    const righe = quadro(dati.centri, dati.movimenti, stato);
-    const tot = righe.reduce((t, r) => ({
-      entrate: t.entrate + r.entrate, uscite: t.uscite + r.uscite,
-    }), { entrate: 0, uscite: 0 });
-
-    barra.querySelector('[data-nota]').textContent =
-      `${righe.length} attività · ${dati.movimenti.length} ${dati.movimenti.length === 1 ? 'movimento' : 'movimenti'} registrati`;
-
-    clear(stats);
-    stats.append(
-      card('ok', 'Entrate', fmtEuro(tot.entrate), `delle attività, ${nomePeriodo(stato.anno)}`),
-      card('warn', 'Uscite', fmtEuro(tot.uscite), `delle attività, ${nomePeriodo(stato.anno)}`),
-      card(tot.entrate - tot.uscite < 0 ? 'danger' : 'ok', 'Saldo', fmtEuro(tot.entrate - tot.uscite),
-        'entrate meno uscite'),
-    );
-
-    // Tutti i centri insieme, anno per anno: il confronto si fa sempre su
-    // tutti gli anni, e quello scelto sopra è evidenziato.
-    const corpoAnni = anniBox.querySelector('.card-b');
-    clear(corpoAnni);
-    anniBox.hidden = !dati.movimenti.length;
-    if (dati.movimenti.length) {
-      corpoAnni.appendChild(tabellaAnni(perAnno(dati.movimenti), stato.anno, scegliAnno,
-        { mostraEntrate: dati.movimenti.some(m => m.tipo === 'entrata') }));
-    }
-
-    clear(lista);
-    clear(nota);
+    clear(griglia);
     if (!dati.centri.length) {
-      lista.appendChild(el(`<div class="empty-state"><div class="big">🎯</div>
+      griglia.appendChild(el(`<div class="empty-state" style="grid-column:1/-1"><div class="big">🎯</div>
         <p><b>Nessuna attività</b></p>
         <p>Un centro di costo è un'attività di cui vuoi sapere quanto è costata e quanto ha reso:<br>
         un corso, un'assistenza a un evento, un mezzo, un servizio.<br>
@@ -109,43 +86,45 @@ export async function renderCentri(view, ctx) {
                 : 'Chiedi a un amministratore della sezione di crearne uno.'}</p></div>`));
       return;
     }
-    for (const r of righe) lista.appendChild(riga(r));
-    nota.appendChild(el(`<p class="hint">I totali sono la somma dei movimenti registrati nelle attività:
-      quello che si sta seguendo, non il bilancio del Comitato.</p>`));
+    // Prima quelli in corso, poi i conclusi; dentro, in ordine di nome.
+    const ordinati = [...dati.centri].sort((a, b) =>
+      (a.chiuso === b.chiuso ? 0 : a.chiuso ? 1 : -1) ||
+      String(a.nome).localeCompare(String(b.nome), 'it', { sensitivity: 'base' }));
+    for (const c of ordinati) griglia.appendChild(admin ? cellaAdmin(c) : cardCentro(c));
   }
 
-  function card(classe, k, v, s) {
-    return el(`<div class="stat ${classe}"><div class="k">${esc(k)}</div>
-      <div class="v">${esc(v)}</div><div class="s">${esc(s)}</div></div>`);
+  function cardCentro(c) {
+    const [colore, ombra] = coloreDi(c.id);
+    return el(`<a class="home-card cc-card${c.chiuso ? ' chiusa' : ''}" href="#/analisi/centro/${esc(c.id)}"
+        style="--c:${colore};--o:${ombra}" title="${esc(c.descrizione || c.nome)}">
+      <div class="hc-top">
+        <span class="hc-ico">${ICONA}</span>
+        ${c.chiuso ? '<span class="hc-badge">conclusa</span>' : ''}
+      </div>
+      <div class="hc-bot">
+        <div class="hc-line"></div>
+        <div class="hc-title">${esc(c.nome)}</div>
+        <div class="cc-card-sotto">${esc(periodoDi(c))}</div>
+      </div>
+    </a>`);
   }
 
-  function riga(r) {
-    const c = r.centro;
-    const n = r.nEntrate + r.nUscite;
-    const f = el(`<div class="cc-riga${c.chiuso ? ' chiusa' : ''}">
-      <div class="cc-chi">
-        <div class="cc-nome">${esc(c.nome)}${c.chiuso ? ' <span class="chip">chiusa</span>' : ''}</div>
-        <div class="cc-sotto">${esc(periodoDi(c))}${n
-          ? ` · ${n} ${n === 1 ? 'movimento' : 'movimenti'}`
-          : ' · nessun movimento'}</div>
-      </div>
-      <div class="cc-num entrate"><span class="e">Entrate</span><b>${fmtEuro(r.entrate)}</b></div>
-      <div class="cc-num uscite"><span class="e">Uscite</span><b>${fmtEuro(r.uscite)}</b></div>
-      <div class="cc-num saldo ${r.saldo < 0 ? 'neg' : ''}"><span class="e">Saldo</span><b>${fmtEuro(r.saldo)}</b></div>
-      <div class="cc-azioni">
-        ${admin ? '<button class="btn ghost sm" data-mod title="Modifica l\'attività">✏️</button>' : ''}
-        ${admin ? '<button class="btn ghost sm" data-del title="Elimina l\'attività">🗑️</button>' : ''}
-      </div>
+  // Come l'occhio del super admin nella home: i pulsanti stanno sotto la
+  // card e non dentro, perché la card è un link e un pulsante dentro un
+  // link aprirebbe il centro invece di modificarlo.
+  function cellaAdmin(c) {
+    const cella = el('<div class="home-cella"></div>');
+    const azioni = el(`<div class="cc-card-azioni">
+      <button type="button" class="hc-occhio" data-mod title="Modifica l'attività">✏️ Modifica</button>
+      <button type="button" class="hc-occhio" data-del title="Elimina l'attività" aria-label="Elimina «${esc(c.nome)}»">🗑️</button>
     </div>`);
-
-    rendiCliccabile(f.querySelector('.cc-chi'), () => ctx.go(`#/analisi/centro/${c.id}`));
-    f.querySelector('[data-mod]')?.addEventListener('click', async () => {
+    azioni.querySelector('[data-mod]').addEventListener('click', async () => {
       const agg = await apriSchedaCentro(c);
       if (!agg) return;
       Object.assign(c, agg);
       disegna();
     });
-    f.querySelector('[data-del]')?.addEventListener('click', async () => {
+    azioni.querySelector('[data-del]').addEventListener('click', async () => {
       // Il numero di movimenti che si perdono va detto PRIMA: da fuori il
       // pulsante è identico a quello di un centro vuoto.
       const quanti = vociDi(c.id, dati.movimenti).length;
@@ -160,7 +139,8 @@ export async function renderCentri(view, ctx) {
       toast('Attività eliminata', 'ok');
       disegna();
     });
-    return f;
+    cella.append(cardCentro(c), azioni);
+    return cella;
   }
 
   disegna();

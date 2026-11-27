@@ -16,24 +16,9 @@ export function passi(ctx) {
       testo: 'Analisi tiene i conti delle singole attività: quanto è costata e quanto ha reso ognuna. Ha numeri suoi, staccati dallo scadenziario: le entrate e le uscite si registrano qui, dentro l\'attività. Usa «Avanti» per proseguire, oppure «Salta tour» in qualsiasi momento.',
     },
     {
-      selettore: '.an-periodo',
-      titolo: 'Prima il periodo',
-      testo: 'Un conto senza un periodo non vuol dire niente: «è costata 4.000 €» ha senso solo insieme a «nel 2026». La pagina si apre sull\'anno in corso; qui si cambia, e vale per tutti i numeri sotto.',
-    },
-    {
-      selettore: '.grid.stats',
-      titolo: 'Entrate, uscite, saldo',
-      testo: 'La somma dei movimenti di tutte le attività nel periodo. È quello che si sta seguendo, non il bilancio del Comitato.',
-    },
-    {
-      selettore: '.an-anni',
-      titolo: 'Anno per anno',
-      testo: 'Tutte le attività insieme, un anno per riga, con le uscite confrontate con l\'anno prima. Il periodo scelto sopra è evidenziato; un clic su un anno lo sceglie per tutta la pagina.',
-    },
-    {
-      selettore: '.cc-lista',
-      titolo: 'Una riga per attività',
-      testo: 'In cima quelle in perdita: è la riga per cui si apre questa pagina. Cliccando il nome si apre il conto dell\'attività: lì si aggiungono entrate e uscite, ognuna con la sua categoria, e ci sono i grafici dell\'andamento e delle spese per categoria. Il pulsante «🔗 Condividi» crea un link di sola lettura per chi non ha il portale (senza le note): mandalo solo a chi deve vedere quei numeri.',
+      selettore: '.cc-griglia',
+      titolo: 'Una card per attività',
+      testo: 'Ogni centro di costo è un conto a sé, come una sezione nella home: qui non si sommano fra loro. Cliccando una card si apre il conto dell\'attività: lì si sceglie il periodo, si aggiungono entrate e uscite, ognuna con la sua categoria, e ci sono i grafici dell\'andamento e delle spese per categoria. Il pulsante «🔗 Condividi» crea un link di sola lettura per chi non ha il portale (senza le note): mandalo solo a chi deve vedere quei numeri.',
     },
     ...(admin ? [{
       selettore: '[data-nuovo]',
