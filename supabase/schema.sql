@@ -1961,6 +1961,77 @@ revoke all on function public.trg_registro() from public, anon, authenticated;
 revoke all on function public.pulisci_registro() from public, anon, authenticated;
 
 -- ============================================================
+--  Registro accessi (vedi patch-2026-11-27-registro-accessi.sql)
+-- ============================================================
+create table if not exists public.registro_accessi (
+  id bigint generated always as identity primary key,
+  sessione_id uuid unique,
+  utente_id uuid,
+  utente_email text,
+  utente_nome text,
+  inizio timestamptz not null default now(),
+  attivita timestamptz,
+  fine timestamptz,
+  dispositivo text          -- lo user agent del browser
+);
+create index if not exists idx_accessi_inizio on public.registro_accessi(inizio desc);
+create index if not exists idx_accessi_utente on public.registro_accessi(utente_id);
+
+alter table public.registro_accessi enable row level security;
+drop policy if exists accessi_sa_read on public.registro_accessi;
+create policy accessi_sa_read on public.registro_accessi for select using (public.e_super_admin());
+
+create or replace function public.pulisci_registro_accessi()
+returns void language sql security definer set search_path = public as $$
+  delete from public.registro_accessi where inizio < now() - interval '1 year';
+$$;
+
+-- Le colonne di auth.sessions si leggono dal jsonb e non per nome: cambiano
+-- tra versioni di Supabase Auth, e un nome sparito farebbe fallire il trigger.
+create or replace function public.trg_accessi_sessioni()
+returns trigger language plpgsql security definer set search_path = public as $$
+declare
+  v jsonb;
+  v_utente uuid;
+begin
+  begin
+    if tg_op = 'INSERT' then
+      v := to_jsonb(new);
+      v_utente := (v ->> 'user_id')::uuid;
+      insert into public.registro_accessi (sessione_id, utente_id, utente_email, utente_nome, inizio, attivita, dispositivo)
+      select (v ->> 'id')::uuid, v_utente, u.email, p.nome,
+             coalesce((v ->> 'created_at')::timestamptz, now()), coalesce((v ->> 'created_at')::timestamptz, now()),
+             left(v ->> 'user_agent', 500)
+        from auth.users u left join public.profili p on p.id = u.id
+       where u.id = v_utente
+      on conflict (sessione_id) do nothing;
+      if exists (select 1 from public.registro_accessi where inizio < now() - interval '1 year') then
+        perform public.pulisci_registro_accessi();
+      end if;
+    elsif tg_op = 'UPDATE' then
+      v := to_jsonb(new);
+      update public.registro_accessi
+         set attivita = greatest(attivita, coalesce((v ->> 'refreshed_at')::timestamptz, (v ->> 'updated_at')::timestamptz, now()))
+       where sessione_id = (v ->> 'id')::uuid;
+    else
+      update public.registro_accessi set fine = now()
+       where sessione_id = (to_jsonb(old) ->> 'id')::uuid and fine is null;
+    end if;
+  exception when others then
+    raise warning 'registro_accessi: %', sqlerrm;
+  end;
+  return null;
+end; $$;
+
+drop trigger if exists on_sessione_registro_accessi on auth.sessions;
+create trigger on_sessione_registro_accessi
+  after insert or update or delete on auth.sessions
+  for each row execute procedure public.trg_accessi_sessioni();
+
+revoke all on function public.trg_accessi_sessioni() from public, anon, authenticated;
+revoke all on function public.pulisci_registro_accessi() from public, anon, authenticated;
+
+-- ============================================================
 --  Promemoria email facoltativi (vedi patch-2026-10-18-promemoria.sql,
 --  che contiene anche il timer pg_cron da attivare a mano)
 -- ============================================================

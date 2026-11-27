@@ -98,9 +98,14 @@ export async function onRequestPost(context) {
   if (!email) return json({ error: NON_TROVATO }, 401);
   let res;
   try {
+    // Lo user agent di chi accede, non quello del Worker: la sessione lo
+    // conserva e il Registro accessi lo mostra come dispositivo.
+    const headers = { apikey: anonKey, 'Content-Type': 'application/json' };
+    const ua = request.headers.get('User-Agent');
+    if (ua) headers['User-Agent'] = ua.slice(0, 500);
     res = await fetch(`${base}/auth/v1/token?grant_type=password`, {
       method: 'POST',
-      headers: { apikey: anonKey, 'Content-Type': 'application/json' },
+      headers,
       body: JSON.stringify({ email, password }),
     });
   } catch (e) {

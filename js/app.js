@@ -337,6 +337,9 @@ function disegnaNav(sezioneId, sottoSezione, sub) {
     const r = el('<a href="#/portale/registro"><span class="ic">📜</span><span class="txt">Registro modifiche</span></a>');
     r.classList.toggle('active', sezioneId === null && sub === 'registro');
     navImp.appendChild(r);
+    const ra = el('<a href="#/portale/accessi"><span class="ic">🔑</span><span class="txt">Registro accessi</span></a>');
+    ra.classList.toggle('active', sezioneId === null && sub === 'accessi');
+    navImp.appendChild(ra);
   }
 
   // Promemoria email: solo per chi vede almeno una delle sezioni che ne
@@ -401,6 +404,10 @@ async function route() {
         const { renderRegistroPortale } = await import('./views/registroPortale.js');
         if (my !== _routeSeq) return;
         await renderRegistroPortale(zona, ctx);
+      } else if (primo === 'portale' && sub === 'accessi') {
+        const { renderRegistroAccessi } = await import('./views/registroAccessi.js');
+        if (my !== _routeSeq) return;
+        await renderRegistroAccessi(zona, ctx);
       } else if (primo === 'portale') {
         const { renderPortaleUtenti } = await import('./views/portaleUtenti.js');
         if (my !== _routeSeq) return;
