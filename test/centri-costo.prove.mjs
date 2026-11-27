@@ -12,7 +12,7 @@ import { gruppo, prova, uguale, vero, RADICE } from './aiuto.mjs';
 import fs from 'node:fs';
 import path from 'node:path';
 import {
-  vociDi, totaliDi, quadro, nelPeriodo, anni, perAnno, perMese, perCategoria, categorieUsate, SENZA_CATEGORIA,
+  vociDi, totaliDi, quadro, nelPeriodo, anni, perAnno, perMese, perCategoria, categorieUsate, SENZA_CATEGORIA, ultimaModifica,
 } from '../js/analisi/calc.js';
 import { rigaMovimento } from '../js/analisi/data/store.js';
 
@@ -208,4 +208,21 @@ prova('nessun file della sezione legge le fatture o le imputazioni', () => {
     vero(!/from\(['"](fatture|fatture_attive|imputazioni)['"]\)/.test(s),
       `${path.relative(RADICE, p)} legge una tabella dello scadenziario`);
   }
+});
+
+gruppo('Analisi — ultima modifica di un centro');
+
+prova('vince la data più recente fra la scheda e i suoi movimenti', () => {
+  const centro = { id: 'c1', created_at: '2026-01-10T08:00:00Z', updated_at: '2026-02-01T08:00:00Z' };
+  const movs = [
+    mov('a', 'c1', 'uscita', 10, '2026-01-05', { created_at: '2026-03-01T09:00:00Z', updated_at: '2026-03-01T09:00:00Z' }),
+    mov('b', 'c1', 'entrata', 10, '2026-01-05', { created_at: '2026-02-15T09:00:00Z', updated_at: '2026-04-20T10:30:00Z' }),
+    mov('c', 'c2', 'entrata', 10, '2026-01-05', { created_at: '2026-12-31T09:00:00Z', updated_at: '2026-12-31T09:00:00Z' }),
+  ];
+  uguale(ultimaModifica(centro, movs), '2026-04-20T10:30:00Z', 'il movimento corretto più di recente, non quello di un altro centro');
+});
+
+prova('senza movimenti conta la scheda; senza nessuna data, null', () => {
+  uguale(ultimaModifica({ id: 'c1', updated_at: '2026-02-01T08:00:00Z' }, []), '2026-02-01T08:00:00Z');
+  uguale(ultimaModifica({ id: 'c1' }, []), null);
 });

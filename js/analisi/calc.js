@@ -152,3 +152,20 @@ export function anni(movimenti) {
   for (const m of movimenti) if (m.data) s.add(m.data.slice(0, 4));
   return [...s].sort().reverse();
 }
+
+// L'ultima volta che qualcuno ha toccato un centro: la sua scheda (nome,
+// periodo, chiusura) o uno qualunque dei suoi movimenti, aggiunto o
+// corretto. Un movimento eliminato non lascia traccia, quindi non sposta
+// la data. Torna un timestamp ISO, o null se non c'è nessuna data.
+export function ultimaModifica(centro, movimenti = []) {
+  let ultima = null;
+  const guarda = t => { if (t && (!ultima || Date.parse(t) > Date.parse(ultima))) ultima = t; };
+  guarda(centro?.updated_at);
+  guarda(centro?.created_at);
+  for (const m of movimenti) {
+    if (m.centro_id !== centro?.id) continue;
+    guarda(m.updated_at);
+    guarda(m.created_at);
+  }
+  return ultima;
+}

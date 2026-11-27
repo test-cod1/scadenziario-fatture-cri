@@ -933,9 +933,13 @@ tr.str-inattivo td{opacity:.6}
    sotto il nome il periodo e, per l'amministratore, i pulsanti fuori dalla
    card, come l'occhio del super admin. Il titolo qui non tiene due righe
    fisse: sotto c'è già il periodo a fare da piede. */
-.cc-card .hc-title{min-height:0;overflow-wrap:anywhere}
+/* Altezza libera invece del quadrato: periodo e data devono stare dentro la
+   card anche quando il telefono la stringe a 140px. */
+.cc-card{aspect-ratio:auto;min-height:190px;gap:14px}
+.cc-card .hc-title{min-height:0;font-size:16px;overflow-wrap:break-word;hyphens:auto}
 .cc-card-sotto{font-size:12px;color:rgba(255,255,255,.8);margin-top:4px;line-height:1.3;
   overflow:hidden;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical}
+.cc-card-modifica{font-size:11px;color:rgba(255,255,255,.7);margin-top:6px;font-variant-numeric:tabular-nums}
 .cc-card.chiusa{filter:grayscale(.6);opacity:.7}
 .cc-card-azioni{display:flex;gap:6px;justify-content:center}
 

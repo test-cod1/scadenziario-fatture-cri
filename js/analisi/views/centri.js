@@ -8,8 +8,8 @@
 //  dove valgono per quell'attività sola.
 // ============================================================
 import { caricaTutto, centri as storeCentri } from '../data/store.js';
-import { vociDi } from '../calc.js';
-import { el, clear, esc, toast, fmtDate, confirmDialog } from '../../lib/ui.js';
+import { vociDi, ultimaModifica } from '../calc.js';
+import { el, clear, esc, toast, fmtDate, fmtDateTime, confirmDialog } from '../../lib/ui.js';
 import { apriSchedaCentro } from './scheda.js';
 
 // I colori delle card: toni pieni e scuri come quelli della home, perché
@@ -95,6 +95,7 @@ export async function renderCentri(view, ctx) {
 
   function cardCentro(c) {
     const [colore, ombra] = coloreDi(c.id);
+    const ultima = ultimaModifica(c, dati.movimenti);
     return el(`<a class="home-card cc-card${c.chiuso ? ' chiusa' : ''}" href="#/analisi/centro/${esc(c.id)}"
         style="--c:${colore};--o:${ombra}" title="${esc(c.descrizione || c.nome)}">
       <div class="hc-top">
@@ -105,6 +106,7 @@ export async function renderCentri(view, ctx) {
         <div class="hc-line"></div>
         <div class="hc-title">${esc(c.nome)}</div>
         <div class="cc-card-sotto">${esc(periodoDi(c))}</div>
+        ${ultima ? `<div class="cc-card-modifica" title="Ultima modifica alla scheda o ai movimenti: ${fmtDateTime(ultima)}">Modificato il ${fmtDateTime(ultima).split(' ')[0]}</div>` : ''}
       </div>
     </a>`);
   }
