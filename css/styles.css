@@ -156,7 +156,7 @@ details.card[open]>summary .archivio-freccia{transform:rotate(90deg)}
 .toolbar{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:18px;align-items:center}
 .search{flex:1;min-width:220px;display:flex;align-items:center;gap:8px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:0 12px}
 .search-icon{flex:none;opacity:.5;font-size:14px;line-height:1}
-.search input{flex:1;min-width:0;width:auto;padding:10px 0;border:none;border-radius:0;background:transparent}
+.search input{flex:1;min-width:0;width:auto;padding:10px 0;border:none;border-radius:0;background:transparent;font-family:inherit;font-size:14px;color:var(--ink);outline:none}
 .search input:focus{box-shadow:none}
 .search:focus-within{border-color:var(--cri-red);box-shadow:0 0 0 3px var(--cri-red-soft)}
 select,input[type=text],input[type=date],input[type=number],input[type=password],textarea{font-family:inherit;font-size:14px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#fff;color:var(--ink)}

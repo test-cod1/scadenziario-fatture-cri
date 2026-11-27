@@ -100,7 +100,8 @@ export async function renderRegistroPortale(view, ctx) {
         <div class="field"><label for="rg-azione">Operazione</label>
           <select id="rg-azione"><option value="">Tutte</option>${Object.entries(AZIONI).map(([k, a]) => `<option value="${k}">${esc(a.t)}</option>`).join('')}</select></div>
         <div class="field"><label for="rg-testo">Persona o id della riga</label>
-          <input type="search" id="rg-testo" placeholder="nome, email o id…"></div>
+          <div class="search"><span class="search-icon" aria-hidden="true">🔍</span>
+            <input type="search" id="rg-testo" placeholder="nome, email o id…"></div></div>
       </div>
     </div></div>
     <div id="rg-righe" style="margin-top:14px"><div class="spinner"></div></div>
