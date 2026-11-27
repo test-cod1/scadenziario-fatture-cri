@@ -82,7 +82,7 @@ export const SEZIONI = [
     home: '#/formazione/nuovo',
     menu: [
       { id: 'preventivi', icon: '📋', label: 'Preventivi', attivoAnche: ['preventivo'] },
-      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
+      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo', scrive: true },
       { id: 'corsi', icon: '📅', label: 'Corsi', attivoAnche: ['corso'] },
       { id: 'statistiche', icon: '📊', label: 'Statistiche' },
       { id: 'rubrica', icon: '📇', label: 'Rubrica committenti' },
@@ -109,7 +109,7 @@ export const SEZIONI = [
     // funzione a chi la usava.
     menu: [
       { id: 'preventivi', icon: '📋', label: 'Preventivi', attivoAnche: ['preventivo'] },
-      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
+      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo', scrive: true },
       { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
     ],
     icona: ICONE.trasporti,
@@ -125,7 +125,7 @@ export const SEZIONI = [
     home: '#/assistenze/nuovo',
     menu: [
       { id: 'preventivi', icon: '📋', label: 'Preventivi', attivoAnche: ['preventivo'] },
-      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo' },
+      { id: 'nuovo', icon: '➕', label: 'Nuovo preventivo', scrive: true },
       { id: 'rubrica', icon: '📇', label: 'Rubrica clienti' },
       { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
     ],
@@ -147,7 +147,7 @@ export const SEZIONI = [
     // quali causali sono state configurate.
     menu: [
       { id: 'registro', icon: '📋', label: 'Registro', attivoAnche: ['registrazione'] },
-      { id: 'nuovo', icon: '➕', label: 'Registra ore' },
+      { id: 'nuovo', icon: '➕', label: 'Registra ore', scrive: true },
       { id: 'riepilogo', icon: '📅', label: 'Riepilogo mensile' },
       { id: 'dipendenti', icon: '👤', label: 'Dipendenti' },
       { id: 'impostazioni', icon: '⚙️', label: 'Impostazioni' },
@@ -168,7 +168,7 @@ export const SEZIONI = [
       { id: 'impegni', icon: '🗒️', label: 'Impegni', attivoAnche: ['impegno'] },
       { id: 'calendario', icon: '📅', label: 'Calendario' },
       { id: 'idee', icon: '💡', label: 'Idee' },
-      { id: 'nuovo', icon: '➕', label: 'Nuovo impegno' },
+      { id: 'nuovo', icon: '➕', label: 'Nuovo impegno', scrive: true },
     ],
     tour: () => import('./tour/direttore.js'),
     icona: ICONE.direttore,
@@ -207,7 +207,7 @@ export const SEZIONI = [
     menu: [
       { id: 'elenco', icon: '⏰', label: 'Scadenze', attivoAnche: ['scadenza'] },
       { id: 'calendario', icon: '📅', label: 'Calendario' },
-      { id: 'nuova', icon: '➕', label: 'Nuova scadenza' },
+      { id: 'nuova', icon: '➕', label: 'Nuova scadenza', scrive: true },
     ],
     tour: () => import('./tour/scadenze.js'),
     icona: ICONE.scadenze,
@@ -284,7 +284,8 @@ export function paginaIniziale(sezione) {
   return (sezione?.home || '').replace(/^#\//, '').split('/')[1] || null;
 }
 
-// Ruolo dell'utente in una sezione: 'admin', 'operatore' o null se non vi ha
+// Ruolo dell'utente in una sezione: 'admin', 'operatore', 'lettore' (sola
+// visualizzazione: vede tutto, non modifica nulla) o null se non vi ha
 // accesso. Il super admin è admin ovunque, esattamente come nella funzione
 // ruolo_sezione() lato database: le due regole devono restare identiche,
 // quella lato server è l'unica che protegge davvero i dati.
@@ -292,6 +293,12 @@ export function ruoloIn(user, sezioneId) {
   if (!user) return null;
   if (user.ruoloPortale === 'super_admin') return 'admin';
   return user.sezioni?.[sezioneId] || null;
+}
+
+// Vera per chi ha la sezione in sola visualizzazione. Il super admin non lo
+// è mai: per lui ruoloIn() risponde sempre 'admin'.
+export function soloVisualizzazione(user, sezioneId) {
+  return ruoloIn(user, sezioneId) === 'lettore';
 }
 
 export function puoAccedere(user, sezioneId) {

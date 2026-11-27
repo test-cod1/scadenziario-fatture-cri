@@ -17,7 +17,11 @@ export async function renderProposte(view, ctx) {
   const wrap = el(`<div>
     <div class="page-head"><div><h1>Proposte di pagamento</h1><p>${isAdmin
       ? 'Proposte inviate dagli operatori: confermale quando esegui davvero il pagamento, o rifiutale.'
-      : 'Le tue proposte di pagamento: le crei da "Fatture", cliccando sullo stato di una fattura non ancora saldata.'}</p></div></div>
+      : ctx.solaLettura
+        // Il lettore vede tutte le proposte, come l'admin, ma non le conferma
+        // (policy proposte_read, patch-2026-11-27-sola-lettura.sql).
+        ? 'Proposte inviate dagli operatori, in attesa che un amministratore le confermi o le rifiuti.'
+        : 'Le tue proposte di pagamento: le crei da "Fatture", cliccando sullo stato di una fattura non ancora saldata.'}</p></div></div>
     <div class="card" style="margin-bottom:22px">
       <div class="card-h"><span>In attesa <span class="muted" id="p-totale" style="font-weight:600"></span></span><span id="p-azioni"></span></div>
       <div class="card-b tbl-wrap" id="p-attesa"></div>
@@ -66,9 +70,11 @@ export async function renderProposte(view, ctx) {
 function renderInAttesa(node, righe, ctx, ricarica) {
   clear(node);
   const isAdmin = ctx.user.ruolo === 'admin';
+  // Il lettore vede le proposte di tutti: gli serve sapere chi le ha fatte.
+  const vedeTutte = isAdmin || ctx.solaLettura;
   if (!righe.length) { node.appendChild(el(`<div class="empty-state"><div class="big">📭</div><p>Nessuna proposta in attesa.</p></div>`)); return; }
   const table = el(`<table class="tbl"><thead><tr>
-    <th>Fornitore</th><th>N. Fattura</th><th class="money-col">Residuo fattura</th><th class="money-col">Importo proposto</th><th>Data prevista</th><th>Metodo</th>${isAdmin ? '<th>Proposto da</th>' : ''}<th>Note</th><th></th>
+    <th>Fornitore</th><th>N. Fattura</th><th class="money-col">Residuo fattura</th><th class="money-col">Importo proposto</th><th>Data prevista</th><th>Metodo</th>${vedeTutte ? '<th>Proposto da</th>' : ''}<th>Note</th><th></th>
   </tr></thead><tbody></tbody></table>`);
   const tbody = table.querySelector('tbody');
   for (const r of righe) {
@@ -85,7 +91,7 @@ function renderInAttesa(node, righe, ctx, ricarica) {
       <td class="money money-col">${fmtEuro(r.importo)}</td>
       <td>${fmtDate(r.data_prevista)}</td>
       <td>${esc(r.metodo || '—')}</td>
-      ${isAdmin ? `<td>${esc(r.proposta_da_nome || r.proposta_da_email || '—')}</td>` : ''}
+      ${vedeTutte ? `<td>${esc(r.proposta_da_nome || r.proposta_da_email || '—')}</td>` : ''}
       <td>${esc(r.note || '—')}</td>
       <td style="text-align:right;white-space:nowrap"></td>
     </tr>`);
@@ -97,7 +103,7 @@ function renderInAttesa(node, righe, ctx, ricarica) {
       btnRifiuta.addEventListener('click', () => apriRifiutaProposta(r, ctx, ricarica));
       azioni.append(btnConferma, btnRifiuta);
     } else {
-      const btnRitira = el('<button class="btn ghost sm">Ritira</button>');
+      const btnRitira = el('<button class="btn ghost sm" data-scrive>Ritira</button>');
       btnRitira.addEventListener('click', async () => {
         if (!await confirmDialog('Ritirare questa proposta di pagamento?', { danger: true, okLabel: 'Ritira' })) return;
         try { await proposte.remove(r.id); toast('Proposta ritirata', 'ok'); ricarica(); }
@@ -110,7 +116,7 @@ function renderInAttesa(node, righe, ctx, ricarica) {
   table.appendChild(el(`<tfoot><tr style="font-weight:700">
     <td colspan="3">Totale proposto (${righe.length === 1 ? '1 fattura' : righe.length + ' fatture'})</td>
     <td class="money money-col">${fmtEuro(totaleProposte(righe))}</td>
-    <td colspan="${isAdmin ? 5 : 4}"></td>
+    <td colspan="${vedeTutte ? 5 : 4}"></td>
   </tr></tfoot>`));
   node.appendChild(table);
 }

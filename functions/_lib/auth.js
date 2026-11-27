@@ -30,7 +30,7 @@ export function intestazioneUtente(request) {
 }
 
 // Ruolo dell'utente autenticato in una sezione del portale ('admin',
-// 'operatore' oppure null se non vi ha accesso). Si appoggia alla funzione
+// 'operatore', 'lettore' — sola visualizzazione — oppure null se non vi ha accesso). Si appoggia alla funzione
 // ruolo_sezione() del database — la stessa che governa le RLS — chiamata con
 // il token dell'utente: così la regola sta scritta in un posto solo e non può
 // divergere fra client, server e policy.

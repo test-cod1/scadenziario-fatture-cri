@@ -95,9 +95,9 @@ export async function renderDashboardAttive(view, ctx) {
       <div class="actions">
         <button class="btn" id="exp-csv">📊 Esporta Excel</button>
         <button class="btn" id="exp-pdf">🖨️ Esporta PDF</button>
-        <button class="btn" id="carica">📎 Carica PDF/XML</button>
-        <button class="btn" id="nuova-nc">+ Nota di credito</button>
-        <button class="btn primary" id="nuova">+ Nuova fattura</button>
+        <button class="btn" id="carica" data-scrive>📎 Carica PDF/XML</button>
+        <button class="btn" id="nuova-nc" data-scrive>+ Nota di credito</button>
+        <button class="btn primary" id="nuova" data-scrive>+ Nuova fattura</button>
       </div>
     </div>
     <div id="alert-zone"></div>
@@ -132,18 +132,20 @@ export async function renderDashboardAttive(view, ctx) {
   </div>`);
   view.appendChild(wrap);
 
+  // In sola visualizzazione trascinare un file non carica niente: senza
+  // questi controlli l'overlay inviterebbe a rilasciarlo lo stesso.
   const overlay = wrap.querySelector('#drop-overlay');
   let dragDepth = 0;
   wrap.addEventListener('dragenter', e => {
-    if (!e.dataTransfer.types.includes('Files')) return;
+    if (ctx.solaLettura || !e.dataTransfer.types.includes('Files')) return;
     e.preventDefault();
     dragDepth++;
     overlay.classList.add('show');
   });
-  wrap.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); });
+  wrap.addEventListener('dragover', e => { if (!ctx.solaLettura && e.dataTransfer.types.includes('Files')) e.preventDefault(); });
   wrap.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) overlay.classList.remove('show'); });
   wrap.addEventListener('drop', e => {
-    if (!e.dataTransfer.types.includes('Files')) return;
+    if (ctx.solaLettura || !e.dataTransfer.types.includes('Files')) return;
     e.preventDefault();
     dragDepth = 0; overlay.classList.remove('show');
     if (e.dataTransfer.files.length) apriUploadAttive(ctx, ricarica, e.dataTransfer.files);
@@ -409,6 +411,9 @@ function renderTable(node, righe, ctx, ricarica, sort, onSort) {
   </tr></thead><tbody></tbody></table>`);
   collegaOrdinamento(table, onSort);
   const tbody = table.querySelector('tbody');
+  // In sola visualizzazione stato, sollecito e note si leggono ma non aprono
+  // i popup che li modificano; la riga apre la scheda in consultazione.
+  const lettore = !!ctx.solaLettura;
   for (const f of ordinaRighe(righe, sort, COLONNE)) {
     const tr = el(`<tr>
       <td class="num-col">${esc(f.numero_fattura || '—')}</td>
@@ -416,19 +421,23 @@ function renderTable(node, righe, ctx, ricarica, sort, onSort) {
       <td>${fmtDate(f.data_fattura)}</td>
       <td class="money money-col">${fmtEuro(f.importo)}</td>
       <td>
-        <span class="chip ${STATO_CHIP[f.stato] || ''}" ${!STATI_CHIUSI.includes(f.stato) ? `data-stato title="Clicca per segnare un incasso"` : ''}>${STATO_LABEL[f.stato] || f.stato}</span>
+        <span class="chip ${STATO_CHIP[f.stato] || ''}" ${!lettore && !STATI_CHIUSI.includes(f.stato) ? `data-stato title="Clicca per segnare un incasso"` : ''}>${STATO_LABEL[f.stato] || f.stato}</span>
       </td>
       <td class="money money-col">${fmtEuro(f._residuo)}</td>
-      <td><span class="chip ${f.data_sollecito ? 'info' : ''}" data-sollecito title="Clicca per aggiornare il sollecito">${f.data_sollecito ? '🔔 ' + fmtDate(f.data_sollecito) : '— nessuno'}</span></td>
-      <td class="nota-cella"><span class="${f.note ? 'nota-testo' : 'chip'}" data-note title="${f.note ? esc(f.note) + '\n\n' : ''}Clicca per ${f.note ? 'modificare le' : 'aggiungere le'} note">${f.note ? '📝 ' + esc(f.note) : '+ nota'}</span></td>
-      <td style="text-align:right"><button class="btn ghost sm" data-edit>✏️</button></td>
+      <td><span class="chip ${f.data_sollecito ? 'info' : ''}" ${lettore ? '' : 'data-sollecito title="Clicca per aggiornare il sollecito"'}>${f.data_sollecito ? '🔔 ' + fmtDate(f.data_sollecito) : '— nessuno'}</span></td>
+      <td class="nota-cella">${lettore
+        ? (f.note ? `<span class="nota-testo" title="${esc(f.note)}">📝 ${esc(f.note)}</span>` : '')
+        : `<span class="${f.note ? 'nota-testo' : 'chip'}" data-note title="${f.note ? esc(f.note) + '\n\n' : ''}Clicca per ${f.note ? 'modificare le' : 'aggiungere le'} note">${f.note ? '📝 ' + esc(f.note) : '+ nota'}</span>`}</td>
+      <td style="text-align:right"><button class="btn ghost sm" data-edit data-scrive>✏️</button></td>
     </tr>`);
     rendiCliccabile(tr, (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]') && !e.target.closest('[data-sollecito]') && !e.target.closest('[data-note]')) apriEditorAttiva(f.id, ctx, ricarica); });
     tr.querySelector('[data-edit]').addEventListener('click', (e) => { e.stopPropagation(); apriEditorAttiva(f.id, ctx, ricarica); });
     const chipStato = tr.querySelector('[data-stato]');
     if (chipStato) rendiCliccabile(chipStato, (e) => { e.stopPropagation(); apriIncassoRapido(f, ctx, ricarica); });
-    rendiCliccabile(tr.querySelector('[data-sollecito]'), (e) => { e.stopPropagation(); apriSollecitoRapido(f, ctx, ricarica); });
-    rendiCliccabile(tr.querySelector('[data-note]'), (e) => { e.stopPropagation(); apriNoteRapide(f, ctx, ricarica); });
+    const chipSollecito = tr.querySelector('[data-sollecito]');
+    if (chipSollecito) rendiCliccabile(chipSollecito, (e) => { e.stopPropagation(); apriSollecitoRapido(f, ctx, ricarica); });
+    const cellaNote = tr.querySelector('[data-note]');
+    if (cellaNote) rendiCliccabile(cellaNote, (e) => { e.stopPropagation(); apriNoteRapide(f, ctx, ricarica); });
     tbody.appendChild(tr);
   }
   node.appendChild(table);

@@ -25,7 +25,8 @@ export async function renderSezioneEsterna(view, ctx, sezione) {
 }
 
 export async function renderSezioneVuota(view, ctx, sezione) {
-  const ruolo = ctx.ruoloSezione === 'admin' ? 'amministratore' : 'operatore';
+  const ruolo = ctx.ruoloSezione === 'admin' ? 'amministratore'
+    : ctx.ruoloSezione === 'lettore' ? 'lettore (sola visualizzazione)' : 'operatore';
   view.appendChild(el(`<div>
     <div class="page-head"><div>
       <h1>${esc(sezione.label)}</h1>

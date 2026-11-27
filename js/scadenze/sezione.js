@@ -7,7 +7,8 @@ import { renderElenco } from './views/elenco.js';
 import { renderScheda } from './views/scheda.js';
 
 export async function renderScadenze(view, ctx, sub, param) {
-  const ctxS = { user: ctx.user, ruolo: ctx.user?.ruolo, go: ctx.go };
+  // solaLettura: il ruolo 'lettore' consulta le scadenze ma non le spunta né le scrive.
+  const ctxS = { user: ctx.user, ruolo: ctx.user?.ruolo, solaLettura: !!ctx.solaLettura, go: ctx.go };
   // Il calendario si carica solo quando lo si apre, come nel Direttore.
   if (sub === 'calendario') {
     const { renderCalendario } = await import('./views/calendario.js');

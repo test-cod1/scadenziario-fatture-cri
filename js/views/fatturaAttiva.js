@@ -5,13 +5,26 @@ import { isFileFatturaElettronica, isXmlFatturaElettronica, leggiXmlFattura, par
 import { renderAnteprimaFile, bannerErroreLettura, bannerAbbinamento, fileToBase64, metodoAmmesso, nuovoIdFattura, confermaSeSuperaResiduo, collegaAutocompletamento, aggiornaDopo } from '../lib/documenti.js';
 import { CAMPO_DECIMALE, testoDecimale, testoDecimaleOVuoto } from '../lib/importi.js';
 import { abbinaNotaCredito } from '../lib/soggetti.js';
+import { MESSAGGIO_SOLA_LETTURA } from '../lib/supabase.js';
 
 export { METODI };
+
+// Sola visualizzazione (ruolo di sezione 'lettore'): i comandi che portano ai
+// popup di inserimento sono già nascosti (data-scrive), questo è il fermo per
+// chi ci arrivasse lo stesso. Le schede esistenti invece si aprono, ma in
+// consultazione (vedi apriEditorAttiva).
+function bloccatoInSolaLettura(ctx) {
+  if (!ctx?.solaLettura) return false;
+  toast(MESSAGGIO_SOLA_LETTURA, 'err');
+  return true;
+}
 
 // ============================================================
 //  Editor di una singola fattura attiva (nuova o esistente)
 // ============================================================
 export async function apriEditorAttiva(id, ctx, onSaved) {
+  const lettore = !!ctx?.solaLettura;
+  if (!id && bloccatoInSolaLettura(ctx)) return;
   // Vedi il commento gemello in fattura.js: senza questo try, un errore nel
   // caricamento lasciava il clic sulla riga senza alcun effetto visibile.
   let rec;
@@ -50,7 +63,7 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
         <div class="form-row three">
           <div class="field"><label>Metodo di incasso</label><select id="f-metodo">${METODI.map(m => `<option value="${esc(m)}" ${rec.metodo_incasso === m ? 'selected' : ''}>${m || '—'}</option>`).join('')}</select></div>
           <div class="field"><label>Ultimo sollecito inviato</label><input type="date" id="f-sollecito" value="${esc(rec.data_sollecito || '')}"></div>
-          <div class="field" style="justify-content:flex-end"><label>&nbsp;</label><button type="button" class="btn ghost sm" id="sollecito-oggi">🔔 Segna sollecito oggi</button></div>
+          <div class="field" style="justify-content:flex-end"><label>&nbsp;</label><button type="button" class="btn ghost sm" id="sollecito-oggi" data-scrive>🔔 Segna sollecito oggi</button></div>
         </div>
         <div class="field"><label>Note</label><textarea id="f-note" rows="2">${esc(rec.note || '')}</textarea></div>
         <div id="pag-zone"></div>
@@ -156,14 +169,18 @@ export async function apriEditorAttiva(id, ctx, onSaved) {
   }
 
   const footer = el(`<div style="display:flex;gap:10px;width:100%">
-    ${id ? '<button class="btn danger" id="del">Elimina</button>' : ''}
+    ${id ? '<button class="btn danger" id="del" data-scrive>Elimina</button>' : ''}
     <div style="flex:1"></div>
-    <button class="btn" id="cancel">Annulla</button>
-    <button class="btn primary" id="save">Salva</button>
+    <button class="btn" id="cancel">${lettore ? 'Chiudi' : 'Annulla'}</button>
+    <button class="btn primary" id="save" data-scrive>Salva</button>
   </div>`);
 
+  // In consultazione i campi si leggono ma non si cambiano: senza «Salva»
+  // una modifica a schermo sembrerebbe valere e andrebbe persa in silenzio.
+  if (lettore) body.querySelectorAll('input, select, textarea').forEach(c => { c.disabled = true; });
+
   const { close, modal } = openModal({
-    title: id ? 'Modifica fattura attiva' : 'Nuova fattura attiva', body, footer, wide: true,
+    title: lettore ? 'Fattura attiva' : id ? 'Modifica fattura attiva' : 'Nuova fattura attiva', body, footer, wide: true,
     onClose: () => { if (previewUrl) URL.revokeObjectURL(previewUrl); if (datiModificati) onSaved(); },
   });
   modal.style.maxWidth = '1400px';
@@ -213,6 +230,7 @@ const METODO_INCASSO_PREDEFINITO = 'bonifico';
 
 // ============================================================
 export function apriIncassoRapido(rec, ctx, onSaved) {
+  if (bloccatoInSolaLettura(ctx)) return;
   const body = el(`<div>
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.cliente)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''} — residuo <b>${fmtEuro(rec._residuo)}</b></p>
     <div class="form-row three" style="align-items:end">
@@ -255,6 +273,7 @@ export function apriIncassoRapido(rec, ctx, onSaved) {
 //  dashboard, per aggiornare la data senza aprire l'intero editor.
 // ============================================================
 export function apriSollecitoRapido(rec, ctx, onSaved) {
+  if (bloccatoInSolaLettura(ctx)) return;
   const body = el(`<div>
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.cliente)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''}</p>
     <div class="field"><label>Data sollecito</label><input type="date" id="sl-data" value="${esc(rec.data_sollecito || todayISO())}"></div>
@@ -285,6 +304,7 @@ export function apriSollecitoRapido(rec, ctx, onSaved) {
 //  scrivere o correggere le note senza aprire l'intero editor.
 // ============================================================
 export function apriNoteRapide(rec, ctx, onSaved) {
+  if (bloccatoInSolaLettura(ctx)) return;
   const body = el(`<div>
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.cliente)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''}</p>
     <div class="field"><label>Note</label><textarea id="nt-testo" rows="5">${esc(rec.note || '')}</textarea></div>
@@ -320,11 +340,11 @@ function renderIncassi(node, rec, ctx, onChange) {
   const wrap = el(`<div class="card" style="margin-top:6px"><div class="card-h">Incassi / acconti</div><div class="card-b">
     <div class="pag-list"></div>
     <div class="residuo-box"><span>Incassato: <b>${fmtEuro(rec._incassato)}</b></span>${rec._stornato > 0 ? `<span>Stornato: <b>${fmtEuro(rec._stornato)}</b></span>` : ''}<span>Residuo: <b>${fmtEuro(rec._residuo)}</b></span></div>
-    <button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi incasso</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>
+    <button class="btn sm" style="margin-top:10px" id="add-pag" data-scrive>+ Aggiungi incasso</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>
   </div></div>`);
   const list = wrap.querySelector('.pag-list');
   for (const p of (rec.incassi || []).slice().sort((a, b) => (a.data_incasso || '').localeCompare(b.data_incasso || ''))) {
-    const row = el(`<div class="pag-row"><span>${fmtDate(p.data_incasso)} · ${fmtEuro(p.importo)} ${p.metodo ? '· ' + esc(p.metodo) : ''} ${p.note ? '· ' + esc(p.note) : ''}</span><button class="rm" data-id="${p.id}">✕</button></div>`);
+    const row = el(`<div class="pag-row"><span>${fmtDate(p.data_incasso)} · ${fmtEuro(p.importo)} ${p.metodo ? '· ' + esc(p.metodo) : ''} ${p.note ? '· ' + esc(p.note) : ''}</span><button class="rm" data-id="${p.id}" data-scrive>✕</button></div>`);
     row.querySelector('.rm').addEventListener('click', async () => {
       if (!await confirmDialog('Rimuovere questo incasso?', { danger: true, okLabel: 'Rimuovi' })) return;
       try {
@@ -378,12 +398,12 @@ function renderNoteCreditoAttive(node, rec, ctx, onChange) {
   const righe = rec.note_credito_attive_righe || [];
   const wrap = el(`<div class="card" style="margin-top:14px"><div class="card-h">Note di credito</div><div class="card-b">
     <div class="nc-list"></div>
-    <button class="btn sm" style="margin-top:10px" id="add-nc">+ Aggiungi nota di credito</button>
+    <button class="btn sm" style="margin-top:10px" id="add-nc" data-scrive>+ Aggiungi nota di credito</button>
   </div></div>`);
   const list = wrap.querySelector('.nc-list');
   for (const n of righe.slice().sort((a, b) => (a.note_credito_attive?.data || '').localeCompare(b.note_credito_attive?.data || ''))) {
     const nc = n.note_credito_attive || {};
-    const row = el(`<div class="pag-row"><span>${fmtDate(nc.data)} · ${fmtEuro(n.importo)} ${nc.numero ? '· n. ' + esc(nc.numero) : ''} ${nc.note ? '· ' + esc(nc.note) : ''}</span><button class="rm" data-id="${n.id}">✕</button></div>`);
+    const row = el(`<div class="pag-row"><span>${fmtDate(nc.data)} · ${fmtEuro(n.importo)} ${nc.numero ? '· n. ' + esc(nc.numero) : ''} ${nc.note ? '· ' + esc(nc.note) : ''}</span><button class="rm" data-id="${n.id}" data-scrive>✕</button></div>`);
     row.querySelector('.rm').addEventListener('click', async () => {
       if (!await confirmDialog('Rimuovere il collegamento di questa nota di credito a questa fattura?', { danger: true, okLabel: 'Rimuovi' })) return;
       try {
@@ -406,6 +426,7 @@ function renderNoteCreditoAttive(node, rec, ctx, onChange) {
 // `iniziali` (facoltativo): campi già letti da un XML di nota di credito,
 // come in apriNuovaNotaCredito delle passive.
 export function apriNuovaNotaCreditoAttiva(ctx, onSaved, fatturaPreselezionata, iniziali = {}) {
+  if (bloccatoInSolaLettura(ctx)) return;
   const body = el(`<div>
     <div class="form-row three">
       <div class="field"><label>Numero</label><input type="text" id="nc-numero" value="${esc(iniziali.numero || '')}"></div>
@@ -540,6 +561,7 @@ export function apriNuovaNotaCreditoAttiva(ctx, onSaved, fatturaPreselezionata, 
 //  Caricamento multiplo (dashboard attive → "Carica PDF/XML", o drag&drop)
 // ============================================================
 export function apriUploadAttive(ctx, onSaved, fileIniziali) {
+  if (bloccatoInSolaLettura(ctx)) return;
   const body = el(`<div>
     <div class="dropzone" id="dz">
       <div class="big">📎</div>

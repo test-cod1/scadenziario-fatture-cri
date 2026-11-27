@@ -20,7 +20,7 @@ export async function renderDipendenti(view, ctx) {
 
   const head = el(`<div class="page-head">
     <div><h1>Dipendenti</h1><p>Chi può fare straordinari</p></div>
-    <div class="actions"><button class="btn primary" data-nuovo>➕ Nuovo dipendente</button></div>
+    <div class="actions"><button class="btn primary" data-nuovo data-scrive>➕ Nuovo dipendente</button></div>
   </div>`);
   view.appendChild(head);
 
@@ -33,7 +33,7 @@ export async function renderDipendenti(view, ctx) {
 
   const vuoto = el(`<div class="empty-state" hidden><div class="big">👤</div>
     <p><b>Nessun dipendente in elenco</b></p>
-    <p>Aggiungi i dipendenti a cui la centrale può chiedere straordinari.<br>
+    <p data-scrive>Aggiungi i dipendenti a cui la centrale può chiedere straordinari.<br>
     Basta il cognome; il nome e le note sono facoltativi.</p></div>`);
   view.appendChild(vuoto);
 
@@ -49,9 +49,9 @@ export async function renderDipendenti(view, ctx) {
         <td class="money">${saldo ? esc(fmtOre(saldo, { segno: true })) : '—'}</td>
         <td>${a.attivo ? '<span class="chip ok">Attivo</span>' : '<span class="chip">Non attivo</span>'}</td>
         <td style="white-space:nowrap;text-align:right">
-          <button class="btn ghost sm" data-mod title="Modifica">✏️</button>
-          <button class="btn ghost sm" data-attiva title="${a.attivo ? 'Disattiva' : 'Riattiva'}">${a.attivo ? '🚫' : '↩️'}</button>
-          <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
+          <button class="btn ghost sm" data-mod data-scrive title="Modifica">✏️</button>
+          <button class="btn ghost sm" data-attiva data-scrive title="${a.attivo ? 'Disattiva' : 'Riattiva'}">${a.attivo ? '🚫' : '↩️'}</button>
+          <button class="btn ghost sm" data-del data-scrive title="Elimina">🗑️</button>
         </td>
       </tr>`);
       tr.querySelector('[data-mod]').addEventListener('click', () => scheda(a));

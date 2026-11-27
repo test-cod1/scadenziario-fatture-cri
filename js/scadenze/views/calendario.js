@@ -37,7 +37,7 @@ export async function renderCalendario(view, ctx, mese) {
     <div><h1>Calendario delle scadenze</h1><p>Le scadenze mese per mese; quelle che si ripetono compaiono anche nei mesi a venire</p></div>
     <div class="actions">
       <a class="btn" href="#/scadenze/elenco">⏰ Elenco</a>
-      <a class="btn primary" href="#/scadenze/nuova">➕ Nuova scadenza</a>
+      <a class="btn primary" href="#/scadenze/nuova" data-scrive>➕ Nuova scadenza</a>
     </div>
   </div>`));
 
@@ -165,7 +165,7 @@ export async function renderCalendario(view, ctx, mese) {
   function disegnaPannello() {
     clear(pannello);
     if (!scelto) {
-      pannello.appendChild(el('<p class="dir-cal-invito">Scegli un giorno per vedere che cosa scade, o per aggiungerci una scadenza.</p>'));
+      pannello.appendChild(el(`<p class="dir-cal-invito">Scegli un giorno per vedere che cosa scade${ctx.solaLettura ? '' : ', o per aggiungerci una scadenza'}.</p>`));
       return;
     }
     // Il giorno scelto può stare fuori dalla griglia disegnata (dopo «Oggi»
@@ -173,7 +173,7 @@ export async function renderCalendario(view, ctx, mese) {
     const del = (caselle.some(c => c.iso === scelto) ? mappa : perGiorno(vociFra(scelto, scelto))).get(scelto) || [];
     pannello.appendChild(el(`<div class="dir-cal-giorno-testa">
       <h2>${esc(nomeGiorno(scelto))}${scelto === oggi ? ' <span class="chip info">oggi</span>' : ''}</h2>
-      <a class="btn sm" href="#/scadenze/nuova/${esc(scelto)}">➕ Scadenza in questa data</a>
+      <a class="btn sm" href="#/scadenze/nuova/${esc(scelto)}" data-scrive>➕ Scadenza in questa data</a>
     </div>`));
     if (!del.length) {
       pannello.appendChild(el('<p class="dir-cal-invito">Nessuna scadenza in questo giorno.</p>'));
@@ -195,7 +195,8 @@ export async function renderCalendario(view, ctx, mese) {
       ${v.prevista
         ? '<span class="dir-spunta" aria-hidden="true" title="Ripetizione prevista">🔁</span>'
         : `<button class="dir-spunta" type="button" role="checkbox" aria-checked="${s.fatta ? 'true' : 'false'}"
-            title="${s.fatta ? 'Segna come da fare' : 'Segna come fatta'}">${s.fatta ? '✔' : ''}</button>`}
+            ${ctx.solaLettura ? `disabled title="${s.fatta ? 'Fatta' : 'Da fare'}"`
+              : `title="${s.fatta ? 'Segna come da fare' : 'Segna come fatta'}"`}>${s.fatta ? '✔' : ''}</button>`}
       <div class="dir-corpo">
         <div class="dir-titolo">${esc(s.titolo)}</div>
         ${s.riferimento || s.responsabile ? `<div class="dir-dettagli">${[s.riferimento, s.responsabile ? 'a cura di ' + s.responsabile : ''].filter(Boolean).map(esc).join(' · ')}</div>` : ''}
@@ -209,7 +210,7 @@ export async function renderCalendario(view, ctx, mese) {
         </div>
       </div>
       <div class="dir-azioni">
-        <button class="btn ghost sm" data-mod title="${v.prevista ? 'Apri la scadenza da cui nasce' : 'Apri'}">✏️</button>
+        <button class="btn ghost sm" data-mod title="${v.prevista ? 'Apri la scadenza da cui nasce' : 'Apri'}">${ctx.solaLettura ? '👁' : '✏️'}</button>
       </div>
     </div>`);
 

@@ -6,10 +6,16 @@
 //
 //  Il tour passa davvero dalla scheda di un impegno nuovo: non salva
 //  nulla, quindi si può seguire anche in mezzo al lavoro.
+//
+//  Chi ha la sezione in sola visualizzazione (ruolo 'lettore') fa un giro
+//  più corto: i passi marcati «scrive» (la scheda di un impegno nuovo) si
+//  tolgono, e dove serve «perLettore» sostituisce selettore e testo, così il
+//  tour non racconta pulsanti che per lui non ci sono.
 // ============================================================
 
-export function passi() {
-  return [
+export function passi(ctx) {
+  const lettore = ctx?.user?.ruolo === 'lettore';
+  const tutti = [
     {
       hash: '#/direttore/impegni',
       titolo: 'Tour guidato',
@@ -34,6 +40,10 @@ export function passi() {
       selettore: '.dir-spunta',
       titolo: 'Fatto, con un clic',
       testo: 'La spunta si dà dall\'elenco, senza aprire niente: è il gesto che si fa più spesso. L\'impegno sparisce dalle cose da fare e passa fra i fatti, con la data; se il clic era sbagliato, per cinque secondi compare «Annulla» — e dopo lo si ritrova scegliendo «Fatti» nella prima tendina.',
+      perLettore: {
+        titolo: 'Fatto o da fare',
+        testo: 'La casella a sinistra dice se l\'impegno è già chiuso. Quelli fatti spariscono dalle cose da fare e si ritrovano, con la data, scegliendo «Fatti» nella prima tendina.',
+      },
     },
     {
       hash: '#/direttore/calendario',
@@ -45,29 +55,37 @@ export function passi() {
       selettore: '.dir-cal-giorno',
       titolo: 'Il giorno scelto',
       testo: 'Cliccando una casella, qui sotto compare per esteso che cosa scade quel giorno: si dà la spunta senza perdere di vista il mese, e con «Impegno in questa data» se ne annota uno nuovo con la scadenza già scritta.',
+      perLettore: {
+        testo: 'Cliccando una casella, qui sotto compare per esteso che cosa scade quel giorno, senza perdere di vista il mese. Un clic sulla riga apre l\'impegno con tutti i dettagli.',
+      },
     },
     {
+      scrive: true,
       hash: '#/direttore/nuovo',
       selettore: '#f-titolo',
       titolo: 'Scrivere un impegno',
       testo: 'L\'unica cosa obbligatoria è questa: che cosa c\'è da fare. Tutto il resto ha già un valore ragionevole, perché un impegno che non si riesce ad annotare in dieci secondi non viene annotato affatto.',
     },
     {
+      scrive: true,
       selettore: '[data-campo="importanza"]',
       titolo: 'Importanza: quanto conta',
       testo: 'Quanto pesa il risultato, a prescindere da quando va fatto. Il bilancio di fine anno è importante mesi prima di diventare urgente.',
     },
     {
+      scrive: true,
       selettore: '[data-campo="urgenza"]',
       titolo: 'Urgenza: quanto preme',
       testo: 'Un\'altra cosa dall\'importanza, ed è qui che sta il senso di tenerle separate: la riunione di domani preme molto e può contare poco. Confonderle è il modo classico per passare le giornate a spegnere incendi e non fare mai le cose che contano.',
     },
     {
+      scrive: true,
       selettore: '#f-scadenza',
       titolo: 'Entro quando',
       testo: 'Può restare vuota, ed è una risposta legittima: «va fatto, ma non entro una data». Quando c\'è, avvicinandosi spinge l\'impegno verso l\'alto da sola, senza che tu debba tornare a cambiargli l\'urgenza.',
     },
     {
+      scrive: true,
       selettore: '[data-peso]',
       titolo: 'Dove finirà',
       testo: 'Man mano che scegli, questa riga dice in che parte dell\'elenco comparirà l\'impegno. Serve a non dover indovinare l\'effetto delle tre scelte: se non è dove ti aspetti, cambia un livello e guarda di nuovo.',
@@ -77,11 +95,18 @@ export function passi() {
       selettore: '#idea-testo',
       titolo: 'Le idee',
       testo: 'Non tutto è già un impegno: un\'idea si scrive qui in una riga, così come viene, e si sistema dopo. Ognuna ha uno stato — nuova, in valutazione, approvata, realizzata, scartata — e quelle buone diventano un impegno con «→ Impegno», senza ricopiarle.',
+      perLettore: {
+        selettore: '.dir-lista',
+        testo: 'Non tutto è già un impegno: qui stanno le idee annotate al volo, dal portale o da Telegram. Ognuna ha uno stato — nuova, in valutazione, approvata, realizzata, scartata — e quelle diventate impegno portano il collegamento «→ impegno».',
+      },
     },
     {
       selettore: '[data-tg]',
       titolo: 'Le idee da Telegram',
       testo: 'Le idee vengono quando si è in giro: collegando il tuo account Telegram al bot del portale, ogni messaggio che gli scrivi diventa un\'idea qui, con il tuo nome. Il comando /idee mostra le ultime.',
+      perLettore: {
+        testo: 'Le idee si possono mandare anche dal bot Telegram del portale. Con la sola visualizzazione il bot non registra idee nuove; chi ha già il Telegram collegato può leggere le ultime con il comando /idee.',
+      },
     },
     {
       hash: '#/direttore/impegni',
@@ -90,4 +115,6 @@ export function passi() {
       testo: 'Puoi rivedere questo tour quando vuoi cliccando su questo pulsante. Ogni sezione del portale ha il suo.',
     },
   ];
+  if (!lettore) return tutti.map(({ scrive, perLettore, ...p }) => p);
+  return tutti.filter(p => !p.scrive).map(({ scrive, perLettore, ...p }) => ({ ...p, ...perLettore }));
 }

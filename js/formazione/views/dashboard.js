@@ -56,12 +56,15 @@ export async function renderDashboard(view, ctx) {
   // resta agli admin della sezione, come la policy di cancellazione lato
   // database. All'operatore restano duplica, Word e stampa.
   const admin = ctx.user?.ruolo === 'admin';
+  // Sola visualizzazione: lo stato si legge ma non si cambia; duplica e
+  // «Pianifica» spariscono (data-scrive), restano Word e stampa.
+  const lettore = !!ctx.solaLettura;
   const oggi = todayISO();
   const validita = giorniValidita(ctx.imp.testi?.validita);
 
   view.appendChild(el(`<div class="page-head">
     <div><h1>Preventivi</h1><p>Corsi di formazione erogati ad aziende ed enti</p></div>
-    <a class="btn primary" href="#/formazione/nuovo">➕ Nuovo preventivo</a>
+    <a class="btn primary" href="#/formazione/nuovo" data-scrive>➕ Nuovo preventivo</a>
   </div>`));
 
   // Statistiche e stato "nessun preventivo" si ridisegnano sul posto, senza
@@ -71,7 +74,7 @@ export async function renderDashboard(view, ctx) {
   view.appendChild(stats);
 
   const vuoto = el(`<div class="empty-state" hidden><div class="big">🎓</div>
-    <p>Nessun preventivo ancora.<br>Creane uno con "Nuovo preventivo".</p></div>`);
+    <p>Nessun preventivo ancora.${lettore ? '' : '<br>Creane uno con "Nuovo preventivo".'}</p></div>`);
   view.appendChild(vuoto);
 
   const toolbar = el(`<div class="toolbar">
@@ -185,15 +188,15 @@ export async function renderDashboard(view, ctx) {
       <td>${corsi.length ? esc(riassuntoCorsi(corsi)) : '<span class="muted">nessuno</span>'}
         <div class="mini">${discenti ? `${discenti} ${discenti === 1 ? 'discente' : 'discenti'}` : 'discenti da definire'}</div></td>
       <td class="money">${fmtEuro(p.totale)}</td>
-      <td><select data-stato class="sel-stato" data-valore="${esc(p.stato)}" aria-label="Stato del preventivo">${STATI.map(s =>
+      <td><select data-stato class="sel-stato" data-valore="${esc(p.stato)}" aria-label="Stato del preventivo"${lettore ? ' disabled' : ''}>${STATI.map(s =>
         `<option value="${s}" ${p.stato === s ? 'selected' : ''}>${ETICHETTA[s]}</option>`).join('')}</select>${nota}</td>
       <td style="white-space:nowrap;text-align:right">
         ${p.stato === 'confermato' && !rinnovo
-          ? `<button class="btn ghost sm" data-corsi title="${pianificati.has(p.id) ? 'Vedi i corsi di questo preventivo' : 'Crea i corsi da fissare, uno per riga del preventivo'}">${pianificati.has(p.id) ? '📅' : '📅 Pianifica'}</button>`
+          ? `<button class="btn ghost sm" data-corsi title="${pianificati.has(p.id) ? 'Vedi i corsi di questo preventivo' : 'Crea i corsi da fissare, uno per riga del preventivo'}"${pianificati.has(p.id) ? '' : ' data-scrive'}>${pianificati.has(p.id) ? '📅' : '📅 Pianifica'}</button>`
           : ''}
         ${rinnovo
-          ? '<button class="btn sm" data-copia title="Crea un nuovo preventivo uguale, come bozza con la data di oggi">🔁 Prepara rinnovo</button>'
-          : '<button class="btn ghost sm" data-copia title="Duplica come nuova bozza">⧉</button>'}
+          ? '<button class="btn sm" data-copia data-scrive title="Crea un nuovo preventivo uguale, come bozza con la data di oggi">🔁 Prepara rinnovo</button>'
+          : '<button class="btn ghost sm" data-copia data-scrive title="Duplica come nuova bozza">⧉</button>'}
         <button class="btn ghost sm" data-word title="Scarica in Word">📄</button>
         <button class="btn ghost sm" data-pdf title="Stampa / PDF">🖨️</button>
         ${admin ? '<button class="btn ghost sm" data-del title="Elimina">🗑️</button>' : ''}

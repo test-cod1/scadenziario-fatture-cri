@@ -38,7 +38,11 @@ export async function renderStraordinari(view, ctx, sub, param) {
 
   const ctxS = {
     user: ctx.user,
-    ruolo: ctx.user?.ruolo,          // 'admin' o 'operatore' NELLA sezione
+    ruolo: ctx.user?.ruolo,          // 'admin', 'operatore' o 'lettore' NELLA sezione
+    // Il lettore vede tutto (registro, riepilogo, anagrafica, causali) ma non
+    // scrive nulla: le viste nascondono i comandi con data-scrive e aprono le
+    // righe in consultazione.
+    solaLettura: !!ctx.solaLettura,
     go: ctx.go,
     dipendenti: _cache.dipendenti,
     imp: _cache.imp,

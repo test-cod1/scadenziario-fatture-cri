@@ -48,11 +48,21 @@ export async function renderImpostazioni(view, ctx) {
 
   pagina.appendChild(el(`<div class="page-head">
     <div><h1>Impostazioni</h1><p>Parametri di calcolo, parco mezzi e prezzi carburante di riferimento</p></div>
-    <button class="btn primary" id="save">💾 Salva impostazioni</button>
+    <button class="btn primary" id="save" data-scrive>💾 Salva impostazioni</button>
   </div>`));
 
+  // Sola visualizzazione: la pagina si vede com'è per l'operatore (sono i
+  // parametri con cui sono fatti i preventivi che il lettore consulta), ma
+  // i campi restano spenti e i pulsanti che scrivono spariscono (data-scrive).
+  // Si richiama dopo ogni ridisegno delle tabelle, che rifanno i campi da
+  // capo; il filtro dei Paesi resta usabile, non è un dato da salvare.
+  const bloccaCampi = (nodo) => {
+    if (!ctx.solaLettura) return;
+    nodo.querySelectorAll('input, select, textarea').forEach(c => { if (c.id !== 'qfuel') c.disabled = true; });
+  };
+
   // ---------- Parco mezzi ----------
-  const cMezzi = card('Parco mezzi e consumi', '<div id="mezzi"></div><button class="btn sm" id="add-mezzo" type="button">➕ Aggiungi mezzo</button>');
+  const cMezzi = card('Parco mezzi e consumi', '<div id="mezzi"></div><button class="btn sm" id="add-mezzo" type="button" data-scrive>➕ Aggiungi mezzo</button>');
   pagina.appendChild(cMezzi);
   const mezziBox = cMezzi.querySelector('#mezzi');
   // Campi etichettati su .form-row.three invece di una griglia a colonne fisse
@@ -70,7 +80,7 @@ export async function renderImpostazioni(view, ctx) {
           </select></div>
           <div class="field"><label>Consumo (km/l)</label><input ${CAMPO_DECIMALE} value="${testoDecimale(m.consumo)}"></div>
         </div>
-        <button class="rm btn ghost sm" type="button">✕ Rimuovi mezzo</button>
+        <button class="rm btn ghost sm" type="button" data-scrive>✕ Rimuovi mezzo</button>
       </div>`);
       const [nome, cons] = r.querySelectorAll('input');
       const alim = r.querySelector('select');
@@ -83,6 +93,7 @@ export async function renderImpostazioni(view, ctx) {
       });
       mezziBox.appendChild(r);
     });
+    bloccaCampi(mezziBox);
   }
   drawMezzi();
   cMezzi.querySelector('#add-mezzo').addEventListener('click', () => {
@@ -116,7 +127,7 @@ export async function renderImpostazioni(view, ctx) {
     <div class="banner info" style="margin:0 0 14px;flex-wrap:wrap"><div class="bi">⛽</div><div style="flex:1;min-width:200px">
       <b id="fuel-data-date">Medie nazionali · aggiornate al ${esc(fmtDate(imp.fuelDataDate || FUEL_DATA_DATE))}</b>
       <div class="small">Valori usati per precompilare il prezzo in base al Paese di destinazione UE. Modificali quando vuoi, o scarica il bollettino settimanale della Commissione Europea per aggiornarli tutti in blocco.</div>
-    </div><button class="btn sm" id="update-eu" type="button" style="flex:none;align-self:center">🇪🇺 Aggiorna prezzi UE</button></div>
+    </div><button class="btn sm" id="update-eu" type="button" style="flex:none;align-self:center" data-scrive>🇪🇺 Aggiorna prezzi UE</button></div>
     <div class="toolbar"><div class="search"><span class="search-icon" aria-hidden="true">🔍</span><input type="text" id="qfuel" placeholder="Filtra Paese…"></div></div>
     <div class="tbl-wrap"><table class="tbl"><thead><tr><th>Paese</th><th>Gasolio €/l</th><th>Benzina €/l</th></tr></thead><tbody id="fuel-body"></tbody></table></div>`);
   pagina.appendChild(cFuel);
@@ -136,6 +147,7 @@ export async function renderImpostazioni(view, ctx) {
       b.addEventListener('input', () => row.benzina = prezzoUnitario(b.value));
       fuelBody.appendChild(tr);
     });
+    bloccaCampi(fuelBody);
   }
   drawFuel();
   cFuel.querySelector('#qfuel').addEventListener('input', drawFuel);
@@ -211,6 +223,7 @@ export async function renderImpostazioni(view, ctx) {
     });
     corpoTesti.appendChild(campo);
   }
+  bloccaCampi(pagina);
 
   // ---------- salvataggio ----------
   pagina.querySelector('#save').addEventListener('click', async () => {

@@ -14,6 +14,16 @@ import { sorvegliaUscita, armaGuardiaIndietro, smettiDiSorvegliare } from '../..
 
 export async function renderRegistrazione(view, id, ctx) {
   const nuovo = !id;
+  // Chi ha la sezione in sola visualizzazione può arrivare qui dal menu o da
+  // un indirizzo salvato: al posto di una scheda vuota che non potrebbe
+  // salvare, una riga che spiega perché e riporta al registro.
+  if (nuovo && ctx.solaLettura) {
+    view.appendChild(el(`<div class="empty-state"><div class="big">👁</div>
+      <p><b>Sola visualizzazione</b></p>
+      <p>Puoi consultare il registro e i riepiloghi, ma non registrare straordinari.</p>
+      <p style="margin-top:18px"><a class="btn primary" href="#/straordinari/registro">📋 Vai al registro</a></p></div>`));
+    return;
+  }
   let rec = nuovo ? bozza(ctx) : await straordinari.get(id);
   // Righe dello stesso dipendente nello stesso giorno: servono all'avviso sui
   // doppioni (la stessa serata registrata due volte è l'errore più comune di
@@ -34,8 +44,8 @@ export async function renderRegistrazione(view, id, ctx) {
       </div>
       <div class="actions">
         <a class="btn" href="#/straordinari/registro">← Registro</a>
-        ${nuovo ? '<button class="btn" data-salva-nuovo title="Salva e prepara subito un\'altra riga">💾 Salva e nuova</button>' : ''}
-        <button class="btn primary" data-salva>💾 Salva</button>
+        ${nuovo ? '<button class="btn" data-salva-nuovo data-scrive title="Salva e prepara subito un\'altra riga">💾 Salva e nuova</button>' : ''}
+        <button class="btn primary" data-salva data-scrive>💾 Salva</button>
       </div>
     </div>
 
@@ -102,7 +112,7 @@ export async function renderRegistrazione(view, id, ctx) {
       ${nuovo ? '' : `<div class="str-meta muted small" data-meta></div>`}
     </div></div>
 
-    ${nuovo ? '' : `<div class="str-elimina">
+    ${nuovo ? '' : `<div class="str-elimina" data-scrive>
       <button class="btn danger ghost" data-elimina>🗑️ Elimina questa riga</button>
       <span class="muted small">Le ore già registrate si eliminano solo se erano sbagliate: qui si scrive ciò che è stato fatto.</span>
     </div>`}
@@ -289,6 +299,14 @@ export async function renderRegistrazione(view, id, ctx) {
   });
 
   riempi();
+  // In sola visualizzazione la riga si legge e basta: campi e pulsanti del
+  // tipo spenti (il quadrante degli orari non si apre su un campo
+  // disabilitato), e niente avviso doppioni, che invita a correggere.
+  if (ctx.solaLettura) {
+    editor.querySelectorAll('.str-form input, .str-form select, .str-form textarea, .str-tipo')
+      .forEach(c => { c.disabled = true; });
+    return;
+  }
   controllaDoppioni();
   if (nuovo) campi.dipendente.focus();
   sorvegliaUscita(editor, () => sporco);

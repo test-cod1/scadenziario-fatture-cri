@@ -98,6 +98,8 @@ export function perDestinatario(d) {
 //  `prev` è il preventivo che l'editor sta modificando; `onLink(url)` dice
 //  all'editor quale link mettere nel documento (null = nessuno);
 //  `onUsa(dati)` riporta i dati ricevuti nel destinatario.
+//  I pulsanti che scrivono (crea, nuovo link, riporta) sono marcati
+//  data-scrive: in sola visualizzazione li nasconde il CSS.
 // ------------------------------------------------------------------
 export function cardDatiFatturazione({ sezione, prev, numero, onLink, onUsa }) {
   const card = el(`<div class="card">
@@ -125,7 +127,7 @@ export function cardDatiFatturazione({ sezione, prev, numero, onLink, onUsa }) {
     if (!riga) {
       onLink(null);
       corpo.innerHTML = `<p class="hint" style="margin:0 0 12px">Crea un link da mandare al cliente: apre un modulo dove scrive da sé i dati per la fattura elettronica. Il link compare anche nel preventivo (PDF e Word), prima dei saluti.</p>
-        <button class="btn" type="button" data-crea>🔗 Crea il link per il cliente</button>`;
+        <button class="btn" type="button" data-crea data-scrive>🔗 Crea il link per il cliente</button>`;
       corpo.querySelector('[data-crea]').addEventListener('click', async (e) => {
         e.target.disabled = true;
         try { riga = await linkFatturazione.crea(sezione, prev.id); toast('Link creato: ora compare anche nel documento', 'ok'); }
@@ -146,7 +148,7 @@ export function cardDatiFatturazione({ sezione, prev, numero, onLink, onUsa }) {
         <input type="text" readonly value="${esc(url)}" aria-label="Link per il cliente">
         <button class="btn sm" type="button" data-copia>📋 Copia</button>
         <a class="btn sm" href="${esc(url)}" target="_blank" rel="noopener">Apri</a>
-        <button class="btn ghost sm" type="button" data-rigenera title="Crea un codice nuovo: il link attuale smette di funzionare">↻ Nuovo link</button>
+        <button class="btn ghost sm" type="button" data-rigenera data-scrive title="Crea un codice nuovo: il link attuale smette di funzionare">↻ Nuovo link</button>
       </div>
       <div class="mini" style="margin-top:6px">${valido
         ? `Valido fino al ${esc(fmtDateTime(riga.scade_il).split(' ')[0])}.`
@@ -163,7 +165,7 @@ export function cardDatiFatturazione({ sezione, prev, numero, onLink, onUsa }) {
           ${d.tipo === 'ente_pubblico' ? `<dt>PA</dt><dd>${esc([d.cig ? `CIG ${d.cig}` : '', d.cup ? `CUP ${d.cup}` : '', d.split_payment ? 'split payment' : '', d.riferimento_ordine].filter(Boolean).join(' · ') || '—')}</dd>` : ''}
           ${d.note ? `<dt>Note</dt><dd>${esc(d.note)}</dd>` : ''}
         </dl>
-        <div style="margin-top:10px"><button class="btn sm ${daGuardare ? 'primary' : ''}" type="button" data-usa>⬆ Riporta nel destinatario</button></div>`
+        <div style="margin-top:10px"><button class="btn sm ${daGuardare ? 'primary' : ''}" type="button" data-usa data-scrive>⬆ Riporta nel destinatario</button></div>`
         : '<p class="mini" style="margin:12px 0 0">⏳ Il cliente non ha ancora mandato i dati.</p>'}`;
 
     corpo.querySelector('[data-copia]').addEventListener('click', async () => {

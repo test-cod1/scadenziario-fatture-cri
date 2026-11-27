@@ -16,7 +16,7 @@ export async function renderElenco(view, ctx) {
 
   view.appendChild(el(`<div class="page-head">
     <div><h1>Scadenze</h1><p>Assicurazioni, bolli, revisioni, contratti, certificazioni… tutto quello che scade, in ordine di data</p></div>
-    <div class="actions"><a class="btn" href="#/scadenze/calendario">📅 Calendario</a><a class="btn primary" href="#/scadenze/nuova">➕ Nuova scadenza</a></div>
+    <div class="actions"><a class="btn" href="#/scadenze/calendario">📅 Calendario</a><a class="btn primary" href="#/scadenze/nuova" data-scrive>➕ Nuova scadenza</a></div>
   </div>`));
 
   const stats = el('<div class="grid stats" style="margin:18px 0 20px"></div>');
@@ -115,9 +115,12 @@ export async function renderElenco(view, ctx) {
   function riga(s) {
     const et = etichetta(s);
     const ric = ricorrenzaDi(s.ricorrenza);
+    // In sola visualizzazione la spunta resta a dire se è fatta, ma non si
+    // preme: un pulsante disabilitato non manda nemmeno il clic.
     const r = el(`<div class="dir-riga ${s.fatta ? 'fatta' : ''}">
       <button class="dir-spunta" type="button" role="checkbox" aria-checked="${s.fatta ? 'true' : 'false'}"
-        title="${s.fatta ? 'Segna come da fare' : 'Segna come fatta'}">${s.fatta ? '✔' : ''}</button>
+        ${ctx.solaLettura ? `disabled title="${s.fatta ? 'Fatta' : 'Da fare'}"`
+          : `title="${s.fatta ? 'Segna come da fare' : 'Segna come fatta'}"`}>${s.fatta ? '✔' : ''}</button>
       <div class="dir-corpo">
         <div class="dir-titolo">${esc(s.titolo)}</div>
         ${s.riferimento || s.responsabile ? `<div class="dir-dettagli">${[s.riferimento, s.responsabile ? 'a cura di ' + s.responsabile : ''].filter(Boolean).map(esc).join(' · ')}</div>` : ''}
@@ -130,7 +133,7 @@ export async function renderElenco(view, ctx) {
         </div>
       </div>
       <div class="dir-azioni">
-        <button class="btn ghost sm" data-mod title="Apri">✏️</button>
+        <button class="btn ghost sm" data-mod title="Apri">${ctx.solaLettura ? '👁' : '✏️'}</button>
         ${admin ? '<button class="btn ghost sm" data-del title="Elimina">🗑️</button>' : ''}
       </div>
     </div>`);

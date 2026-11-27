@@ -320,7 +320,8 @@ function disegnaNav(sezioneId, sottoSezione, sub) {
     // dichiarano in js/sezioni.js. Una sezione che non dichiara un menu
     // resta con la sola voce Home — è il caso di quelle ancora da fare.
     for (const n of (getSezione(sezioneId)?.menu || [])) {
-      const a = el(`<a href="#/${sezioneId}/${n.id}" data-nav="${n.id}"><span class="ic">${n.icon}</span><span class="txt">${esc(n.label)}</span></a>`);
+      // scrive: true (voci «Nuovo…»): data-scrive le toglie a chi ha la sola visualizzazione.
+      const a = el(`<a href="#/${sezioneId}/${n.id}" data-nav="${n.id}"${n.scrive ? ' data-scrive' : ''}><span class="ic">${n.icon}</span><span class="txt">${esc(n.label)}</span></a>`);
       // `attivoAnche` copre le pagine di dettaglio: aprendo un preventivo
       // (#/trasporti/preventivo/<id>) deve restare evidenziata la voce
       // "Preventivi", da cui ci si è arrivati.
@@ -386,6 +387,7 @@ async function route() {
 
   // --- pagine di portale (fuori da ogni sezione) ---
   if (primo === 'home' || primo === 'portale') {
+    segnaSolaLettura(null);
     const sub = primo === 'portale' ? (resto[0] || 'utenti') : 'home';
     disegnaNav(null, null, sub);
     // Stesso motivo delle sezioni (vedi più sotto): la vista disegna in un
@@ -424,6 +426,7 @@ async function route() {
   const ruolo = ruoloIn(currentUser, sezione.id);
   // Chi non ha accesso non deve nemmeno vedersi comparire il menu interno
   // della sezione: resta con il menu del portale e un avviso in pagina.
+  segnaSolaLettura(ruolo === 'lettore' ? sezione.id : null);
   if (!ruolo) {
     disegnaNav(null, null, null);
     clear(view);
@@ -437,12 +440,20 @@ async function route() {
   // Terzo pezzo del percorso, quando c'è: per ora è l'id del preventivo in
   // #/trasporti/preventivo/<id>.
   const param = sezione.id === 'scadenziario' ? null : (resto[1] || null);
+  // Chi ha la sola visualizzazione non apre le pagine «Nuovo…»: ci arriverebbe
+  // dalla card della home (per alcune sezioni è la pagina d'ingresso) o da un
+  // indirizzo salvato. Va alla prima pagina del menu che non scrive.
+  if (ruolo === 'lettore' && sezione.menu?.find(n => n.id === sub)?.scrive) {
+    const consulta = sezione.menu.find(n => !n.scrive);
+    if (consulta) { location.replace(`#/${sezione.id}/${consulta.id}`); return; }
+  }
   disegnaNav(sezione.id, sottoSezione, sub);
 
   // Le viste dello scadenziario (e quelle che verranno) leggono ctx.user.ruolo
-  // aspettandosi 'admin' o 'operatore': qui `ruolo` è già quello DELLA
-  // SEZIONE, non quello di portale, così non devono sapere nulla del resto.
-  const ctx = { user: { ...currentUser, ruolo }, ruoloSezione: ruolo, go: (h) => { location.hash = h; } };
+  // aspettandosi 'admin', 'operatore' o 'lettore': qui `ruolo` è già quello
+  // DELLA SEZIONE, non quello di portale, così non devono sapere nulla del
+  // resto. ctx.solaLettura dice alle viste di non offrire nulla che scriva.
+  const ctx = { user: { ...currentUser, ruolo }, ruoloSezione: ruolo, solaLettura: ruolo === 'lettore', go: (h) => { location.hash = h; } };
 
   // Ogni rotta disegna dentro un contenitore TUTTO SUO, creato adesso da
   // svuotaConRitorno. Prima le viste scrivevano direttamente in #view, che il
@@ -526,14 +537,33 @@ async function route() {
 // vista che si ridisegna svuotandosi se lo porterebbe via.
 function svuotaConRitorno(view, sezione) {
   clear(view);
+  const lettore = document.body.classList.contains('sola-lettura');
   view.appendChild(el(`<div class="sez-crumb">
     <a href="#/home">← Tutte le sezioni</a>
     <span class="sep">/</span>
     <b>${esc(sezione.label)}</b>
+    ${lettore ? '<span class="chip sola-lettura-chip" title="Puoi consultare questa sezione ma non inserire, modificare o cancellare nulla">👁 Sola visualizzazione</span>' : ''}
   </div>`));
   const zona = el('<div class="vista"></div>');
   view.appendChild(zona);
   return zona;
+}
+
+// Sola visualizzazione (ruolo di sezione 'lettore'). Due effetti:
+// - la classe sola-lettura sul body nasconde ogni controllo marcato
+//   data-scrive (pulsanti «Nuovo», «Salva», «Elimina»…), così le viste non
+//   devono ripetere lo stesso if dappertutto;
+// - il client Supabase rifiuta in partenza le scritture sulle tabelle della
+//   sezione, con un messaggio chiaro invece di un salvataggio che sembra
+//   riuscito e non ha toccato nulla (un UPDATE negato dalle RLS non dà
+//   errore: aggiorna zero righe).
+// La protezione vera resta quella del database (patch-2026-11-27-sola-lettura.sql).
+// La sezione sta in data-sola-lettura sul body, da dove la legge il client:
+// importarlo qui per dirglielo avrebbe aggiunto un modulo all'avvio.
+function segnaSolaLettura(sezioneId) {
+  document.body.classList.toggle('sola-lettura', !!sezioneId);
+  if (sezioneId) document.body.dataset.solaLettura = sezioneId;
+  else delete document.body.dataset.solaLettura;
 }
 
 function mostraErrore(view, e) {

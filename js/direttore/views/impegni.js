@@ -28,7 +28,7 @@ export async function renderImpegni(view, ctx) {
       <p>Le cose da fare della direzione, in ordine di peso</p>
     </div>
     <div class="actions">
-      <a class="btn primary" href="#/direttore/nuovo">➕ Nuovo impegno</a>
+      <a class="btn primary" href="#/direttore/nuovo" data-scrive>➕ Nuovo impegno</a>
     </div>
   </div>`);
   view.appendChild(head);
@@ -57,7 +57,7 @@ export async function renderImpegni(view, ctx) {
 
   const vuoto = el(`<div class="empty-state" hidden><div class="big">🗒️</div>
     <p><b>Nessun impegno</b></p>
-    <p>Segna qui quello che c'è da fare: quanto preme, quanto conta e — se ce l'ha — entro quando.<br>
+    <p data-scrive>Segna qui quello che c'è da fare: quanto preme, quanto conta e — se ce l'ha — entro quando.<br>
     L'elenco si ordina da sé, e cambia da solo con l'avvicinarsi delle scadenze.</p></div>`);
   view.appendChild(vuoto);
 
@@ -131,7 +131,8 @@ export async function renderImpegni(view, ctx) {
     const u = livelloDi(i.urgenza), imp = livelloDi(i.importanza);
     const r = el(`<div class="dir-riga ${i.fatto ? 'fatta' : ''}">
       <button class="dir-spunta" type="button" role="checkbox" aria-checked="${i.fatto ? 'true' : 'false'}"
-        title="${i.fatto ? 'Segna come da fare' : 'Segna come fatto'}">${i.fatto ? '✔' : ''}</button>
+        ${ctx.solaLettura ? `disabled title="${i.fatto ? 'Fatto' : 'Da fare'}"`
+          : `title="${i.fatto ? 'Segna come da fare' : 'Segna come fatto'}"`}>${i.fatto ? '✔' : ''}</button>
       <div class="dir-corpo">
         <div class="dir-titolo">${esc(i.titolo)}</div>
         ${i.dettagli ? `<div class="dir-dettagli">${esc(i.dettagli)}</div>` : ''}
@@ -144,7 +145,7 @@ export async function renderImpegni(view, ctx) {
       </div>
       <div class="dir-azioni">
         <button class="btn ghost sm" data-mod title="Apri">✏️</button>
-        <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
+        <button class="btn ghost sm" data-del data-scrive title="Elimina">🗑️</button>
       </div>
     </div>`);
 

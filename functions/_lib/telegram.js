@@ -40,6 +40,7 @@ export const TESTI = {
   nonCollegato: 'Questo Telegram non è collegato al portale. Nel portale apri Direttore → Idee → «Collega Telegram», poi segui il link o scrivi qui /collega CODICE.',
   codiceNonValido: 'Codice non valido o scaduto (vale 15 minuti). Generane uno nuovo dal portale: Direttore → Idee → «Collega Telegram».',
   senzaAccesso: 'Il tuo account del portale non ha (più) accesso alla sezione Direttore: chiedi a un amministratore.',
+  solaLettura: 'Hai accesso alla sezione Direttore in sola visualizzazione: puoi leggere le idee con /idee ma non aggiungerne.',
   scollegato: 'Fatto: questo Telegram non è più collegato al portale.',
   ideaSalvata: '💡 Idea salvata. La trovi nel portale, in Direttore → Idee.',
   errore: 'Qualcosa non ha funzionato, riprova fra poco. Se continua, avvisa un amministratore del portale.',

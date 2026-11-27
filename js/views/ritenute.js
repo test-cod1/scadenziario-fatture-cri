@@ -5,7 +5,9 @@
 //  ogni mese è un F24 da versare entro il 16 del mese dopo. Per ognuno si
 //  vede quali fatture sono state pagate, la quota di ritenuta di ciascun
 //  pagamento, il totale per codice tributo, la scadenza e se è già stato
-//  versato. L'admin segna il versamento; l'operatore guarda.
+//  versato. L'admin segna il versamento; l'operatore guarda (e, come
+//  l'admin, segna le ritenute trovate solo nelle note); chi ha la sola
+//  visualizzazione guarda soltanto.
 //  I conti stanno in js/lib/ritenute.js.
 // ============================================================
 import { ritenute } from '../data/store.js';
@@ -295,7 +297,7 @@ export async function renderRitenute(view, ctx) {
     const card = el(`<details class="card" style="margin-bottom:18px" open>
       <summary class="card-h" style="cursor:pointer"><span>Da controllare: ritenuta scritta solo nelle note <span class="chip warn" style="margin-left:6px">${righe.length}</span></span></summary>
       <div class="card-b tbl-wrap" style="padding-top:10px">
-        <div class="muted" style="font-size:13px;margin-bottom:8px">Fatture registrate prima che esistesse il campo «ritenuta d'acconto»: nelle note se ne parla, ma la ritenuta non è segnata e quindi non entra nei conti qui sopra. Controlla l'importo e segnala: con «Segna» si usa l'importo letto e il codice tributo 1040, con «Apri» si corregge dalla scheda.</div>
+        <div class="muted" style="font-size:13px;margin-bottom:8px">Fatture registrate prima che esistesse il campo «ritenuta d'acconto»: nelle note se ne parla, ma la ritenuta non è segnata e quindi non entra nei conti qui sopra. ${ctx.solaLettura ? "Va controllata e segnata da chi gestisce lo scadenziario; con «Apri» vedi la scheda della fattura." : "Controlla l'importo e segnala: con «Segna» si usa l'importo letto e il codice tributo 1040, con «Apri» si corregge dalla scheda."}</div>
         <table class="tbl"><thead><tr><th>Fornitore</th><th>Fattura</th><th>Note</th><th class="money-col">Ritenuta letta</th><th></th></tr></thead><tbody></tbody></table>
       </div>
     </details>`);
@@ -305,7 +307,7 @@ export async function renderRitenute(view, ctx) {
         <td>${f.numero_fattura ? 'n. ' + esc(f.numero_fattura) : '—'}${f.data_fattura ? ` <span class="muted">del ${fmtDate(f.data_fattura)}</span>` : ''}</td>
         <td class="muted" style="font-size:12.5px;max-width:420px">${esc(f.note)}</td>
         <td class="money-col"><b>${fmtEuro(importo)}</b></td>
-        <td style="white-space:nowrap"><button class="btn primary sm" data-segna>Segna</button> <button class="btn ghost sm" data-apri>Apri</button></td></tr>`);
+        <td style="white-space:nowrap"><button class="btn primary sm" data-segna data-scrive>Segna</button> <button class="btn ghost sm" data-apri>Apri</button></td></tr>`);
       tr.querySelector('[data-segna]').addEventListener('click', async (e) => {
         e.stopPropagation();
         const b = e.currentTarget; b.disabled = true;

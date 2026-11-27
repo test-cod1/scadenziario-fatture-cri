@@ -8,10 +8,16 @@
 //  preventivo nuovo ma non salva nulla: finché non si preme «Salva» quel
 //  preventivo non esiste, quindi il giro si può fare anche in mezzo al
 //  lavoro senza lasciare tracce.
+//
+//  Chi ha la sezione in sola visualizzazione (ruolo 'lettore') fa un giro
+//  più corto: i passi marcati «scrive» parlano di comandi che per lui non
+//  ci sono (duplica, l'editor di un preventivo nuovo) e si tolgono; dove
+//  serve, «perLettore» sostituisce selettore e testo.
 // ============================================================
 
-export function passi() {
-  return [
+export function passi(ctx) {
+  const lettore = ctx?.user?.ruolo === 'lettore';
+  const tutti = [
     {
       hash: '#/assistenze/preventivi',
       titolo: 'Tour guidato',
@@ -31,69 +37,87 @@ export function passi() {
       selettore: '.card .tbl-wrap',
       titolo: 'L\'elenco',
       testo: 'Una riga per preventivo, con la data della prima giornata di assistenza — quella che hai in mente quando lo cerchi — e il numero di turni. Clicca la riga per riaprirlo.',
+      perLettore: {
+        testo: 'Una riga per preventivo, con la data della prima giornata di assistenza — quella che hai in mente quando lo cerchi — e il numero di turni. Clicca la riga per aprirlo e vederne voci, calendario e totale.',
+      },
     },
     {
       selettore: '[data-stato]',
       titolo: 'Lo stato, senza aprire nulla',
       testo: 'Bozza, inviato, confermato o annullato si cambiano direttamente da qui: è la modifica più frequente dopo aver mandato il preventivo al cliente.',
+      perLettore: {
+        testo: 'Bozza, inviato, confermato o annullato: lo stato di ogni preventivo si legge direttamente da qui, senza aprirlo. Accanto ci sono il Word e la stampa in PDF.',
+      },
     },
     {
+      scrive: true,
       selettore: '[data-copia]',
       titolo: 'Duplicare',
       testo: 'Il pulsante ⧉ crea una copia del preventivo come nuova bozza, con la data di oggi: le assistenze si ripetono, e ricopiare venti campi a mano non ha senso. Accanto ci sono il Word e la stampa in PDF; l\'eliminazione, che non si può annullare, è riservata agli amministratori.',
     },
     {
       hash: '#/assistenze/nuovo',
+      scrive: true,
       selettore: '.page-head .inline',
       titolo: 'Un preventivo nuovo',
       testo: 'Siamo entrati nella creazione di un preventivo. Da qui vedi l\'anteprima, scarichi il documento in Word, lo stampi in PDF oppure salvi: finché non salvi, nulla viene registrato.',
     },
     {
+      scrive: true,
       selettore: '#cliente',
       titolo: 'A chi va il preventivo',
       testo: 'Cliente, codice fiscale o partita IVA e indirizzo finiscono nell\'intestazione del documento. Con «Scegli dalla rubrica» li compili tutti insieme prendendoli da un cliente già registrato; con «Salva in rubrica» ci metti quello che hai appena scritto, pronto per il prossimo preventivo. Il referente serve a te, per sapere chi chiamare.',
     },
     {
+      scrive: true,
       selettore: '#oggetto',
       titolo: 'Di che servizio si tratta',
       testo: 'L\'oggetto compare nella riga «Oggetto:» del documento, dopo la formula fissa: scrivilo come lo racconteresti («Torneo giovanile di pallavolo del 12 aprile»). Sotto, il luogo dell\'evento.',
     },
     {
+      scrive: true,
       selettore: '#voci',
       titolo: 'Le voci del preventivo',
       testo: 'Spunta cosa serve per questo servizio: ambulanza, soccorritori, gazebo… I prezzi arrivano dal tariffario ma qui restano modificabili, e la modifica vale solo per questo preventivo.',
     },
     {
+      scrive: true,
       selettore: '.cal-tbl',
       titolo: 'Il calendario è anche il calcolo',
       testo: 'Una riga per turno: dagli orari escono le ore (anche se il turno scavalca la mezzanotte) e da lì il totale, che è ore × tariffa × quantità. Per ogni voce spuntata compare una colonna in cui indicare quanti ne servono in quel turno.',
     },
     {
+      scrive: true,
       selettore: '.tutti-turni',
       titolo: 'La stessa dotazione su tutti i turni',
       testo: 'Il campo sotto al nome della voce applica quella quantità a tutti i turni in una volta sola: se l\'ambulanza è una in ogni giornata, la scrivi qui e non riga per riga.',
     },
     {
+      scrive: true,
       selettore: '.cal-azioni',
       titolo: 'Aggiungere i turni',
       testo: 'Un turno alla volta con «Aggiungi turno», oppure indica il primo e l\'ultimo giorno e l\'app crea un turno per ogni giornata, con gli stessi orari e le stesse quantità del turno precedente. I giorni già presenti non vengono duplicati.',
     },
     {
+      scrive: true,
       selettore: '#sconto_percentuale',
       titolo: 'Lo sconto',
       testo: 'Facoltativo e utilizzabile in due modi anche insieme: una percentuale sul totale e un importo fisso da togliere. Nel documento compaiono il totale pieno, gli sconti applicati e il totale da corrispondere.',
     },
     {
+      scrive: true,
       selettore: '.df-corpo',
       titolo: 'I dati per la fattura',
       testo: 'In fondo alla pagina, una volta salvato il preventivo, crei un link da mandare al cliente: apre un modulo dove scrive da sé ragione sociale, partita IVA, codice destinatario o PEC. Il link compare anche nel documento (PDF e Word), prima dei saluti, e vale 120 giorni. Quando il cliente ha risposto, un clic riporta i suoi dati nel destinatario.',
     },
     {
+      scrive: true,
       selettore: '.summary',
       titolo: 'Il conto, in tempo reale',
       testo: 'A destra il riepilogo si aggiorna a ogni modifica: il dettaglio voce per voce (le ore per le voci a ore, la quantità per quelle a prezzo fisso), gli eventuali sconti e il totale del preventivo, anche in lettere come richiede il documento. Se una voce è rimasta a 0 €, sotto compare un avviso.',
     },
     {
+      scrive: true,
       selettore: '#btn-word',
       titolo: 'Il documento da consegnare',
       testo: 'Word per un file modificabile, «Stampa / PDF» per la versione da firmare e mandare, «Anteprima» per controllare prima come viene. Il documento riporta la carta intestata, il calendario delle giornate e i testi fissi.',
@@ -103,6 +127,9 @@ export function passi() {
       selettore: '.toolbar',
       titolo: 'La rubrica dei clienti',
       testo: 'Tutti i clienti registrati, con codice fiscale, indirizzo e referente. Si riempie da sé mentre prepari i preventivi, e qui si sistemano le schede: correggere un indirizzo qui non tocca i preventivi già fatti, che portano con sé la copia dei dati con cui sono stati scritti.',
+      perLettore: {
+        testo: 'Tutti i clienti registrati, con codice fiscale, indirizzo e referente. Le schede si consultano da qui; i preventivi già fatti portano con sé la copia dei dati con cui sono stati scritti.',
+      },
     },
     {
       hash: '#/assistenze/impostazioni',
@@ -127,4 +154,6 @@ export function passi() {
       testo: 'Puoi rivedere questo tour quando vuoi cliccando su questo pulsante. Ogni sezione del portale ha il suo.',
     },
   ];
+  if (!lettore) return tutti.map(({ scrive, perLettore, ...p }) => p);
+  return tutti.filter(p => !p.scrive).map(({ scrive, perLettore, ...p }) => ({ ...p, ...perLettore }));
 }

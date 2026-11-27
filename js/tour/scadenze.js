@@ -4,7 +4,10 @@
 //  passa dalla scheda di una scadenza nuova senza salvare nulla.
 // ============================================================
 
-export function passi() {
+export function passi(ctx) {
+  // In sola visualizzazione la scheda nuova mostra solo un avviso: i passi
+  // sui suoi campi si saltano, e la spunta si racconta per quello che fa lì.
+  const lettore = ctx?.user?.ruolo === 'lettore';
   return [
     {
       hash: '#/scadenze/elenco',
@@ -24,7 +27,9 @@ export function passi() {
     {
       selettore: '.dir-lista',
       titolo: 'In ordine di data',
-      testo: 'In cima quelle già scadute, poi le prossime. Il colore dice se una scadenza è nel suo preavviso: ognuna ha il suo, perché per rinnovare un contratto servono settimane e per pagare un bollo un giorno. La spunta a sinistra la segna fatta; se si ripete, nasce subito la successiva, e per cinque secondi c\'è «Annulla».',
+      testo: 'In cima quelle già scadute, poi le prossime. Il colore dice se una scadenza è nel suo preavviso: ognuna ha il suo, perché per rinnovare un contratto servono settimane e per pagare un bollo un giorno. ' + (lettore
+        ? 'La spunta a sinistra dice se è già stata fatta; un clic sulla riga apre la scheda in consultazione.'
+        : 'La spunta a sinistra la segna fatta; se si ripete, nasce subito la successiva, e per cinque secondi c\'è «Annulla».'),
     },
     {
       hash: '#/scadenze/calendario',
@@ -32,7 +37,7 @@ export function passi() {
       titolo: 'Le stesse scadenze, sul calendario',
       testo: 'L\'elenco dice cosa sistemare adesso; il mese dice quale settimana è piena di rinnovi. Quelle che si ripetono compaiono anche nei mesi a venire, tratteggiate: sono le ripetizioni previste, che nascono davvero quando si spunta quella prima.',
     },
-    {
+    ...(lettore ? [] : [{
       hash: '#/scadenze/nuova',
       selettore: '#f-categoria',
       titolo: 'Scadenze di ogni tipo',
@@ -47,7 +52,7 @@ export function passi() {
       selettore: '#f-preavviso',
       titolo: 'Il preavviso',
       testo: 'Da quanti giorni prima la scadenza va tenuta d\'occhio. È anche quello che usano i promemoria email (menu «Promemoria email»), se li accendi.',
-    },
+    }]),
     {
       hash: '#/scadenze/elenco',
       selettore: '.tour-fab',

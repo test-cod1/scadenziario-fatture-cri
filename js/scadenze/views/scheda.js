@@ -18,6 +18,15 @@ const BOZZA = {
 
 export async function renderScheda(view, id, ctx, dataIniziale) {
   const nuova = !id;
+  // In sola visualizzazione «Nuova scadenza» non c'è, ma l'indirizzo si può
+  // sempre scrivere a mano (o arrivare da un vecchio segnalibro): invece di
+  // un modulo che non salverebbe, si dice perché.
+  if (nuova && ctx.solaLettura) {
+    view.appendChild(el(`<div class="empty-state"><div class="big">👁</div>
+      <p><b>Sola visualizzazione</b></p>
+      <p>Puoi consultare le scadenze ma non aggiungerne. <a href="#/scadenze/elenco">Torna all’elenco</a>.</p></div>`));
+    return;
+  }
   let rec = nuova ? { ...BOZZA } : await store.get(id);
   // Arrivando da un giorno del calendario, la data è già scritta.
   if (nuova && /^\d{4}-\d{2}-\d{2}$/.test(String(dataIniziale || ''))) rec.data_scadenza = dataIniziale;
@@ -35,7 +44,7 @@ export async function renderScheda(view, id, ctx, dataIniziale) {
       <div class="actions">
         <a class="btn" href="#/scadenze/elenco">← Elenco</a>
         ${nuova ? '<button class="btn" data-salva-nuova title="Salva e prepara subito un\'altra scadenza">💾 Salva e nuova</button>' : ''}
-        <button class="btn primary" data-salva>💾 Salva</button>
+        <button class="btn primary" data-salva data-scrive>💾 Salva</button>
       </div>
     </div>
 
@@ -165,6 +174,9 @@ export async function renderScheda(view, id, ctx, dataIniziale) {
   });
 
   riempi();
+  // Sola visualizzazione: la scheda si legge, i campi non si toccano (e
+  // senza modifiche la guardia d'uscita non ha niente da chiedere).
+  if (ctx.solaLettura) for (const c of Object.values(campi)) if (c) c.disabled = true;
   if (nuova) campi.titolo.focus();
   sorvegliaUscita(editor, () => sporco);
 }

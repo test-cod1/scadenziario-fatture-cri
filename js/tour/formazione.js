@@ -8,9 +8,19 @@
 //  preventivo nuovo ma non salva nulla: finché non si preme «Salva» quel
 //  preventivo non esiste, quindi il giro si può fare anche in mezzo al
 //  lavoro senza lasciare tracce.
+//
+//  Chi ha la sezione in sola visualizzazione («lettore») fa un giro più
+//  corto: i passi marcati `scrive` raccontano comandi che per lui non ci
+//  sono (cambio di stato, duplica, l'editor di un preventivo nuovo) e si
+//  tolgono; `soloLettore` è il passo che li sostituisce, su Word e stampa.
 // ============================================================
 
-export function passi() {
+export function passi(ctx) {
+  const lettore = ctx?.user?.ruolo === 'lettore';
+  return tutti().filter(p => lettore ? !p.scrive : !p.soloLettore);
+}
+
+function tutti() {
   return [
     {
       hash: '#/formazione/preventivi',
@@ -33,67 +43,86 @@ export function passi() {
       testo: 'Una riga per preventivo, dal più recente per data del documento: i corsi che contiene, quanti discenti in tutto e il totale. Se l\'azienda ha già mandato i dati per la fattura, sotto il nome compare «📩 dati di fatturazione ricevuti». Clicca la riga per riaprirlo.',
     },
     {
+      scrive: true,
       selettore: '[data-stato]',
       titolo: 'Lo stato, senza aprire nulla',
       testo: 'Bozza, inviato, confermato o annullato si cambiano direttamente da qui: è la modifica più frequente dopo aver mandato il preventivo all\'azienda. Sotto un inviato c\'è da quanti giorni aspetta risposta, e quando supera la validità dell\'offerta lo dice.',
     },
     {
+      scrive: true,
       selettore: '[data-copia]',
       titolo: 'Duplicare e rinnovare',
       testo: 'Il pulsante ⧉ crea una copia come nuova bozza, con la data di oggi. Fra le aziende da ricontattare diventa «Prepara rinnovo»: lo stesso preventivo, pronto da aggiornare e mandare. Il numero di protocollo non viene mai copiato — è il numero di quel documento. Su un preventivo confermato c\'è anche «📅 Pianifica», che crea i corsi da fissare. Accanto ci sono il Word e la stampa in PDF; l\'eliminazione è riservata agli amministratori.',
     },
     {
+      soloLettore: true,
+      selettore: '[data-pdf]',
+      titolo: 'Il documento',
+      testo: 'Da ogni riga scarichi il preventivo in Word o lo stampi in PDF, sulla carta intestata del Comitato. Cliccando la riga lo apri in consultazione: vedi destinatario, corsi, prezzi e totale così come sono stati salvati, ma non puoi cambiarli.',
+    },
+    {
+      scrive: true,
       hash: '#/formazione/nuovo',
       selettore: '.page-head .inline',
       titolo: 'Un preventivo nuovo',
       testo: 'Siamo entrati nella creazione di un preventivo: sei passi numerati, dall\'alto in basso. Da qui vedi l\'anteprima, scarichi il documento in Word, lo stampi in PDF oppure salvi (anche con Ctrl+S): finché non salvi nulla viene registrato, e accanto al titolo compare «Modifiche non salvate». Quando il preventivo è confermato, qui compare anche «📅 Corsi».',
     },
     {
+      scrive: true,
       selettore: '#cliente',
       titolo: 'A chi va il preventivo',
       testo: 'Azienda, partita IVA e indirizzo finiscono nell\'intestazione del documento, sotto «Spett.le». Basta iniziare a scrivere il nome: le aziende già in rubrica vengono suggerite, e sceglierne una compila tutto il resto, oppure usa «Scegli dalla rubrica». Con «Salva in rubrica» ci metti quella che hai appena scritto. Il referente diventa la riga «Alla c.a.».',
     },
     {
+      scrive: true,
       selettore: '.catalogo-corsi',
       titolo: 'Scegliere i corsi',
       testo: 'Un riquadro per ogni corso del catalogo, con durata e prezzo: un clic e il corso entra nel preventivo, già compilato. Il segno ✓ dice quali hai già scelto. «Corso fuori catalogo» serve per la richiesta una tantum, che scrivi a mano senza sporcare il catalogo.',
     },
     {
+      scrive: true,
       selettore: '#righe',
       titolo: 'Il cuore del preventivo',
       testo: 'Per ogni corso: quante persone, il prezzo di listino e il prezzo riservato a questo cliente, con il totale della riga accanto. È la formula che usiamo da sempre — «euro 60 a discente, per Voi euro 55» — e nel documento il listino compare solo dove è più alto. Il numero di discenti può restare vuoto: il corso uscirà col prezzo a persona e senza totale, come si fa quando l\'azienda non sa ancora quanti ne manderà. Durata e attestazione stanno nel pannello sotto ogni riga. Tutto è modificabile e vale solo per questo preventivo.',
     },
     {
+      scrive: true,
       selettore: '#sede_tipo',
       titolo: 'Dove si tiene il corso',
       testo: 'Da noi in Corso Gastaldi, oppure presso il committente. Nel secondo caso compaiono l\'indirizzo — che entra nella frase del documento — e la maggiorazione per la trasferta, proposta dalle Impostazioni e sempre correggibile o azzerabile.',
     },
     {
+      scrive: true,
       selettore: '#regime_iva',
       titolo: 'L\'IVA, preventivo per preventivo',
       testo: 'Tre possibilità: nessuna indicazione (come i preventivi scritti finora), esente ai sensi dell\'art. 10, oppure soggetto a IVA — e in quel caso il documento mostra imponibile, IVA e totale. Le due frasi si scrivono in Impostazioni.',
     },
     {
+      scrive: true,
       selettore: '#sconto_percentuale',
       titolo: 'Gli sconti sul pacchetto',
       testo: 'Facoltativi e utilizzabili anche insieme: una percentuale sul totale e un importo fisso da togliere. Sono un\'altra cosa rispetto al prezzo riservato del singolo corso: servono per uno sconto sull\'intera fornitura. L\'IVA, quando c\'è, si calcola dopo.',
     },
     {
+      scrive: true,
       selettore: '#oggetto',
       titolo: 'Oggetto e protocollo',
       testo: 'L\'oggetto lo propone l\'app in base ai corsi che hai scelto («PREVENTIVO CORSI BLSD») e resta riscrivibile: da quando lo tocchi, non viene più sovrascritto. Il protocollo accanto lo compili tu quando serve — la numerazione la tiene il registro del Comitato, non questa app — e allora nel documento compare «Prot. n. …» sopra la data.',
     },
     {
+      scrive: true,
       selettore: '.df-corpo',
       titolo: 'I dati per la fattura',
       testo: 'Il sesto passo: salvato il preventivo, crei un link da mandare all\'azienda, che apre un modulo dove scrive da sé i dati per la fattura elettronica — anche quelli della PA, come codice ufficio, CIG e CUP. Il link compare anche nel documento (PDF e Word) e vale 120 giorni. Quando i dati arrivano, un clic li riporta nel destinatario.',
     },
     {
+      scrive: true,
       selettore: '.summary',
       titolo: 'Il conto, in tempo reale',
       testo: 'A destra il riepilogo si aggiorna a ogni modifica: corso per corso con i discenti, la trasferta, gli sconti, l\'IVA e il totale, anche in lettere come richiede il documento. Sotto, «Prima di inviarlo» spunta quello che c\'è e segnala quello che manca — un corso rimasto a 0 €, i discenti ancora da definire — prima che il preventivo esca.',
     },
     {
+      scrive: true,
       selettore: '#btn-word',
       titolo: 'Il documento da consegnare',
       testo: 'Word per un file modificabile, «Stampa / PDF» per la versione da firmare e mandare, «Anteprima» per controllare prima come viene. Esce sulla carta intestata del Comitato, con la tabella dei corsi, le attestazioni rilasciate, la sede e la validità dell\'offerta.',

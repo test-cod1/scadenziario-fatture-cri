@@ -11,7 +11,8 @@
 export async function renderAnalisi(view, ctx, sub, param) {
   const ctxA = {
     user: ctx.user,
-    ruolo: ctx.user?.ruolo,          // 'admin' o 'operatore' NELLA sezione
+    ruolo: ctx.user?.ruolo,          // 'admin', 'operatore' o 'lettore' NELLA sezione
+    solaLettura: !!ctx.solaLettura,  // lettore: legge i conti, non registra nulla
     go: ctx.go,
   };
 

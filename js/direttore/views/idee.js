@@ -16,7 +16,7 @@ export async function renderIdee(view, ctx) {
     <div><h1>Idee</h1><p>Annotate al volo, dal portale o da Telegram; quelle buone diventano impegni</p></div>
   </div>`));
 
-  const nuova = el(`<div class="card" style="margin:18px 0"><div class="card-b">
+  const nuova = el(`<div class="card" style="margin:18px 0" data-scrive><div class="card-b">
     <div class="field" style="margin:0"><label for="idea-testo">Un'idea nuova</label>
       <textarea id="idea-testo" rows="3" maxlength="4000" placeholder="Scrivila come viene: la si sistema dopo."></textarea></div>
     <div style="display:flex;gap:10px;align-items:center;margin-top:8px;flex-wrap:wrap">
@@ -69,7 +69,7 @@ export async function renderIdee(view, ctx) {
     });
     clear(lista);
     if (!righe.length) {
-      lista.appendChild(el(`<div class="empty-state"><div class="big">💡</div><p>${elenco.length ? 'Nessuna idea con questi filtri.' : 'Ancora nessuna idea. Scrivine una qui sopra, o mandala al bot Telegram.'}</p></div>`));
+      lista.appendChild(el(`<div class="empty-state"><div class="big">💡</div><p>${elenco.length ? 'Nessuna idea con questi filtri.' : ctx.solaLettura ? 'Ancora nessuna idea.' : 'Ancora nessuna idea. Scrivine una qui sopra, o mandala al bot Telegram.'}</p></div>`));
       return;
     }
     for (const i of righe) lista.appendChild(riga(i));
@@ -87,9 +87,9 @@ export async function renderIdee(view, ctx) {
         </div>
       </div>
       <div class="dir-azioni" style="flex-wrap:wrap;justify-content:flex-end">
-        <select data-stato aria-label="Stato dell'idea">${STATI_IDEA.map(s => `<option value="${s.id}" ${s.id === i.stato ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select>
-        ${i.impegno_id ? '' : '<button class="btn ghost sm" data-impegno title="Crea un impegno da questa idea">→ Impegno</button>'}
-        <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
+        <select data-stato data-scrive aria-label="Stato dell'idea">${STATI_IDEA.map(s => `<option value="${s.id}" ${s.id === i.stato ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select>
+        ${i.impegno_id ? '' : '<button class="btn ghost sm" data-impegno data-scrive title="Crea un impegno da questa idea">→ Impegno</button>'}
+        <button class="btn ghost sm" data-del data-scrive title="Elimina">🗑️</button>
       </div>
     </div>`);
     r.querySelector('[data-stato]').addEventListener('change', async (e) => {
@@ -135,7 +135,19 @@ export async function renderIdee(view, ctx) {
     }
     const linkBot = stato.bot ? `<a href="https://t.me/${esc(stato.bot)}" target="_blank" rel="noopener">@${esc(stato.bot)}</a>` : 'il bot';
     clear(tg);
-    if (mio) {
+    // In sola visualizzazione il bot non accetta idee e il database non dà il
+    // codice per collegarsi: si dice com'è, senza il pulsante «Collega». Chi
+    // era già collegato può ancora leggere le ultime idee con /idee, e
+    // scollegarsi (è il suo account, non un dato della sezione).
+    if (ctx.solaLettura) {
+      tg.appendChild(el(`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
+        <div style="flex:1;min-width:220px"><b>📱 Telegram${mio ? ' collegato' : ''}</b>
+          <div class="hint">${mio
+            ? `Con la sola visualizzazione ${linkBot} non registra le tue idee: <code>/idee</code> mostra le ultime.`
+            : 'Con la sola visualizzazione non si mandano idee dal bot Telegram.'}</div></div>
+        ${mio ? '<button class="btn ghost sm" data-scollega>Scollega</button>' : ''}
+      </div>`));
+    } else if (mio) {
       tg.appendChild(el(`<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
         <div style="flex:1;min-width:220px"><b>📱 Telegram collegato</b>
           <div class="hint">Scrivi a ${linkBot}${mio.telegram_nome ? ` (dal tuo account ${esc(mio.telegram_nome)})` : ''}: ogni messaggio diventa un'idea qui. <code>/idee</code> mostra le ultime.</div></div>

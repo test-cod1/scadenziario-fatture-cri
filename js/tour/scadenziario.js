@@ -7,9 +7,13 @@
 // ============================================================
 
 function isAdmin(ctx) { return ctx.user?.ruolo === 'admin'; }
+// Sola visualizzazione: i pulsanti che scrivono sono nascosti, quindi i
+// passi non devono raccontarli né puntarli.
+function isLettore(ctx) { return ctx.user?.ruolo === 'lettore'; }
 
 export function passi(ctx) {
   const admin = isAdmin(ctx);
+  const lettore = isLettore(ctx);
   const passi = [
     {
       hash: '#/scadenziario/passive/fatture',
@@ -33,8 +37,10 @@ export function passi(ctx) {
     },
     {
       selettore: '.page-head .actions',
-      titolo: 'Aggiungere ed esportare',
-      testo: 'Da qui inserisci una fattura a mano, la carichi da un file PDF o XML (i dati vengono letti automaticamente), registri una nota di credito oppure esporti l\'elenco filtrato in Excel o PDF.',
+      titolo: lettore ? 'Esportare' : 'Aggiungere ed esportare',
+      testo: lettore
+        ? "Da qui esporti l'elenco filtrato in Excel o in PDF."
+        : 'Da qui inserisci una fattura a mano, la carichi da un file PDF o XML (i dati vengono letti automaticamente), registri una nota di credito oppure esporti l\'elenco filtrato in Excel o PDF.',
     },
     {
       selettore: '.toolbar',
@@ -44,7 +50,9 @@ export function passi(ctx) {
     {
       selettore: '#tbl-zone',
       titolo: 'La tabella',
-      testo: admin
+      testo: lettore
+        ? 'Clicca su una riga per consultare la fattura, con i pagamenti e le note di credito registrati. Con le caselle a sinistra sommi quanto resta da pagare su più fatture.'
+        : admin
         ? 'Clicca su una riga per aprire e modificare la fattura, oppure sul suo stato per registrare subito un pagamento.'
         : 'Clicca su una riga per aprire la fattura, oppure sul suo stato per registrare subito un pagamento (o proporlo a un amministratore).',
     },
@@ -59,6 +67,8 @@ export function passi(ctx) {
       titolo: 'Proposte di pagamento',
       testo: admin
         ? 'Le proposte di pagamento inviate dagli operatori arrivano qui: confermale quando esegui davvero il pagamento, o rifiutale.'
+        : lettore
+        ? "Qui gli operatori seguono le proposte di pagamento che inviano agli amministratori: con la sola visualizzazione l'elenco resta vuoto."
         : 'Qui trovi le proposte di pagamento che hai inviato e il loro stato: in attesa, confermata o rifiutata.',
     },
     {
@@ -89,7 +99,9 @@ export function passi(ctx) {
     {
       selettore: '#tbl-zone',
       titolo: 'Incassi, solleciti e note',
-      testo: 'Ogni riga parte dal numero della fattura. Clicca sullo stato per registrare un incasso, su «Sollecito» per segnare la data dell\'ultimo sollecito al cliente, e su «Note» per scrivere un appunto sulla fattura senza aprirla. Un clic sul resto della riga apre la fattura intera.',
+      testo: lettore
+        ? "Ogni riga parte dal numero della fattura e mostra lo stato dell'incasso, l'ultimo sollecito al cliente e le note. Un clic sulla riga apre la fattura in consultazione."
+        : 'Ogni riga parte dal numero della fattura. Clicca sullo stato per registrare un incasso, su «Sollecito» per segnare la data dell\'ultimo sollecito al cliente, e su «Note» per scrivere un appunto sulla fattura senza aprirla. Un clic sul resto della riga apre la fattura intera.',
     },
     {
       hash: '#/scadenziario/attive/report',

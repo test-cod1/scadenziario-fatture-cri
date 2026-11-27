@@ -128,9 +128,9 @@ export async function renderDashboard(view, ctx) {
       <div class="actions">
         <button class="btn" id="exp-csv">📊 Esporta Excel</button>
         <button class="btn" id="exp-pdf">🖨️ Esporta PDF</button>
-        <button class="btn" id="carica">📎 Carica PDF/XML</button>
-        <button class="btn" id="nuova-nc">+ Nota di credito</button>
-        <button class="btn primary" id="nuova">+ Nuova fattura</button>
+        <button class="btn" id="carica" data-scrive>📎 Carica PDF/XML</button>
+        <button class="btn" id="nuova-nc" data-scrive>+ Nota di credito</button>
+        <button class="btn primary" id="nuova" data-scrive>+ Nuova fattura</button>
       </div>
     </div>
     <div id="alert-zone"></div>
@@ -172,18 +172,21 @@ export async function renderDashboard(view, ctx) {
   // Drag&drop di file PDF/immagini/XML ovunque sulla pagina, non solo dal
   // pulsante "Carica PDF/XML": conta gli enter/leave perché dragleave scatta
   // anche passando sopra un elemento figlio, non solo uscendo dalla pagina.
+  // Con la sola visualizzazione non si carica nulla: l'invito a rilasciare i
+  // file non compare e il file trascinato resta al browser.
   const overlay = wrap.querySelector('#drop-overlay');
   let dragDepth = 0;
   wrap.addEventListener('dragenter', e => {
+    if (ctx.solaLettura) return;
     if (!e.dataTransfer.types.includes('Files')) return;
     e.preventDefault();
     dragDepth++;
     overlay.classList.add('show');
   });
-  wrap.addEventListener('dragover', e => { if (e.dataTransfer.types.includes('Files')) e.preventDefault(); });
+  wrap.addEventListener('dragover', e => { if (!ctx.solaLettura && e.dataTransfer.types.includes('Files')) e.preventDefault(); });
   wrap.addEventListener('dragleave', () => { dragDepth = Math.max(0, dragDepth - 1); if (!dragDepth) overlay.classList.remove('show'); });
   wrap.addEventListener('drop', e => {
-    if (!e.dataTransfer.types.includes('Files')) return;
+    if (ctx.solaLettura || !e.dataTransfer.types.includes('Files')) return;
     e.preventDefault();
     dragDepth = 0; overlay.classList.remove('show');
     if (e.dataTransfer.files.length) apriUpload(ctx, ricarica, e.dataTransfer.files);
@@ -363,7 +366,7 @@ export async function renderDashboard(view, ctx) {
       <div class="barra-selezione-azioni">
         <button type="button" class="btn sm" data-copia title="Copia la cifra per incollarla nel bonifico">📋 Copia importo</button>
         <button type="button" class="btn ghost sm" data-svuota>Deseleziona</button>
-        <button type="button" class="btn primary sm" data-paga title="Registra un pagamento per ciascuna fattura selezionata">✓ Segna come ${t.n === 1 ? 'pagata' : 'pagate'}</button>
+        <button type="button" class="btn primary sm" data-paga data-scrive title="Registra un pagamento per ciascuna fattura selezionata">✓ Segna come ${t.n === 1 ? 'pagata' : 'pagate'}</button>
       </div>
     </div>`));
     zona.querySelector('[data-paga]').addEventListener('click', () => apriPagamentoMultiplo(scelte, ctx, ricarica, proposteInAttesa));
@@ -596,6 +599,9 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort,
   const isAdmin = ctx.user.ruolo === 'admin';
   // Anche l'operatore registra i pagamenti (dal 18/11/2026): il chip apre
   // per tutti il pagamento rapido, che offre a sua volta «Proponi pagamento».
+  // Con la sola visualizzazione il chip è solo un'etichetta e la matita
+  // diventa un occhio: la riga apre la fattura in consultazione.
+  const lettore = !!ctx.solaLettura;
   const azione = apriPagamentoRapido;
   const titoloChip = 'Clicca per segnare un pagamento';
   const oggi = todayISO();
@@ -618,11 +624,11 @@ function renderTable(node, righe, ctx, ricarica, proposteInAttesa, sort, onSort,
       <td class="money money-col">${fmtEuro(f.importo)}</td>
       <td>${fmtDate(f.scadenza)}</td>
       <td>
-        <span class="chip ${STATO_CHIP[f.stato] || ''}" ${!STATI_CHIUSI.includes(f.stato) ? `data-stato title="${esc(titoloChip)}"` : ''}>${STATO_LABEL[f.stato] || f.stato}</span>
-        ${nProposte ? `<span class="chip" title="${isAdmin ? 'In attesa di conferma' : 'Hai già una proposta in attesa per questa fattura'}" style="margin-left:4px">📨 ${nProposte}</span>` : ''}
+        <span class="chip ${STATO_CHIP[f.stato] || ''}" ${!lettore && !STATI_CHIUSI.includes(f.stato) ? `data-stato title="${esc(titoloChip)}"` : ''}>${STATO_LABEL[f.stato] || f.stato}</span>
+        ${nProposte ? `<span class="chip" title="${isAdmin || lettore ? 'In attesa di conferma' : 'Hai già una proposta in attesa per questa fattura'}" style="margin-left:4px">📨 ${nProposte}</span>` : ''}
       </td>
       <td class="money money-col">${fmtEuro(f._residuo)}</td>
-      <td style="text-align:right"><button class="btn ghost sm" data-edit>✏️</button></td>
+      <td style="text-align:right"><button class="btn ghost sm" data-edit${lettore ? ' title="Apri la fattura">👁' : '>✏️'}</button></td>
     </tr>`);
     rendiCliccabile(tr, (e) => { if (!e.target.closest('[data-edit]') && !e.target.closest('[data-stato]') && !e.target.closest('[data-sel-cella]')) apriEditor(f.id, ctx, ricarica); });
     // Tutta la cella della casella la spunta (bersaglio più comodo), senza

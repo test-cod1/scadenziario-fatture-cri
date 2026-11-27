@@ -41,10 +41,13 @@ export async function renderDashboard(view, ctx) {
   // resta agli admin della sezione, come la policy di cancellazione lato
   // database. All'operatore restano duplica, Word e stampa.
   const admin = ctx.user?.ruolo === 'admin';
+  // Sola visualizzazione: lo stato si legge ma non si cambia, duplica
+  // sparisce (data-scrive); restano Word e stampa.
+  const lettore = !!ctx.solaLettura;
 
   view.appendChild(el(`<div class="page-head">
     <div><h1>Preventivi</h1><p>Assistenze sanitarie a manifestazioni ed eventi</p></div>
-    <a class="btn primary" href="#/assistenze/nuovo">➕ Nuovo preventivo</a>
+    <a class="btn primary" href="#/assistenze/nuovo" data-scrive>➕ Nuovo preventivo</a>
   </div>`));
 
   // Statistiche e stato "nessun preventivo" si ridisegnano sul posto. Prima
@@ -68,7 +71,7 @@ export async function renderDashboard(view, ctx) {
   }
 
   const vuoto = el(`<div class="empty-state" hidden><div class="big">⛑️</div>
-    <p>Nessun preventivo ancora.<br>Creane uno con "Nuovo preventivo".</p></div>`);
+    <p>Nessun preventivo ancora.${lettore ? '' : '<br>Creane uno con "Nuovo preventivo".'}</p></div>`);
   view.appendChild(vuoto);
 
   const toolbar = el(`<div class="toolbar">
@@ -113,10 +116,10 @@ export async function renderDashboard(view, ctx) {
         <td>${giorno ? esc(fmtData(giorno)) : '<span class="muted">da definire</span>'}</td>
         <td>${(p.calendario || []).length}</td>
         <td class="money">${fmtEuro(p.totale)}</td>
-        <td><select data-stato style="min-width:118px">${STATI.map(s =>
+        <td><select data-stato style="min-width:118px"${lettore ? ' disabled' : ''}>${STATI.map(s =>
           `<option value="${s}" ${p.stato === s ? 'selected' : ''}>${s[0].toUpperCase() + s.slice(1)}</option>`).join('')}</select></td>
         <td style="white-space:nowrap;text-align:right">
-          <button class="btn ghost sm" data-copia title="Duplica">⧉</button>
+          <button class="btn ghost sm" data-copia data-scrive title="Duplica">⧉</button>
           <button class="btn ghost sm" data-word title="Scarica in Word">📄</button>
           <button class="btn ghost sm" data-pdf title="Stampa / PDF">🖨️</button>
           ${admin ? '<button class="btn ghost sm" data-del title="Elimina">🗑️</button>' : ''}

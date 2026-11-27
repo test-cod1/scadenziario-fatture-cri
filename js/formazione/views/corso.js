@@ -10,6 +10,7 @@ import { buildXlsxBlob } from '../../lib/xlsx.js';
 // se prima del window.open c'è un'attesa (vedi stampaBlocchi.js).
 import { stampaDocumento } from '../../lib/stampaBlocchi.js';
 import { avvisoTabella } from './corsi.js';
+import { bloccaCampi, avvisoSolaLettura } from '../solaLettura.js';
 
 // ============================================================
 //  SCHEDA DI UN CORSO
@@ -33,6 +34,14 @@ export async function renderCorso(view, id, ctx) {
     corso = nuovoCorso();
   }
   const admin = ctx.user?.ruolo === 'admin';
+  // Sola visualizzazione: il corso si apre in consultazione (campi spenti,
+  // niente salvataggio); foglio presenze ed Excel restano. Un corso nuovo
+  // non lo si può scrivere, e al posto del modulo c'è l'avviso.
+  const lettore = !!ctx.solaLettura;
+  if (lettore && !corso.id) {
+    view.appendChild(avvisoSolaLettura('Non puoi registrare un corso nuovo.', '#/formazione/corsi', '← Registro dei corsi'));
+    return;
+  }
 
   const head = el(`<div class="page-head">
     <div><h1>${corso.id ? esc(nomeBreve(corso.corso_nome)) : 'Nuovo corso'} <span class="chip" id="salvataggio" hidden></span></h1>
@@ -41,7 +50,7 @@ export async function renderCorso(view, id, ctx) {
       <a class="btn" href="#/formazione/corsi">← Registro</a>
       <button class="btn" id="btn-presenze" title="Foglio presenze da far firmare in aula">🖨️ Foglio presenze</button>
       ${corso.id && admin ? '<button class="btn" id="btn-elimina">🗑️ Elimina</button>' : ''}
-      <button class="btn primary" id="btn-save" title="Salva (Ctrl+S)">💾 Salva</button>
+      <button class="btn primary" id="btn-save" title="Salva (Ctrl+S)" data-scrive>💾 Salva</button>
     </div>
   </div>`);
   view.appendChild(head);
@@ -104,9 +113,9 @@ export async function renderCorso(view, id, ctx) {
   // ---------- 3. partecipanti ----------
   const cPart = card(3, 'Partecipanti ed esito', `
     <div class="rubrica-azioni">
-      <button class="btn sm" id="add-part" type="button">➕ Aggiungi persona</button>
-      <button class="btn sm" id="incolla" type="button">📋 Incolla un elenco</button>
-      <button class="btn sm" id="tutti-idonei" type="button">✓ Tutti idonei</button>
+      <button class="btn sm" id="add-part" type="button" data-scrive>➕ Aggiungi persona</button>
+      <button class="btn sm" id="incolla" type="button" data-scrive>📋 Incolla un elenco</button>
+      <button class="btn sm" id="tutti-idonei" type="button" data-scrive>✓ Tutti idonei</button>
       <button class="btn sm" id="esporta" type="button">📊 Excel</button>
     </div>
     <div id="senza-elenco" class="field" style="max-width:260px"><label>Numero di discenti</label>
@@ -216,7 +225,7 @@ export async function renderCorso(view, id, ctx) {
         <td><input type="text" data-k="nome" value="${esc(x.nome || '')}" aria-label="Nome"></td>
         <td><input type="text" data-k="cf" value="${esc(x.cf || '')}" aria-label="Codice fiscale" maxlength="16" style="text-transform:uppercase"></td>
         <td><select data-k="esito" aria-label="Esito">${ESITI.map(([v, l]) => `<option value="${v}" ${x.esito === v ? 'selected' : ''}>${l}</option>`).join('')}</select></td>
-        <td><button class="btn ghost sm" type="button" title="Togli" aria-label="Togli">✕</button></td>
+        <td><button class="btn ghost sm" type="button" title="Togli" aria-label="Togli" data-scrive>✕</button></td>
       </tr>`);
       tr.querySelectorAll('[data-k]').forEach(inp => {
         const evento = inp.tagName === 'SELECT' ? 'change' : 'input';
@@ -230,6 +239,7 @@ export async function renderCorso(view, id, ctx) {
       tb.appendChild(tr);
     });
     zona.appendChild(tab);
+    if (lettore) bloccaCampi(zona);
   }
 
   cPart.querySelector('#add-part').addEventListener('click', () => {
@@ -315,7 +325,7 @@ export async function renderCorso(view, id, ctx) {
       </div>
     </div>`));
     summary.appendChild(controlli());
-    const salvaQui = el('<button class="btn primary salva-riepilogo" type="button">💾 Salva il corso</button>');
+    const salvaQui = el('<button class="btn primary salva-riepilogo" type="button" data-scrive>💾 Salva il corso</button>');
     salvaQui.addEventListener('click', salva);
     summary.appendChild(salvaQui);
   }
@@ -346,13 +356,15 @@ export async function renderCorso(view, id, ctx) {
 
   disegnaElenco();
   aggiorna({ dallUtente: false });
+  if (lettore) bloccaCampi(main);
 
   // ------------------------------------------------------------------
   //  Azioni
   // ------------------------------------------------------------------
   let inCorso = false;
   async function salva() {
-    if (inCorso) return;
+    // Anche Ctrl+S passa di qui: in sola visualizzazione non fa nulla.
+    if (inCorso || lettore) return;
     if (!(corso.corso_nome || '').trim()) { toast('Manca il nome del corso', 'err'); return; }
     if (corso.data_inizio && corso.data_fine && corso.data_fine < corso.data_inizio) { toast('La data di fine è prima di quella di inizio', 'err'); return; }
     if (corso.stato === 'svolto' && !corso.data_inizio) { toast('Un corso svolto ha bisogno della sua data', 'err'); return; }

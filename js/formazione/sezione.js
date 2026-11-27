@@ -33,9 +33,15 @@ export async function renderFormazione(view, ctx, sub, param) {
     user: ctx.user,
     imp: _imp,
     go: ctx.go,
+    // Ruolo «lettore»: vede tutto, non scrive nulla (vedi solaLettura.js).
+    solaLettura: !!ctx.solaLettura,
     reloadImp: async () => { _imp = await impostazioni.get(); _impLetteAlle = Date.now(); ctxF.imp = _imp; },
   };
 
+  // La pagina iniziale della sezione è il preventivo nuovo: chi è in sola
+  // visualizzazione non può scriverlo, e finisce sull'elenco. replace() e non
+  // un link: «Indietro» non deve riportarlo qui per rimandarlo avanti.
+  if (sub === 'nuovo' && ctxF.solaLettura) { location.replace('#/formazione/preventivi'); return; }
   if (sub === 'nuovo') return renderPreventivo(view, null, ctxF);
   if (sub === 'preventivo' && param) return renderPreventivo(view, param, ctxF);
   // Il registro dei corsi accetta un preventivo come filtro:

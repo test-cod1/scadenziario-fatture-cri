@@ -2,6 +2,7 @@ import { impostazioni } from '../data/store.js';
 import { el, clear, esc, toast } from '../../lib/ui.js';
 import { sorvegliaUscita, armaGuardiaIndietro } from '../../lib/uscita.js';
 import { CAMPO_DECIMALE, testoDecimale, leggiDecimaleO0 } from '../../lib/importi.js';
+import { bloccaCampi } from '../solaLettura.js';
 
 // ============================================================
 //  IMPOSTAZIONI DELLA FORMAZIONE ESTERNA
@@ -43,7 +44,7 @@ export async function renderImpostazioni(view, ctx) {
 
   pagina.appendChild(el(`<div class="page-head">
     <div><h1>Impostazioni</h1><p>Catalogo dei corsi e testi del preventivo</p></div>
-    <button class="btn primary" id="save">💾 Salva impostazioni</button>
+    <button class="btn primary" id="save" data-scrive>💾 Salva impostazioni</button>
   </div>`));
 
   // ---------- catalogo dei corsi ----------
@@ -52,7 +53,7 @@ export async function renderImpostazioni(view, ctx) {
     <div class="card-b">
       <p class="hint" style="margin:0 0 14px">I corsi che si possono mettere in un preventivo. Il <b>prezzo</b> è quello di listino, a discente: dentro il singolo preventivo resta modificabile, e accanto c'è il prezzo riservato al cliente. L'<b>attestazione</b> è quello che si rilascia a fine corso e finisce nel documento sotto la tabella: cambia da corso a corso. La <b>sigla</b> serve solo a proporre l'oggetto del preventivo («PREVENTIVO CORSI BLSD»). Il <b>rinnovo</b> dice ogni quanti anni il corso va rifatto: quando si avvicina, l'azienda compare nell'elenco fra quelle da ricontattare. Lascialo vuoto per i corsi che non scadono.</p>
       <div id="corsi"></div>
-      <button class="btn sm" id="add-corso" type="button" style="margin-top:12px">➕ Aggiungi corso</button>
+      <button class="btn sm" id="add-corso" type="button" style="margin-top:12px" data-scrive>➕ Aggiungi corso</button>
     </div></div>`);
   pagina.appendChild(cCat);
 
@@ -75,7 +76,7 @@ export async function renderImpostazioni(view, ctx) {
           <div class="field"><label>Rinnovo ogni (anni)</label>
             <input type="text" inputmode="numeric" autocomplete="off" data-k="rinnovo_anni" value="${esc(c.rinnovo_anni ?? '')}" placeholder="non scade"></div>
         </div>
-        <button class="rm btn ghost sm" type="button">✕ Rimuovi corso</button>
+        <button class="rm btn ghost sm" type="button" data-scrive>✕ Rimuovi corso</button>
       </div>`);
       riga.querySelectorAll('[data-k]').forEach(input => {
         input.addEventListener('input', () => {
@@ -150,6 +151,10 @@ export async function renderImpostazioni(view, ctx) {
       toast('Errore: ' + e.message, 'err');
     } finally { btn.disabled = false; btn.innerHTML = old; }
   });
+
+  // Sola visualizzazione: catalogo, firma e testi si leggono come li vede
+  // l'operatore, ma i campi sono spenti e «Salva» non c'è (data-scrive).
+  if (ctx.solaLettura) bloccaCampi(pagina);
 
   sorvegliaUscita(pagina, () => sporco);
 }

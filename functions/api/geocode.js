@@ -19,8 +19,14 @@ export async function onRequestGet(context) {
   // Non basta essere autenticati: la chiave OpenRouteService (e la quota
   // giornaliera che ci sta dietro) e' di questa sezione, quindi la puo'
   // consumare solo chi e' autorizzato ai trasporti.
-  if (!await ruoloSezione(request, env, 'trasporti')) {
+  // Indirizzi e percorsi servono a compilare un preventivo: chi ha la sola
+  // visualizzazione non ne compila, e non spende la quota di tutti.
+  const ruolo = await ruoloSezione(request, env, 'trasporti');
+  if (!ruolo) {
     return json({ error: 'Non sei autorizzato ad accedere ai trasporti lunghi: chiedi a un amministratore del portale.' }, 403);
+  }
+  if (ruolo === 'lettore') {
+    return json({ error: 'Hai accesso ai trasporti lunghi in sola visualizzazione.' }, 403);
   }
 
   const url = new URL(request.url);

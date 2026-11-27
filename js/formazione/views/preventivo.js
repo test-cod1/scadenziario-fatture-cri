@@ -10,6 +10,7 @@ import { CAMPO_DECIMALE, testoDecimale, leggiDecimale } from '../../lib/importi.
 import { anteprimaPreventivo, stampaPreventivo } from '../lib/stampa.js';
 import { pianificaCorsi } from './corsi.js';
 import { cardDatiFatturazione, perDestinatario } from '../../lib/linkFatturazione.js';
+import { bloccaCampi, avvisoSolaLettura } from '../solaLettura.js';
 
 // ============================================================
 //  EDITOR DEL PREVENTIVO DI FORMAZIONE
@@ -36,6 +37,14 @@ const REGIMI = [
 
 export async function renderPreventivo(view, id, ctx) {
   const imp = ctx.imp;
+  // Sola visualizzazione: il preventivo si apre in consultazione (campi
+  // spenti, niente salvataggio) e restano anteprima, Word e stampa. Uno
+  // nuovo non lo si può scrivere: al posto del modulo c'è l'avviso.
+  const lettore = !!ctx.solaLettura;
+  if (lettore && !id) {
+    view.appendChild(avvisoSolaLettura('Non puoi scrivere un preventivo nuovo.', '#/formazione/preventivi', '← Elenco dei preventivi'));
+    return;
+  }
   let prev;
   if (id) {
     try { prev = await preventivi.get(id); }
@@ -51,7 +60,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   const head = el(`<div class="page-head">
     <div>
-      <h1>${id ? 'Modifica preventivo' : 'Nuovo preventivo'} <span class="chip" id="salvataggio" hidden></span></h1>
+      <h1>${lettore ? 'Preventivo' : id ? 'Modifica preventivo' : 'Nuovo preventivo'} <span class="chip" id="salvataggio" hidden></span></h1>
       <p>Corsi di formazione per aziende ed enti</p>
     </div>
     <div class="inline">
@@ -60,7 +69,7 @@ export async function renderPreventivo(view, id, ctx) {
       <button class="btn" id="btn-word">📄 Word</button>
       <button class="btn" id="btn-pdf">🖨️ Stampa / PDF</button>
       <button class="btn" id="btn-corsi" hidden title="I corsi da tenere per questo preventivo">📅 Corsi</button>
-      <button class="btn primary" id="btn-save" title="Salva (Ctrl+S)">💾 Salva</button>
+      <button class="btn primary" id="btn-save" title="Salva (Ctrl+S)" data-scrive>💾 Salva</button>
     </div>
   </div>`);
   view.appendChild(head);
@@ -89,7 +98,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   // ---------- 1. destinatario ----------
   const cDest = card(1, 'A chi va', `
-    <div class="rubrica-azioni">
+    <div class="rubrica-azioni" data-scrive>
       <button class="btn sm" id="btn-rubrica" type="button">📇 Scegli dalla rubrica</button>
       <button class="btn sm" id="btn-salva-cliente" type="button">➕ Salva in rubrica</button>
       <span class="mini">oppure inizia a scrivere il nome: le aziende in rubrica vengono suggerite</span>
@@ -113,8 +122,8 @@ export async function renderPreventivo(view, id, ctx) {
   // tutto quello che si può proporre, con durata e prezzo, e un clic lo
   // aggiunge. Il numero sul riquadro dice quante volte è già nel preventivo.
   const cCorsi = card(2, 'Quali corsi', `
-    <p class="hint" style="margin:0 0 10px">Clicca un corso per aggiungerlo: arriva con durata, attestazione e prezzo di listino, e qui dentro resta tutto modificabile — la modifica vale solo per questo preventivo.</p>
-    <div class="cal-azioni catalogo-corsi">
+    <p class="hint" style="margin:0 0 10px" data-scrive>Clicca un corso per aggiungerlo: arriva con durata, attestazione e prezzo di listino, e qui dentro resta tutto modificabile — la modifica vale solo per questo preventivo.</p>
+    <div class="cal-azioni catalogo-corsi" data-scrive>
       ${imp.corsi.map(c => `<button type="button" class="corso-pick" data-corso="${esc(c.id)}" title="${esc(c.nome)}">
         <span class="cp-nome">${esc(nomeBreve(c.nome))}</span>
         <span class="cp-dati">${esc([c.durata, Number(c.prezzo) ? fmtEuro(c.prezzo) + ' a discente' : 'prezzo da impostare'].filter(Boolean).join(' · '))}</span>
@@ -367,7 +376,7 @@ export async function renderPreventivo(view, id, ctx) {
         <div class="cr-testa">
           <span class="cr-num">${i + 1}</span>
           <input type="text" data-k="nome" class="cr-nome" aria-label="Denominazione del corso" placeholder="Denominazione del corso" value="${esc(r.nome || '')}">
-          <button class="rm btn ghost sm" type="button" title="Togli il corso dal preventivo" aria-label="Togli il corso">✕</button>
+          <button class="rm btn ghost sm" type="button" title="Togli il corso dal preventivo" aria-label="Togli il corso" data-scrive>✕</button>
         </div>
         <div class="cr-numeri">
           <div class="field"><label>N. discenti</label>
@@ -445,6 +454,7 @@ export async function renderPreventivo(view, id, ctx) {
 
       zona.appendChild(riga);
     });
+    if (lettore) bloccaCampi(zona);
   }
 
   // Il numerino sui riquadri del catalogo: quante volte quel corso è già nel
@@ -541,7 +551,7 @@ export async function renderPreventivo(view, id, ctx) {
     summary.appendChild(box);
     summary.appendChild(controlli(r));
 
-    const salvaQui = el('<button class="btn primary salva-riepilogo" type="button">💾 Salva il preventivo</button>');
+    const salvaQui = el('<button class="btn primary salva-riepilogo" type="button" data-scrive>💾 Salva il preventivo</button>');
     salvaQui.addEventListener('click', salva);
     summary.appendChild(salvaQui);
 
@@ -589,13 +599,15 @@ export async function renderPreventivo(view, id, ctx) {
   // preventivo nascerebbe già sporco e chiederebbe conferma in uscita anche a
   // chi lo ha soltanto aperto.
   disegnaRighe(); aggiorna({ dallUtente: false });
+  if (lettore) bloccaCampi(main);
 
   // ------------------------------------------------------------------
   //  Azioni
   // ------------------------------------------------------------------
   let salvataggioInCorso = false;
   async function salva() {
-    if (salvataggioInCorso) return null;
+    // Anche Ctrl+S passa di qui: in sola visualizzazione non fa nulla.
+    if (salvataggioInCorso || lettore) return null;
     if (!prev.cliente) {
       toast('Manca il committente', 'err');
       campoCliente.focus();

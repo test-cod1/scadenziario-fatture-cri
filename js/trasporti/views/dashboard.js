@@ -9,7 +9,7 @@ export async function renderDashboard(view, ctx) {
 
   const head = el(`<div class="page-head">
     <div><h1>Preventivi</h1><p>Trasporti sanitari fuori Genova · storico e nuovi preventivi</p></div>
-    <a class="btn primary" href="#/trasporti/nuovo">➕ Nuovo preventivo</a>
+    <a class="btn primary" href="#/trasporti/nuovo" data-scrive>➕ Nuovo preventivo</a>
   </div>`);
   view.appendChild(head);
 
@@ -32,8 +32,9 @@ export async function renderDashboard(view, ctx) {
     );
   }
 
+  // In sola visualizzazione l'invito a crearne uno non avrebbe senso.
   const vuoto = el(`<div class="empty-state" hidden><div class="big">📋</div>
-    <p>Nessun preventivo ancora.<br>Creane uno con "Nuovo preventivo".</p></div>`);
+    <p>Nessun preventivo ancora.${ctx.solaLettura ? '' : '<br>Creane uno con "Nuovo preventivo".'}</p></div>`);
   view.appendChild(vuoto);
 
   // toolbar
@@ -81,7 +82,7 @@ export async function renderDashboard(view, ctx) {
         <td style="white-space:nowrap;text-align:right">
           <button class="btn ghost sm" data-word title="Scarica in Word">📄</button>
           <button class="btn ghost sm" data-pdf title="Stampa / PDF">🖨️</button>
-          <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
+          <button class="btn ghost sm" data-del data-scrive title="Elimina">🗑️</button>
         </td>
       </tr>`);
       tr.addEventListener('click', (e) => {

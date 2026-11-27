@@ -99,6 +99,7 @@ function cardAperta(s, ruolo) {
     <div class="hc-top">
       <span class="hc-ico">${s.icona}</span>
       ${ruolo === 'admin' ? '<span class="hc-badge">admin</span>' : ''}
+      ${ruolo === 'lettore' ? '<span class="hc-badge" title="Sola visualizzazione: puoi consultare la sezione, non modificarla">👁 lettura</span>' : ''}
     </div>
     <div class="hc-bot">
       <div class="hc-line"></div>

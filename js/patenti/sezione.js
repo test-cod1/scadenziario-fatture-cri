@@ -12,7 +12,7 @@ export async function renderPatenti(view, ctx, sub, param) {
   if (sub === 'domande') return renderDomande(view);
   if (sub !== 'link') {
     const { renderRichieste } = await import('./views/richieste.js');
-    return renderRichieste(view, { user: ctx.user, ruolo: ctx.user?.ruolo, go: ctx.go, filtro: param });
+    return renderRichieste(view, { user: ctx.user, ruolo: ctx.user?.ruolo, solaLettura: !!ctx.solaLettura, go: ctx.go, filtro: param });
   }
   return renderLink(view);
 }

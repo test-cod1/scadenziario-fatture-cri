@@ -40,7 +40,7 @@ export async function renderImpostazioni(view, ctx) {
 
   pagina.appendChild(el(`<div class="page-head">
     <div><h1>Impostazioni</h1><p>Tariffario e testi del preventivo di assistenza</p></div>
-    <button class="btn primary" id="save">💾 Salva impostazioni</button>
+    <button class="btn primary" id="save" data-scrive>💾 Salva impostazioni</button>
   </div>`));
 
   // ---------- tariffario ----------
@@ -49,7 +49,7 @@ export async function renderImpostazioni(view, ctx) {
     <div class="card-b">
       <p class="hint" style="margin:0 0 14px">Le voci che si possono mettere in un preventivo. Una voce <b>a ore</b> si moltiplica per la durata dei turni; una <b>a prezzo fisso</b> vale una volta per turno, indipendentemente dalla durata (es. il gazebo). Il prezzo qui è quello proposto: dentro il singolo preventivo resta modificabile.</p>
       <div id="tariffe"></div>
-      <button class="btn sm" id="add-voce" type="button" style="margin-top:12px">➕ Aggiungi voce</button>
+      <button class="btn sm" id="add-voce" type="button" data-scrive style="margin-top:12px">➕ Aggiungi voce</button>
     </div></div>`);
   pagina.appendChild(cTar);
 
@@ -66,7 +66,7 @@ export async function renderImpostazioni(view, ctx) {
           </select></div>
           <div class="field"><label>Prezzo (€)</label><input ${CAMPO_DECIMALE} value="${testoDecimale(t.prezzo)}"></div>
         </div>
-        <button class="rm btn ghost sm" type="button">✕ Rimuovi voce</button>
+        <button class="rm btn ghost sm" type="button" data-scrive>✕ Rimuovi voce</button>
       </div>`);
       const [nome, prezzo] = riga.querySelectorAll('input');
       const tipo = riga.querySelector('select');
@@ -111,6 +111,13 @@ export async function renderImpostazioni(view, ctx) {
     campo.querySelector('textarea').addEventListener('input', (e) => { imp.testi[chiave] = e.target.value; });
     corpo.appendChild(campo);
   }
+
+  // Sola visualizzazione: la pagina si vede com'è per l'operatore (sono il
+  // tariffario e i testi dei preventivi che il lettore consulta), ma i campi
+  // restano spenti e i pulsanti che scrivono spariscono (data-scrive). Le
+  // voci del tariffario si ridisegnano solo da quei pulsanti, quindi basta
+  // spegnerli una volta qui.
+  if (ctx.solaLettura) pagina.querySelectorAll('input, select, textarea').forEach(c => { c.disabled = true; });
 
   // ---------- salvataggio ----------
   pagina.querySelector('#save').addEventListener('click', async () => {

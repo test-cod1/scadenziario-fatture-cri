@@ -29,9 +29,15 @@ export async function renderAssistenze(view, ctx, sub, param) {
     user: ctx.user,
     imp: _imp,
     go: ctx.go,
+    // Ruolo 'lettore': le viste mostrano tutto ma non offrono nulla che scriva.
+    solaLettura: !!ctx.solaLettura,
     reloadImp: async () => { _imp = await impostazioni.get(); _impLetteAlle = Date.now(); ctxA.imp = _imp; },
   };
 
+  // La pagina iniziale della sezione è il preventivo nuovo: chi è in sola
+  // visualizzazione non può scriverlo, e finisce sull'elenco. replace() e non
+  // un link: «Indietro» non deve riportarlo qui per rimandarlo avanti.
+  if (sub === 'nuovo' && ctxA.solaLettura) { location.replace('#/assistenze/preventivi'); return; }
   if (sub === 'nuovo') return renderPreventivo(view, null, ctxA);
   if (sub === 'preventivo' && param) return renderPreventivo(view, param, ctxA);
   if (sub === 'rubrica') return renderRubrica(view, ctxA);

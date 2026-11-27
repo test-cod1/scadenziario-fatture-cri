@@ -37,6 +37,8 @@ export async function renderTrasporti(view, ctx, sub, param) {
     user: ctx.user,
     imp: _imp,
     go: ctx.go,
+    // Ruolo 'lettore': le viste mostrano tutto ma non offrono nulla che scriva.
+    solaLettura: !!ctx.solaLettura,
     // Si rilegge passando da caricaImpostazioni() e non da impostazioni.get():
     // quest'ultima restituisce solo ciò che sta su Supabase, quindi dopo un
     // salvataggio delle impostazioni il prezzo italiano tornava al valore
@@ -45,6 +47,10 @@ export async function renderTrasporti(view, ctx, sub, param) {
     reloadImp: async () => { _imp = await caricaImpostazioni(); ctxT.imp = _imp; },
   };
 
+  // La pagina iniziale della sezione è il preventivo nuovo: chi è in sola
+  // visualizzazione non può scriverlo, e finisce sull'elenco. replace() e non
+  // un link: «Indietro» non deve riportarlo qui per rimandarlo avanti.
+  if (sub === 'nuovo' && ctxT.solaLettura) { location.replace('#/trasporti/preventivi'); return; }
   if (sub === 'nuovo') return renderPreventivo(view, null, ctxT);
   if (sub === 'preventivo' && param) return renderPreventivo(view, param, ctxT);
   if (sub === 'impostazioni') return renderImpostazioni(view, ctxT);

@@ -1538,3 +1538,10 @@ dialog.pt-guida::backdrop{background:rgba(15,20,25,.45)}
 .stl-tessera-testo b{color:var(--ink);font-size:15px}
 .stl-tessera-n{font-size:12px;font-weight:600;color:#3f6212}
 .stl-vuoto{margin-top:20px}
+
+/* Sola visualizzazione (ruolo di sezione «lettore»): i controlli che
+   scrivono sono marcati data-scrive e qui spariscono. La classe sul body la
+   mette il router di js/app.js entrando nella sezione. */
+body.sola-lettura [data-scrive]{display:none!important}
+.sez-crumb .sola-lettura-chip{margin-left:4px;font-weight:600}
+body.sola-lettura :is(input,select,textarea,button):disabled{cursor:default}

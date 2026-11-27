@@ -23,6 +23,16 @@ const dataValida = (s) => /^\d{4}-\d{2}-\d{2}$/.test(String(s || '')) && !Number
 
 export async function renderImpegno(view, id, ctx, data) {
   const nuovo = !id;
+  // In sola visualizzazione «Nuovo impegno» (dal menu, da un indirizzo
+  // salvato) non apre una scheda che non potrebbe salvare: lo dice, e
+  // rimanda all'elenco.
+  if (nuovo && ctx.solaLettura) {
+    view.appendChild(el(`<div class="empty-state"><div class="big">👁</div>
+      <p><b>Sola visualizzazione</b></p>
+      <p>Puoi consultare impegni, calendario e idee, ma non aggiungere impegni.</p>
+      <p style="margin-top:18px"><a class="btn primary" href="#/direttore/impegni">🗒️ Vai agli impegni</a></p></div>`));
+    return;
+  }
   // Salvando si torna da dove si è arrivati: chi apre la scheda da una
   // casella del calendario vuole rivedere il mese con dentro la cosa
   // appena scritta, non l'elenco.
@@ -41,8 +51,8 @@ export async function renderImpegno(view, id, ctx, data) {
       </div>
       <div class="actions">
         <a class="btn" href="${esc(ritorno)}">${daCalendario ? '← Calendario' : '← Elenco'}</a>
-        ${nuovo ? '<button class="btn" data-salva-nuovo title="Salva e prepara subito un altro impegno">💾 Salva e nuovo</button>' : ''}
-        <button class="btn primary" data-salva>💾 Salva</button>
+        ${nuovo ? '<button class="btn" data-salva-nuovo data-scrive title="Salva e prepara subito un altro impegno">💾 Salva e nuovo</button>' : ''}
+        <button class="btn primary" data-salva data-scrive>💾 Salva</button>
       </div>
     </div>
 
@@ -92,7 +102,7 @@ export async function renderImpegno(view, id, ctx, data) {
     </div></div>
 
     ${nuovo ? '' : `<div class="str-elimina">
-      <button class="btn danger ghost" data-elimina>🗑️ Elimina questo impegno</button>
+      <button class="btn danger ghost" data-elimina data-scrive>🗑️ Elimina questo impegno</button>
       <span class="muted small" data-meta></span>
     </div>`}
   </div>`);
@@ -229,6 +239,12 @@ export async function renderImpegno(view, id, ctx, data) {
   });
 
   riempi();
+  // In sola visualizzazione la scheda si legge e basta: campi, livelli e
+  // interruttore «Fatto» spenti, niente da sorvegliare all'uscita.
+  if (ctx.solaLettura) {
+    editor.querySelectorAll('.card input, .card textarea, .dir-liv').forEach(c => { c.disabled = true; });
+    return;
+  }
   if (nuovo) {
     // Un impegno nuovo nasce con la data di oggi solo se lo si vuole: non
     // si precompila, perché una scadenza sbagliata è peggio di nessuna

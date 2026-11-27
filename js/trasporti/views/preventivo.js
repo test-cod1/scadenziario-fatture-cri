@@ -13,6 +13,18 @@ export async function renderPreventivo(view, id, ctx) {
   // Niente clear(view): la pagina la svuota gia' il router del portale, che ci
   // lascia in cima la riga di ritorno alla home delle sezioni.
 
+  // Sola visualizzazione (ruolo 'lettore'): un preventivo esistente si apre in
+  // consultazione — campi spenti, niente Salva, niente ricalcolo del percorso
+  // (che chiamerebbe geocode/route, negati dal Worker) — mentre stampa, PDF e
+  // Word restano. Uno nuovo non si può creare: al posto del modulo, un avviso.
+  const solaLettura = !!ctx.solaLettura;
+  if (!id && solaLettura) {
+    view.appendChild(el(`<div class="empty-state"><div class="big">👁</div>
+      <p>Hai accesso ai trasporti in sola visualizzazione: non puoi creare nuovi preventivi.<br>
+      <a href="#/trasporti/preventivi">Vai all'elenco dei preventivi</a></p></div>`));
+    return;
+  }
+
   // ---- carica o crea ----
   let prev;
   if (id) {
@@ -63,15 +75,15 @@ export async function renderPreventivo(view, id, ctx) {
   // ---- layout ----
   const head = el(`<div class="page-head">
     <div>
-      <h1>${id ? 'Modifica preventivo' : 'Nuovo preventivo'}</h1>
-      <p>Partenza modificabile — default: <b>${esc(CONFIG.partenza.label)}</b></p>
+      <h1>${solaLettura ? 'Preventivo' : id ? 'Modifica preventivo' : 'Nuovo preventivo'}</h1>
+      <p>${solaLettura ? 'In sola visualizzazione: puoi consultarlo, stamparlo e scaricarlo, non modificarlo.' : `Partenza modificabile — default: <b>${esc(CONFIG.partenza.label)}</b>`}</p>
     </div>
     <div class="inline">
       <a class="btn" href="#/trasporti/preventivi">← Elenco</a>
       <button class="btn" id="btn-anteprima">👁 Anteprima</button>
       <button class="btn" id="btn-word">📄 Word</button>
       <button class="btn" id="btn-pdf">🖨️ Stampa / PDF</button>
-      <button class="btn primary" id="btn-save">💾 Salva</button>
+      <button class="btn primary" id="btn-save" data-scrive>💾 Salva</button>
     </div>
   </div>`);
   view.appendChild(head);
@@ -186,7 +198,7 @@ export async function renderPreventivo(view, id, ctx) {
   // ================= SEZIONE 5c: MATERIALE DI CONSUMO =================
   const cMateriale = card('Materiale di consumo', `
     <div id="materiale"></div>
-    <button class="btn sm" id="add-mat" type="button">➕ Aggiungi voce</button>`);
+    <button class="btn sm" id="add-mat" type="button" data-scrive>➕ Aggiungi voce</button>`);
   main.appendChild(cMateriale);
   renderMateriale();
 
@@ -357,6 +369,11 @@ export async function renderPreventivo(view, id, ctx) {
   initMedico();
   initSezioni();
   recalc();
+  // In consultazione si spengono tutti i campi dopo il primo disegno (che li
+  // riempie e abilita i ruoli sanitari): senza eventi "input" non parte né
+  // la ricerca degli indirizzi né il ricalcolo dei km, e nulla diventa
+  // sporco. Le schede a scomparsa restano apribili.
+  if (solaLettura) editor.querySelectorAll('input, select, textarea').forEach(c => { c.disabled = true; });
   // Dopo il primo disegno: queste chiamate scrivono nei campi da codice, che
   // non fa scattare "input", quindi il preventivo non nasce già sporco.
   sorvegliaUscita(editor, () => sporco);
@@ -375,9 +392,9 @@ export async function renderPreventivo(view, id, ctx) {
 
     const controls = el(`<div>
       <div style="margin-top:12px;display:flex;gap:10px;flex-wrap:wrap;align-items:center">
-        <button class="btn sm" id="add-tappa" type="button">➕ Aggiungi tappa</button>
+        <button class="btn sm" id="add-tappa" type="button" data-scrive>➕ Aggiungi tappa</button>
         <label class="chk"><input type="checkbox" id="ar" ${prev.andata_ritorno?'checked':''}> Andata e ritorno (rientro alla sede)</label>
-        <button class="btn sm" id="calc-km" type="button">🧭 Ricalcola percorso</button>
+        <button class="btn sm" id="calc-km" type="button" data-scrive>🧭 Ricalcola percorso</button>
       </div>
       <div class="form-row" style="margin-top:12px">
         <div class="field"><label>Km totali</label><input ${CAMPO_DECIMALE} id="kmTotali" value="${testoDecimaleOVuoto(prev.input.kmTotali)}">
@@ -387,7 +404,7 @@ export async function renderPreventivo(view, id, ctx) {
       <div class="form-row" style="margin-top:14px;padding-top:14px;border-top:1px dashed var(--line)">
         <div class="field"><label>Tariffa € / km</label><input ${CAMPO_DECIMALE} id="tariffaKm" value="${testoDecimale(prev.input.tariffaKm)}">
           <div class="hint">Totale = km × tariffa + le voci attive (pasti, pernottamento, sanitari, materiale, pedaggi).</div></div>
-        <div class="field"><label>Preset rapidi</label>
+        <div class="field" data-scrive><label>Preset rapidi</label>
           <div class="pill-toggle" id="tariffa-preset">
             <button type="button" data-t="1.15">1,15</button>
             <button type="button" data-t="1.20">1,20</button>
@@ -438,7 +455,7 @@ export async function renderPreventivo(view, id, ctx) {
         <input type="text" placeholder="Partenza (indirizzo)…" value="${esc(p.label || '')}">
         <div class="ac" style="display:none"></div>
       </div>
-      <button class="rm" title="Ripristina sede CRI" type="button">↺</button>
+      <button class="rm" title="Ripristina sede CRI" type="button" data-scrive>↺</button>
     </div>`);
     const input = row.querySelector('input');
     const acBox = row.querySelector('.ac');
@@ -460,7 +477,7 @@ export async function renderPreventivo(view, id, ctx) {
         <input type="text" placeholder="Indirizzo destinazione${isLast ? ' finale' : ''} (città, via, Paese)…" value="${esc(t.label || '')}">
         <div class="ac" style="display:none"></div>
       </div>
-      <button class="rm" title="Rimuovi" type="button">✕</button>
+      <button class="rm" title="Rimuovi" type="button" data-scrive>✕</button>
     </div>`);
     const input = row.querySelector('input');
     const acBox = row.querySelector('.ac');
@@ -544,7 +561,7 @@ export async function renderPreventivo(view, id, ctx) {
       const r = el(`<div class="matrow">
         <input type="text" placeholder="Descrizione (es. ossigeno, orinale, DPI…)" value="${esc(m.desc || '')}">
         <input ${CAMPO_DECIMALE} placeholder="€" value="${testoDecimaleOVuoto(m.importo)}">
-        <button class="rm btn ghost sm" type="button" title="Rimuovi">✕</button>
+        <button class="rm btn ghost sm" type="button" title="Rimuovi" data-scrive>✕</button>
       </div>`);
       const [d, imp2] = r.querySelectorAll('input');
       d.addEventListener('input', () => { m.desc = d.value; });
@@ -588,6 +605,7 @@ export async function renderPreventivo(view, id, ctx) {
   //  SALVATAGGIO
   // ================================================================
   async function save() {
+    if (solaLettura) return;   // il pulsante non c'è: rete per scorciatoie future
     syncItinerario();
     prev.titolo = titoloDaDestinazione();
     prev.risultato = calcola(prev.input, imp);

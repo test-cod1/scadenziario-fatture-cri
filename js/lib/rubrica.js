@@ -44,12 +44,15 @@ export function creaRubrica({ clienti, testi }) {
   // ----------------------------------------------------------------
   //  L'ELENCO
   // ----------------------------------------------------------------
+  // I pulsanti che scrivono (nuovo, modifica, elimina, il «Salva» della
+  // scheda) sono marcati data-scrive: in sola visualizzazione li nasconde il
+  // CSS, e la scheda si apre ancora, solo da leggere.
   async function renderRubrica(view) {
     const elenco = await clienti.list();
 
     view.appendChild(el(`<div class="page-head">
       <div><h1>${esc(testi.titolo)}</h1><p>${esc(testi.sottotitolo)}</p></div>
-      <button class="btn primary" id="nuovo">➕ ${esc(testi.unoNuovo)}</button>
+      <button class="btn primary" id="nuovo" data-scrive>➕ ${esc(testi.unoNuovo)}</button>
     </div>`));
 
     const toolbar = el(`<div class="toolbar">
@@ -82,8 +85,8 @@ export function creaRubrica({ clienti, testi }) {
           <td>${esc(c.indirizzo || '—')}</td>
           <td>${esc(c.referente || '—')}${c.referente_telefono ? `<div class="mini">${esc(c.referente_telefono)}</div>` : ''}</td>
           <td style="white-space:nowrap;text-align:right">
-            <button class="btn ghost sm" data-mod title="Modifica">✎</button>
-            <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
+            <button class="btn ghost sm" data-mod data-scrive title="Modifica">✎</button>
+            <button class="btn ghost sm" data-del data-scrive title="Elimina">🗑️</button>
           </td>
         </tr>`);
         tr.addEventListener('click', (e) => { if (!e.target.closest('button')) apriScheda(c); });
@@ -144,14 +147,17 @@ export function creaRubrica({ clienti, testi }) {
 
     const piede = el(`<div style="display:flex;gap:10px">
       <button class="btn" data-no>Annulla</button>
-      <button class="btn primary" data-ok>💾 Salva</button>
+      <button class="btn primary" data-ok data-scrive>💾 Salva</button>
     </div>`);
 
     // Dall'editor del preventivo arriva una scheda già compilata ma senza id:
     // è una scheda nuova, non una modifica. A dirlo è l'id, non il fatto che i
     // campi siano pieni.
     const esistente = !!c.id;
-    const { close } = openModal({ title: esistente ? testi.unoModifica : testi.unoNuovo, body: corpo, footer: piede });
+    // Sola visualizzazione: la scheda si apre in consultazione, campi spenti.
+    const soloLettura = document.body.classList.contains('sola-lettura');
+    if (soloLettura) corpo.querySelectorAll('input, select, textarea').forEach(c => { c.disabled = true; });
+    const { close } = openModal({ title: soloLettura ? testi.colonnaNome : esistente ? testi.unoModifica : testi.unoNuovo, body: corpo, footer: piede });
     corpo.querySelector('#r-nome').focus();
 
     piede.querySelector('[data-no]').addEventListener('click', () => close());

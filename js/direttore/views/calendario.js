@@ -43,7 +43,7 @@ export async function renderCalendario(view, ctx, mese) {
     </div>
     <div class="actions">
       <a class="btn" href="#/direttore/impegni">🗒️ Elenco</a>
-      <a class="btn primary" href="#/direttore/nuovo">➕ Nuovo impegno</a>
+      <a class="btn primary" href="#/direttore/nuovo" data-scrive>➕ Nuovo impegno</a>
     </div>
   </div>`));
 
@@ -132,13 +132,13 @@ export async function renderCalendario(view, ctx, mese) {
   function disegnaPannello() {
     clear(pannello);
     if (!scelto) {
-      pannello.appendChild(el('<p class="dir-cal-invito">Scegli un giorno per vedere che cosa scade, o per aggiungerci un impegno.</p>'));
+      pannello.appendChild(el(`<p class="dir-cal-invito">Scegli un giorno per vedere che cosa scade${ctx.solaLettura ? '' : ', o per aggiungerci un impegno'}.</p>`));
       return;
     }
     const del = perGiorno(visibili(), oggi).get(scelto) || [];
     pannello.appendChild(el(`<div class="dir-cal-giorno-testa">
       <h2>${esc(nomeGiorno(scelto))}${scelto === oggi ? ' <span class="chip info">oggi</span>' : ''}</h2>
-      <a class="btn sm" href="#/direttore/nuovo/${esc(scelto)}">➕ Impegno in questa data</a>
+      <a class="btn sm" href="#/direttore/nuovo/${esc(scelto)}" data-scrive>➕ Impegno in questa data</a>
     </div>`));
 
     if (!del.length) {
@@ -159,7 +159,8 @@ export async function renderCalendario(view, ctx, mese) {
     const u = livelloDi(i.urgenza), imp = livelloDi(i.importanza);
     const r = el(`<div class="dir-riga ${i.fatto ? 'fatta' : ''}">
       <button class="dir-spunta" type="button" role="checkbox" aria-checked="${i.fatto ? 'true' : 'false'}"
-        title="${i.fatto ? 'Segna come da fare' : 'Segna come fatto'}">${i.fatto ? '✔' : ''}</button>
+        ${ctx.solaLettura ? `disabled title="${i.fatto ? 'Fatto' : 'Da fare'}"`
+          : `title="${i.fatto ? 'Segna come da fare' : 'Segna come fatto'}"`}>${i.fatto ? '✔' : ''}</button>
       <div class="dir-corpo">
         <div class="dir-titolo">${esc(i.titolo)}</div>
         ${i.dettagli ? `<div class="dir-dettagli">${esc(i.dettagli)}</div>` : ''}

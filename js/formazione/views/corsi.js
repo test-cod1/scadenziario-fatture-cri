@@ -38,6 +38,8 @@ export async function renderCorsi(view, ctx, preventivoId = null) {
     return;
   }
   const admin = ctx.user?.ruolo === 'admin';
+  // Sola visualizzazione: lo stato si legge ma non si cambia dall'elenco.
+  const lettore = !!ctx.solaLettura;
   const oggi = todayISO();
   const annoCorrente = Number(oggi.slice(0, 4));
 
@@ -55,7 +57,7 @@ export async function renderCorsi(view, ctx, preventivoId = null) {
 
   view.appendChild(el(`<div class="page-head">
     <div><h1>Corsi</h1><p>Il registro delle edizioni: da fissare, in programma e svolte</p></div>
-    <a class="btn primary" href="#/formazione/corso/nuovo">➕ Nuovo corso</a>
+    <a class="btn primary" href="#/formazione/corso/nuovo" data-scrive>➕ Nuovo corso</a>
   </div>`));
 
   const stats = el('<div class="grid stats" style="margin-bottom:22px"></div>');
@@ -162,9 +164,9 @@ export async function renderCorsi(view, ctx, preventivoId = null) {
       <td><div>${c.sede_tipo === 'cliente' ? esc(c.sede || 'presso il committente') : 'Sede CRI'}</div>
         <div class="mini">${c.docenti ? '👤 ' + esc(c.docenti) : 'docenti da assegnare'}</div></td>
       <td style="text-align:center">${discenti || '<span class="muted">—</span>'}${nPart ? '<div class="mini">elenco nominativo</div>' : ''}</td>
-      <td><select data-stato class="sel-stato" data-valore="${esc(c.stato)}" aria-label="Stato del corso">${STATI_CORSO.map(s =>
+      <td><select data-stato class="sel-stato" data-valore="${esc(c.stato)}" aria-label="Stato del corso"${lettore ? ' disabled' : ''}>${STATI_CORSO.map(s =>
         `<option value="${s}" ${c.stato === s ? 'selected' : ''}>${ETICHETTA[s]}</option>`).join('')}</select>
-        ${cat === 'daregistrare' ? '<div class="mini nota-stato avviso">già passato: registralo</div>' : ''}</td>
+        ${cat === 'daregistrare' ? `<div class="mini nota-stato avviso">${lettore ? 'già passato, da registrare' : 'già passato: registralo'}</div>` : ''}</td>
       <td style="white-space:nowrap;text-align:right">
         ${admin ? '<button class="btn ghost sm" data-del title="Elimina">🗑️</button>' : ''}
       </td>
@@ -237,6 +239,9 @@ export function avvisoTabella(e) {
 // ------------------------------------------------------------------
 export async function pianificaCorsi(prev, ctx) {
   if (!prev?.id) { toast('Salva prima il preventivo', 'err'); return; }
+  // In sola visualizzazione non si crea nulla: si vanno a vedere i corsi
+  // del preventivo, se ce ne sono.
+  if (ctx.solaLettura) { ctx.go(`#/formazione/corsi/${prev.id}`); return; }
   let esistenti;
   try { esistenti = await storeCorsi.perPreventivo(prev.id); } catch (e) { toast(e.message, 'err'); return; }
   if (esistenti.length) { ctx.go(`#/formazione/corsi/${prev.id}`); return; }

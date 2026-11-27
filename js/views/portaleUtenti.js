@@ -5,12 +5,20 @@ import { el, esc, toast, openModal, confirmDialog } from '../lib/ui.js';
 // ============================================================
 //  UTENTI E AUTORIZZAZIONI — pannello del super admin.
 //  Una riga per utente, una colonna per sezione: la tendina dice se quella
-//  persona in quella sezione non entra ("Nessuno"), la usa ("Operatore") o
-//  la amministra ("Admin"). È l'unico posto in cui si distribuiscono gli
+//  persona in quella sezione non entra ("Nessuno"), la guarda soltanto
+//  ("Sola visualizzazione"), la usa ("Operatore") o la amministra ("Admin"). È l'unico posto in cui si distribuiscono gli
 //  accessi del portale.
 // ============================================================
 
-const RUOLI_SEZIONE = { '': 'Nessuno', operatore: 'Operatore', admin: 'Admin' };
+const RUOLI_SEZIONE = { '': 'Nessuno', lettore: 'Sola visualizzazione', operatore: 'Operatore', admin: 'Admin' };
+
+// Senza patch-2026-11-27-sola-lettura.sql il database rifiuta il ruolo
+// «lettore» con un errore di vincolo che non direbbe nulla a chi lo legge.
+function messaggioErrore(e) {
+  return /autorizzazioni_ruolo_check/.test(e?.message || '')
+    ? 'Il database non conosce ancora la sola visualizzazione: va eseguita supabase/patch-2026-11-27-sola-lettura.sql.'
+    : e.message;
+}
 
 export async function renderPortaleUtenti(view, ctx) {
   if (ctx.user.ruoloPortale !== 'super_admin') {
@@ -45,7 +53,7 @@ export async function renderPortaleUtenti(view, ctx) {
     <div class="card" style="margin-top:22px"><div class="card-b">
       <h3 style="margin:0 0 4px">Utenti del portale</h3>
       <p class="hint" style="margin:0 0 14px">Chi si registra da solo nasce <b>In attesa</b>: non entra da nessuna parte finché non gli assegni almeno una sezione.
-      L'<b>operatore</b> usa la sezione, l'<b>admin</b> ne gestisce anche le impostazioni. Il ruolo di <b>super admin</b> (accesso completo a tutto, compresa questa pagina) si assegna solo dal database.</p>
+      Con la <b>sola visualizzazione</b> si entra nella sezione e si consulta tutto, senza poter inserire, modificare o cancellare nulla. L'<b>operatore</b> usa la sezione, l'<b>admin</b> ne gestisce anche le impostazioni. Il ruolo di <b>super admin</b> (accesso completo a tutto, compresa questa pagina) si assegna solo dal database.</p>
       <div id="utenti-zone"><div class="spinner" style="margin:20px auto"></div></div>
     </div></div>
   </div>`);
@@ -69,7 +77,7 @@ export async function renderPortaleUtenti(view, ctx) {
       wrap.querySelectorAll('[data-nuova-sezione]').forEach(s => { s.value = ''; });
       disegnaUtenti();   // il nuovo utente deve comparire subito nell'elenco qui sotto
     } catch (e) {
-      err.textContent = 'Errore: ' + e.message;
+      err.textContent = 'Errore: ' + messaggioErrore(e);
     } finally {
       btn.disabled = false; btn.innerHTML = old;
     }
@@ -197,7 +205,9 @@ function renderTabellaUtenti(zona, utenti, ctx, ricarica) {
         const nuovo = select.value;
         const domanda = nuovo === ''
           ? `Revocare a ${u.email} l'accesso a "${etichetta}"? Non vedrà più i dati di questa sezione.`
-          : `Dare a ${u.email} il ruolo di ${RUOLI_SEZIONE[nuovo].toLowerCase()} in "${etichetta}"?`;
+          : nuovo === 'lettore'
+            ? `Dare a ${u.email} l'accesso in sola visualizzazione a "${etichetta}"? Vedrà i dati senza poterli modificare.`
+            : `Dare a ${u.email} il ruolo di ${RUOLI_SEZIONE[nuovo].toLowerCase()} in "${etichetta}"?`;
         if (!await confirmDialog(domanda, { danger: nuovo === '', okLabel: nuovo === '' ? 'Revoca' : 'Conferma' })) {
           select.value = precedente;   // annullato: la tendina torna com'era
           return;
@@ -221,7 +231,7 @@ function renderTabellaUtenti(zona, utenti, ctx, ricarica) {
           ricarica();
         } catch (e) {
           select.value = precedente;
-          toast('Errore: ' + e.message, 'err');
+          toast('Errore: ' + messaggioErrore(e), 'err');
         } finally { select.disabled = false; }
       });
     });

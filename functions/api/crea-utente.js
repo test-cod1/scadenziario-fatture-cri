@@ -1,7 +1,7 @@
 // ============================================================
 //  Cloudflare Function — Creazione utente da parte del super admin
 //  Endpoint: POST /api/crea-utente
-//  Body: { email, nome, autorizzazioni: { sezione: 'operatore'|'admin', … } }
+//  Body: { email, nome, autorizzazioni: { sezione: 'lettore'|'operatore'|'admin', … } }
 //        →  { email, passwordProvvisoria }
 //
 //  Crea l'account su Supabase Auth con una password provvisoria generata
@@ -49,12 +49,12 @@ export async function onRequestPost(context) {
   const nome = String(body?.nome || '').trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return json({ error: 'Email non valida.' }, 400);
 
-  // Permessi richiesti, ripuliti: si tengono solo le sezioni note e i due
+  // Permessi richiesti, ripuliti: si tengono solo le sezioni note e i tre
   // ruoli ammessi, così un body manomesso non può inventarsi nulla.
   const permessi = [];
   for (const [sezione, ruolo] of Object.entries(body?.autorizzazioni || {})) {
     if (!SEZIONI_VALIDE.includes(sezione)) continue;
-    if (ruolo !== 'operatore' && ruolo !== 'admin') continue;
+    if (!['lettore', 'operatore', 'admin'].includes(ruolo)) continue;
     permessi.push({ sezione, ruolo });
   }
 

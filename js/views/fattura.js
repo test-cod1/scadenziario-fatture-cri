@@ -10,6 +10,20 @@ import { totaleSelezione, preparaPagamentoUnico, notaPagamentoUnico } from '../l
 export { METODI };
 
 // ------------------------------------------------------------
+//  Sola visualizzazione (ruolo di sezione «lettore», ctx.solaLettura)
+//  La scheda di una fattura esistente si apre in consultazione; le finestre
+//  che servono solo a scrivere (nuova fattura, caricamento, pagamenti, note
+//  di credito, proposte) non si aprono affatto. I pulsanti che le aprono
+//  sono già nascosti (data-scrive): questo è il paracadute per una chiamata
+//  arrivata da un'altra strada.
+// ------------------------------------------------------------
+function bloccaSolaLettura(ctx) {
+  if (!ctx?.solaLettura) return false;
+  toast('Hai accesso allo scadenziario in sola visualizzazione: non puoi inserire né modificare dati.', 'err');
+  return true;
+}
+
+// ------------------------------------------------------------
 //  Ritenuta d'acconto: casella + importo + codice tributo
 //  Gli stessi campi nell'editor singolo e nel caricamento multiplo, cercati
 //  per classe dentro il contenitore. L'importo della fattura resta il netto
@@ -76,6 +90,8 @@ export async function apriEditor(id, ctx, onSaved) {
   // giù, sessione scaduta) non succedeva NIENTE — niente finestra, niente
   // messaggio, solo un errore in console che l'utente non vede. Cliccare una
   // riga sembrava semplicemente non funzionare.
+  if (!id && bloccaSolaLettura(ctx)) return;
+  const lettore = !!ctx.solaLettura;
   let rec;
   try {
     rec = id ? await fatture.get(id) : {
@@ -118,7 +134,7 @@ export async function apriEditor(id, ctx, onSaved) {
           <div class="field"><label id="l-data">Data fattura</label><input type="date" id="f-data" value="${esc(rec.data_fattura || '')}"></div>
           <div class="field"><label>Importo (€) *</label><input ${CAMPO_DECIMALE} id="f-importo" value="${testoDecimale(rec.importo)}"></div>
           <div class="field"><label>Scadenza</label><input type="date" id="f-scadenza" value="${esc(rec.scadenza || '')}">
-            <div style="display:flex;gap:6px;margin-top:6px">
+            <div style="display:flex;gap:6px;margin-top:6px" data-scrive>
               <button type="button" class="btn ghost sm" id="f-scad-30" title="Calcola: data fattura + 30 giorni">30gg</button>
               <button type="button" class="btn ghost sm" id="f-scad-60" title="Calcola: data fattura + 60 giorni">60gg</button>
             </div>
@@ -173,6 +189,8 @@ export async function apriEditor(id, ctx, onSaved) {
   body.querySelector('#f-tipo').addEventListener('change', aggiornaTipo);
   collegaCampiRitenuta(body.querySelector('#f-ritenuta'));
   aggiornaTipo();
+  // In consultazione i campi restano leggibili ma non si toccano.
+  if (lettore) body.querySelectorAll('.editor-2col input, .editor-2col select, .editor-2col textarea').forEach(i => { i.disabled = true; });
 
   // Suggerisce i fornitori già usati mentre si scrive, per non ritrovarsi
   // due grafie dello stesso soggetto (vedi collegaAutocompletamento).
@@ -268,14 +286,14 @@ export async function apriEditor(id, ctx, onSaved) {
   }
 
   const footer = el(`<div style="display:flex;gap:10px;width:100%">
-    ${id ? '<button class="btn danger" id="del">Elimina</button>' : ''}
+    ${id ? '<button class="btn danger" id="del" data-scrive>Elimina</button>' : ''}
     <div style="flex:1"></div>
-    <button class="btn" id="cancel">Annulla</button>
-    <button class="btn primary" id="save">Salva</button>
+    <button class="btn" id="cancel">${lettore ? 'Chiudi' : 'Annulla'}</button>
+    <button class="btn primary" id="save" data-scrive>Salva</button>
   </div>`);
 
   const { close, modal } = openModal({
-    title: id ? 'Modifica fattura' : 'Nuova fattura', body, footer, wide: true,
+    title: lettore ? 'Fattura' : id ? 'Modifica fattura' : 'Nuova fattura', body, footer, wide: true,
     onClose: () => { if (previewUrl) URL.revokeObjectURL(previewUrl); if (datiModificati) onSaved(); },
   });
   modal.style.maxWidth = '1400px'; // largo abbastanza da rendere l'anteprima del documento leggibile
@@ -328,6 +346,7 @@ export async function apriEditor(id, ctx, onSaved) {
 //  resta modificabile per registrare un acconto.
 // ============================================================
 export function apriPagamentoRapido(rec, ctx, onSaved) {
+  if (bloccaSolaLettura(ctx)) return;
   const body = el(`<div>
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.fornitore)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''} — residuo <b>${fmtEuro(rec._residuo)}</b></p>
     <div class="form-row three" style="align-items:end">
@@ -376,6 +395,7 @@ export function apriPagamentoRapido(rec, ctx, onSaved) {
 //  Stessa forma della finestra di pagamento rapido.
 // ============================================================
 export function apriProponiPagamento(rec, ctx, onSaved) {
+  if (bloccaSolaLettura(ctx)) return;
   const body = el(`<div>
     <p class="muted" style="margin:0 0 14px;font-size:14px">${esc(rec.fornitore)} ${rec.numero_fattura ? '· ' + esc(rec.numero_fattura) : ''} — residuo <b>${fmtEuro(rec._residuo)}</b></p>
     <div class="form-row three" style="align-items:end">
@@ -431,6 +451,7 @@ export function apriProponiPagamento(rec, ctx, onSaved) {
 //  paga qualcun altro (una proposta per fattura).
 // ============================================================
 export function apriPagamentoMultiplo(scelte, ctx, onSaved, proposteInAttesa = new Map()) {
+  if (bloccaSolaLettura(ctx)) return;
   const t = totaleSelezione(scelte);
   const conProposte = scelte.filter(f => (proposteInAttesa.get(f.id) || 0) > 0).length;
   const body = el(`<div>
@@ -530,12 +551,12 @@ function renderPagamenti(node, rec, ctx, onChange) {
   const wrap = el(`<div class="card" style="margin-top:6px"><div class="card-h">Pagamenti / acconti</div><div class="card-b">
     <div class="pag-list"></div>
     <div class="residuo-box"><span>Pagato: <b>${fmtEuro(rec._pagato)}</b></span>${rec._stornato > 0 ? `<span>Stornato: <b>${fmtEuro(rec._stornato)}</b></span>` : ''}<span>Residuo: <b>${fmtEuro(rec._residuo)}</b></span></div>
-    <button class="btn sm" style="margin-top:10px" id="add-pag">+ Aggiungi pagamento</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>
-    ${rec._residuo > 0 ? '<button class="btn ghost sm" style="margin-top:10px" id="proponi-pag">+ Proponi pagamento</button>' : ''}
+    <button class="btn sm" style="margin-top:10px" id="add-pag" data-scrive>+ Aggiungi pagamento</button><div id="add-pag-form" style="display:none;margin-top:10px"></div>
+    ${rec._residuo > 0 ? '<button class="btn ghost sm" style="margin-top:10px" id="proponi-pag" data-scrive>+ Proponi pagamento</button>' : ''}
   </div></div>`);
   const list = wrap.querySelector('.pag-list');
   for (const p of (rec.pagamenti || []).slice().sort((a, b) => (a.data_pagamento || '').localeCompare(b.data_pagamento || ''))) {
-    const row = el(`<div class="pag-row"><span>${fmtDate(p.data_pagamento)} · ${fmtEuro(p.importo)} ${p.metodo ? '· ' + esc(p.metodo) : ''} ${p.note ? '· ' + esc(p.note) : ''}</span><button class="rm" data-id="${p.id}">✕</button></div>`);
+    const row = el(`<div class="pag-row"><span>${fmtDate(p.data_pagamento)} · ${fmtEuro(p.importo)} ${p.metodo ? '· ' + esc(p.metodo) : ''} ${p.note ? '· ' + esc(p.note) : ''}</span><button class="rm" data-id="${p.id}" data-scrive>✕</button></div>`);
     row.querySelector('.rm').addEventListener('click', async () => {
       if (!await confirmDialog('Rimuovere questo pagamento?', { danger: true, okLabel: 'Rimuovi' })) return;
       try {
@@ -592,12 +613,12 @@ function renderNoteCredito(node, rec, ctx, onChange) {
   const righe = rec.note_credito_righe || [];
   const wrap = el(`<div class="card" style="margin-top:14px"><div class="card-h">Note di credito</div><div class="card-b">
     <div class="nc-list"></div>
-    <button class="btn sm" style="margin-top:10px" id="add-nc">+ Aggiungi nota di credito</button>
+    <button class="btn sm" style="margin-top:10px" id="add-nc" data-scrive>+ Aggiungi nota di credito</button>
   </div></div>`);
   const list = wrap.querySelector('.nc-list');
   for (const n of righe.slice().sort((a, b) => (a.note_credito?.data || '').localeCompare(b.note_credito?.data || ''))) {
     const nc = n.note_credito || {};
-    const row = el(`<div class="pag-row"><span>${fmtDate(nc.data)} · ${fmtEuro(n.importo)} ${nc.numero ? '· n. ' + esc(nc.numero) : ''} ${nc.note ? '· ' + esc(nc.note) : ''}</span><button class="rm" data-id="${n.id}">✕</button></div>`);
+    const row = el(`<div class="pag-row"><span>${fmtDate(nc.data)} · ${fmtEuro(n.importo)} ${nc.numero ? '· n. ' + esc(nc.numero) : ''} ${nc.note ? '· ' + esc(nc.note) : ''}</span><button class="rm" data-id="${n.id}" data-scrive>✕</button></div>`);
     row.querySelector('.rm').addEventListener('click', async () => {
       if (!await confirmDialog('Rimuovere il collegamento di questa nota di credito a questa fattura?', { danger: true, okLabel: 'Rimuovi' })) return;
       try {
@@ -626,6 +647,7 @@ function renderNoteCredito(node, rec, ctx, onChange) {
 // l'abbinamento automatico, le fatture collegate con importo, partita IVA e
 // nome del fornitore (vedi apriUpload e abbinaNotaCredito).
 export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata, iniziali = {}) {
+  if (bloccaSolaLettura(ctx)) return;
   const body = el(`<div>
     <div class="form-row three">
       <div class="field"><label>Numero</label><input type="text" id="nc-numero" value="${esc(iniziali.numero || '')}"></div>
@@ -777,6 +799,7 @@ export function apriNuovaNotaCredito(ctx, onSaved, fatturaPreselezionata, inizia
 //  in coda; si possono comunque trascinare altri file mentre si lavora.
 // ============================================================
 export function apriUpload(ctx, onSaved, fileIniziali) {
+  if (bloccaSolaLettura(ctx)) return;
   const body = el(`<div>
     <div class="dropzone" id="dz">
       <div class="big">📎</div>

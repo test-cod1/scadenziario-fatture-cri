@@ -22,6 +22,17 @@ const avvisaData = () => toast(MSG_DATA, 'err');
 
 export async function renderPreventivo(view, id, ctx) {
   const imp = ctx.imp;
+  // Sola visualizzazione (ruolo 'lettore'): un preventivo esistente si apre in
+  // consultazione — campi spenti, niente Salva, niente rubrica — mentre
+  // anteprima, stampa e Word restano. Uno nuovo non si può creare: al posto
+  // del modulo, un avviso.
+  const solaLettura = !!ctx.solaLettura;
+  if (!id && solaLettura) {
+    view.appendChild(el(`<div class="empty-state"><div class="big">👁</div>
+      <p>Hai accesso alle assistenze in sola visualizzazione: non puoi creare nuovi preventivi.<br>
+      <a href="#/assistenze/preventivi">Vai all'elenco dei preventivi</a></p></div>`));
+    return;
+  }
   let prev;
   if (id) {
     try { prev = await preventivi.get(id); }
@@ -34,15 +45,15 @@ export async function renderPreventivo(view, id, ctx) {
 
   const head = el(`<div class="page-head">
     <div>
-      <h1>${id ? 'Modifica preventivo' : 'Nuovo preventivo'}</h1>
-      <p>Assistenza sanitaria a manifestazioni ed eventi</p>
+      <h1>${solaLettura ? 'Preventivo' : id ? 'Modifica preventivo' : 'Nuovo preventivo'}</h1>
+      <p>Assistenza sanitaria a manifestazioni ed eventi${solaLettura ? ' · in sola visualizzazione' : ''}</p>
     </div>
     <div class="inline">
       <a class="btn" href="#/assistenze/preventivi">← Elenco</a>
       <button class="btn" id="btn-anteprima">👁 Anteprima</button>
       <button class="btn" id="btn-word">📄 Word</button>
       <button class="btn" id="btn-pdf">🖨️ Stampa / PDF</button>
-      <button class="btn primary" id="btn-save">💾 Salva</button>
+      <button class="btn primary" id="btn-save" data-scrive>💾 Salva</button>
     </div>
   </div>`);
   view.appendChild(head);
@@ -59,7 +70,7 @@ export async function renderPreventivo(view, id, ctx) {
 
   // ---------- destinatario ----------
   const cDest = card('Destinatario', `
-    <div class="rubrica-azioni">
+    <div class="rubrica-azioni" data-scrive>
       <button class="btn sm" id="btn-rubrica" type="button">📇 Scegli dalla rubrica</button>
       <button class="btn sm" id="btn-salva-cliente" type="button">➕ Salva in rubrica</button>
       <span class="mini">i clienti si riusano da un preventivo all'altro</span>
@@ -100,7 +111,7 @@ export async function renderPreventivo(view, id, ctx) {
   const cCal = card('Calendario dell\'assistenza', `
     <p class="hint" style="margin:0 0 12px">Una riga per turno. Le ore si calcolano dagli orari (un turno che scavalca la mezzanotte è gestito), e il totale è ore × tariffa × quantità. Il calendario viene riportato anche nel preventivo.<br>Il campo sotto al nome di ogni voce riempie quella colonna su <b>tutti</b> i turni in una volta sola.</p>
     <div class="tbl-wrap"><table class="tbl cal-tbl"><thead></thead><tbody></tbody></table></div>
-    <div class="cal-azioni">
+    <div class="cal-azioni" data-scrive>
       <button class="btn sm" id="add-turno" type="button">➕ Aggiungi turno</button>
       <span class="mini">oppure tutti i giorni</span>
       <input type="date" id="da-data" min="${INIZIO_ANNO}" aria-label="dal giorno">
@@ -316,7 +327,7 @@ export async function renderPreventivo(view, id, ctx) {
         <td class="ore money">${fmtOre(oreTurno(r))}</td>
         ${prev.voci.map(v => `<td style="text-align:center"><input type="number" min="0" step="1" style="width:70px" data-voce="${esc(v.id)}" value="${esc(r.qta?.[v.id] ?? '')}"></td>`).join('')}
         <td><input type="text" class="nota" value="${esc(r.note || '')}" placeholder="—"></td>
-        <td style="text-align:right"><button class="btn ghost sm" title="Rimuovi turno" aria-label="Rimuovi turno">✕</button></td>
+        <td style="text-align:right"><button class="btn ghost sm" title="Rimuovi turno" aria-label="Rimuovi turno" data-scrive>✕</button></td>
       </tr>`);
 
       const data = tr.querySelector('input[type=date]');
@@ -499,11 +510,16 @@ export async function renderPreventivo(view, id, ctx) {
   // il preventivo nasceva già sporco e chiedeva conferma in uscita anche a chi
   // lo aveva soltanto aperto.
   disegnaVoci(); disegnaCalendario(); aggiorna({ dallUtente: false });
+  // In consultazione si spengono tutti i campi dopo il primo disegno: voci e
+  // calendario si ridisegnano solo da modifiche che così non possono
+  // partire, e il quadrante degli orari non si apre su un campo spento.
+  if (solaLettura) main.querySelectorAll('input, select, textarea').forEach(c => { c.disabled = true; });
 
   // ------------------------------------------------------------------
   //  Azioni
   // ------------------------------------------------------------------
   async function salva() {
+    if (solaLettura) return null;   // il pulsante non c'è: rete per scorciatoie future
     if (!prev.cliente) { toast('Manca il cliente', 'err'); return null; }
     const btn = view.querySelector('#btn-save'); const old = btn.innerHTML;
     btn.disabled = true; btn.innerHTML = '<span class="spinner sm"></span> Salvo…';

@@ -86,7 +86,7 @@ export async function renderCentro(view, id, ctx) {
         ${admin ? `<button class="btn" data-chiudi>${centro.chiuso ? '↩︎ Riapri' : '✓ Concludi'}</button>` : ''}
         ${admin ? '<button class="btn" data-mod>✏️ Modifica</button>' : ''}
         <button class="btn" data-condividi title="Link di sola lettura per chi non ha il portale">🔗 ${centro.link_token ? 'Link attivo' : 'Condividi'}</button>
-        <button class="btn primary" data-nuovo-mov>➕ Nuovo movimento</button>
+        <button class="btn primary" data-nuovo-mov data-scrive>➕ Nuovo movimento</button>
       </div>`),
     );
 
@@ -177,7 +177,7 @@ export async function renderCentro(view, id, ctx) {
   function colonna(titolo, tipo, voci, totale) {
     const c = el(`<div class="card"><div class="card-h" style="display:flex;justify-content:space-between;align-items:center;gap:8px">
         <span>${esc(titolo)} — ${esc(fmtEuro(totale))}</span>
-        <button class="btn ghost sm" data-agg title="Aggiungi ${tipo === 'entrata' ? 'un’entrata' : 'un’uscita'}">➕</button>
+        <button class="btn ghost sm" data-agg data-scrive title="Aggiungi ${tipo === 'entrata' ? 'un’entrata' : 'un’uscita'}">➕</button>
       </div>
       <div class="card-b"><div class="cc-voci"></div></div></div>`);
     c.querySelector('[data-agg]').addEventListener('click', () => nuovoMovimento(tipo));
@@ -217,8 +217,8 @@ export async function renderCentro(view, id, ctx) {
       </div>
       <div class="cc-voce-euro"><b>${esc(fmtEuro(Number(v.importo)))}</b></div>
       <div class="cc-voce-azioni">
-        <button class="btn ghost sm" data-mod title="Modifica il movimento">✏️</button>
-        <button class="btn ghost sm" data-del title="Elimina il movimento">✕</button>
+        <button class="btn ghost sm" data-mod data-scrive title="Modifica il movimento">✏️</button>
+        <button class="btn ghost sm" data-del data-scrive title="Elimina il movimento">✕</button>
       </div>
     </div>`);
 

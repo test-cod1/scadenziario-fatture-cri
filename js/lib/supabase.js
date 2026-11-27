@@ -58,7 +58,63 @@ export async function getSupabase() {
   if (_client) return _client;
   const { createClient } = await caricaLibreria();
   _client = createClient(CONFIG.supabase.url, CONFIG.supabase.anonKey);
+  proteggiScritture(_client);
   return _client;
+}
+
+// ------------------------------------------------------------
+//  Sola visualizzazione.
+//  Il router scrive in <body data-sola-lettura="…"> la sezione in cui
+//  l'utente è entrato come «lettore» (js/app.js, segnaSolaLettura);
+//  finché ci resta, inserire, modificare e cancellare nelle tabelle di quella
+//  sezione si ferma qui, prima di partire. Il motivo non è la sicurezza (le
+//  policy restrictive di patch-2026-11-27-sola-lettura.sql la fanno comunque
+//  nel database) ma la chiarezza: un UPDATE negato dalle RLS non restituisce
+//  un errore, aggiorna zero righe, e la pagina direbbe «Salvato».
+//  L'elenco delle tabelle è lo stesso della patch.
+// ------------------------------------------------------------
+const TABELLE_SEZIONE = {
+  scadenziario: ['fatture', 'pagamenti', 'ritenute_versamenti', 'note_credito', 'note_credito_righe',
+    'proposte_pagamento', 'impostazioni', 'fatture_attive', 'incassi', 'note_credito_attive',
+    'note_credito_attive_righe'],
+  trasporti: ['preventivi', 'impostazioni_trasferte'],
+  assistenze: ['preventivi_assistenze', 'impostazioni_assistenze', 'clienti_assistenze'],
+  formazione: ['preventivi_formazione', 'clienti_formazione', 'impostazioni_formazione', 'corsi_formazione'],
+  straordinari: ['dipendenti_straordinari', 'straordinari', 'impostazioni_straordinari'],
+  direttore: ['impegni_direttore', 'idee_direttore'],
+  analisi: ['centri_costo', 'movimenti_analisi'],
+  scadenze: ['scadenze'],
+  patenti: ['richieste_patenti'],
+};
+// dati_fatturazione è di più sezioni insieme (la sezione sta nella riga).
+const TABELLE_CONDIVISE = ['dati_fatturazione'];
+
+function sezioneSolaLettura() {
+  return globalThis.document?.body?.dataset.solaLettura || null;
+}
+
+export function inSolaLettura() {
+  return sezioneSolaLettura() !== null;
+}
+
+export const MESSAGGIO_SOLA_LETTURA = 'Hai accesso a questa sezione in sola visualizzazione: non puoi inserire, modificare o cancellare dati.';
+
+function tabellaBloccata(tabella) {
+  const sezione = sezioneSolaLettura();
+  if (!sezione) return false;
+  return TABELLE_CONDIVISE.includes(tabella) || (TABELLE_SEZIONE[sezione] || []).includes(tabella);
+}
+
+function proteggiScritture(client) {
+  const from = client.from.bind(client);
+  client.from = (tabella) => {
+    const q = from(tabella);
+    if (!tabellaBloccata(tabella)) return q;
+    for (const metodo of ['insert', 'update', 'upsert', 'delete']) {
+      q[metodo] = () => { throw new Error(MESSAGGIO_SOLA_LETTURA); };
+    }
+    return q;
+  };
 }
 
 // Token della sessione corrente, da allegare come Authorization alle

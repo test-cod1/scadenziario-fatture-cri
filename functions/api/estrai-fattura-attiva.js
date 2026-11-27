@@ -42,6 +42,10 @@ export async function onRequestPost(context) {
   if (!ruolo) {
     return json({ error: 'Non sei autorizzato ad accedere allo scadenziario: chiedi a un amministratore del portale.' }, 403);
   }
+  // Chi ha la sola visualizzazione non registra fatture: la lettura AI non gli serve.
+  if (ruolo === 'lettore') {
+    return json({ error: 'Hai accesso allo scadenziario in sola visualizzazione.' }, 403);
+  }
 
   if (!env.GEMINI_API_KEY) return json({ error: 'Chiave Gemini non configurata (GEMINI_API_KEY).' }, 500);
 

@@ -3,7 +3,10 @@
 //  Il motore sta in js/lib/tour.js: qui c'è solo il copione.
 // ============================================================
 
-export function passi() {
+export function passi(ctx) {
+  // In sola visualizzazione la tendina dello stato è bloccata e la matita
+  // delle note non c'è: il passo sulla tabella lo dice.
+  const lettore = ctx?.user?.ruolo === 'lettore';
   return [
     {
       hash: '#/patenti/richieste',
@@ -23,7 +26,9 @@ export function passi() {
     {
       selettore: '.tbl-wrap',
       titolo: 'Lavorare una richiesta',
-      testo: 'Una riga per richiesta, dalla più recente. «Documenti su Gaia» dice se manca qualcosa; lo stato si cambia dalla tendina della riga, e con ✏️ si scrive una nota della segreteria.',
+      testo: lettore
+        ? 'Una riga per richiesta, dalla più recente. «Documenti su Gaia» dice se manca qualcosa; lo stato e le note della segreteria si leggono nella riga.'
+        : 'Una riga per richiesta, dalla più recente. «Documenti su Gaia» dice se manca qualcosa; lo stato si cambia dalla tendina della riga, e con ✏️ si scrive una nota della segreteria.',
     },
     {
       hash: '#/patenti/link',

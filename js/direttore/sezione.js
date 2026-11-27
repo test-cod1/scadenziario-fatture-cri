@@ -12,7 +12,11 @@ import { renderImpegno } from './views/impegno.js';
 export async function renderDirettore(view, ctx, sub, param) {
   const ctxD = {
     user: ctx.user,
-    ruolo: ctx.user?.ruolo,          // 'admin' o 'operatore' NELLA sezione
+    ruolo: ctx.user?.ruolo,          // 'admin', 'operatore' o 'lettore' NELLA sezione
+    // Il lettore vede impegni, calendario e idee ma non cambia nulla: le
+    // viste nascondono i comandi con data-scrive e aprono le schede in
+    // consultazione.
+    solaLettura: !!ctx.solaLettura,
     go: ctx.go,
   };
 

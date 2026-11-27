@@ -23,7 +23,7 @@ export async function renderRegistro(view, ctx) {
     <div class="actions">
       <button class="btn" data-xls title="Scarica le righe filtrate in Excel">⬇️ Excel</button>
       <button class="btn" data-print title="Stampa l'elenco filtrato">🖨️ Stampa</button>
-      <a class="btn primary" href="#/straordinari/nuovo">➕ Registra ore</a>
+      <a class="btn primary" href="#/straordinari/nuovo" data-scrive>➕ Registra ore</a>
     </div>
   </div>`);
   view.appendChild(head);
@@ -67,14 +67,14 @@ export async function renderRegistro(view, ctx) {
 
   const vuoto = el(`<div class="empty-state" hidden><div class="big">🕒</div>
     <p><b>Nessuno straordinario in ${esc(etichettaMese(mese))}</b></p>
-    <p>Quando la centrale chiede ore in più a un dipendente, registrale qui:<br>
+    <p data-scrive>Quando la centrale chiede ore in più a un dipendente, registrale qui:<br>
     a fine mese il riepilogo e il file per l'ufficio personale escono da soli.</p>
-    <p style="margin-top:18px"><a class="btn primary" href="#/straordinari/nuovo">➕ Registra il primo straordinario</a></p></div>`);
+    <p style="margin-top:18px" data-scrive><a class="btn primary" href="#/straordinari/nuovo">➕ Registra il primo straordinario</a></p></div>`);
   view.appendChild(vuoto);
 
   const senzaDipendenti = el(`<div class="banner warn" hidden><div class="bi">👤</div><div>
     <b>Nessun dipendente in anagrafica</b>
-    <div class="small">Prima di registrare straordinari serve l'elenco dei dipendenti:
+    <div class="small" data-scrive>Prima di registrare straordinari serve l'elenco dei dipendenti:
     <a href="#/straordinari/dipendenti">aprilo e compilalo</a>.</div>
   </div>`);
   view.insertBefore(senzaDipendenti, stats);
@@ -153,7 +153,7 @@ export async function renderRegistro(view, ctx) {
       <td>${esc(etichettaTipo(r.tipo))}</td>
       <td>${esc(r.causale || '—')}${r.servizio ? `<div class="small muted">${esc(r.servizio)}</div>` : ''}</td>
       <td style="white-space:nowrap;text-align:right">
-        <button class="btn ghost sm" data-del title="Elimina">🗑️</button>
+        <button class="btn ghost sm" data-del data-scrive title="Elimina">🗑️</button>
       </td>
     </tr>`);
 

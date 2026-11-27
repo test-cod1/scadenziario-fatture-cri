@@ -93,7 +93,7 @@ on conflict (id) do update set etichetta = excluded.etichetta, ordine = excluded
 create table if not exists public.autorizzazioni (
   utente_id uuid not null references auth.users(id) on delete cascade,
   sezione   text not null references public.sezioni(id) on delete cascade,
-  ruolo     text not null default 'operatore' check (ruolo in ('operatore','admin')),
+  ruolo     text not null default 'operatore' check (ruolo in ('lettore','operatore','admin')),
   assegnata_da uuid references auth.users(id),
   created_at   timestamptz not null default now(),
   primary key (utente_id, sezione)
@@ -121,8 +121,8 @@ returns boolean language sql stable security definer set search_path = public as
   select exists (select 1 from public.profili where id = auth.uid() and ruolo = 'super_admin');
 $$;
 
--- Ruolo dell'utente corrente nella sezione indicata: 'admin', 'operatore'
--- oppure NULL se non vi ha accesso. Il super admin e' admin ovunque.
+-- Ruolo dell'utente corrente nella sezione indicata: 'admin', 'operatore',
+-- 'lettore' (sola visualizzazione, patch-2026-11-27-sola-lettura.sql) oppure NULL se non vi ha accesso. Il super admin e' admin ovunque.
 --
 -- Il primo ramo e' quello che fa valere la SOSPENSIONE: chi non ha un
 -- profilo attivo non ha ruolo in nessuna sezione, quali che siano le
@@ -156,6 +156,20 @@ returns boolean language sql stable security definer set search_path = public as
   select public.ruolo_sezione(p_sezione) is not null;
 $$;
 
+-- Chi può inserire, modificare e cancellare: operatore e admin, non il
+-- lettore (patch-2026-11-27-sola-lettura.sql).
+create or replace function public.puo_modificare(p_sezione text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select coalesce(public.ruolo_sezione(p_sezione) in ('operatore', 'admin'), false);
+$$;
+
+-- Vera per tutti tranne il lettore della sezione: la usano le policy
+-- restrictive «sola_lettura_*» in fondo al file.
+create or replace function public.non_lettore(p_sezione text)
+returns boolean language sql stable security definer set search_path = public as $$
+  select public.ruolo_sezione(p_sezione) is distinct from 'lettore';
+$$;
+
 create or replace function public.e_admin_sezione(p_sezione text)
 returns boolean language sql stable security definer set search_path = public as $$
   select public.ruolo_sezione(p_sezione) = 'admin';
@@ -166,7 +180,7 @@ $$;
 -- bisogno di sapere che attorno e' nato un portale con altre sezioni.
 create or replace function public.puo_scrivere()
 returns boolean language sql stable security definer set search_path = public as $$
-  select public.accede_a('scadenziario');
+  select public.puo_modificare('scadenziario');
 $$;
 
 -- La lettura è dello scadenziario soltanto. Fino al 10/11/2026 valeva anche
@@ -708,10 +722,13 @@ drop policy if exists note_credito_righe_write on public.note_credito_righe;
 create policy note_credito_righe_write on public.note_credito_righe for all
   using (public.puo_scrivere()) with check (public.puo_scrivere());
 
--- Lettura: l'admin vede tutte le proposte, l'operatore solo le proprie.
+-- Lettura: l'admin vede tutte le proposte, l'operatore solo le proprie, il
+-- lettore (sola visualizzazione) tutte, senza poterle toccare.
 drop policy if exists proposte_read on public.proposte_pagamento;
 create policy proposte_read on public.proposte_pagamento for select
-  using (public.e_admin() or (proposta_da = auth.uid() and public.puo_leggere()));
+  using (public.e_admin()
+         or public.ruolo_sezione('scadenziario') = 'lettore'
+         or (proposta_da = auth.uid() and public.puo_leggere()));
 -- Creazione: chiunque possa scrivere (admin/operatore) può proporre, ma solo
 -- a proprio nome (non si può proporre "per conto di" un collega).
 drop policy if exists proposte_insert on public.proposte_pagamento;
@@ -2220,8 +2237,8 @@ create or replace function public.genera_codice_telegram()
 returns text language plpgsql volatile security definer set search_path = public as $$
 declare v_codice text;
 begin
-  if not public.accede_a('direttore') then
-    raise exception 'Non autorizzato: serve l''accesso alla sezione Direttore.';
+  if not public.puo_modificare('direttore') then
+    raise exception 'Non autorizzato: serve l''accesso in modifica alla sezione Direttore.';
   end if;
   v_codice := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 8));
   insert into public.telegram_collegamenti (utente_id, codice, codice_scade)
@@ -2373,8 +2390,8 @@ declare
   v_codice text := '';
   i integer;
 begin
-  if not public.accede_a('direttore') then
-    raise exception 'Non autorizzato: serve l''accesso alla sezione Direttore.';
+  if not public.puo_modificare('direttore') then
+    raise exception 'Non autorizzato: serve l''accesso in modifica alla sezione Direttore.';
   end if;
   for i in 0..9 loop
     v_codice := v_codice || substr(v_alfabeto, (get_byte(v_byte, i) % 32) + 1, 1);
@@ -2412,3 +2429,49 @@ create trigger telegram_aggiornamenti_pulizia after insert on public.telegram_ag
 -- null = nessuna scadenza (i link creati prima restano così finché non si
 -- cambiano). Dal giorno dopo la data il link non apre più il conto.
 alter table public.centri_costo add column if not exists link_scade_il date;
+
+-- ============================================================
+--  SOLA VISUALIZZAZIONE (patch-2026-11-27-sola-lettura.sql)
+--  Il ruolo di sezione 'lettore' vede tutto e non scrive nulla: tre
+--  policy RESTRICTIVE per tabella, in AND con quelle di scrittura.
+-- ============================================================
+-- ---------- 3. Rete restrictive su tutte le tabelle di sezione ----------
+do $$
+declare
+  r record;
+  v_cond text;
+begin
+  for r in
+    select * from (values
+      ('fatture', 'scadenziario'), ('pagamenti', 'scadenziario'),
+      ('ritenute_versamenti', 'scadenziario'), ('note_credito', 'scadenziario'),
+      ('note_credito_righe', 'scadenziario'), ('proposte_pagamento', 'scadenziario'),
+      ('impostazioni', 'scadenziario'), ('fatture_attive', 'scadenziario'),
+      ('incassi', 'scadenziario'), ('note_credito_attive', 'scadenziario'),
+      ('note_credito_attive_righe', 'scadenziario'),
+      ('preventivi', 'trasporti'), ('impostazioni_trasferte', 'trasporti'),
+      ('preventivi_assistenze', 'assistenze'), ('impostazioni_assistenze', 'assistenze'),
+      ('clienti_assistenze', 'assistenze'),
+      ('preventivi_formazione', 'formazione'), ('clienti_formazione', 'formazione'),
+      ('impostazioni_formazione', 'formazione'), ('corsi_formazione', 'formazione'),
+      ('dati_fatturazione', null),
+      ('dipendenti_straordinari', 'straordinari'), ('straordinari', 'straordinari'),
+      ('impostazioni_straordinari', 'straordinari'),
+      ('impegni_direttore', 'direttore'), ('idee_direttore', 'direttore'),
+      ('centri_costo', 'analisi'), ('movimenti_analisi', 'analisi'),
+      ('scadenze', 'scadenze'),
+      ('richieste_patenti', 'patenti')
+    ) as t(tabella, sezione)
+  loop
+    if to_regclass('public.' || r.tabella) is null then continue; end if;
+    -- dati_fatturazione è condivisa: la sezione sta nella colonna della riga.
+    v_cond := case when r.sezione is null then 'public.non_lettore(sezione)'
+                   else format('public.non_lettore(%L)', r.sezione) end;
+    execute format('drop policy if exists sola_lettura_ins on public.%I', r.tabella);
+    execute format('drop policy if exists sola_lettura_upd on public.%I', r.tabella);
+    execute format('drop policy if exists sola_lettura_del on public.%I', r.tabella);
+    execute format('create policy sola_lettura_ins on public.%I as restrictive for insert to authenticated with check (%s)', r.tabella, v_cond);
+    execute format('create policy sola_lettura_upd on public.%I as restrictive for update to authenticated using (%s) with check (%s)', r.tabella, v_cond, v_cond);
+    execute format('create policy sola_lettura_del on public.%I as restrictive for delete to authenticated using (%s)', r.tabella, v_cond);
+  end loop;
+end $$;

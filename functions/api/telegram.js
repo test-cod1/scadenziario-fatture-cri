@@ -56,10 +56,15 @@ export async function onRequestPost(context) {
   const utente = async (id) => {
     const [profili, aut] = await Promise.all([
       db(`profili?select=id,email,nome,ruolo,deve_cambiare_password&id=eq.${id}`),
-      db(`autorizzazioni?select=utente_id,sezione&utente_id=eq.${id}`),
+      db(`autorizzazioni?select=utente_id,sezione,ruolo&utente_id=eq.${id}`),
     ]);
     const profilo = profili[0];
-    return { profilo, accede: accessiDi(profilo, aut).has('direttore') };
+    const accede = accessiDi(profilo, aut).has('direttore');
+    // Sola visualizzazione (patch-2026-11-27-sola-lettura.sql): legge le idee
+    // ma non ne aggiunge.
+    const lettore = profilo?.ruolo !== 'super_admin'
+      && aut.some(a => a.sezione === 'direttore' && a.ruolo === 'lettore');
+    return { profilo, accede, scrive: accede && !lettore };
   };
 
   try {
@@ -73,8 +78,8 @@ export async function onRequestPost(context) {
       const righe = await db(`telegram_collegamenti?select=utente_id,codice_scade&codice=eq.${msg.codice}`);
       const r = righe[0];
       if (!r || !r.codice_scade || new Date(r.codice_scade) < new Date()) return rispondi(TESTI.codiceNonValido);
-      const { profilo, accede } = await utente(r.utente_id);
-      if (!accede) return rispondi(TESTI.senzaAccesso);
+      const { profilo, accede, scrive } = await utente(r.utente_id);
+      if (!scrive) return rispondi(accede ? TESTI.solaLettura : TESTI.senzaAccesso);
       // Una chat appartiene a una persona sola: se era collegata a un altro
       // utente, quel collegamento si scioglie.
       await db(`telegram_collegamenti?chat_id=eq.${msg.chatId}&utente_id=neq.${r.utente_id}`, { method: 'DELETE' });
@@ -94,13 +99,15 @@ export async function onRequestPost(context) {
       return rispondi(TESTI.scollegato);
     }
 
-    const { profilo, accede } = await utente(utenteId);
+    const { profilo, accede, scrive } = await utente(utenteId);
     if (!accede) return rispondi(TESTI.senzaAccesso);
 
     if (msg.tipo === 'idee') {
       const ultime = await db('idee_direttore?select=testo,stato,autore_nome,created_at&order=created_at.desc&limit=5');
       return rispondi(testoUltimeIdee(ultime));
     }
+
+    if (!scrive) return rispondi(TESTI.solaLettura);
 
     // Telegram rimanda lo stesso aggiornamento se la nostra risposta tarda o
     // si perde: senza questo controllo l'idea si salvava due volte.

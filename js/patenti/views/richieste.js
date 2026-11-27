@@ -100,10 +100,10 @@ export async function renderRichieste(view, ctx) {
         Patente ${r.patente}<div class="hint">${r.tipo === 'rinnovo' ? 'visita medica di conferma' : esc(PERCORSI[r.percorso]?.etichetta || '')}</div></td>
       <td>${!mancanti.length ? '<span class="chip">✓ tutti caricati</span>'
         : `<span class="chip red">🆘 serve supporto</span><div class="hint" style="margin-top:4px">Mancano: ${mancanti.map(d => esc(d.breve)).join(', ')}</div>`}</td>
-      <td><select aria-label="Stato della richiesta">${STATI.map(([v, l]) => `<option value="${v}" ${r.stato === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></td>
+      <td><select aria-label="Stato della richiesta"${ctx.solaLettura ? ' disabled' : ''}>${STATI.map(([v, l]) => `<option value="${v}" ${r.stato === v ? 'selected' : ''}>${esc(l)}</option>`).join('')}</select></td>
       <td style="max-width:260px">${r.note ? esc(r.note) : '<span class="hint">—</span>'}</td>
       <td style="white-space:nowrap;text-align:right">
-        <button class="btn ghost sm" data-note title="Scrivi una nota" aria-label="Scrivi una nota">✏️</button>
+        <button class="btn ghost sm" data-note data-scrive title="Scrivi una nota" aria-label="Scrivi una nota">✏️</button>
         ${admin ? '<button class="btn ghost sm" data-elimina title="Elimina" aria-label="Elimina la richiesta">🗑️</button>' : ''}
       </td></tr>`);
 
